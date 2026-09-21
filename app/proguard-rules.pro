@@ -1,0 +1,6 @@
+-keep class com.cuadrepinar.inventario.data.local.entity.** { *; }
+-keep class com.cuadrepinar.inventario.domain.model.** { *; }
+-dontwarn javax.annotation.**
+-keepattributes *Annotation*
+-keep class dagger.hilt.** { *; }
+-keep class androidx.work.** { *; }
