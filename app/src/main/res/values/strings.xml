@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Cuadre Pinar</string>
+    <string name="biometric_title">Confirmar identidad</string>
+    <string name="biometric_subtitle">Usa huella o reconocimiento facial para entrar</string>
+    <string name="channel_alerts">Alertas de inventario</string>
+    <string name="channel_backup">Copias de seguridad</string>
+</resources>

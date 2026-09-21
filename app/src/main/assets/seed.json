@@ -1,0 +1,1492 @@
+{
+  "products": [
+    {
+      "name": "BOLSA DE CEMENTO BLANCO",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 2.86,
+      "comisionCup": 100.0
+    },
+    {
+      "name": "BATERIA 5120W SACO",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 1100.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "BATERIA SACO 7680W",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 1400.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "BATERIA DE 15360W SACO",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "BATERIA EXTRA 16K SACO",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 1300.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "BASE PARA PANELES GRANDES",
+      "stockInicial": 10.0,
+      "precioVentaUsd": 100.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "BASE PARA PANELES",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 50.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "BASE FIJA PARA TV 32'' - 86''",
+      "stockInicial": 10.0,
+      "precioVentaUsd": 20.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "BASE GIRATORIA",
+      "stockInicial": 8.0,
+      "precioVentaUsd": 25.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "BATERIA 16K SACO",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 2500.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "BREKE 63A SENCILLO",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 20.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "BATERIA MUST 10.25 KW",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 2050.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "BREKE 63A DOBLE TIR",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "BREKE 32A DOBLE",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "BOCINA BOOM 8  PULGADAS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 35.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "BOCINA MILEXUS 8  PULGADAS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 85.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "BOCINA MILEXUS 8 DUAL",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 190.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "BOMBA DE AGUA SILVER POINT  1 HP",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 60.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "BOMBA DE AGUA SILVER POINT  1X1/2",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 40.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "BICICLETA INFANTIL",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 130.0,
+      "comisionCup": 2000.0
+    },
+    {
+      "name": "BICICLETA",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 180.0,
+      "comisionCup": 2000.0
+    },
+    {
+      "name": "CONECTORES MC4",
+      "stockInicial": 4.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "CAJITA DECODIFICADORA VIVAMAX",
+      "stockInicial": 5.0,
+      "precioVentaUsd": 40.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "CAJA DE DISTRIBUCION DE VIAS 12 VIAS",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "COLCHON PERSONAL",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 160.0,
+      "comisionCup": 1500.0
+    },
+    {
+      "name": "COLCHON EKO",
+      "stockInicial": 4.0,
+      "precioVentaUsd": 180.0,
+      "comisionCup": 1500.0
+    },
+    {
+      "name": "CAJAS DE AZULEJOS 44X44 2.5 M",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 36.41,
+      "comisionCup": 1250.0
+    },
+    {
+      "name": "CAFETERA  3 TASAS",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 12.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "CAFETERA DE INDUCCION 6 TASAS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 15.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "CAFETERA ELECTRICA RUDENKOV",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 40.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "CALENTADOR 80 L",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 210.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "CALENTADOR 50 L",
+      "stockInicial": 6.0,
+      "precioVentaUsd": 180.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "DISPENSSDOR DE AGUA ROYAL",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 160.0,
+      "comisionCup": 2000.0
+    },
+    {
+      "name": "ESTACION ENERGIA 6000 W",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 760.0,
+      "comisionCup": 17800.0
+    },
+    {
+      "name": "ESTACION ENERGIA PECRON",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 1100.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "ESTACION ENERGIA ECOFLOW DELTA 2",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 800.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "ESTACION ENERGIA ECOFLOW DELTA 3",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 820.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "ESTACION MUST 6000 W",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "ESTACION MUST 2K CON 2.7K",
+      "stockInicial": 5.0,
+      "precioVentaUsd": 1130.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "ESCRITORIO",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 230.0,
+      "comisionCup": 2000.0
+    },
+    {
+      "name": "ESTACION ECOFLOW DELTA 2 1800W",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 800.0,
+      "comisionCup": 5500.0
+    },
+    {
+      "name": "KIT DE INSTALACION",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 120.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "EXHIBIDOR HORIZONTAL 13P",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 650.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "EXHIBIDOR VERTICAL 12P",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 600.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "EXHIBIDOR MILEXUS 390 L 14PIES",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 630.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "EXHIBIDOR DOBLE MILEXUS 560 LITROS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 1120.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "EQUIPO DE MUSICA LG",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 180.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "FOGON DE PETROLEO",
+      "stockInicial": 5.0,
+      "precioVentaUsd": 35.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "FOGON DE GAS DE CRISTAL",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 45.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "FOGON DE GAS SENCILLO",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 20.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "FOGON DE GAS 2 QUEMADORES",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 40.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "FOGON DE GAS 3 QUEMADORES",
+      "stockInicial": 10.0,
+      "precioVentaUsd": 35.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "FOGON INFRARROJO MILEXUS 1200 W",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 50.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "FOGON INFRARROJO MAF 2000 W",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 45.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "FOGON INFRARROJO ROYAL 1500 W",
+      "stockInicial": 10.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "FOGON INFRARROJO EKO 1500 W",
+      "stockInicial": 5.0,
+      "precioVentaUsd": 50.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "FILTRO DE AGUA",
+      "stockInicial": 10.0,
+      "precioVentaUsd": 50.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "FREIDORA DE AIRE JMD 4 L",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 55.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "FREIDORA DE AIRE MILEXUS NEGRA 5.7L",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 65.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "INVERSOR 3.6K YINGI",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 550.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "INVERSOR DE 10 K SUNPAL",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "INVERSOR 12K MUST",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 2200.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "INVERSOR MUST 3000 W",
+      "stockInicial": 7.0,
+      "precioVentaUsd": 650.0,
+      "comisionCup": 15000.0
+    },
+    {
+      "name": "INVERSOR 6000W MUST",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 650.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "LAMPARA RECARGABLE DE 50 CM",
+      "stockInicial": 4.0,
+      "precioVentaUsd": 10.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "LAMPARA SOLAR 800W",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 130.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "LAMPARA SOLAR 1000W",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 140.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "LAMPARA DE 100W CON PANEL",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 45.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "LAMPARA DE 360 W CON PANEL INTEGRADO",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 125.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "LAMPARA DE 300 W CON PANEL INTEGRADO",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 120.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "LAMPARA DE 200 W CON PANEL INDEPENDIENTE",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 90.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "LAMPARA DE 300 W CON PANEL INDEPENDIENTE",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 95.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "LAVADORA SECADORA AUTOMÁTICA MILEXUS 10 KG",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 650.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "LAVADORA PREMIER AUTOMÁTICA 11 KG",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 380.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "LAVADORA SANKEY 7 KG SEMI",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 170.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "LAVADORA 7 KG MILEXUS SEMI.",
+      "stockInicial": 12.0,
+      "precioVentaUsd": 170.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "LAVADORA 10 KG AUTOMATICA SANKEY",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 265.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "LAVADORA 7.5 AUTOMA MILEXUS",
+      "stockInicial": 6.0,
+      "precioVentaUsd": 225.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "LAVADORA 8.6 KG JMT SEMI",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 180.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "LAVADORA 9 KG MILEXUS SEMI",
+      "stockInicial": 6.0,
+      "precioVentaUsd": 235.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "LAVADORA 9 KG SAMSUNG AUTOMATICA",
+      "stockInicial": 6.0,
+      "precioVentaUsd": 190.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "LICUADORA MILEXUS 3000W PLASTICA 2 EN 1",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 35.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "LICUADORA MILEXUS 400 W CRISTAL",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 40.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "LICUADORA MILEXUS 550W CRISTAL",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 40.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "LUZ LED EXTERIORES 100 W",
+      "stockInicial": 10.0,
+      "precioVentaUsd": 65.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "LUZ LED EXTERIORES 200 W",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 80.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "LUCES SOLARES PEQUEÑAS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 20.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "MICROONDAS 20 L MILEXUS",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 95.0,
+      "comisionCup": 2000.0
+    },
+    {
+      "name": "MICROONDAS 40 L",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 160.0,
+      "comisionCup": 2000.0
+    },
+    {
+      "name": "MICROONDAS 20 L PREMIER",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 120.0,
+      "comisionCup": 2000.0
+    },
+    {
+      "name": "MINIBAR MILEXUS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 200.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "HORNO ELECTRICO EKO 22L",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 100.0,
+      "comisionCup": 2000.0
+    },
+    {
+      "name": "MESCLADORA AMASADORA",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 70.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "NEVERA ROYAL 3.5",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 175.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "NEVERA ROYAL 5.5",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 210.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "NEVERA ROYAL 7.8 220L",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 270.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "NEVERA ROYAL 10 P",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 370.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "NEVERA 11.2 PIES MILEXUS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 370.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "NEVERA 6 PIES MILEXUS 170L",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 230.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "NEVERA MILEXUS 3.5 PIES  100L",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 210.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "NEVERA SANKEY 9 P",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 320.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "NEVERA MILEXUS 4.2",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 190.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "NEVERA  7 PIES MILEXUS 200L",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 255.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "NEVERA MILEXUS 11.2 PIES",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 640.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "NEVERA 17 PIES  ROYAL",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 670.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "NEVERA 20 PIES  MILEXUS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 760.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "NEVERA 8.8 PIES  MILEXUS 250 L",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 40.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "HIDROLAVADORA ROYAL",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 150.0,
+      "comisionCup": 2000.0
+    },
+    {
+      "name": "OLLA ARROCERA 2.2 L MILEXUS",
+      "stockInicial": 7.0,
+      "precioVentaUsd": 45.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "OLLA ARROCERA 1.8 L EKO",
+      "stockInicial": 12.0,
+      "precioVentaUsd": 40.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "OLLA ARROCERA 1.8 L WYNWOOD",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 45.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "OLLA ARROCERA 1.8 L ELECSTAR",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 40.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "OLLA ARROCERA 0.6 L MILEXUS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 30.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "OLLA DE PRESION 5 L INDUCCION BRYDERK",
+      "stockInicial": 5.0,
+      "precioVentaUsd": 40.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "OLLA DE PRESION 7 L ELECSTAR",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 45.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "OLLA REINA 7 L REYAN",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 60.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "OLLA REINA CHALLENGER 7L",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 65.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "OLLA REINA 6 L MILEXUS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 65.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "OLLA REINA WYNWOOD",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 60.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "OLLA REINA EON 6L",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 65.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "JUEGO CALDERO EON",
+      "stockInicial": 7.0,
+      "precioVentaUsd": 50.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "JUEGO DE MESA Y SILLAS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 280.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "JUEGO DE VAJILLAS",
+      "stockInicial": 20.0,
+      "precioVentaUsd": 30.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "JUEGO DE BAÑO",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 125.0,
+      "comisionCup": 2000.0
+    },
+    {
+      "name": "PUERTA PLEGABLE",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 60.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "PRESURIZADOR",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 60.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "PROTECTOR DE VOLTAJE",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 20.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "PANELES 490 W",
+      "stockInicial": 11.0,
+      "precioVentaUsd": 180.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "PANELES 615 W",
+      "stockInicial": 87.0,
+      "precioVentaUsd": 180.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "PANELES 600 W JMD",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 130.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "PANELES 500 W",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 180.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "PANELES 585 W",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 170.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "PRESURIZADOR",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 60.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "ROLLO DE CABLE",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 3.0,
+      "comisionCup": 66.67
+    },
+    {
+      "name": "ROLLO DE CABLE ROYAL CORD",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 2.0,
+      "comisionCup": 50.0
+    },
+    {
+      "name": "REFRIGERADOR 7 PIES HISENSE",
+      "stockInicial": 9.0,
+      "precioVentaUsd": 340.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "REFRIGERADOR 7 PIES ROYAL",
+      "stockInicial": 5.0,
+      "precioVentaUsd": 350.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "REFRIGERADOR 11.9 PIES EKO",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 535.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "REF",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 100.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "REFRIGERADOR 10.5 PIES ENERLIFE",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 550.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "REFRIGERADOR 15.2 PIES MILEXUS",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 800.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "REFRIGERADOR 11 PIES ROYAL DISPENSADOR",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 550.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "REFRIGERADOR MILEXUS 16 PIES",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 400.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "REFRIGERADOR 15 PIES ROYAL",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 720.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "SET DE INSTALACION",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 18.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "SISTEMA FELICITY SOLAR 6 K CON 15K",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 3150.0,
+      "comisionCup": 8000.0
+    },
+    {
+      "name": "SISTEMA INFINITY 6 K CON 14",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 3150.0,
+      "comisionCup": 5000.0
+    },
+    {
+      "name": "SANDWICHERA",
+      "stockInicial": 4.0,
+      "precioVentaUsd": 35.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "SECADORA A VAPOR EKO",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 300.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "SPLIT 2 T 220V MILEXUS",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 530.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "SUPRESOR AC",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "SUPRESOR DC",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "SPLIT MILEXUS 1 T 110 VOLT",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 280.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "SPLIT MILEXUS 1 T 220 VOLT",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 260.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "SPLIT 1 T MILEXUS INVERTER",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 300.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "SILLA GIRATORIA",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 100.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "SPLIT 1 T MILEXUS 220 V INVERTER",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 300.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "TV ROYAL 65",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 425.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "TV HISENSE 55",
+      "stockInicial": 6.0,
+      "precioVentaUsd": 430.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "TRANSFER 220V",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 70.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "TV 43\" HISENSE",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 260.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "TV 43\" MILEXUS",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 255.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "TV 50 SANKEY",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 360.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "MAQUINA DE FRIO",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 80.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "TV 32\" MILEXUS",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 165.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "TV SANKEY 40",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 250.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "TV 32\" SANKEY",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 175.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "TUBO DE LUZ LED INTEGRAL T8 SACO",
+      "stockInicial": 17.0,
+      "precioVentaUsd": 5.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "TANQUE GASOLINA 20L",
+      "stockInicial": 8.0,
+      "precioVentaUsd": 20.0,
+      "comisionCup": 500.0
+    },
+    {
+      "name": "VENTILADOR DE PEDESTAL SILVERAIR",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 35.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "VENTILADOR DE PARED SILVERAIR",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 50.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "VENTILADOR DE PARED RECARGABLE",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 65.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "VENTILADOR DE PARED EKO",
+      "stockInicial": 2.0,
+      "precioVentaUsd": 50.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "VENTILADOR INDUSTRIAL 30",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 140.0,
+      "comisionCup": 3000.0
+    },
+    {
+      "name": "VENTILADOR RECARGABLE CHIQUITO DE 20000 MAH F6",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 55.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "VENTILADOR RECARGABLE  SANKEY",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 70.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "VENTILADOR RECARGABLE CON PANEL , MARCA FERRE",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 90.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "VENTILADOR RECARGABLE CON PANEL y LAMPARA",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 90.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "VENTILADOR DE PEDESTAL EKO 18",
+      "stockInicial": 3.0,
+      "precioVentaUsd": 40.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "VENTILADOR DE PEDESTAL EKO 16",
+      "stockInicial": 4.0,
+      "precioVentaUsd": 45.0,
+      "comisionCup": 1000.0
+    },
+    {
+      "name": "VENTILADOR DE TECHO ROYAL 56",
+      "stockInicial": 0.0,
+      "precioVentaUsd": 50.0,
+      "comisionCup": 2000.0
+    },
+    {
+      "name": "VITRINA SANKEY 8P",
+      "stockInicial": 1.0,
+      "precioVentaUsd": 500.0,
+      "comisionCup": 4000.0
+    },
+    {
+      "name": "RIEL",
+      "stockInicial": 19.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "CONECTOR DE RIEL",
+      "stockInicial": 12.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "EXPANCIONADORES",
+      "stockInicial": 200.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "PLATINAS",
+      "stockInicial": 9.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "SUJETADOR EXTERIOR",
+      "stockInicial": 36.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "GANCHO TIERRA",
+      "stockInicial": 9.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "PATAS TRASERAS AJUSTABLES",
+      "stockInicial": 57.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "PATAS DELANTERA AJUSTABLE",
+      "stockInicial": 56.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    },
+    {
+      "name": "SUJETADOR INTERMEDIO",
+      "stockInicial": 38.0,
+      "precioVentaUsd": 0.0,
+      "comisionCup": 0.0
+    }
+  ],
+  "movements": [
+    {
+      "date": "2026-09-14",
+      "weekday": "lunes",
+      "product": "SISTEMA FELICITY SOLAR 6 K CON 15K",
+      "type": "VENTA",
+      "quantity": 1.0,
+      "center": "GESTOR"
+    },
+    {
+      "date": "2026-09-14",
+      "weekday": "lunes",
+      "product": "PANELES 615 W",
+      "type": "VENTA",
+      "quantity": 18.0,
+      "center": "GESTOR"
+    },
+    {
+      "date": "2026-09-14",
+      "weekday": "lunes",
+      "product": "NEVERA SANKEY 9 P",
+      "type": "VENTA",
+      "quantity": 1.0,
+      "center": "GESTOR"
+    },
+    {
+      "date": "2026-09-14",
+      "weekday": "lunes",
+      "product": "LAVADORA 7 KG MILEXUS SEMI.",
+      "type": "VENTA",
+      "quantity": 2.0,
+      "center": "GESTOR"
+    },
+    {
+      "date": "2026-09-14",
+      "weekday": "lunes",
+      "product": "BATERIA MUST 10.25 KW",
+      "type": "VENTA",
+      "quantity": 1.0,
+      "center": "TIENDA"
+    },
+    {
+      "date": "2026-09-14",
+      "weekday": "lunes",
+      "product": "PANELES 585 W",
+      "type": "VENTA",
+      "quantity": 1.0,
+      "center": "GESTOR"
+    },
+    {
+      "date": "2026-09-14",
+      "weekday": "lunes",
+      "product": "PANELES 490 W",
+      "type": "VENTA",
+      "quantity": 1.0,
+      "center": "TIENDA"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "BASE PARA PANELES GRANDES",
+      "type": "VENTA",
+      "quantity": 1.0,
+      "center": "GESTOR"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "RIEL",
+      "type": "SALIDA",
+      "quantity": 2.0,
+      "center": "MOV"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "EXPANCIONADORES",
+      "type": "SALIDA",
+      "quantity": 12.0,
+      "center": "MOV"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "PLATINAS",
+      "type": "SALIDA",
+      "quantity": 1.0,
+      "center": "MOV"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "SUJETADOR EXTERIOR",
+      "type": "SALIDA",
+      "quantity": 4.0,
+      "center": "MOV"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "GANCHO TIERRA",
+      "type": "SALIDA",
+      "quantity": 1.0,
+      "center": "MOV"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "PATAS TRASERAS AJUSTABLES",
+      "type": "SALIDA",
+      "quantity": 3.0,
+      "center": "MOV"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "PATAS DELANTERA AJUSTABLE",
+      "type": "SALIDA",
+      "quantity": 3.0,
+      "center": "MOV"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "SUJETADOR INTERMEDIO",
+      "type": "SALIDA",
+      "quantity": 2.0,
+      "center": "MOV"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "LAVADORA 7.5 AUTOMA MILEXUS",
+      "type": "VENTA",
+      "quantity": 1.0,
+      "center": "GESTOR"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "TV HISENSE 55",
+      "type": "VENTA",
+      "quantity": 1.0,
+      "center": "GESTOR"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "CAJITA DECODIFICADORA VIVAMAX",
+      "type": "VENTA",
+      "quantity": 1.0,
+      "center": "TIENDA"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "BASE FIJA PARA TV 32'' - 86''",
+      "type": "VENTA",
+      "quantity": 1.0,
+      "center": "TIENDA"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "PANELES 615 W",
+      "type": "VENTA",
+      "quantity": 5.0,
+      "center": "GESTOR"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "PANELES 490 W",
+      "type": "VENTA",
+      "quantity": 2.0,
+      "center": "GESTOR"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "BATERIA SACO 7680W",
+      "type": "SALIDA",
+      "quantity": 1.0,
+      "center": "MOV"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "ESTACION MUST 2K CON 2.7K",
+      "type": "SALIDA",
+      "quantity": 1.0,
+      "center": "MOV"
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "product": "BATERIA MUST 10.25 KW",
+      "type": "ENTRADA",
+      "quantity": 1.0,
+      "center": "MOV"
+    }
+  ],
+  "cuadres": [
+    {
+      "date": "2026-09-14",
+      "weekday": "lunes",
+      "cupUsd": 540,
+      "mxnUsd": 20,
+      "cobroUsd": 4710,
+      "cobroZelle": 360,
+      "cobroMxn": null,
+      "cobroCupEfectivo": 1252800,
+      "cobroCupTransf": null,
+      "cobroEuropa": null,
+      "entradaCup": null,
+      "entradaUsd": null,
+      "extraccionCup": null,
+      "extraccionUsd": 2050,
+      "fondoInicialCup": 100000,
+      "fondoInicialUsd": 150,
+      "cambioCup": null,
+      "domicilioCup": 11000,
+      "otrosGastosCup": 2000,
+      "otrosGastosObs": "CUSTODIO",
+      "comisionesCup": 42000
+    },
+    {
+      "date": "2026-09-15",
+      "weekday": "martes",
+      "cupUsd": 550,
+      "mxnUsd": 20,
+      "cobroUsd": 1990,
+      "cobroZelle": null,
+      "cobroMxn": null,
+      "cobroCupEfectivo": 35750,
+      "cobroCupTransf": null,
+      "cobroEuropa": null,
+      "entradaCup": null,
+      "entradaUsd": null,
+      "extraccionCup": null,
+      "extraccionUsd": null,
+      "fondoInicialCup": "CUP EFECTIVO",
+      "fondoInicialUsd": "TARJETA CUP",
+      "cambioCup": null,
+      "domicilioCup": 45000,
+      "otrosGastosCup": null,
+      "otrosGastosObs": null,
+      "comisionesCup": 5000
+    },
+    {
+      "date": "2026-09-16",
+      "weekday": "miercoles",
+      "cupUsd": 540,
+      "mxnUsd": 20,
+      "cobroUsd": 4710,
+      "cobroZelle": 380,
+      "cobroMxn": null,
+      "cobroCupEfectivo": 1252800,
+      "cobroCupTransf": null,
+      "cobroEuropa": null,
+      "entradaCup": null,
+      "entradaUsd": 20,
+      "extraccionCup": null,
+      "extraccionUsd": 2050,
+      "fondoInicialCup": 100000,
+      "fondoInicialUsd": 150,
+      "cambioCup": null,
+      "domicilioCup": null,
+      "otrosGastosCup": null,
+      "otrosGastosObs": null,
+      "comisionesCup": null
+    },
+    {
+      "date": "2026-09-17",
+      "weekday": "jueves",
+      "cupUsd": 540,
+      "mxnUsd": 20,
+      "cobroUsd": 4710,
+      "cobroZelle": 380,
+      "cobroMxn": null,
+      "cobroCupEfectivo": 1252800,
+      "cobroCupTransf": null,
+      "cobroEuropa": null,
+      "entradaCup": null,
+      "entradaUsd": 20,
+      "extraccionCup": null,
+      "extraccionUsd": 2050,
+      "fondoInicialCup": 100000,
+      "fondoInicialUsd": 150,
+      "cambioCup": null,
+      "domicilioCup": null,
+      "otrosGastosCup": null,
+      "otrosGastosObs": null,
+      "comisionesCup": null
+    },
+    {
+      "date": "2026-09-18",
+      "weekday": "viernes",
+      "cupUsd": 540,
+      "mxnUsd": 20,
+      "cobroUsd": 4710,
+      "cobroZelle": 380,
+      "cobroMxn": null,
+      "cobroCupEfectivo": 1252800,
+      "cobroCupTransf": null,
+      "cobroEuropa": null,
+      "entradaCup": null,
+      "entradaUsd": 20,
+      "extraccionCup": null,
+      "extraccionUsd": 2050,
+      "fondoInicialCup": 100000,
+      "fondoInicialUsd": 150,
+      "cambioCup": null,
+      "domicilioCup": null,
+      "otrosGastosCup": null,
+      "otrosGastosObs": null,
+      "comisionesCup": null
+    },
+    {
+      "date": "2026-09-19",
+      "weekday": "sabado",
+      "cupUsd": 540,
+      "mxnUsd": 20,
+      "cobroUsd": 4710,
+      "cobroZelle": 380,
+      "cobroMxn": null,
+      "cobroCupEfectivo": 1252800,
+      "cobroCupTransf": null,
+      "cobroEuropa": null,
+      "entradaCup": null,
+      "entradaUsd": 20,
+      "extraccionCup": null,
+      "extraccionUsd": 2050,
+      "fondoInicialCup": 100000,
+      "fondoInicialUsd": 150,
+      "cambioCup": null,
+      "domicilioCup": null,
+      "otrosGastosCup": null,
+      "otrosGastosObs": null,
+      "comisionesCup": null
+    }
+  ]
+}
