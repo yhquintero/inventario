@@ -1,4 +1,6 @@
 import { store } from "./store.js";
+import { api } from "./api.js";
+import qrcode from "../vendor/qrcode.mjs";
 import { applyTips, initTooltips, startTour, tourSeen, openPalette, animateCounters } from "./ux.js";
 import {
   addDays, can, CATEGORIES, cup, CURRENCIES, cuadreCalc, formatDate, inRange, normName, periodRange,
@@ -135,18 +137,25 @@ function loginView() {
           ${ui.recover ? `
             <div class="h2">Recuperar contraseña</div>
             <label>Usuario<input name="username" required autocomplete="username" /></label>
-            ${ui.question ? `<p class="hint">${esc(ui.question)}</p><label>Respuesta<input name="answer" required /></label><label>Nueva contraseña<input name="newpass" type="password" required /></label>` : ""}
+            ${ui.question ? `<p class="hint">${esc(ui.question)}</p><label>Respuesta<input name="answer" required /></label><label>Nueva contraseña<input name="newpass" type="password" required autocomplete="new-password" /></label>
+              ${ui.recNeed2fa ? `<label>Código de verificación (app autenticadora)<input name="code" inputmode="numeric" autocomplete="one-time-code" required /></label>` : ""}` : ""}
             <button class="btn full" style="margin-top:16px">${ui.question ? "Restablecer" : "Buscar pregunta"}</button>
             <button type="button" class="btn ghost full" data-act="back-login" style="margin-top:8px">Volver</button>
+          ` : ui.pending2fa ? `
+            <div class="h2">Verificación en dos pasos</div>
+            <p class="hint">Escribe el código de 6 dígitos de tu app autenticadora (Google Authenticator, Authy…) o uno de tus códigos de recuperación.</p>
+            <label>Código<input name="code" id="code2fa" inputmode="numeric" autocomplete="one-time-code" required autofocus /></label>
+            <button class="btn full" style="margin-top:16px">Verificar</button>
+            <button type="button" class="btn ghost full" data-act="back-login" style="margin-top:8px">Cancelar</button>
           ` : `
             <div class="h2">Entrar a la tienda</div>
             <label>Usuario<input name="username" required autocomplete="username" /></label>
             <label>Contraseña<input name="password" type="password" required autocomplete="current-password" /></label>
             <button class="btn full" style="margin-top:16px">Entrar</button>
-            ${store.biometricUserId() ? `<button type="button" class="btn ghost full" data-act="bio" style="margin-top:8px">Entrar con huella / Face ID</button>` : ""}
             <button type="button" class="btn ghost full" data-act="recover" style="margin-top:8px">Olvidé mi contraseña</button>
           `}
-          <div id="loginErr"></div>
+          <div id="loginErr">${ui.loginErr ? `<div class="error">${esc(ui.loginErr)}</div>` : ""}</div>
+          <p class="hint secure-note">🔒 Conexión ${location.protocol === "https:" ? "cifrada (HTTPS)" : "sin cifrar — usa HTTPS en producción"} · datos en el servidor</p>
           <div class="demo">
             <strong>Cuentas de demostración</strong><br>
             admin / <code>Admin123!</code> · jefe / <code>Jefe123!</code><br>
@@ -357,7 +366,9 @@ function cuadreView() {
   const c = store.cuadreFor(date);
   const dayMovs = store.activeMovements().filter((m) => m.date === date);
   const t = cuadreCalc(c, dayMovs);
-  const canEdit = allowed("CUADRE_EDIT");
+  const closed = store.closedDays.find((x) => x.date === date);
+  const canEdit = allowed("CUADRE_EDIT") && !closed;
+  const canClose = ["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role());
   const f = (name, label, unit = "CUP") => `<label>${label} <small>${unit}</small><input name="${name}" type="number" step="any" value="${c[name] || 0}" ${canEdit ? "" : "readonly"}></label>`;
   const line = (l, v, cls = "") => `<div class="cline ${cls}"><span>${l}</span><b class="mono">${usd(v)}</b></div>`;
   const dates = store.state.cuadres.map((x) => x.date).sort().reverse();
@@ -369,8 +380,10 @@ function cuadreView() {
         <button class="btn ghost small" data-cdate="${addDays(date, 1)}">›</button>
         <span class="hint">${weekday(date)} ${formatDate(date)} ${c.imported ? "· importado del Excel" : ""}</span>
       </div>
-      <div class="row">${c.id && canEdit ? `<button class="btn ghost small danger-t" data-act="del-cuadre" data-id="${c.id}">Eliminar cuadre</button>` : ""}<button class="btn gold small" data-act="print">Imprimir / PDF</button></div>
+      <div class="row">${closed ? (role() === "ADMINISTRADOR" ? `<button class="btn ghost small" data-act="reopen-day" data-date="${date}">🔓 Reabrir día</button>` : "")
+        : canClose ? `<button class="btn small" data-act="close-day" data-date="${date}" data-tip="Bloquea movimientos y cuadre de este día para todos">🔒 Cerrar día</button>` : ""}${c.id && canEdit ? `<button class="btn ghost small danger-t" data-act="del-cuadre" data-id="${c.id}">Eliminar cuadre</button>` : ""}<button class="btn gold small" data-act="print">Imprimir / PDF</button></div>
     </div>
+    ${closed ? `<div class="banner closed">🔒 <b>Día cerrado</b> por ${esc(closed.closed_by)} el ${new Date(closed.closed_at * 1000).toLocaleString("es-CU")}${closed.note ? ` · «${esc(closed.note)}»` : ""}. Movimientos y cuadre son de solo lectura.</div>` : ""}
     <div class="kpis">
       ${kpi("VENTA", usd(t.venta), t.fromMovs ? `${qty(t.unidades)} uds · de movimientos` : "valor importado", "teal")}
       ${kpi("TOTAL DESPUÉS DE GASTOS", usd(t.despues), `Gastos ${usd(t.totalGastos)}`, "blue")}
@@ -414,7 +427,7 @@ function cuadreView() {
         <div class="k" style="margin-top:16px">Ventas del día</div>
         ${dayMovs.filter((m) => m.type === "VENTA").map((m) => `<div class="cline"><span>${qty(m.quantity)} × ${esc(m.productName)}</span><b class="mono">${usd(m.importeUsd)}</b></div>`).join("") || "<p class='hint'>Sin ventas registradas.</p>"}
         <div class="k" style="margin-top:16px">Días con cuadre</div>
-        <div class="chips">${dates.slice(0, 14).map((d) => `<button class="chip ${d === date ? "on" : ""}" data-cdate="${d}">${d.slice(8)}/${d.slice(5, 7)}</button>`).join("")}</div>
+        <div class="chips">${dates.slice(0, 14).map((d) => `<button class="chip ${d === date ? "on" : ""}" data-cdate="${d}">${store.isClosed(d) ? "🔒" : ""}${d.slice(8)}/${d.slice(5, 7)}</button>`).join("")}</div>
       </div>
     </div>`;
 }
@@ -610,54 +623,123 @@ function trashView() {
 /* ============================ USUARIOS / AUDITORÍA / COPIAS / AJUSTES ============================ */
 function usersView() {
   const canEdit = ["ADMINISTRADOR", "JEFE"].includes(role());
+  if (!ui.usersLoaded) { ui.usersLoaded = true; store.loadUsers().then(render); }
+  const ago = (t) => (t ? new Date(t * 1000).toLocaleString("es-CU") : "—");
   return `
-    ${canEdit ? `<div class="row" style="margin-bottom:12px"><button class="btn" data-act="new-user">＋ Nuevo usuario</button></div>` : ""}
+    ${canEdit ? `<div class="row" style="margin-bottom:12px"><button class="btn" data-act="new-user">＋ Nuevo usuario</button><span class="hint">Las cuentas se guardan en el servidor (contraseñas con PBKDF2, nunca en el navegador).</span></div>` : ""}
     <div class="card table-wrap flush"><table>
-      <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th>${canEdit ? "<th></th>" : ""}</tr></thead>
-      <tbody>${store.state.users.map((u) => `<tr><td><strong>${esc(u.displayName)}</strong><div class="hint">${esc(u.email || "")}</div></td><td class="mono">${esc(u.username)}</td><td><span class="tag mov">${u.role}</span></td><td>${u.active ? "<span class='tag entrada'>Activo</span>" : "<span class='tag salida'>Inactivo</span>"}</td>
-        ${canEdit ? `<td><button class="btn ghost small" data-toggle-user="${u.id}">${u.active ? "Desactivar" : "Activar"}</button></td>` : ""}</tr>`).join("")}</tbody>
+      <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>2FA</th><th>Último acceso</th><th>Estado</th>${canEdit ? "<th></th>" : ""}</tr></thead>
+      <tbody>${store.state.users.map((u) => `<tr><td><strong>${esc(u.displayName)}</strong><div class="hint">${esc(u.email || "")}</div></td><td class="mono">${esc(u.username)}</td><td><span class="tag mov">${u.role}</span></td>
+        <td>${u.totpEnabled ? "<span class='tag entrada'>Activa</span>" : "<span class='hint'>No</span>"}</td><td class="hint">${ago(u.lastLogin)}</td>
+        <td>${u.active ? "<span class='tag entrada'>Activo</span>" : "<span class='tag salida'>Inactivo</span>"}</td>
+        ${canEdit ? `<td class="row nowrap"><button class="btn ghost small" data-edit-user="${u.id}">Editar</button><button class="btn ghost small" data-toggle-user="${u.id}">${u.active ? "Desactivar" : "Activar"}</button>${u.totpEnabled ? `<button class="btn ghost small" data-reset2fa="${u.id}">Quitar 2FA</button>` : ""}</td>` : ""}</tr>`).join("") || `<tr><td colspan="7" class="hint">Cargando…</td></tr>`}</tbody>
     </table></div>`;
 }
 
 function auditView() {
+  const canSec = ["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role());
+  const tab = ui.auditTab || "app";
+  const tabs = canSec ? `<div class="chips" style="margin-bottom:12px"><button class="chip ${tab === "app" ? "on" : ""}" data-audit-tab="app">Actividad del negocio</button><button class="chip ${tab === "sec" ? "on" : ""}" data-audit-tab="sec">Seguridad (servidor)</button></div>` : "";
+  if (tab === "sec" && canSec) {
+    if (!ui.secLog) { ui.secLog = []; api("/security-log").then((r) => { ui.secLog = r.log || []; render(); }); }
+    const rows = ui.secLog.filter((a) => !ui.q || has(a.action, ui.q) || has(a.user || "", ui.q) || has(a.details || "", ui.q) || has(a.ip || "", ui.q));
+    const bad = (x) => /FAIL|REVOKE|OFF|REOPEN|RESTORE/.test(x);
+    return tabs + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Detalle</th><th>IP</th></tr></thead>
+      <tbody>${rows.map((a) => `<tr><td class="hint">${new Date(a.ts * 1000).toLocaleString("es-CU")}</td><td>${esc(a.user)}</td><td><span class="tag ${bad(a.action) ? "salida" : a.action.startsWith("LOGIN") ? "entrada" : "mov"}">${esc(a.action)}</span></td><td>${hl(a.details || "")}</td><td class="mono hint">${esc(a.ip || "")}</td></tr>`).join("") || "<tr><td colspan=5 class=hint>Sin eventos.</td></tr>"}</tbody></table></div>`;
+  }
   const logs = store.state.audit.filter((a) => !ui.q || has(a.action, ui.q) || has(a.userName || "", ui.q) || has(a.details || "", ui.q) || has(a.entity || "", ui.q));
-  return `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>Detalle</th></tr></thead>
+  return tabs + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>Detalle</th></tr></thead>
     <tbody>${logs.slice(0, 300).map((a) => `<tr><td class="hint">${new Date(a.timestamp).toLocaleString("es-CU")}</td><td>${esc(a.userName || "")}</td><td><span class="tag ${a.action === "TRASH" || a.action === "PURGE" || a.action === "DELETE" ? "salida" : a.action === "CREATE" || a.action === "RESTORE" ? "entrada" : "mov"}">${esc(a.action)}</span></td><td>${esc(a.entity || "")}</td><td>${hl(a.details || "")}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function backupView() {
+  const isAdmin = role() === "ADMINISTRADOR";
+  if (!ui.backups) { ui.backups = { list: [] }; api("/backups").then((r) => { ui.backups = { list: r.backups || [], keep: r.keep, hour: r.hour }; render(); }); }
+  const b = ui.backups;
+  const kb = (n) => (n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.ceil(n / 1024) + " KB");
   return `
     <div class="card">
-      <p>Copia completa en JSON: productos, movimientos, papelera, cuadres, informes, historial de precios y monedas, usuarios y auditoría.</p>
+      <div class="card-h"><span class="k">Copias automáticas cifradas en el servidor</span></div>
+      <p>Cada día a las <b>${b.hour ?? 2}:00</b> el servidor guarda una copia <b>comprimida y cifrada (AES/Fernet)</b> de todos los datos, usuarios y días cerrados. Se conservan las últimas <b>${b.keep ?? 30}</b>. Antes de cada restauración se crea otra copia de seguridad.</p>
       <div class="row">
-        <button class="btn" data-act="do-backup">Descargar copia</button>
-        <label class="btn ghost">Restaurar<input type="file" id="restoreFile" accept="application/json" hidden></label>
-        <button class="btn danger" data-act="reset">Recargar desde el Excel</button>
+        <button class="btn" data-act="srv-backup">Crear copia ahora</button>
+        <button class="btn ghost" data-act="do-backup">Exportar JSON (sin usuarios)</button>
+        ${isAdmin ? `<label class="btn ghost">Importar JSON<input type="file" id="restoreFile" accept="application/json" hidden></label>` : ""}
+        ${isAdmin ? `<button class="btn danger" data-act="reset">Recargar desde el Excel</button>` : ""}
       </div>
     </div>
-    <label class="card dropzone" id="dropzone" data-tip="Arrastra aquí CUADRE PINAR *.xlsx o haz clic">
+    <div class="card table-wrap flush" style="margin-top:14px"><table>
+      <thead><tr><th>Copia</th><th>Tipo</th><th>Fecha</th><th>Tamaño</th>${isAdmin ? "<th></th>" : ""}</tr></thead>
+      <tbody>${b.list.map((x) => `<tr><td class="mono">${esc(x.name)}</td><td><span class="tag ${x.kind === "auto" ? "entrada" : "mov"}">${x.name.includes("pre-restore") ? "antes de restaurar" : x.kind}</span></td><td class="hint">${new Date(x.createdAt * 1000).toLocaleString("es-CU")}</td><td>${kb(x.size)}</td>
+        ${isAdmin ? `<td class="row nowrap"><button class="btn ghost small" data-bk-dl="${esc(x.name)}">Descargar</button><button class="btn ghost small danger-t" data-bk-restore="${esc(x.name)}">Restaurar</button></td>` : ""}</tr>`).join("") || `<tr><td colspan="5" class="hint">Aún no hay copias. La primera se crea al arrancar el servidor.</td></tr>`}</tbody>
+    </table></div>
+    <label class="card dropzone" id="dropzone" data-tip="Arrastra aquí CUADRE PINAR *.xlsx o haz clic" style="margin-top:14px">
       <div class="dz-ico">📥</div><b>Importar una hoja del Excel</b>
       <span class="hint">Arrastra el archivo .xlsx aquí o haz clic. Elige la hoja del día (p. ej. «26 9 26»).</span>
       <input type="file" id="xlsxFile" accept=".xlsx,.xls" hidden>
-    </label>
-    <div>
-      <div class="hint" style="margin-top:12px">${store.state.backups.length} copias registradas. «Recargar desde el Excel» borra los datos locales y vuelve a importar la hoja 25 9 26.</div>
+    </label>`;
+}
+
+function securityCard() {
+  const u = store.state.session;
+  const sec = ui.sec || (ui.sec = { sessions: null });
+  if (!sec.sessions) { sec.sessions = []; api("/sessions").then((r) => { sec.sessions = r.sessions || []; render(); }); }
+  let qr = "";
+  if (sec.setup) {
+    try { const q = qrcode(0, "M"); q.addData(sec.setup.uri); q.make(); qr = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch { qr = ""; }
+  }
+  return `
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-h"><span class="k">Verificación en dos pasos (2FA)</span>${u.totpEnabled ? "<span class='tag entrada'>Activa</span>" : "<span class='tag salida'>Desactivada</span>"}</div>
+        ${sec.codes ? `<p><b>Guarda estos códigos de recuperación</b> (cada uno sirve una vez si pierdes el teléfono):</p><div class="codes mono">${sec.codes.map((c) => `<span>${c}</span>`).join("")}</div>
+          <div class="row"><button class="btn ghost small" data-act="dl-codes">Descargar</button><button class="btn small" data-act="codes-done">Ya los guardé</button></div>`
+        : sec.setup ? `<p class="hint">1) Escanea el código con Google Authenticator, Microsoft Authenticator o Authy. 2) Escribe el código de 6 dígitos.</p>
+          <div class="qr">${qr}</div><p class="hint mono" style="word-break:break-all">Clave manual: ${esc(sec.setup.secret)}</p>
+          <form id="tfaEnable" class="row"><input name="code" inputmode="numeric" placeholder="123456" required style="max-width:140px"><button class="btn small">Activar</button><button type="button" class="btn ghost small" data-act="tfa-cancel">Cancelar</button></form>`
+        : u.totpEnabled ? `<p class="hint">Al entrar se pide un código de tu app autenticadora.</p>
+          <form id="tfaDisable" class="form-grid"><label>Contraseña<input name="password" type="password" required autocomplete="current-password"></label><label>Código 2FA<input name="code" inputmode="numeric" required></label><div class="span-2"><button class="btn ghost small danger-t">Desactivar 2FA</button></div></form>`
+        : `<p class="hint">Protege tu cuenta: aunque alguien sepa tu contraseña, no podrá entrar sin el código de tu teléfono.</p><button class="btn" data-act="tfa-setup">Activar 2FA</button>`}
+      </div>
+      <form id="pwForm" class="card form-grid">
+        <div class="span-2 card-h"><span class="k">Cambiar contraseña</span></div>
+        <label class="span-2">Actual<input name="current" type="password" required autocomplete="current-password"></label>
+        <label>Nueva<input name="new" type="password" required autocomplete="new-password"></label>
+        <label>Repetir<input name="new2" type="password" required autocomplete="new-password"></label>
+        <p class="hint span-2">Mínimo 8 caracteres, una mayúscula y un número. Cierra tus otras sesiones.</p>
+        <div class="span-2"><button class="btn small">Cambiar</button></div>
+      </form>
+    </div>
+    <div class="card table-wrap" style="margin-top:14px">
+      <div class="card-h"><span class="k">Sesiones abiertas</span><button class="btn ghost small" data-act="logout-all">Cerrar las demás sesiones</button></div>
+      <table><thead><tr><th>Dispositivo</th><th>IP</th><th>Inicio</th><th>Última actividad</th><th></th></tr></thead>
+      <tbody>${sec.sessions.map((x) => `<tr><td>${esc(uaName(x.ua))} ${x.current ? "<span class='tag entrada'>Esta</span>" : ""}</td><td class="mono hint">${esc(x.ip)}</td><td class="hint">${new Date(x.created * 1000).toLocaleString("es-CU")}</td><td class="hint">${new Date(x.last_seen * 1000).toLocaleString("es-CU")}</td>
+        <td>${x.current ? "" : `<button class="btn ghost small" data-kill-session="${x.id}">Cerrar</button>`}</td></tr>`).join("")}</tbody></table>
     </div>`;
+}
+function uaName(ua = "") {
+  const os = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "";
+  const br = /CuadrePinarApp/.test(ua) ? "App" : /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : ua.slice(0, 30) || "Desconocido";
+  return `${br}${os ? " · " + os : ""}`;
 }
 
 function settingsView() {
   const s = store.state.settings;
+  const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
+  const dis = admin ? "" : "disabled";
   return `
-    <form id="settingsForm" class="card form-grid">
-      <label class="span-2">Nombre del negocio <input name="businessName" value="${esc(s.businessName)}"></label>
-      <label>CUP/USD por defecto <input name="defaultCupUsd" type="number" step="any" value="${s.defaultCupUsd}"></label>
+    ${securityCard()}
+    <form id="settingsForm" class="card form-grid" style="margin-top:14px">
+      <div class="span-2 card-h"><span class="k">Ajustes del negocio</span>${admin ? "" : `<span class="hint">Solo administrador o jefe pueden cambiarlos (salvo el tema).</span>`}</div>
+      <label class="span-2">Nombre del negocio <input name="businessName" ${dis} value="${esc(s.businessName)}"></label>
+      <label>CUP/USD por defecto <input name="defaultCupUsd" ${dis} type="number" step="any" value="${s.defaultCupUsd}"></label>
       <label>Tema<select name="theme">${["light", "dark", "system"].map((t) => `<option ${s.theme === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-      <label>Alertas stock bajo<select name="lowStockAlerts"><option value="true" ${s.lowStockAlerts ? "selected" : ""}>Sí</option><option value="false" ${!s.lowStockAlerts ? "selected" : ""}>No</option></select></label>
-      <label>Comisión<select name="comisionSoloGestor"><option value="false" ${!s.comisionSoloGestor ? "selected" : ""}>En todas las ventas (como el Excel)</option><option value="true" ${s.comisionSoloGestor ? "selected" : ""}>Solo ventas GESTOR</option></select></label>
-      <label>Meta diaria <small>USD</small><input name="goalDaily" type="number" step="any" value="${s.goalDaily}"></label>
-      <label>Meta semanal <small>USD</small><input name="goalWeekly" type="number" step="any" value="${s.goalWeekly}"></label>
-      <label>Cerrar sesión por inactividad <small>minutos</small><input name="sessionMinutes" type="number" min="1" value="${s.sessionMinutes}"></label>
-      <div class="span-2 row"><button class="btn">Guardar ajustes</button><button type="button" class="btn ghost" data-act="bio-enable">Activar biometría en este dispositivo</button></div>
+      <label>Alertas stock bajo<select name="lowStockAlerts" ${dis}><option value="true" ${s.lowStockAlerts ? "selected" : ""}>Sí</option><option value="false" ${!s.lowStockAlerts ? "selected" : ""}>No</option></select></label>
+      <label>Comisión<select name="comisionSoloGestor" ${dis}><option value="false" ${!s.comisionSoloGestor ? "selected" : ""}>En todas las ventas (como el Excel)</option><option value="true" ${s.comisionSoloGestor ? "selected" : ""}>Solo ventas GESTOR</option></select></label>
+      <label>Meta diaria <small>USD</small><input name="goalDaily" ${dis} type="number" step="any" value="${s.goalDaily}"></label>
+      <label>Meta semanal <small>USD</small><input name="goalWeekly" ${dis} type="number" step="any" value="${s.goalWeekly}"></label>
+      <label>Cerrar sesión por inactividad <small>minutos</small><input name="sessionMinutes" ${dis} type="number" min="1" value="${s.sessionMinutes}"></label>
+      <div class="span-2 row"><button class="btn">Guardar ajustes</button></div>
     </form>`;
 }
 
@@ -951,16 +1033,17 @@ function rateModal(r = null) {
     <div class="row" style="margin-top:14px"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "rateForm", `data-id="${r?.id || ""}"`);
 }
 
-function userModal() {
-  modal("Nuevo usuario", `
+function userModal(u = null) {
+  const roles = ["ALMACENERO", "ECONOMICO", "JEFE", "ADMINISTRADOR"];
+  modal(u ? "Editar usuario" : "Nuevo usuario", `
     <div class="form-grid">
-      <label>Usuario <input name="username" required></label><label>Nombre <input name="displayName" required></label>
-      <label>Correo <input name="email" type="email"></label>
-      <label>Rol<select name="role"><option>ALMACENERO</option><option>ECONOMICO</option><option>JEFE</option><option>ADMINISTRADOR</option></select></label>
-      <label>Contraseña <input name="password" type="password" required></label><label>Pregunta <input name="securityQuestion" value="¿Ciudad de la tienda?"></label>
-      <label class="span-2">Respuesta <input name="answer"></label>
+      <label>Usuario <input name="username" required ${u ? `value="${esc(u.username)}" readonly` : ""}></label><label>Nombre <input name="displayName" required value="${esc(u?.displayName || "")}"></label>
+      <label>Correo <input name="email" type="email" value="${esc(u?.email || "")}"></label>
+      <label>Rol<select name="role">${roles.map((r) => `<option ${u?.role === r ? "selected" : ""}>${r}</option>`).join("")}</select></label>
+      <label>${u ? "Nueva contraseña <small>(vacío = no cambiar)</small>" : "Contraseña"} <input name="password" type="password" ${u ? "" : "required"} autocomplete="new-password"></label>
+      ${u ? "" : `<label>Pregunta <input name="securityQuestion" value="¿Ciudad de la tienda?"></label><label class="span-2">Respuesta <input name="answer"></label>`}
     </div>
-    <div class="row" style="margin-top:14px"><button class="btn">Crear</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "userForm");
+    <div class="row" style="margin-top:14px"><button class="btn">${u ? "Guardar" : "Crear"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "userForm", u ? `data-id="${u.id}"` : "");
 }
 
 function confirmModal(text, onYes) {
@@ -1035,20 +1118,26 @@ function bindLogin() {
     if (ui.recover) {
       const username = fd.get("username");
       if (!ui.question) {
-        const q = store.question(username);
-        if (!q) { err.innerHTML = `<div class="error">No existe ese usuario.</div>`; return; }
-        ui.question = q; render(); return;
+        ui.question = await store.question(username); ui.recUser = username; render();
+        const inp = $("#loginForm input[name=username]"); if (inp) inp.value = username;
+        return;
       }
       const pwErr = validatePassword(fd.get("newpass"));
       if (pwErr) { err.innerHTML = `<div class="error">${pwErr}</div>`; return; }
-      const r = await store.recover(username, fd.get("answer"), fd.get("newpass"));
-      if (r.error) err.innerHTML = `<div class="error">${r.error}</div>`;
-      else { ui.recover = false; ui.question = null; toast("Contraseña actualizada"); }
+      const r = await store.resetPassword(username, fd.get("answer"), fd.get("newpass"), fd.get("code") || undefined);
+      if (r.need2fa && !ui.recNeed2fa) { ui.recNeed2fa = true; render(); return; }
+      if (r.error) err.innerHTML = `<div class="error">${esc(r.error)}</div>`;
+      else { ui.recover = false; ui.question = null; ui.recNeed2fa = false; toast("Contraseña actualizada. Entra con la nueva.", "ok"); render(); }
       return;
     }
-    const r = await store.login(fd.get("username"), fd.get("password"));
-    if (r.error) err.innerHTML = `<div class="error">${r.error}</div>`;
-    else render();
+    const btn = e.target.querySelector("button.btn"); if (btn) { btn.disabled = true; btn.textContent = "Verificando…"; }
+    const creds = ui.pending2fa || { u: fd.get("username"), p: fd.get("password") };
+    const r = await store.login(creds.u, creds.p, fd.get("code"));
+    ui.loginErr = r.error || null;
+    if (r.need2fa) { ui.pending2fa = creds; render(); $("#code2fa")?.focus(); return; }
+    ui.pending2fa = null;
+    if (r.error) { render(); const inp = $("#loginForm input[name=username]"); if (inp) inp.value = creds.u; }
+    else { ui.loginErr = null; lastActivity = Date.now(); render(); }
   });
 }
 
@@ -1104,7 +1193,8 @@ function bindApp() {
     const fd = new FormData(e.target);
     const c = { ...store.cuadreFor(ui.cuadreDate || lastDataDate()) };
     for (const [k, v] of fd.entries()) c[k] = Number(v) || 0;
-    store.saveCuadre(c);
+    const sr = store.saveCuadre(c);
+    if (sr?.error) return toast(sr.error, "err");
     const res = cuadreCalc(c, store.activeMovements().filter((m) => m.date === c.date));
     if (res.cuadre === 0) confetti(`<b>✔ ¡Cuadre perfecto!</b><span>${formatDate(c.date)} · diferencia 0.00</span>`);
     else toast(`Cuadre guardado · diferencia ${usd(res.cuadre)}`, "err");
@@ -1127,6 +1217,7 @@ function bindApp() {
   $("#settingsForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
+    if (!["ADMINISTRADOR", "JEFE"].includes(role())) { store.saveSettings({ theme: fd.get("theme") }); return toast("Tema guardado", "ok"); }
     const soloG = fd.get("comisionSoloGestor") === "true";
     const changed = soloG !== !!store.state.settings.comisionSoloGestor;
     store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", comisionSoloGestor: soloG, goalDaily: Number(fd.get("goalDaily")) || 0, goalWeekly: Number(fd.get("goalWeekly")) || 0, sessionMinutes: Math.max(1, Number(fd.get("sessionMinutes")) || 20) });
@@ -1163,16 +1254,39 @@ function bindApp() {
   $("#userForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const pwErr = validatePassword(fd.get("password"));
-    if (pwErr) return toast(pwErr, "err");
-    const r = await store.saveUser({ username: fd.get("username"), displayName: fd.get("displayName"), email: fd.get("email"), role: fd.get("role"), securityQuestion: fd.get("securityQuestion") }, fd.get("password"), fd.get("answer"));
+    const id = e.target.dataset.id ? Number(e.target.dataset.id) : undefined;
+    const pw = fd.get("password");
+    if (!id || pw) { const pwErr = validatePassword(pw); if (pwErr) return toast(pwErr, "err"); }
+    const r = await store.saveUser({ id, username: fd.get("username"), displayName: fd.get("displayName"), email: fd.get("email"), role: fd.get("role"), securityQuestion: fd.get("securityQuestion") || undefined }, pw, fd.get("answer"));
     if (r.error) return toast(r.error, "err");
-    ui.modal = null; toast("Usuario creado", "ok");
+    ui.modal = null; toast(id ? "Usuario actualizado" : "Usuario creado", "ok");
   });
   $("#restoreFile")?.addEventListener("change", async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     try { store.importBackup(await file.text()); toast("Copia restaurada", "ok"); } catch { toast("Archivo inválido", "err"); }
+  });
+  $("#tfaEnable")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const r = await api("/2fa/enable", { method: "POST", body: { code: new FormData(e.target).get("code") } });
+    if (!r.ok) return toast(r.error, "err");
+    ui.sec.setup = null; ui.sec.codes = r.recoveryCodes; store.state.session.totpEnabled = true; toast("2FA activada", "ok");
+  });
+  $("#tfaDisable")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const r = await api("/2fa/disable", { method: "POST", body: { password: fd.get("password"), code: fd.get("code") } });
+    if (!r.ok) return toast(r.error, "err");
+    store.state.session.totpEnabled = false; toast("2FA desactivada", "ok");
+  });
+  $("#pwForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    if (fd.get("new") !== fd.get("new2")) return toast("Las contraseñas nuevas no coinciden.", "err");
+    const pwErr = validatePassword(fd.get("new")); if (pwErr) return toast(pwErr, "err");
+    const r = await api("/password", { method: "POST", body: { current: fd.get("current"), new: fd.get("new") } });
+    if (!r.ok) return toast(r.error, "err");
+    ui.sec.sessions = null; e.target.reset(); toast("Contraseña cambiada · otras sesiones cerradas", "ok");
   });
 }
 
@@ -1199,7 +1313,7 @@ function ensureClicks() {
 function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"); }
 
 function onClick(e) {
-  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre]");
+  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
@@ -1230,9 +1344,23 @@ function onClick(e) {
   else if (d.purgeMov) confirmModal("¿Eliminar definitivamente este movimiento?", () => result(store.purgeMovement(d.purgeMov), "Eliminado definitivamente"));
   else if (d.editRate) { rateModal(store.state.rates.find((x) => x.id === d.editRate)); render(); }
   else if (d.delRate) confirmModal("¿Eliminar este registro de tasa?", () => result(store.deleteRate(d.delRate), "Tasa eliminada"));
-  else if (d.toggleUser) { const u = store.state.users.find((x) => x.id === d.toggleUser); result(store.toggleUser(u.id, !u.active), "Estado actualizado"); }
+  else if (d.toggleUser) { const u = store.state.users.find((x) => String(x.id) === d.toggleUser); store.toggleUser(u.id, !u.active).then((r) => result(r, "Estado actualizado")); }
+  else if (d.editUser) { userModal(store.state.users.find((x) => String(x.id) === d.editUser)); render(); }
+  else if (d.reset2fa) confirmModal("¿Quitar la verificación en dos pasos a este usuario? Deberá volver a activarla.", () => store.reset2fa(Number(d.reset2fa)).then((r) => result(r, "2FA eliminada")));
+  else if (d.auditTab) { ui.auditTab = d.auditTab; ui.secLog = null; render(); }
+  else if (d.killSession) api("/sessions/" + d.killSession, { method: "DELETE" }).then(() => { ui.sec.sessions = null; toast("Sesión cerrada", "ok"); });
+  else if (d.bkDl) api("/backups/" + encodeURIComponent(d.bkDl)).then((r) => { if (r.error) return toast(r.error, "err"); download(d.bkDl.replace(".bak", ".json"), JSON.stringify(r, null, 2), "application/json"); });
+  else if (d.bkRestore) confirmModal(`¿Restaurar <b>${esc(d.bkRestore)}</b>? Los datos actuales se reemplazarán para todos los usuarios (antes se guarda una copia).`, () => api("/backups/" + encodeURIComponent(d.bkRestore), { method: "POST" }).then(async (r) => { if (r.error) return toast(r.error, "err"); await store.reload(); ui.backups = null; toast("Copia restaurada", "ok"); }));
+  else if (act === "srv-backup") api("/backups", { method: "POST" }).then((r) => { if (r.error) return toast(r.error, "err"); ui.backups = null; toast("Copia cifrada creada", "ok"); render(); });
+  else if (act === "tfa-setup") api("/2fa/setup", { method: "POST" }).then((r) => { if (r.error) return toast(r.error, "err"); ui.sec.setup = r; render(); });
+  else if (act === "tfa-cancel") { ui.sec.setup = null; render(); }
+  else if (act === "codes-done") { ui.sec.codes = null; render(); }
+  else if (act === "dl-codes") download("cuadre-pinar-codigos-2fa.txt", `Códigos de recuperación de ${store.state.session.username}\n\n${ui.sec.codes.join("\n")}\n`, "text/plain");
+  else if (act === "logout-all") api("/logout-all", { method: "POST" }).then(() => { ui.sec.sessions = null; toast("Otras sesiones cerradas", "ok"); });
+  else if (act === "close-day") confirmModal(`¿Cerrar el día <b>${formatDate(d.date)}</b>? Nadie podrá modificar sus movimientos ni el cuadre (solo un administrador puede reabrirlo).`, () => store.closeDay(d.date).then((r) => (r.error ? toast(r.error, "err") : confetti(`<b>🔒 Día cerrado</b><span>${formatDate(d.date)}</span>`))));
+  else if (act === "reopen-day") { const reason = prompt("Motivo de la reapertura (queda en la auditoría):"); if (reason) store.reopenDay(d.date, reason).then((r) => result(r, "Día reabierto")); }
   else if (act === "confirm-yes") { const fn = ui.confirm; ui.confirm = null; ui.modal = null; fn?.(); render(); }
-  else if (act === "logout") store.logout();
+  else if (act === "logout") { ui.sec = null; ui.usersLoaded = false; ui.backups = null; store.logout(); }
   else if (act === "palette") openPalette(paletteCtx());
   else if (act === "cart-clear") { ui.cart = []; render(); }
   else if (act === "checkout") {
@@ -1260,9 +1388,7 @@ function onClick(e) {
   else if (act === "clear-date") { ui.movDate = ""; render(); }
   else if (act === "theme") { const o = ["light", "dark", "system"]; store.saveSettings({ theme: o[(o.indexOf(store.state.settings.theme) + 1) % 3] }); }
   else if (act === "recover") { ui.recover = true; render(); }
-  else if (act === "back-login") { ui.recover = false; ui.question = null; render(); }
-  else if (act === "bio") { const id = store.biometricUserId(); if (id && confirm("¿Confirmar identidad con la biometría de este dispositivo?")) { const r = store.loginAs(id); if (r.error) toast(r.error, "err"); } }
-  else if (act === "bio-enable") { store.enableBiometric(); toast("Biometría activada en este navegador", "ok"); }
+  else if (act === "back-login") { ui.recover = false; ui.question = null; ui.recNeed2fa = false; ui.pending2fa = null; ui.loginErr = null; render(); }
   else if (act === "new-product") { productModal(null); render(); }
   else if (act === "new-movement") { movementModal(); render(); }
   else if (act === "new-rate") { rateModal(); render(); }
@@ -1274,13 +1400,13 @@ function onClick(e) {
     $("#cuadreForm [name=comisionesCup]").value = tt.comisionesMov;
     $("#cuadreForm [name=domiciliosCup]").value = tt.domiciliosMov;
   }
-  else if (act === "del-cuadre") confirmModal("¿Eliminar el cuadre de este día?", () => { store.deleteCuadre(d.id); toast("Cuadre eliminado", "ok"); });
+  else if (act === "del-cuadre") confirmModal("¿Eliminar el cuadre de este día?", () => result(store.deleteCuadre(d.id), "Cuadre eliminado"));
   else if (act === "empty-trash") confirmModal("¿Vaciar la papelera? Todo se eliminará definitivamente.", () => { store.emptyTrash(); toast("Papelera vaciada", "ok"); });
   else if (act === "close-modal") {
     if (t.tagName !== "DIV" || e.target === t) { ui.modal = null; render(); }
   }
   else if (act === "do-backup") { download("cuadre-pinar-backup.json", store.exportBackup(), "application/json"); toast("Copia descargada", "ok"); }
-  else if (act === "reset") confirmModal("Esto borra los datos locales y vuelve a cargar CUADRE PINAR SEPT.xlsx (hoja 25 9 26).", () => { store.resetDemo(); location.reload(); });
+  else if (act === "reset") confirmModal("Esto reemplaza los datos del servidor (para todos) por CUADRE PINAR SEPT.xlsx (hoja 25 9 26). Crea antes una copia.", () => { store.resetDemo(); toast("Datos recargados desde el Excel", "ok"); });
   else if (act === "export-csv") exportComprobacion();
   else if (act === "export-mov") exportMovements();
   else if (act === "export-inv") exportInventory();
@@ -1325,8 +1451,9 @@ initTooltips();
 let lastActivity = Date.now();
 ["click", "keydown", "mousemove", "touchstart"].forEach((ev) => document.addEventListener(ev, () => (lastActivity = Date.now()), { passive: true }));
 setInterval(() => {
-  const mins = store.state.settings.sessionMinutes || 20;
-  if (store.state.session && Date.now() - lastActivity > mins * 60000) { store.logout(); toast(`Sesión cerrada por ${mins} min de inactividad`, "err"); }
+  const mins = Math.min(store.state.settings.sessionMinutes || 20, store.idleMinutes || 20);
+  if (store.state.session && Date.now() - lastActivity > mins * 60000) { ui.sec = null; store.logout(); toast(`Sesión cerrada por ${mins} min de inactividad`, "err"); }
 }, 30000);
+store.onNotice = (msg, kind) => toast(msg, kind === "error" ? "err" : "");
 store.subscribe(() => render());
 store.init().then(() => { const r = location.hash.slice(1); if (routes[r]) ui.route = r; render(); });

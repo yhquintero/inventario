@@ -6,6 +6,37 @@ Sistema de control de inventario y cuadre diario para la tienda.
 > Historial: tasa CUP/USD (670 → 690 → 750) y 42 cambios de precio detectados en todas las hojas de septiembre.
 > Regenerar semillas: `pip install openpyxl && python3 tools/import_excel.py` (escribe `web/js/seed-data.js` y `app/src/main/assets/seed.json`).
 
+## Novedades v4 — servidor seguro compartido
+
+La Web ya **no guarda los datos en el navegador**: todo vive en un servidor con base de datos SQLite (`server/cuadre_server.py`, solo Python + `cryptography`). Todos los usuarios ven los mismos datos al instante (se sincroniza cada ~12 s y avisa si otra persona guardó).
+
+| Seguridad | Cómo funciona |
+|---|---|
+| Servidor real + BD | `data/cuadre.db` (SQLite). Contraseñas PBKDF2-SHA256 210 000 iteraciones, solo en el servidor. |
+| Permisos en el servidor | Cada rol solo puede cambiar sus secciones (p. ej. el Económico no puede tocar productos). |
+| Sesiones | Cookie `HttpOnly` + token; caducan tras 20 min sin uso o 12 h. Lista de sesiones abiertas y "cerrar las demás". |
+| Bloqueo | 5 intentos fallidos → 5 minutos bloqueado (por usuario + IP). |
+| 2FA | Ajustes → *Activar 2FA*: QR para Google/Microsoft Authenticator + 8 códigos de recuperación. |
+| HTTPS | `deploy/docker-compose.yml` + `deploy/Caddyfile` (certificado Let's Encrypt automático) o `SSL_CERT`/`SSL_KEY`. |
+| Copias cifradas | Diarias a las 2:00 (y manuales), gzip + Fernet (AES-128 + HMAC), se guardan 30. Restaurar crea antes otra copia. **Guarda `data/backup.key` fuera del servidor.** |
+| Cierre del día | Cuadre diario → *Cerrar día*: movimientos y cuadre de esa fecha quedan bloqueados (también en el servidor). Solo el administrador puede reabrir indicando el motivo. |
+| Auditoría de seguridad | Auditoría → *Seguridad (servidor)*: accesos, fallos, IPs, 2FA, cierres, restauraciones. |
+
+### Arrancar
+```bash
+pip install cryptography
+python3 server/cuadre_server.py        # http://localhost:8080  (o: cd web && python3 serve.py)
+```
+En producción (con dominio):
+```bash
+DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
+```
+Variables: `PORT`, `DATA_DIR`, `SSL_CERT`, `SSL_KEY`, `BACKUP_KEY`, `BACKUP_HOUR`, `BACKUP_KEEP`, `SESSION_IDLE_MIN`, `SESSION_MAX_HOURS`.
+La primera vez que entra un administrador o jefe, el servidor se carga con la hoja «25 9 26» del Excel.
+**Cambia las contraseñas de demostración** (admin/Admin123!, jefe/Jefe123!, economico/Eco123!, almacenero/Alma123!) antes de publicar.
+
+**App Android:** la API (`/api/login`, `/api/state`…) ya permite que la App use los mismos datos (token Bearer), pero el cliente de sincronización Android aún está pendiente: la App sigue funcionando con su base local.
+
 ## Novedades v3
 
 - **Venta rápida (POS)**: cuadrícula con imágenes, carrito, rebaja de precio, domicilio y cobro en un clic.

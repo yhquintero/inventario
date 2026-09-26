@@ -1,25 +1,9 @@
 import { SEED } from "./seed-data.js";
+import { api, setToken, getToken, setUnauthorizedHandler } from "./api.js";
 import { categorize, importeUsd, round2, stockFinal, todayISO, normName, CUADRE_FIELDS } from "./calc.js";
 
-const KEY = "cuadrepinar.v2";
 const PRICE_FIELDS = ["precioVentaUsd", "precioVenta2Usd", "precioCostoUsd", "comisionCup"];
-const BIO = "cuadrepinar.bio";
-
-async function sha256(text) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/** PBKDF2-SHA256 (150 000 iteraciones). Formato: "pbkdf2$<hex>". */
-export async function hashPassword(password, salt) {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: new TextEncoder().encode(salt), iterations: 150000 }, key, 256);
-  return "pbkdf2$" + [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-async function verifyPassword(password, salt, stored) {
-  if (String(stored).startsWith("pbkdf2$")) return (await hashPassword(password, salt)) === stored;
-  return (await sha256(`${salt}:${password}`)) === stored; // hash antiguo
-}
+const THEME = "cuadrepinar.theme";
 
 function uid(prefix = "id") {
   return prefix + "_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -30,7 +14,6 @@ function emptyState() {
     products: [],
     movements: [],
     cuadres: [],
-    users: [],
     audit: [],
     rates: [],
     priceHistory: [],
@@ -49,13 +32,28 @@ function emptyState() {
       autoBackup: true,
     },
     session: null,
+    users: [],
   };
 }
+const SHARED = ["products", "movements", "cuadres", "audit", "rates", "priceHistory", "weekly", "settings"];
 
 class Store {
   constructor() {
     this.state = emptyState();
     this.listeners = new Set();
+    this.version = 0;
+    this.closedDays = [];
+    this.saving = false;
+    this.dirty = false;
+    this.ready = false;
+    this.onNotice = () => {};
+    this.idleMinutes = 20;
+    setUnauthorizedHandler((msg) => {
+      if (!this.state.session) return;
+      this.clearSession();
+      this.onNotice(msg || "Tu sesión expiró. Vuelve a entrar.", "error");
+      this.listeners.forEach((fn) => fn(this.state));
+    });
   }
 
   subscribe(fn) {
@@ -63,51 +61,107 @@ class Store {
     return () => this.listeners.delete(fn);
   }
 
-  emit() {
-    this.persist();
+  /** Notifica a la interfaz y programa el guardado en el servidor. */
+  emit(save = true) {
+    if (save && this.ready && this.state.session) this.scheduleSave();
     this.listeners.forEach((fn) => fn(this.state));
   }
 
-  persist() {
-    const { session, ...rest } = this.state;
-    localStorage.setItem(KEY, JSON.stringify(rest));
-    if (session) sessionStorage.setItem("cuadrepinar.session", JSON.stringify(session));
-    else sessionStorage.removeItem("cuadrepinar.session");
+  shared() {
+    const o = {};
+    for (const k of SHARED) o[k] = this.state[k];
+    return o;
+  }
+
+  applyServer(r) {
+    const s = r.state || {};
+    const keep = { session: this.state.session, users: this.state.users };
+    this.state = { ...emptyState(), ...s, ...keep, settings: { ...emptyState().settings, ...(s.settings || {}) } };
+    this.state.settings.theme = localStorage.getItem(THEME) || this.state.settings.theme;
+    this.version = r.version;
+    this.closedDays = r.closedDays || this.closedDays;
+  }
+
+  scheduleSave() {
+    this.dirty = true;
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.flush(), 400);
+  }
+
+  async flush() {
+    if (this.saving || !this.dirty) return;
+    this.saving = true;
+    this.dirty = false;
+    const r = await api("/state", { method: "PUT", body: { version: this.version, state: this.shared() } });
+    this.saving = false;
+    if (r.ok) {
+      this.version = r.version;
+      this.lastSaved = Date.now();
+      if (this.dirty) this.flush();
+      return true;
+    }
+    if (r.status === 0) { this.dirty = true; this.onNotice("Sin conexión: los cambios se guardarán al reconectar.", "error"); return false; }
+    // 409 conflicto, 403 permiso, 423 día cerrado: se recarga la versión del servidor
+    this.onNotice(r.error, "error");
+    await this.reload();
+    return false;
+  }
+
+  async reload() {
+    const r = await api("/state");
+    if (r.status !== 200) return;
+    this.applyServer(r);
+    this.emit(false);
+  }
+
+  async poll() {
+    if (!this.state.session || this.saving || this.dirty) return;
+    if (this.dirty && this.lastFail) return;
+    const r = await api("/state/version");
+    if (r.status === 200 && (r.version !== this.version || r.closed !== this.closedDays.length)) {
+      await this.reload();
+      if (r.updatedBy && r.updatedBy !== this.state.session?.displayName) this.onNotice(`Datos actualizados por ${r.updatedBy}.`, "info");
+    }
   }
 
   async init() {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      this.state = { ...emptyState(), ...saved, settings: { ...emptyState().settings, ...(saved.settings || {}) } };
-    } else {
-      await this.seed();
+    this.state.settings.theme = localStorage.getItem(THEME) || this.state.settings.theme;
+    if (getToken()) {
+      const me = await api("/me");
+      if (me.status === 200) await this.startSession(me);
     }
-    const ses = sessionStorage.getItem("cuadrepinar.session");
-    if (ses) this.state.session = JSON.parse(ses);
-    this.emit();
+    this.emit(false);
+    setInterval(() => this.poll(), 12000);
+    window.addEventListener?.("online", () => this.dirty && this.flush());
   }
 
-  async seed() {
+  async startSession(r) {
+    const u = r.user;
+    this.state.session = { id: u.id, username: u.username, displayName: u.displayName, role: u.role, email: u.email, totpEnabled: u.totpEnabled, loginAt: Date.now() };
+    this.idleMinutes = r.idleMinutes || 20;
+    const st = await api("/state");
+    if (st.status !== 200) return;
+    this.applyServer(st);
+    if (!st.state) {
+      if (["ADMINISTRADOR", "JEFE"].includes(u.role)) {
+        this.seed();
+        const res = await api("/state", { method: "PUT", body: { version: this.version, state: this.shared() } });
+        if (res.ok) this.version = res.version;
+      } else this.onNotice("El servidor aún no tiene datos. Un administrador debe entrar primero.", "error");
+    }
+    this.ready = true;
+  }
+
+  isClosed(date) { return this.closedDays.some((d) => d.date === date); }
+  closedErr(...dates) {
+    const d = dates.find((x) => x && this.isClosed(x));
+    return d ? { error: `El día ${d} está cerrado. Un administrador debe reabrirlo.` } : null;
+  }
+
+  seed() {
     const s = emptyState();
-    const mkUser = async (username, displayName, email, role, password) => {
-      const salt = uid("s");
-      const ansSalt = uid("a");
-      return {
-        id: uid("u"), username, displayName, email, role, active: true, biometricEnabled: false, salt,
-        passwordHash: await hashPassword(password, salt),
-        securityQuestion: "¿Ciudad de la tienda?",
-        securityAnswerHash: await hashPassword("pinar", ansSalt),
-        securityAnswerSalt: ansSalt, createdAt: Date.now(), lastLoginAt: null,
-      };
-    };
-    s.users = [
-      await mkUser("admin", "Yosvany Hernández", "admin@cuadrepinar.cu", "ADMINISTRADOR", "Admin123!"),
-      await mkUser("jefe", "Jefe de Tienda", "jefe@cuadrepinar.cu", "JEFE", "Jefe123!"),
-      await mkUser("economico", "Área Económica", "economia@cuadrepinar.cu", "ECONOMICO", "Eco123!"),
-      await mkUser("almacenero", "Almacén Pinar", "almacen@cuadrepinar.cu", "ALMACENERO", "Alma123!"),
-    ];
-    const admin = s.users[0];
+    s.session = this.state.session;
+    const admin = { id: s.session?.id, username: s.session?.username || "admin", displayName: s.session?.displayName || "Administrador" };
     const now = Date.now();
     const byName = {};
     s.products = SEED.products.map((p) => {
@@ -148,6 +202,7 @@ class Store {
       details: `Carga desde ${SEED.source} · hoja ${SEED.sheet} (${s.products.length} productos, ${s.movements.length} movimientos, ${s.cuadres.length} cuadres)`,
       timestamp: now,
     });
+    s.settings.theme = this.state.settings.theme;
     this.state = s;
     for (const p of s.products) this.recalcProduct(p.id);
   }
@@ -166,76 +221,51 @@ class Store {
     });
   }
 
-  async login(username, password) {
-    const { k, v } = this.lockInfo(username);
-    if (v.until > Date.now()) return { error: `Cuenta bloqueada por intentos fallidos. Espera ${Math.ceil((v.until - Date.now()) / 60000)} min.` };
-    const user = this.state.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
-    const ok = user && user.active && (await verifyPassword(password, user.salt, user.passwordHash));
-    if (!ok) {
-      const fails = v.fails + 1;
-      this.setLock(k, { fails: fails >= 5 ? 0 : fails, until: fails >= 5 ? Date.now() + 5 * 60000 : 0 });
-      this.audit("LOGIN_FAIL", "users", `Intento fallido para "${username}" (${fails}/5)`);
-      this.persist();
-      return { error: fails >= 5 ? "Demasiados intentos. Cuenta bloqueada 5 minutos." : `Usuario o contraseña incorrectos. Intentos restantes: ${5 - fails}.` };
-    }
-    this.setLock(k, { fails: 0, until: 0 });
-    if (!String(user.passwordHash).startsWith("pbkdf2$")) user.passwordHash = await hashPassword(password, user.salt); // migración
-    user.lastLoginAt = Date.now();
-    this.state.session = { id: user.id, username: user.username, displayName: user.displayName, role: user.role, email: user.email, at: Date.now() };
-    this.audit("LOGIN", "users", "Inicio de sesión");
-    this.emit();
-    return { user: this.state.session };
-  }
-
-  loginAs(userId) {
-    const user = this.state.users.find((u) => u.id === userId && u.active);
-    if (!user) return { error: "Sesión biométrica inválida." };
-    this.state.session = {
-      id: user.id,
-      username: user.username,
-      displayName: user.displayName,
-      role: user.role,
-      email: user.email,
-    };
-    this.audit("LOGIN_BIOMETRIC", "users", "Entrada biométrica");
-    this.emit();
-    return { user: this.state.session };
-  }
-
-  enableBiometric() {
-    if (!this.state.session) return;
-    localStorage.setItem(BIO, this.state.session.id);
-    const u = this.state.users.find((x) => x.id === this.state.session.id);
-    if (u) u.biometricEnabled = true;
-    this.audit("BIOMETRIC_ON", "users", "Biometría activada");
-    this.emit();
-  }
-
-  biometricUserId() {
-    return localStorage.getItem(BIO);
-  }
-
-  logout() {
-    this.audit("LOGOUT", "users", "Cierre de sesión");
-    this.state.session = null;
-    this.emit();
-  }
-
-  async recover(username, answer, newPassword) {
-    const user = this.state.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
-    if (!user) return { error: "No existe ese usuario." };
-    if (!(await verifyPassword(answer.toLowerCase().trim(), user.securityAnswerSalt, user.securityAnswerHash))) return { error: "La respuesta de seguridad no coincide." };
-    const salt = uid("s");
-    user.salt = salt;
-    user.passwordHash = await hashPassword(newPassword, salt);
-    this.audit("PASSWORD_RESET", "users", "Recuperación por pregunta");
-    this.emit();
+  /* ================= SESIÓN (servidor) ================= */
+  async login(username, password, code) {
+    const r = await api("/login", { method: "POST", body: { username: username.trim(), password, code: code || undefined } });
+    if (r.need2fa && !r.token) return { need2fa: true, error: code ? r.error : null };
+    if (!r.token) return { error: r.error };
+    setToken(r.token);
+    await this.startSession(r);
+    this.emit(false);
     return { ok: true };
   }
 
-  question(username) {
-    return this.state.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase())
-      ?.securityQuestion;
+  clearSession() {
+    setToken(null);
+    this.state.session = null;
+    this.ready = false;
+    this.dirty = false;
+  }
+
+  async logout() {
+    if (this.dirty) await this.flush();
+    await api("/logout", { method: "POST" });
+    this.clearSession();
+    this.emit(false);
+  }
+
+  async resetPassword(username, answer, newPassword, code) {
+    const r = await api("/recover", { method: "POST", body: { username, answer, newPassword, code } });
+    return r.ok ? { ok: true } : { error: r.error, need2fa: r.need2fa };
+  }
+
+  async question(username) {
+    return (await api("/question?u=" + encodeURIComponent(username.trim()))).question;
+  }
+
+  /* ================= CIERRE DEL DÍA ================= */
+  async closeDay(date, note = "") {
+    if (this.dirty || this.saving) { await this.flush(); }
+    const r = await api("/days/close", { method: "POST", body: { date, note } });
+    if (r.ok) await this.reload();
+    return r.ok ? { ok: true } : { error: r.error };
+  }
+  async reopenDay(date, reason) {
+    const r = await api("/days/reopen", { method: "POST", body: { date, reason } });
+    if (r.ok) await this.reload();
+    return r.ok ? { ok: true } : { error: r.error };
   }
 
   /* ================= PRODUCTOS (CRUD + papelera) ================= */
@@ -287,6 +317,8 @@ class Store {
   deleteProduct(id) {
     const p = this.state.products.find((x) => x.id === id);
     if (!p || p.deletedAt) return { error: "Producto no encontrado." };
+    const lk = this.productLocked(id);
+    if (lk) return lk;
     const ts = Date.now();
     p.deletedAt = ts;
     p.deletedBy = this.state.session?.displayName;
@@ -309,7 +341,14 @@ class Store {
     return { ok: true };
   }
 
+  productLocked(id) {
+    const m = this.state.movements.find((x) => x.productId === id && this.isClosed(x.date));
+    return m ? { error: `Tiene movimientos en el día cerrado ${m.date}; no se puede eliminar.` } : null;
+  }
+
   purgeProduct(id) {
+    const lk = this.productLocked(id);
+    if (lk) return lk;
     const p = this.state.products.find((x) => x.id === id);
     this.state.products = this.state.products.filter((x) => x.id !== id);
     this.state.movements = this.state.movements.filter((m) => m.productId !== id);
@@ -320,6 +359,9 @@ class Store {
 
   /* ================= MOVIMIENTOS (CRUD + papelera) ================= */
   saveMovement(data) {
+    const old = data.id && this.state.movements.find((m) => m.id === data.id);
+    const ce = this.closedErr(data.date, old?.date);
+    if (ce) return ce;
     const prod = this.state.products.find((p) => p.id === data.productId && !p.deletedAt);
     if (!prod) return { error: "Producto no encontrado." };
     const q = Number(data.quantity);
@@ -354,6 +396,7 @@ class Store {
   deleteMovement(id) {
     const m = this.state.movements.find((x) => x.id === id);
     if (!m) return { error: "No encontrado." };
+    if (this.isClosed(m.date)) return this.closedErr(m.date);
     m.deletedAt = Date.now();
     const r = this.recalcProduct(m.productId);
     if (r.error) { m.deletedAt = null; this.recalcProduct(m.productId); return { error: "No se puede eliminar: " + r.error }; }
@@ -367,6 +410,7 @@ class Store {
     if (!m) return { error: "No encontrado." };
     const p = this.state.products.find((x) => x.id === m.productId);
     if (!p || p.deletedAt) return { error: "Primero restaura el producto de este movimiento." };
+    if (this.isClosed(m.date)) return this.closedErr(m.date);
     m.deletedAt = null;
     const r = this.recalcProduct(m.productId);
     if (r.error) { m.deletedAt = Date.now(); this.recalcProduct(m.productId); return r; }
@@ -377,6 +421,7 @@ class Store {
 
   purgeMovement(id) {
     const m = this.state.movements.find((x) => x.id === id);
+    if (m && this.isClosed(m.date)) return this.closedErr(m.date);
     this.state.movements = this.state.movements.filter((x) => x.id !== id);
     this.audit("PURGE", "movement", `${m?.type} ${m?.productName}`, id);
     this.emit();
@@ -384,9 +429,9 @@ class Store {
   }
 
   emptyTrash() {
-    const ids = new Set(this.trashProducts().map((p) => p.id));
-    this.state.products = this.state.products.filter((p) => !p.deletedAt);
-    this.state.movements = this.state.movements.filter((m) => !m.deletedAt && !ids.has(m.productId));
+    const ids = new Set(this.trashProducts().filter((p) => !this.productLocked(p.id)).map((p) => p.id));
+    this.state.products = this.state.products.filter((p) => !ids.has(p.id));
+    this.state.movements = this.state.movements.filter((m) => this.isClosed(m.date) || (!m.deletedAt && !ids.has(m.productId)));
     this.audit("PURGE", "trash", "Papelera vaciada");
     this.emit();
   }
@@ -465,6 +510,7 @@ class Store {
   }
 
   saveCuadre(c) {
+    if (this.isClosed(c.date)) return this.closedErr(c.date);
     if (!c.id) { c.id = uid("c"); this.state.cuadres.push(c); }
     else { const i = this.state.cuadres.findIndex((x) => x.id === c.id); this.state.cuadres[i] = c; }
     c.imported = false;
@@ -478,6 +524,7 @@ class Store {
 
   deleteCuadre(id) {
     const c = this.state.cuadres.find((x) => x.id === id);
+    if (c && this.isClosed(c.date)) return this.closedErr(c.date);
     this.state.cuadres = this.state.cuadres.filter((x) => x.id !== id);
     this.audit("DELETE", "cuadre", `Cuadre ${c?.date}`, id);
     this.emit();
@@ -492,6 +539,7 @@ class Store {
   /* ================= PUNTO DE VENTA ================= */
   posCheckout(cart, { date, center, domicilioCup = 0, notes = "" }) {
     if (!cart.length) return { error: "El carrito está vacío." };
+    if (this.isClosed(date)) return this.closedErr(date);
     const snapshot = JSON.stringify(this.state.movements);
     const ids = [];
     cart.forEach((it, i) => {
@@ -517,6 +565,7 @@ class Store {
     const who = this.state.session?.displayName || "Excel";
     const rep = { creados: 0, actualizados: 0, precios: 0, movimientos: 0, omitidos: [], errores: [] };
     const date = data.date;
+    if (this.isClosed(date)) { rep.errores.push(`El día ${date} está cerrado; no se importó.`); return rep; }
     // 1) quitar movimientos importados antes para esa misma fecha (reimportación idempotente)
     this.state.movements = this.state.movements.filter((m) => !(m.date === date && m.importedFrom === "excel"));
     for (const r of data.products) {
@@ -566,103 +615,46 @@ class Store {
     return rep;
   }
 
-  /* ================= SEGURIDAD ================= */
-  lockInfo(username) {
-    const k = "lock:" + String(username).toLowerCase();
-    const v = JSON.parse(localStorage.getItem("cuadrepinar.sec") || "{}")[k] || { fails: 0, until: 0 };
-    return { k, v };
+  /* ================= USUARIOS (servidor) ================= */
+  async loadUsers() {
+    const r = await api("/users");
+    if (r.users) this.state.users = r.users;
+    return this.state.users;
   }
-  setLock(k, v) {
-    const all = JSON.parse(localStorage.getItem("cuadrepinar.sec") || "{}");
-    all[k] = v; localStorage.setItem("cuadrepinar.sec", JSON.stringify(all));
-  }
-
   async saveUser(u, password, answer) {
-    const dup = this.state.users.find((x) => x.username.toLowerCase() === u.username.toLowerCase() && x.id !== u.id);
-    if (dup) return { error: "Ese usuario ya existe." };
-    if (!u.id) {
-      if (!password) return { error: "La contraseña es obligatoria." };
-      const salt = uid("s");
-      const ansSalt = uid("a");
-      const nu = {
-        ...u,
-        id: uid("u"),
-        salt,
-        passwordHash: await hashPassword(password, salt),
-        securityAnswerSalt: ansSalt,
-        securityAnswerHash: answer ? await hashPassword(answer.toLowerCase().trim(), ansSalt) : "",
-        createdAt: Date.now(),
-        active: true,
-      };
-      this.state.users.push(nu);
-      this.audit("CREATE", "users", nu.username, nu.id);
-    } else {
-      const cur = this.state.users.find((x) => x.id === u.id);
-      Object.assign(cur, {
-        username: u.username,
-        displayName: u.displayName,
-        email: u.email,
-        role: u.role,
-        active: u.active,
-        securityQuestion: u.securityQuestion,
-      });
-      if (password) {
-        cur.salt = uid("s");
-        cur.passwordHash = await hashPassword(password, cur.salt);
-      }
-      if (answer) {
-        cur.securityAnswerSalt = uid("a");
-        cur.securityAnswerHash = await hashPassword(answer.toLowerCase().trim(), cur.securityAnswerSalt);
-      }
-      this.audit("UPDATE", "users", cur.username, cur.id);
-    }
-    this.emit();
-    return { ok: true };
+    const body = { ...u, password: password || undefined, answer: answer || undefined };
+    const r = u.id ? await api("/users/" + u.id, { method: "PUT", body }) : await api("/users", { method: "POST", body });
+    if (r.ok) await this.loadUsers();
+    return r.ok ? { ok: true } : { error: r.error };
   }
-
-  toggleUser(id, active) {
-    const u = this.state.users.find((x) => x.id === id);
-    if (!u) return { error: "No encontrado" };
-    if (!active && u.role === "ADMINISTRADOR") {
-      const others = this.state.users.filter((x) => x.role === "ADMINISTRADOR" && x.active && x.id !== id);
-      if (!others.length) return { error: "No se puede desactivar al último administrador." };
-    }
-    u.active = active;
-    this.audit(active ? "ACTIVATE" : "DEACTIVATE", "users", u.username, id);
-    this.emit();
-    return { ok: true };
-  }
+  async toggleUser(id, active) { return this.saveUser({ id, active }); }
+  async reset2fa(id) { return this.saveUser({ id, reset2fa: true }); }
 
   saveSettings(s) {
+    if (s.theme) localStorage.setItem(THEME, s.theme);
+    const onlyTheme = Object.keys(s).every((k) => k === "theme");
     this.state.settings = { ...this.state.settings, ...s };
+    if (onlyTheme) return this.emit(false);
     this.audit("SETTINGS", "settings", JSON.stringify(s));
     this.emit();
   }
 
+  /** Exporta una copia JSON local (sin usuarios ni contraseñas). */
   exportBackup() {
-    const payload = JSON.stringify({ ...this.state, session: undefined }, null, 2);
-    this.state.backups.unshift({
-      id: uid("b"),
-      createdAt: Date.now(),
-      automatic: false,
-      size: payload.length,
-      note: "Manual",
-    });
-    this.audit("BACKUP", "backup", "Copia creada");
-    this.emit();
-    return payload;
+    return JSON.stringify({ ...this.shared(), exportedAt: new Date().toISOString(), version: this.version }, null, 2);
   }
 
   importBackup(json) {
     const data = JSON.parse(json);
-    const session = this.state.session;
-    this.state = { ...emptyState(), ...data, session };
-    this.audit("RESTORE", "backup", "Copia restaurada");
+    for (const k of SHARED) if (data[k] !== undefined) this.state[k] = data[k];
+    this.audit("RESTORE", "backup", "Copia JSON importada");
     this.emit();
   }
 
   resetDemo() {
-    localStorage.removeItem(KEY);
+    this.seed();
+    this.audit("RESET", "database", "Datos reiniciados desde el Excel");
+    this.emit();
   }
 }
 

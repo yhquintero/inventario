@@ -345,3 +345,12 @@ kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); 
 .celebrate b { font-size: 22px; font-family: var(--serif); } .celebrate span { color: #a7f3d0; }
 @keyframes pop { from { transform: translate(-50%, -50%) scale(.5); opacity: 0; } }
 @media (max-width: 1000px) { .pos { grid-template-columns: 1fr; } .cart { position: static; } .kpis.mini { grid-template-columns: repeat(2, 1fr); } }
+
+/* ===== v4: servidor, 2FA, cierre del día ===== */
+.banner.closed { background: color-mix(in srgb, var(--gold, #c9a227) 16%, transparent); border: 1px solid color-mix(in srgb, var(--gold, #c9a227) 45%, transparent); padding: 10px 14px; border-radius: 12px; margin-bottom: 12px; }
+.qr { background: #fff; padding: 8px; border-radius: 12px; width: 196px; margin: 8px 0; }
+.qr svg { width: 180px; height: 180px; display: block; }
+.codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin: 8px 0 12px; }
+.codes span { background: var(--surface-2, rgba(127,127,127,.12)); padding: 6px 10px; border-radius: 8px; text-align: center; letter-spacing: 1px; }
+.secure-note { text-align: center; margin-top: 10px; }
+td.nowrap, .row.nowrap { white-space: nowrap; flex-wrap: nowrap; }
