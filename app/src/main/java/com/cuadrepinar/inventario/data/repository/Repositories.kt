@@ -182,7 +182,7 @@ class MovementRepository @Inject constructor(private val db: AppDatabase) {
             else -> product.precioVentaUsd
         }
         val importe = StockCalculator.importeUsd(type, quantity, if (overridePrice != null) overridePrice else product.precioVentaUsd)
-        val comm = StockCalculator.comisionCup(center, quantity, product.comisionCup)
+        val comm = StockCalculator.comisionVenta(type, quantity, product.comisionCup)
         val stockFin = StockCalculator.stockFinal(stockIni, type, quantity)
         val id = db.movements().insert(
             com.cuadrepinar.inventario.data.local.entity.MovementEntity(

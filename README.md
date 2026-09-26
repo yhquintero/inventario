@@ -1,6 +1,21 @@
 # Cuadre Pinar
 
-Sistema de control de inventario y cuadre diario para la tienda, digitalizando **Nuevo Cuadre Pinar.xlsx**.
+Sistema de control de inventario y cuadre diario para la tienda.
+
+> **Datos actuales:** `CUADRE PINAR SEPT.xlsx`, hoja **25 9 26** (227 productos, existencias, precios, costos, comisiones, ventas, domicilios y cuadre del día).
+> Historial: tasa CUP/USD (670 → 690 → 750) y 42 cambios de precio detectados en todas las hojas de septiembre.
+> Regenerar semillas: `pip install openpyxl && python3 tools/import_excel.py` (escribe `web/js/seed-data.js` y `app/src/main/assets/seed.json`).
+
+## Novedades (septiembre 2026)
+
+- **Web**: buscador arreglado (no pierde el foco, sin acentos, resalta coincidencias), CRUD completo de productos, movimientos, tasas de cambio y cuadres; **Papelera de reciclaje** (restaurar / eliminar definitivo / vaciar). Mientras un producto está en la papelera no se puede crear otro con el mismo nombre (se ignoran mayúsculas, acentos y espacios).
+- Inventario con columna **Nº**, contador de ítems, imagen por categoría o foto propia, P. COSTO, precio venta 2, observaciones, filtros y orden.
+- **Cuadre diario** idéntico al Excel (VENTA + FONDOS − GASTOS − SALIDAS − CAPITAL − X COBRAR = 0).
+- **Informe semanal** (ventas, costo de venta, utilidad bruta, gastos fijos y variables, utilidad neta).
+- **Historial** diario de precios/costos/comisiones y del valor de USD, EUR, MXN, MLC, CAD en CUP.
+- Comisión = cantidad × comisión en **toda venta** (como la hoja nueva); configurable a “solo GESTOR”.
+- **App Android**: nueva semilla, P. COSTO / precio 2 / observaciones, comisión en toda venta, BD v2, inventario con Nº, contador e imágenes, paleta renovada.
+
 
 Incluye:
 

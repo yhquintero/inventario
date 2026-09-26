@@ -1,14 +1,8 @@
 import { SEED } from "./seed-data.js";
-import {
-  categorize,
-  comisionCup,
-  importeUsd,
-  stockFinal,
-  weekday,
-  wouldGoNegative,
-} from "./calc.js";
+import { categorize, importeUsd, round2, stockFinal, todayISO, normName, CUADRE_FIELDS } from "./calc.js";
 
-const KEY = "cuadrepinar.v1";
+const KEY = "cuadrepinar.v2";
+const PRICE_FIELDS = ["precioVentaUsd", "precioVenta2Usd", "precioCostoUsd", "comisionCup"];
 const BIO = "cuadrepinar.bio";
 
 async function sha256(text) {
@@ -32,12 +26,15 @@ function emptyState() {
     users: [],
     audit: [],
     rates: [],
+    priceHistory: [],
+    weekly: {},
     backups: [],
     settings: {
       theme: "system",
       businessName: "Cuadre Pinar",
-      defaultCupUsd: 540,
+      defaultCupUsd: 750,
       defaultMxnUsd: 20,
+      comisionSoloGestor: false,
       lowStockAlerts: true,
       autoBackup: true,
     },
@@ -86,20 +83,11 @@ class Store {
       const salt = uid("s");
       const ansSalt = uid("a");
       return {
-        id: uid("u"),
-        username,
-        displayName,
-        email,
-        role,
-        active: true,
-        biometricEnabled: false,
-        salt,
+        id: uid("u"), username, displayName, email, role, active: true, biometricEnabled: false, salt,
         passwordHash: await hashPassword(password, salt),
         securityQuestion: "¿Ciudad de la tienda?",
         securityAnswerHash: await hashPassword("pinar", ansSalt),
-        securityAnswerSalt: ansSalt,
-        createdAt: Date.now(),
-        lastLoginAt: null,
+        securityAnswerSalt: ansSalt, createdAt: Date.now(), lastLoginAt: null,
       };
     };
     s.users = [
@@ -109,101 +97,48 @@ class Store {
       await mkUser("almacenero", "Almacén Pinar", "almacen@cuadrepinar.cu", "ALMACENERO", "Alma123!"),
     ];
     const admin = s.users[0];
+    const now = Date.now();
     const byName = {};
     s.products = SEED.products.map((p) => {
       const prod = {
-        id: uid("p"),
-        name: p.name,
-        stockInicial: p.stockInicial,
-        stockActual: p.stockInicial,
-        precioVentaUsd: p.precioVentaUsd,
-        comisionCup: p.comisionCup,
-        minStock: p.stockInicial > 0 ? 1 : 0,
-        active: true,
-        category: categorize(p.name),
-        notes: "",
+        id: uid("p"), name: p.name, category: p.category || categorize(p.name),
+        stockInicial: p.stockInicial, stockActual: p.stockInicial,
+        precioVentaUsd: p.precioVentaUsd, precioVenta2Usd: p.precioVenta2Usd || 0,
+        precioCostoUsd: p.precioCostoUsd || 0, comisionCup: p.comisionCup,
+        minStock: p.stockInicial > 0 ? 1 : 0, observaciones: p.observaciones || "",
+        image: null, deletedAt: null, createdAt: now, updatedAt: now,
       };
-      byName[p.name.trim().toUpperCase()] = prod;
+      byName[normName(p.name)] = prod;
       return prod;
     });
-
+    s.products.sort((a, b) => a.name.localeCompare(b.name, "es"));
+    let seq = 0;
     for (const m of SEED.movements) {
-      const prod = byName[m.product.trim().toUpperCase()];
+      const prod = byName[normName(m.product)];
       if (!prod) continue;
-      const type = String(m.type).toUpperCase();
-      const center = String(m.center || "MOV").toUpperCase();
-      const stockIni = prod.stockActual;
-      const stockFin = stockFinal(stockIni, type, m.quantity);
-      const mov = {
-        id: uid("m"),
-        date: m.date,
-        weekday: m.weekday,
-        productId: prod.id,
-        productName: prod.name,
-        type,
-        quantity: m.quantity,
-        unitPriceUsd: type === "VENTA" ? prod.precioVentaUsd : 0,
-        importeUsd: importeUsd(type, m.quantity, prod.precioVentaUsd),
-        center,
-        comisionCup: comisionCup(center, m.quantity, prod.comisionCup),
-        stockInicial: stockIni,
-        stockFinal: stockFin,
-        userId: admin.id,
-        userName: admin.displayName,
-        notes: "Importado de Nuevo Cuadre Pinar.xlsx",
-      };
-      s.movements.push(mov);
-      prod.stockActual = stockFin;
-    }
-
-    const num = (v) => (typeof v === "number" ? v : 0);
-    for (const c of SEED.cuadres) {
-      s.cuadres.push({
-        id: uid("c"),
-        date: c.date,
-        weekday: c.weekday,
-        cupUsd: num(c.cupUsd) || 540,
-        mxnUsd: num(c.mxnUsd) || 20,
-        cobroUsd: num(c.cobroUsd),
-        cobroZelle: num(c.cobroZelle),
-        cobroMxn: num(c.cobroMxn),
-        cobroCupEfectivo: num(c.cobroCupEfectivo),
-        cobroCupTransf: num(c.cobroCupTransf),
-        cobroEuropa: num(c.cobroEuropa),
-        entradaCup: num(c.entradaCup),
-        entradaUsd: num(c.entradaUsd),
-        extraccionCup: num(c.extraccionCup),
-        extraccionUsd: num(c.extraccionUsd),
-        fondoInicialCup: num(c.fondoInicialCup),
-        fondoInicialUsd: num(c.fondoInicialUsd),
-        cambioCup: num(c.cambioCup),
-        cambioUsd: 0,
-        domicilioCup: num(c.domicilioCup),
-        domicilioUsd: 0,
-        otrosGastosCup: num(c.otrosGastosCup),
-        otrosGastosUsd: 0,
-        otrosGastosObs: typeof c.otrosGastosObs === "string" ? c.otrosGastosObs : "",
-        comisionesCup: num(c.comisionesCup),
-        comisionesUsd: 0,
-        closed: c.weekday === "lunes",
-        userId: admin.id,
+      s.movements.push({
+        id: uid("m"), seq: ++seq, date: m.date, productId: prod.id, productName: prod.name,
+        type: m.type, quantity: m.quantity, unitPriceUsd: m.unitPriceUsd || 0, center: m.center || "TIENDA",
+        domicilioCup: m.domicilioCup || 0, notes: m.notes || "", userName: admin.displayName,
+        createdAt: now + seq, deletedAt: null,
       });
     }
-    s.rates = [
-      { id: uid("r"), pair: "CUP/USD", rate: 540, date: "2026-09-14", userId: admin.id, note: "Semilla Excel" },
-      { id: uid("r"), pair: "MXN/USD", rate: 20, date: "2026-09-14", userId: admin.id, note: "Semilla Excel" },
-      { id: uid("r"), pair: "CUP/USD", rate: 550, date: "2026-09-15", userId: admin.id, note: "Ajuste martes" },
-    ];
+    s.cuadres = SEED.cuadres.map((c) => ({ id: uid("c"), ...c, imported: true }));
+    s.rates = SEED.rates.map((r) => ({ id: uid("r"), ...r, userName: "Excel", createdAt: now }));
+    s.rates.push({ id: uid("r"), date: "2026-09-01", currency: "MXN", rate: 37, note: "Referencia inicial (editable)", userName: "sistema", createdAt: now });
+    s.rates.push({ id: uid("r"), date: "2026-09-01", currency: "EUR", rate: 780, note: "Referencia inicial (editable)", userName: "sistema", createdAt: now });
+    s.rates.push({ id: uid("r"), date: "2026-09-01", currency: "MLC", rate: 600, note: "Referencia inicial (editable)", userName: "sistema", createdAt: now });
+    s.priceHistory = SEED.priceHistory.map((h) => {
+      const prod = byName[normName(h.product)];
+      return { id: uid("h"), date: h.date, productId: prod?.id || null, productName: h.product, field: h.field, old: h.old, new: h.new, userName: "Excel", ts: now };
+    });
     s.audit.push({
-      id: uid("a"),
-      userId: admin.id,
-      userName: admin.username,
-      action: "SEED",
-      entity: "database",
-      details: `Carga inicial desde Nuevo Cuadre Pinar.xlsx (${s.products.length} productos, ${s.movements.length} movimientos)`,
-      timestamp: Date.now(),
+      id: uid("a"), userId: admin.id, userName: admin.username, action: "SEED", entity: "database",
+      details: `Carga desde ${SEED.source} · hoja ${SEED.sheet} (${s.products.length} productos, ${s.movements.length} movimientos, ${s.cuadres.length} cuadres)`,
+      timestamp: now,
     });
     this.state = s;
+    for (const p of s.products) this.recalcProduct(p.id);
   }
 
   audit(action, entity, details, entityId = null) {
@@ -293,22 +228,46 @@ class Store {
       ?.securityQuestion;
   }
 
+  /* ================= PRODUCTOS (CRUD + papelera) ================= */
+  activeProducts() { return this.state.products.filter((p) => !p.deletedAt); }
+  trashProducts() { return this.state.products.filter((p) => p.deletedAt); }
+  activeMovements() { return this.state.movements.filter((m) => !m.deletedAt); }
+  trashMovements() { return this.state.movements.filter((m) => m.deletedAt && !m.deletedWith); }
+
   saveProduct(p) {
-    const dup = this.state.products.find(
-      (x) => x.name.trim().toUpperCase() === p.name.trim().toUpperCase() && x.id !== p.id
-    );
-    if (dup) return { error: "Ya existe un producto con ese nombre." };
+    const name = String(p.name || "").replace(/\s+/g, " ").trim().toUpperCase();
+    const key = normName(name);
+    const dup = this.state.products.find((x) => normName(x.name) === key && x.id !== p.id);
+    if (dup && dup.deletedAt) return { error: `"${dup.name}" está en la Papelera. Restáuralo en lugar de crearlo de nuevo.`, trashId: dup.id };
+    if (dup) return { error: `Ya existe un producto llamado "${dup.name}".` };
+    const today = todayISO();
+    const who = this.state.session?.displayName || "sistema";
     if (!p.id) {
-      p.id = uid("p");
-      p.stockActual = p.stockInicial;
-      p.active = true;
-      this.state.products.push(p);
-      this.audit("CREATE", "product", p.name, p.id);
+      const prod = {
+        id: uid("p"), name, category: p.category || categorize(name),
+        stockInicial: p.stockInicial, stockActual: p.stockInicial,
+        precioVentaUsd: p.precioVentaUsd, precioVenta2Usd: p.precioVenta2Usd || 0,
+        precioCostoUsd: p.precioCostoUsd || 0, comisionCup: p.comisionCup, minStock: p.minStock ?? 1,
+        observaciones: p.observaciones || "", image: p.image || null,
+        deletedAt: null, createdAt: Date.now(), updatedAt: Date.now(),
+      };
+      this.state.products.push(prod);
+      for (const f of PRICE_FIELDS) if (prod[f]) this.state.priceHistory.unshift({ id: uid("h"), date: today, ts: Date.now(), productId: prod.id, productName: name, field: f, old: null, new: prod[f], userName: who });
+      this.audit("CREATE", "product", name, prod.id);
+      p.id = prod.id;
     } else {
-      const i = this.state.products.findIndex((x) => x.id === p.id);
-      const prev = this.state.products[i];
-      this.state.products[i] = { ...prev, ...p, stockActual: prev.stockActual };
-      this.audit("UPDATE", "product", p.name, p.id);
+      const prev = this.state.products.find((x) => x.id === p.id);
+      if (!prev) return { error: "Producto no encontrado." };
+      for (const f of PRICE_FIELDS) {
+        if (p[f] !== undefined && Number(p[f]) !== Number(prev[f] || 0)) {
+          this.state.priceHistory.unshift({ id: uid("h"), date: today, ts: Date.now(), productId: prev.id, productName: name, field: f, old: prev[f] || 0, new: Number(p[f]), userName: who });
+        }
+      }
+      const oldName = prev.name;
+      Object.assign(prev, { ...p, name, image: p.image === undefined ? prev.image : p.image, updatedAt: Date.now() });
+      if (oldName !== name) this.state.movements.forEach((m) => { if (m.productId === prev.id) m.productName = name; });
+      this.recalcProduct(prev.id);
+      this.audit("UPDATE", "product", name, prev.id);
     }
     this.state.products.sort((a, b) => a.name.localeCompare(b.name, "es"));
     this.emit();
@@ -317,117 +276,207 @@ class Store {
 
   deleteProduct(id) {
     const p = this.state.products.find((x) => x.id === id);
-    this.state.products = this.state.products.filter((x) => x.id !== id);
-    this.audit("DELETE", "product", p?.name || id, id);
+    if (!p || p.deletedAt) return { error: "Producto no encontrado." };
+    const ts = Date.now();
+    p.deletedAt = ts;
+    p.deletedBy = this.state.session?.displayName;
+    this.state.movements.forEach((m) => { if (m.productId === id && !m.deletedAt) { m.deletedAt = ts; m.deletedWith = id; } });
+    this.audit("TRASH", "product", p.name, id);
     this.emit();
+    return { ok: true };
   }
 
-  addMovement({ productId, type, quantity, center, date, notes, overridePrice }) {
-    const prod = this.state.products.find((p) => p.id === productId);
+  restoreProduct(id) {
+    const p = this.state.products.find((x) => x.id === id);
+    if (!p) return { error: "No encontrado." };
+    const key = normName(p.name);
+    if (this.state.products.some((x) => x.id !== id && !x.deletedAt && normName(x.name) === key)) return { error: "Ya existe un producto activo con ese nombre." };
+    p.deletedAt = null;
+    this.state.movements.forEach((m) => { if (m.deletedWith === id) { m.deletedAt = null; delete m.deletedWith; } });
+    this.recalcProduct(id);
+    this.audit("RESTORE", "product", p.name, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  purgeProduct(id) {
+    const p = this.state.products.find((x) => x.id === id);
+    this.state.products = this.state.products.filter((x) => x.id !== id);
+    this.state.movements = this.state.movements.filter((m) => m.productId !== id);
+    this.audit("PURGE", "product", `${p?.name} eliminado definitivamente`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  /* ================= MOVIMIENTOS (CRUD + papelera) ================= */
+  saveMovement(data) {
+    const prod = this.state.products.find((p) => p.id === data.productId && !p.deletedAt);
     if (!prod) return { error: "Producto no encontrado." };
-    const qty = Number(quantity);
-    if (!qty || qty <= 0) return { error: "La cantidad debe ser mayor que cero." };
-    if (wouldGoNegative(prod.stockActual, type, qty)) {
-      return { error: `Stock insuficiente. Disponible: ${prod.stockActual}.` };
-    }
-    const price = type === "VENTA" ? overridePrice ?? prod.precioVentaUsd : 0;
-    const stockIni = prod.stockActual;
-    const stockFin = stockFinal(stockIni, type, qty);
-    const mov = {
-      id: uid("m"),
-      date,
-      weekday: weekday(date),
-      productId: prod.id,
-      productName: prod.name,
-      type,
-      quantity: qty,
-      unitPriceUsd: price,
-      importeUsd: importeUsd(type, qty, overridePrice ?? prod.precioVentaUsd),
-      center,
-      comisionCup: comisionCup(center, qty, prod.comisionCup),
-      stockInicial: stockIni,
-      stockFinal: stockFin,
-      userId: this.state.session?.id,
-      userName: this.state.session?.displayName,
-      notes: notes || "",
+    const q = Number(data.quantity);
+    if (!(q > 0)) return { error: "La cantidad debe ser mayor que cero." };
+    const snapshot = JSON.stringify(this.state.movements);
+    const fields = {
+      date: data.date, productId: prod.id, productName: prod.name, type: data.type, quantity: q,
+      unitPriceUsd: data.type === "VENTA" ? (data.unitPriceUsd === "" || data.unitPriceUsd == null ? prod.precioVentaUsd : Number(data.unitPriceUsd)) : 0,
+      center: data.center || "TIENDA", domicilioCup: Number(data.domicilioCup) || 0, notes: data.notes || "",
     };
-    this.state.movements.unshift(mov);
-    prod.stockActual = stockFin;
-    this.audit("MOVEMENT", "movement", `${type} ${qty} × ${prod.name} (${center})`, mov.id);
+    let mov, oldProductId = null;
+    if (data.id) {
+      mov = this.state.movements.find((m) => m.id === data.id);
+      if (!mov) return { error: "Movimiento no encontrado." };
+      oldProductId = mov.productId;
+      Object.assign(mov, fields, { updatedAt: Date.now(), updatedBy: this.state.session?.displayName });
+    } else {
+      mov = { id: uid("m"), ...fields, userName: this.state.session?.displayName, createdAt: Date.now(), deletedAt: null };
+      this.state.movements.unshift(mov);
+    }
+    const bad = [prod.id, oldProductId].filter(Boolean).map((id) => this.recalcProduct(id)).find((r) => r.error);
+    if (bad) {
+      this.state.movements = JSON.parse(snapshot);
+      [prod.id, oldProductId].filter(Boolean).forEach((id) => this.recalcProduct(id));
+      return bad;
+    }
+    this.audit(data.id ? "UPDATE" : "CREATE", "movement", `${mov.type} ${q} × ${prod.name}`, mov.id);
     this.emit();
     return { ok: true, id: mov.id };
   }
 
   deleteMovement(id) {
     const m = this.state.movements.find((x) => x.id === id);
+    if (!m) return { error: "No encontrado." };
+    m.deletedAt = Date.now();
+    const r = this.recalcProduct(m.productId);
+    if (r.error) { m.deletedAt = null; this.recalcProduct(m.productId); return { error: "No se puede eliminar: " + r.error }; }
+    this.audit("TRASH", "movement", `${m.type} ${m.quantity} × ${m.productName}`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  restoreMovement(id) {
+    const m = this.state.movements.find((x) => x.id === id);
+    if (!m) return { error: "No encontrado." };
+    const p = this.state.products.find((x) => x.id === m.productId);
+    if (!p || p.deletedAt) return { error: "Primero restaura el producto de este movimiento." };
+    m.deletedAt = null;
+    const r = this.recalcProduct(m.productId);
+    if (r.error) { m.deletedAt = Date.now(); this.recalcProduct(m.productId); return r; }
+    this.audit("RESTORE", "movement", `${m.type} ${m.quantity} × ${m.productName}`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  purgeMovement(id) {
+    const m = this.state.movements.find((x) => x.id === id);
     this.state.movements = this.state.movements.filter((x) => x.id !== id);
-    if (m) this.recalcProduct(m.productId);
-    this.audit("DELETE", "movement", `Movimiento ${m?.type} eliminado`, id);
+    this.audit("PURGE", "movement", `${m?.type} ${m?.productName}`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  emptyTrash() {
+    const ids = new Set(this.trashProducts().map((p) => p.id));
+    this.state.products = this.state.products.filter((p) => !p.deletedAt);
+    this.state.movements = this.state.movements.filter((m) => !m.deletedAt && !ids.has(m.productId));
+    this.audit("PURGE", "trash", "Papelera vaciada");
     this.emit();
   }
 
+  /** Recalcula stock, importes y comisiones de un producto en orden cronológico. */
   recalcProduct(productId) {
     const prod = this.state.products.find((p) => p.id === productId);
-    if (!prod) return;
-    let stock = prod.stockInicial;
+    if (!prod) return { ok: true };
+    const soloGestor = this.state.settings.comisionSoloGestor;
+    let stock = Number(prod.stockInicial) || 0;
+    let err = null;
     const movs = this.state.movements
-      .filter((m) => m.productId === productId)
-      .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+      .filter((m) => m.productId === productId && !m.deletedAt)
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0));
     for (const m of movs) {
       m.stockInicial = stock;
       m.stockFinal = stockFinal(stock, m.type, m.quantity);
+      m.importeUsd = importeUsd(m.type, m.quantity, m.unitPriceUsd);
+      m.costoUsd = m.type === "VENTA" ? round2(m.quantity * (prod.precioCostoUsd || 0)) : 0;
+      m.comisionCup = m.type === "VENTA" && (!soloGestor || m.center === "GESTOR") ? round2(m.quantity * (prod.comisionCup || 0)) : 0;
+      if (m.stockFinal < -1e-9 && !err) err = `Stock insuficiente de ${prod.name} el ${m.date} (quedaría en ${m.stockFinal}).`;
       stock = m.stockFinal;
     }
     prod.stockActual = stock;
+    return err ? { error: err } : { ok: true };
   }
 
+  /* ================= TIPOS DE CAMBIO (historial diario) ================= */
+  rateOn(currency, date = todayISO()) {
+    const list = this.state.rates.filter((r) => r.currency === currency && r.date <= date)
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0));
+    return list.length ? list[list.length - 1].rate : (currency === "USD" ? this.state.settings.defaultCupUsd : 0);
+  }
+
+  saveRate({ id, currency, rate, date, note }) {
+    rate = Number(rate);
+    if (!(rate > 0)) return { error: "La tasa debe ser mayor que cero." };
+    if (!currency) return { error: "Moneda requerida." };
+    const who = this.state.session?.displayName;
+    if (id) {
+      const r = this.state.rates.find((x) => x.id === id);
+      if (!r) return { error: "No encontrado." };
+      Object.assign(r, { currency, rate, date, note, userName: who, updatedAt: Date.now() });
+      this.audit("UPDATE", "exchange", `${currency} = ${rate} CUP (${date})`, id);
+    } else {
+      const same = this.state.rates.find((x) => x.currency === currency && x.date === date);
+      if (same) {
+        Object.assign(same, { rate, note: note || same.note, userName: who, updatedAt: Date.now() });
+      } else {
+        this.state.rates.push({ id: uid("r"), currency, rate, date, note, userName: who, createdAt: Date.now() });
+      }
+      this.audit("EXCHANGE", "exchange", `${currency} = ${rate} CUP (${date})`);
+    }
+    this.emit();
+    return { ok: true };
+  }
+
+  deleteRate(id) {
+    const r = this.state.rates.find((x) => x.id === id);
+    this.state.rates = this.state.rates.filter((x) => x.id !== id);
+    this.audit("DELETE", "exchange", `${r?.currency} ${r?.rate} (${r?.date})`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  /* ================= CUADRE DIARIO ================= */
   cuadreFor(date) {
     let c = this.state.cuadres.find((x) => x.date === date);
     if (!c) {
-      const lastCup = [...this.state.rates].reverse().find((r) => r.pair === "CUP/USD")?.rate || 540;
-      const lastMxn = [...this.state.rates].reverse().find((r) => r.pair === "MXN/USD")?.rate || 20;
-      c = {
-        id: uid("c"),
-        date,
-        weekday: weekday(date),
-        cupUsd: lastCup,
-        mxnUsd: lastMxn,
-        cobroUsd: 0, cobroZelle: 0, cobroMxn: 0, cobroCupEfectivo: 0, cobroCupTransf: 0, cobroEuropa: 0,
-        entradaCup: 0, entradaUsd: 0, extraccionCup: 0, extraccionUsd: 0,
-        fondoInicialCup: 0, fondoInicialUsd: 0, cambioCup: 0, cambioUsd: 0,
-        domicilioCup: 0, domicilioUsd: 0, otrosGastosCup: 0, otrosGastosUsd: 0, otrosGastosObs: "",
-        comisionesCup: 0, comisionesUsd: 0, closed: false, userId: this.state.session?.id,
-      };
-      this.state.cuadres.push(c);
+      const prev = [...this.state.cuadres].filter((x) => x.date < date).sort((a, b) => b.date.localeCompare(a.date))[0];
+      c = { id: null, date, cupUsd: this.rateOn("USD", date) };
+      for (const k of CUADRE_FIELDS) c[k] = 0;
+      if (prev) { c.fondoCupEfectivo = prev.fondoCupEfectivo || 0; c.fondoCupTarjeta = prev.fondoCupTarjeta || 0; c.fondoUsd = prev.fondoUsd || 0; }
     }
     return c;
   }
 
   saveCuadre(c) {
-    const i = this.state.cuadres.findIndex((x) => x.id === c.id);
-    if (i >= 0) this.state.cuadres[i] = c;
-    else this.state.cuadres.push(c);
-    this.state.rates.unshift({
-      id: uid("r"), pair: "CUP/USD", rate: Number(c.cupUsd), date: c.date,
-      userId: this.state.session?.id, note: "Cuadre diario",
-    });
-    this.state.rates.unshift({
-      id: uid("r"), pair: "MXN/USD", rate: Number(c.mxnUsd), date: c.date,
-      userId: this.state.session?.id, note: "Cuadre diario",
-    });
-    this.audit("CUADRE", "cuadre", `Cuadre ${c.weekday} ${c.date}`, c.id);
+    if (!c.id) { c.id = uid("c"); this.state.cuadres.push(c); }
+    else { const i = this.state.cuadres.findIndex((x) => x.id === c.id); this.state.cuadres[i] = c; }
+    c.imported = false;
+    c.updatedBy = this.state.session?.displayName;
+    if (c.cupUsd > 0 && Number(this.rateOn("USD", c.date)) !== Number(c.cupUsd)) {
+      this.state.rates.push({ id: uid("r"), currency: "USD", rate: Number(c.cupUsd), date: c.date, note: "Cuadre diario", userName: c.updatedBy, createdAt: Date.now() });
+    }
+    this.audit("CUADRE", "cuadre", `Cuadre ${c.date}`, c.id);
     this.emit();
   }
 
-  addRate(pair, rate, note = "") {
-    if (!(rate > 0)) return { error: "El tipo de cambio debe ser mayor que cero." };
-    this.state.rates.unshift({
-      id: uid("r"), pair, rate: Number(rate), date: new Date().toISOString().slice(0, 10),
-      userId: this.state.session?.id, note,
-    });
-    this.audit("EXCHANGE", "exchange", `${pair} = ${rate}`);
+  deleteCuadre(id) {
+    const c = this.state.cuadres.find((x) => x.id === id);
+    this.state.cuadres = this.state.cuadres.filter((x) => x.id !== id);
+    this.audit("DELETE", "cuadre", `Cuadre ${c?.date}`, id);
     this.emit();
-    return { ok: true };
+  }
+
+  saveWeekly(weekStart, data) {
+    this.state.weekly[weekStart] = { ...(this.state.weekly[weekStart] || {}), ...data };
+    this.audit("INFORME", "weekly", `Informe semanal ${weekStart}`);
+    this.emit();
   }
 
   async saveUser(u, password, answer) {

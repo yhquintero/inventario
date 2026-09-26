@@ -100,7 +100,10 @@ data class Product(
     val minStock: Double = 1.0,
     val active: Boolean = true,
     val category: String = "General",
-    val notes: String = ""
+    val notes: String = "",
+    val precioCostoUsd: Double = 0.0,
+    val precioVenta2Usd: Double = 0.0,
+    val observaciones: String = ""
 )
 
 data class Movement(

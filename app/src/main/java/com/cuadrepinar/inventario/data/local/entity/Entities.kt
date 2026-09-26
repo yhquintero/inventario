@@ -16,7 +16,10 @@ data class ProductEntity(
     val active: Boolean = true,
     val category: String = "General",
     val notes: String = "",
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val precioCostoUsd: Double = 0.0,
+    val precioVenta2Usd: Double = 0.0,
+    val observaciones: String = ""
 )
 
 @Entity(
