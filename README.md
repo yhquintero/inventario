@@ -6,6 +6,14 @@ Sistema de control de inventario y cuadre diario para la tienda.
 > Historial: tasa CUP/USD (670 → 690 → 750) y 42 cambios de precio detectados en todas las hojas de septiembre.
 > Regenerar semillas: `pip install openpyxl && python3 tools/import_excel.py` (escribe `web/js/seed-data.js` y `app/src/main/assets/seed.json`).
 
+## Novedades v3
+
+- **Venta rápida (POS)**: cuadrícula con imágenes, carrito, rebaja de precio, domicilio y cobro en un clic.
+- **Importar Excel desde la Web** (Copias → arrastrar .xlsx): elige la hoja del día; reimportar es idempotente; respeta la papelera.
+- **Confeti** al cuadrar en 0, al vender y al cumplir la meta diaria.
+- **Análisis y metas**: tendencia diaria, semana vs anterior, mejor día, margen por categoría, productos sin movimiento, metas diaria/semanal/mensual.
+- **Seguridad**: contraseñas PBKDF2-SHA256 (150k iteraciones, migración automática), bloqueo 5 min tras 5 intentos, cierre por inactividad, CSP y cabeceras seguras, HTTPS opcional (`SSL_CERT=... SSL_KEY=... python3 web/serve.py`).
+
 ## Novedades (septiembre 2026)
 
 - **Web**: buscador arreglado (no pierde el foco, sin acentos, resalta coincidencias), CRUD completo de productos, movimientos, tasas de cambio y cuadres; **Papelera de reciclaje** (restaurar / eliminar definitivo / vaciar). Mientras un producto está en la papelera no se puede crear otro con el mismo nombre (se ignoran mayúsculas, acentos y espacios).

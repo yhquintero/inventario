@@ -205,8 +205,8 @@ export function animateCounters(root = document) {
     const target = parseFloat(m[2].replace(/,/g, ""));
     const dec = (m[2].split(".")[1] || "").length;
     const t0 = performance.now();
-    const tick = (t) => {
-      const k = Math.min(1, (t - t0) / 700), e = 1 - Math.pow(1 - k, 3);
+    const tick = () => {
+      const k = Math.max(0, Math.min(1, (performance.now() - t0) / 700)), e = 1 - Math.pow(1 - k, 3);
       el.textContent = m[1] + (target * e).toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec }) + m[3];
       if (k < 1) requestAnimationFrame(tick); else { el.textContent = txt; el.dataset.done = txt; }
     };

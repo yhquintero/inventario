@@ -295,3 +295,53 @@ kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); 
 .palette-foot { font-size: 11px; color: var(--muted); padding: 8px 16px; border-top: 1px solid var(--line); }
 @media (max-width: 860px) { .hero { grid-template-columns: 1fr; padding: 22px; } .hero-side { justify-content: flex-start; flex-wrap: wrap; } .hero h1 { font-size: 26px; } }
 @media print { .hero, .tooltip { display: none !important; } }
+
+/* ===================== Venta rápida ===================== */
+.pos { display: grid; grid-template-columns: 1fr 360px; gap: 18px; align-items: start; }
+.pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.pcard { position: relative; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow); transition: .15s; }
+.pcard:hover { transform: translateY(-3px); border-color: var(--primary-2); box-shadow: 0 12px 28px rgba(15,118,110,.18); }
+.pcard:active { transform: scale(.97); }
+.pcard.in { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+.pcard .thumb { width: 100%; aspect-ratio: 1; height: auto; border-radius: 10px; font-size: 38px; }
+.pname { font-size: 12px; font-weight: 600; line-height: 1.25; min-height: 30px; }
+.pfoot { display: flex; justify-content: space-between; align-items: center; }
+.pfoot b { color: var(--primary); }
+.badge { position: absolute; top: 6px; right: 6px; z-index: 2; background: var(--primary); color: #fff; min-width: 24px; height: 24px; border-radius: 12px; display: grid; place-items: center; font-weight: 700; font-size: 12px; box-shadow: 0 4px 10px rgba(0,0,0,.2); }
+.cart { position: sticky; top: 10px; }
+.cart-lines { max-height: 42vh; overflow: auto; margin-bottom: 8px; }
+.cl { padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.cl-n { font-size: 12.5px; font-weight: 600; }
+.cl-c { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.cl-c .cell { width: 80px; margin-left: auto; }
+.cart-empty { text-align: center; color: var(--muted); padding: 30px 0; }
+.cart-total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 14px; padding-top: 12px; border-top: 2px solid var(--line); }
+.cart-total b { font-size: 30px; font-family: var(--serif); color: var(--primary); }
+.btn.big { padding: 14px; font-size: 16px; margin-top: 10px; background: linear-gradient(135deg, var(--primary), var(--primary-2)); box-shadow: 0 10px 24px rgba(15,118,110,.3); }
+.btn:disabled { opacity: .5; pointer-events: none; }
+
+/* ===================== Análisis ===================== */
+.line-chart { width: 100%; height: auto; }
+.line-chart .grid { stroke: var(--line); stroke-dasharray: 3 4; }
+.line-chart .goal { stroke: var(--gold); stroke-width: 2; stroke-dasharray: 8 6; }
+.line-chart .goal-t { fill: var(--gold); font-size: 12px; font-weight: 700; }
+.line-chart .ln { fill: none; stroke: var(--primary); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.line-chart .dot { fill: var(--surface); stroke: var(--primary); stroke-width: 2.5; }
+.line-chart .dot.hit { fill: var(--gold); stroke: var(--gold); }
+.line-chart .ax { fill: var(--muted); font-size: 11px; }
+.goal-bar { padding: 10px 0; }
+.gb { height: 14px; background: var(--surface-2); border-radius: 8px; overflow: hidden; margin: 6px 0 4px; border: 1px solid var(--line); }
+.gb i { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--primary), var(--primary-2)); transition: width 1s cubic-bezier(.2,.8,.2,1); }
+.gb i.done { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+
+/* ===================== Importar / celebrar ===================== */
+.dropzone { margin-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 34px; border: 2px dashed var(--primary-2); background: color-mix(in srgb, var(--primary) 5%, var(--surface)); cursor: pointer; text-align: center; color: var(--ink); font-size: 14px; }
+.dropzone.over { background: var(--primary-soft); transform: scale(1.01); }
+.dz-ico { font-size: 40px; }
+.kpis.mini { grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+.kpis.mini .kpi { padding: 10px; } .kpis.mini .v { font-size: 17px; }
+.confetti { position: fixed; inset: 0; z-index: 120; pointer-events: none; }
+.celebrate { position: fixed; top: 30%; left: 50%; transform: translate(-50%, -50%); z-index: 121; background: linear-gradient(135deg, #0b1f33, #0f766e); color: #fff; padding: 20px 34px; border-radius: 20px; text-align: center; box-shadow: 0 30px 80px rgba(15,118,110,.5); display: flex; flex-direction: column; gap: 4px; animation: pop .5s cubic-bezier(.2,1.6,.4,1) both; pointer-events: none; }
+.celebrate b { font-size: 22px; font-family: var(--serif); } .celebrate span { color: #a7f3d0; }
+@keyframes pop { from { transform: translate(-50%, -50%) scale(.5); opacity: 0; } }
+@media (max-width: 1000px) { .pos { grid-template-columns: 1fr; } .cart { position: static; } .kpis.mini { grid-template-columns: repeat(2, 1fr); } }

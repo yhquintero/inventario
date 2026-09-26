@@ -12,8 +12,10 @@ const routes = {
   home: { title: "Panel", icon: "⌂", perm: null, group: "General" },
   inventory: { title: "Inventario", icon: "▣", perm: "INVENTORY_VIEW", group: "Operación", search: true },
   movements: { title: "Movimientos", icon: "⇄", perm: "MOVEMENT_VIEW", group: "Operación", search: true },
+  pos: { title: "Venta rápida", icon: "🛒", perm: "MOVEMENT_CREATE", group: "Operación", search: true },
   cuadre: { title: "Cuadre diario", icon: "☰", perm: "CUADRE_VIEW", group: "Operación" },
   weekly: { title: "Informe semanal", icon: "▤", perm: "WEEKLY_VIEW", group: "Análisis" },
+  analytics: { title: "Análisis y metas", icon: "📈", perm: "REPORTS_VIEW", group: "Análisis" },
   reports: { title: "Comprobación", icon: "▦", perm: "REPORTS_VIEW", group: "Análisis", search: true },
   history: { title: "Historial precios", icon: "↻", perm: "HISTORY_VIEW", group: "Análisis", search: true },
   finance: { title: "Monedas", icon: "$", perm: "REPORTS_FINANCIAL", group: "Análisis" },
@@ -110,7 +112,7 @@ function shell(body) {
       </section>
     </div>
     <nav class="bottom-nav">
-      ${["home", "inventory", "movements", "cuadre", "weekly"].filter((k) => allowed(routes[k].perm))
+      ${["home", "pos", "inventory", "cuadre", "analytics"].filter((k) => allowed(routes[k].perm))
         .map((k) => `<a href="#${k}" class="${ui.route === k ? "active" : ""}" data-nav="${k}">${routes[k].icon}<div>${routes[k].title.split(" ")[0]}</div></a>`).join("")}
     </nav>
     ${ui.modal || ""}
@@ -632,6 +634,13 @@ function backupView() {
         <label class="btn ghost">Restaurar<input type="file" id="restoreFile" accept="application/json" hidden></label>
         <button class="btn danger" data-act="reset">Recargar desde el Excel</button>
       </div>
+    </div>
+    <label class="card dropzone" id="dropzone" data-tip="Arrastra aquí CUADRE PINAR *.xlsx o haz clic">
+      <div class="dz-ico">📥</div><b>Importar una hoja del Excel</b>
+      <span class="hint">Arrastra el archivo .xlsx aquí o haz clic. Elige la hoja del día (p. ej. «26 9 26»).</span>
+      <input type="file" id="xlsxFile" accept=".xlsx,.xls" hidden>
+    </label>
+    <div>
       <div class="hint" style="margin-top:12px">${store.state.backups.length} copias registradas. «Recargar desde el Excel» borra los datos locales y vuelve a importar la hoja 25 9 26.</div>
     </div>`;
 }
@@ -645,8 +654,238 @@ function settingsView() {
       <label>Tema<select name="theme">${["light", "dark", "system"].map((t) => `<option ${s.theme === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       <label>Alertas stock bajo<select name="lowStockAlerts"><option value="true" ${s.lowStockAlerts ? "selected" : ""}>Sí</option><option value="false" ${!s.lowStockAlerts ? "selected" : ""}>No</option></select></label>
       <label>Comisión<select name="comisionSoloGestor"><option value="false" ${!s.comisionSoloGestor ? "selected" : ""}>En todas las ventas (como el Excel)</option><option value="true" ${s.comisionSoloGestor ? "selected" : ""}>Solo ventas GESTOR</option></select></label>
+      <label>Meta diaria <small>USD</small><input name="goalDaily" type="number" step="any" value="${s.goalDaily}"></label>
+      <label>Meta semanal <small>USD</small><input name="goalWeekly" type="number" step="any" value="${s.goalWeekly}"></label>
+      <label>Cerrar sesión por inactividad <small>minutos</small><input name="sessionMinutes" type="number" min="1" value="${s.sessionMinutes}"></label>
       <div class="span-2 row"><button class="btn">Guardar ajustes</button><button type="button" class="btn ghost" data-act="bio-enable">Activar biometría en este dispositivo</button></div>
     </form>`;
+}
+
+/* ============================ PUNTO DE VENTA ============================ */
+ui.cart = [];
+ui.posCat = "TODAS";
+ui.posCenter = "TIENDA";
+function posView() {
+  const all = store.activeProducts();
+  const list = all.filter((p) => p.stockActual > 0 && (ui.posCat === "TODAS" || p.category === ui.posCat) && (!ui.q || has(p.name, ui.q)));
+  const cats = [...new Set(all.filter((p) => p.stockActual > 0).map((p) => p.category))].sort();
+  const total = ui.cart.reduce((a, it) => a + it.qty * it.price, 0);
+  const uds = ui.cart.reduce((a, it) => a + it.qty, 0);
+  return `
+    <div class="pos">
+      <div class="pos-left">
+        <div class="chips" style="margin-bottom:12px">
+          <button class="chip ${ui.posCat === "TODAS" ? "on" : ""}" data-poscat="TODAS">Todas</button>
+          ${cats.map((c) => `<button class="chip ${ui.posCat === c ? "on" : ""}" data-poscat="${esc(c)}">${(CATEGORIES[c] || CATEGORIES.General).icon} ${esc(c)}</button>`).join("")}
+        </div>
+        <div class="pos-grid">
+          ${list.map((p) => {
+            const inCart = ui.cart.find((x) => x.productId === p.id)?.qty || 0;
+            return `<button class="pcard ${inCart ? "in" : ""}" data-add-cart="${p.id}" data-tip="Clic para añadir 1 al carrito · stock ${qty(p.stockActual)}">
+              ${inCart ? `<span class="badge">${inCart}</span>` : ""}
+              ${thumb(p, 999).replace('style="width:999px;height:999px"', "")}
+              <div class="pname">${hl(p.name)}</div>
+              <div class="pfoot"><b>${usd(p.precioVentaUsd)}</b><span class="stock ${p.stockActual <= p.minStock ? "low" : "ok"}">${qty(p.stockActual)}</span></div>
+            </button>`;
+          }).join("") || `<div class="card empty">No hay productos con stock que coincidan.</div>`}
+        </div>
+      </div>
+      <aside class="cart card">
+        <div class="card-h"><span class="k">🛒 Carrito</span>${ui.cart.length ? `<button class="btn ghost small" data-act="cart-clear">Vaciar</button>` : ""}</div>
+        <div class="cart-lines">
+          ${ui.cart.map((it, i) => { const p = store.state.products.find((x) => x.id === it.productId); return `
+            <div class="cl">
+              <div class="cl-n">${esc(p?.name)}</div>
+              <div class="cl-c">
+                <button class="icon-btn" data-cart-dec="${i}">−</button><b>${qty(it.qty)}</b><button class="icon-btn" data-cart-inc="${i}">+</button>
+                <input class="cell" type="number" step="any" data-cart-price="${i}" value="${it.price}" data-tip="Precio unitario USD (puedes rebajarlo)">
+                <b class="mono">${usd(it.qty * it.price)}</b>
+              </div>
+            </div>`; }).join("") || `<div class="cart-empty">Toca un producto para empezar ✨</div>`}
+        </div>
+        <div class="form-grid">
+          <label>Fecha<input type="date" id="posDate" value="${ui.posDate || todayISO()}"></label>
+          <label>Tipo<select id="posCenter">${["TIENDA", "GESTOR"].map((c) => `<option ${ui.posCenter === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
+          <label class="span-2">Domicilio <small>CUP</small><input type="number" id="posDom" step="any" value="${ui.posDom || 0}"></label>
+        </div>
+        <div class="cart-total"><span>${qty(uds)} uds</span><b>${usd(total)}</b></div>
+        <div class="hint" style="text-align:right">≈ ${cup(total * store.rateOn("USD", ui.posDate || todayISO()))}</div>
+        <button class="btn full big" data-act="checkout" ${ui.cart.length ? "" : "disabled"}>✔ Cobrar ${usd(total)}</button>
+      </aside>
+    </div>`;
+}
+function addToCart(id) {
+  const p = store.state.products.find((x) => x.id === id);
+  const it = ui.cart.find((x) => x.productId === id);
+  const cur = it?.qty || 0;
+  if (cur + 1 > p.stockActual) return toast(`Solo hay ${qty(p.stockActual)} en stock.`, "err");
+  if (it) it.qty++; else ui.cart.push({ productId: id, qty: 1, price: p.precioVentaUsd });
+  render();
+}
+
+/* ============================ ANÁLISIS Y METAS ============================ */
+function dailySeries() {
+  const movs = store.activeMovements();
+  const dates = [...new Set(store.state.cuadres.map((c) => c.date).concat(movs.map((m) => m.date)))].sort();
+  return dates.map((d) => {
+    const c = store.state.cuadres.find((x) => x.date === d);
+    return { d, v: cuadreCalc(c || { cupUsd: 1 }, movs.filter((m) => m.date === d)).venta };
+  });
+}
+function lineChart(series, goal) {
+  if (!series.length) return "<p class='hint'>Sin datos</p>";
+  const W = 720, H = 220, P = 30;
+  const max = Math.max(goal || 0, ...series.map((s) => s.v), 1) * 1.1;
+  const x = (i) => P + (i * (W - 2 * P)) / Math.max(1, series.length - 1);
+  const y = (v) => H - P - (v / max) * (H - 2 * P);
+  const pts = series.map((s, i) => `${x(i)},${y(s.v)}`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" class="line-chart">
+    <defs><linearGradient id="lg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#14b8a6" stop-opacity=".45"/><stop offset="1" stop-color="#14b8a6" stop-opacity="0"/></linearGradient></defs>
+    ${[0.25, 0.5, 0.75, 1].map((k) => `<line x1="${P}" x2="${W - P}" y1="${y(max * k / 1.1)}" y2="${y(max * k / 1.1)}" class="grid"/>`).join("")}
+    ${goal ? `<line x1="${P}" x2="${W - P}" y1="${y(goal)}" y2="${y(goal)}" class="goal"/><text x="${W - P}" y="${y(goal) - 6}" text-anchor="end" class="goal-t">Meta ${usd(goal)}</text>` : ""}
+    <polygon points="${x(0)},${H - P} ${pts} ${x(series.length - 1)},${H - P}" fill="url(#lg)"/>
+    <polyline points="${pts}" class="ln"/>
+    ${series.map((s, i) => `<circle cx="${x(i)}" cy="${y(s.v)}" r="4" class="dot ${goal && s.v >= goal ? "hit" : ""}"><title>${formatDate(s.d)}: ${usd(s.v)}</title></circle>`).join("")}
+    ${series.map((s, i) => (i % Math.ceil(series.length / 10) === 0 ? `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" class="ax">${s.d.slice(8)}/${s.d.slice(5, 7)}</text>` : "")).join("")}
+  </svg>`;
+}
+function goalBar(label, v, goal) {
+  const p = goal ? Math.min(100, (v / goal) * 100) : 0;
+  return `<div class="goal-bar" data-tip="${usd(v)} de ${usd(goal)}"><div class="row" style="justify-content:space-between"><b>${label}</b><span class="mono">${usd(v)} / ${usd(goal)}</span></div>
+    <div class="gb"><i style="width:${p}%" class="${p >= 100 ? "done" : ""}"></i></div><div class="hint">${p >= 100 ? "🏆 ¡Meta cumplida!" : `Faltan ${usd(goal - v)} (${round2(p)}%)`}</div></div>`;
+}
+function analyticsView() {
+  const s = store.state.settings;
+  const series = dailySeries();
+  const last = series[series.length - 1] || { v: 0, d: todayISO() };
+  const wk = weeklyData(last.d);
+  const prevWk = weeklyData(addDays(wk.w.from, -7));
+  const diffPct = prevWk.ventas ? round2(((wk.ventas - prevWk.ventas) / prevWk.ventas) * 100) : null;
+  const best = series.reduce((a, b) => (b.v > a.v ? b : a), { v: 0 });
+  const avg = series.length ? series.reduce((a, b) => a + b.v, 0) / series.length : 0;
+  const ventas = store.activeMovements().filter((m) => m.type === "VENTA");
+  const byCat = {};
+  ventas.forEach((m) => { const p = store.state.products.find((x) => x.id === m.productId); const c = p?.category || "General"; byCat[c] = byCat[c] || { v: 0, c: 0 }; byCat[c].v += m.importeUsd; byCat[c].c += m.costoUsd || 0; });
+  const sold = new Set(ventas.map((m) => m.productId));
+  const quietos = store.activeProducts().filter((p) => p.stockActual > 0 && !sold.has(p.id)).sort((a, b) => b.stockActual * b.precioVentaUsd - a.stockActual * a.precioVentaUsd).slice(0, 10);
+  return `
+    <div class="kpis">
+      ${kpi("Esta semana", usd(wk.ventas), diffPct == null ? "sin semana previa" : `${diffPct >= 0 ? "▲" : "▼"} ${Math.abs(diffPct)}% vs semana anterior`, diffPct == null || diffPct >= 0 ? "green" : "red")}
+      ${kpi("Mejor día", usd(best.v), best.d ? `${weekday(best.d)} ${formatDate(best.d)}` : "—", "gold")}
+      ${kpi("Promedio diario", usd(avg), `${series.length} días con datos`, "blue")}
+      ${kpi("Utilidad neta semana", usd(wk.neta), "según informe semanal", wk.neta >= 0 ? "teal" : "red")}
+    </div>
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card"><div class="card-h"><span class="k">🎯 Metas</span>${allowed("REPORTS_FINANCIAL") ? `<button class="btn ghost small" data-nav="settings">Editar metas</button>` : ""}</div>
+        ${goalBar(`Hoy (${formatDate(last.d)})`, last.v, s.goalDaily)}
+        ${goalBar(`Semana ${formatDate(wk.w.from).slice(0, 5)}–${formatDate(wk.w.to).slice(0, 5)}`, wk.ventas, s.goalWeekly)}
+        ${goalBar("Mes", series.filter((x) => x.d.slice(0, 7) === last.d.slice(0, 7)).reduce((a, b) => a + b.v, 0), s.goalWeekly * 4.3)}
+      </div>
+      <div class="card"><div class="card-h"><span class="k">Margen por categoría (ventas registradas)</span></div>
+        ${Object.entries(byCat).sort((a, b) => b[1].v - a[1].v).map(([k, o]) => `<div class="hbar"><span>${catBadge(k)}</span><div><i style="width:${o.v ? Math.max(4, ((o.v - o.c) / o.v) * 100) : 0}%;background:${(CATEGORIES[k] || CATEGORIES.General).color}"></i></div><b class="mono" data-tip="Venta ${usd(o.v)} · costo ${usd(o.c)}">${o.v ? round2(((o.v - o.c) / o.v) * 100) : 0}%</b></div>`).join("") || "<p class='hint'>Sin ventas registradas.</p>"}
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px"><div class="card-h"><span class="k">📈 Tendencia de ventas diarias</span><span class="hint">línea discontinua = meta diaria</span></div>${lineChart(series, s.goalDaily)}</div>
+    <div class="card" style="margin-top:16px"><div class="card-h"><span class="k">💤 Productos sin movimiento (más capital parado)</span></div>
+      <div class="table-wrap"><table><thead><tr><th class="num">Nº</th><th></th><th>PRODUCTO</th><th class="r">STOCK</th><th class="r">CAPITAL</th></tr></thead>
+      <tbody>${quietos.map((p, i) => `<tr><td class="num mono">${i + 1}</td><td>${thumb(p, 30)}</td><td>${esc(p.name)}</td><td class="mono r">${qty(p.stockActual)}</td><td class="mono r">${usd(p.stockActual * p.precioVentaUsd)}</td></tr>`).join("")}</tbody></table></div>
+    </div>`;
+}
+
+/* ============================ IMPORTAR EXCEL ============================ */
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((res, rej) => { const s = document.createElement("script"); s.src = "./vendor/xlsx.full.min.js"; s.onload = () => res(window.XLSX); s.onerror = rej; document.head.appendChild(s); });
+}
+const CUADRE_LABELS = { "VENTA": "venta", "FONDO CUP": "fondoCup", "FONDO USD": "fondoUsd", "AUMENTO DE FONDO CUP": "aumentoFondoCup", "AUMENTO DE FONDO USD \\ZELLE": "aumentoFondoUsd",
+  "COMISIONES": "comisionesCup", "DOMICILIOS": "domiciliosCup", "GASTOS": "gastosCup", "GASTOS COMBOS Y REBAJAS USD": "gastosCombosUsd", "SALIDA JESUS MN": "salidaJesusMn",
+  "SALIDA JESUS USD": "salidaJesusUsd", "SALIDA MLC": "salidaMlc", "USD EFECTIVO": "usdEfectivo", "ZELLE": "zelle", "MLC": "mlc", "MN EFECTIVO": "mnEfectivoCup", "MN TARJETA": "mnTarjetaCup", "X COBRAR": "xCobrar" };
+const CUP_IN_C = new Set(["fondoCup", "aumentoFondoCup", "comisionesCup", "domiciliosCup", "gastosCup", "salidaJesusMn", "mnEfectivoCup", "mnTarjetaCup"]);
+function parseSheet(XLSX, wb, name) {
+  const ws = wb.Sheets[name];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+  const n = (v) => (typeof v === "number" ? v : 0);
+  const products = [], seen = new Set();
+  let i = 1;
+  for (; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const nm = String(r[0] ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+    if (!nm) continue;
+    if (nm === "TOTAL") break;
+    if (seen.has(normName(nm))) continue;
+    seen.add(normName(nm));
+    const obs = typeof r[15] === "string" ? r[15].trim() : "";
+    products.push({ name: nm, existencia: n(r[1]), entrada: n(r[2]), salida: n(r[3]), v1: n(r[4]), v2: n(r[5]), comision: n(r[6]), domicilio: n(r[8]), costo: n(r[9]), p1: n(r[11]), p2: n(r[12]), obs });
+  }
+  let rate = 0; const cuadre = {};
+  for (let j = i + 1; j < rows.length; j++) {
+    const r = rows[j] || [];
+    const lab = String(r[0] ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+    if (lab.startsWith("INFORME SEMANAL")) break;
+    const key = CUADRE_LABELS[lab];
+    if (!key) continue;
+    const f = ws[XLSX.utils.encode_cell({ r: j, c: 1 })]?.f || "";
+    const m = f.match(/\/\s*(\d+(?:\.\d+)?)/);
+    if (m && !rate) rate = Number(m[1]);
+    if (key === "fondoCup") { cuadre.fondoCupEfectivo = n(r[2]); cuadre.fondoCupTarjeta = n(r[3]); continue; }
+    cuadre[key] = CUP_IN_C.has(key) ? n(r[2]) + n(r[3]) || (m ? 0 : n(r[1])) : n(r[1]);
+  }
+  const md = name.trim().match(/^(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})$/);
+  const date = md ? `${md[3].length === 2 ? "20" + md[3] : md[3]}-${md[2].padStart(2, "0")}-${md[1].padStart(2, "0")}` : todayISO();
+  return { sheet: name, date, rate, products, cuadre: Object.keys(cuadre).length ? cuadre : null };
+}
+async function handleExcel(file) {
+  try {
+    const XLSX = await loadXLSX();
+    const wb = XLSX.read(await file.arrayBuffer(), { cellFormula: true });
+    ui.xlsx = { XLSX, wb, fileName: file.name };
+    const sheets = wb.SheetNames.filter((s) => /^\d{1,2}\s+\d{1,2}\s+\d{2,4}$/.test(s.trim()));
+    ui.importSheet = sheets[sheets.length - 1] || wb.SheetNames[0];
+    importModal();
+    render();
+  } catch (e) { toast("No se pudo leer el archivo: " + e.message, "err"); }
+}
+function importModal() {
+  const { XLSX, wb, fileName } = ui.xlsx;
+  const data = parseSheet(XLSX, wb, ui.importSheet);
+  ui.importData = data;
+  const known = new Set(store.state.products.map((p) => normName(p.name)));
+  const nuevos = data.products.filter((p) => !known.has(normName(p.name))).length;
+  const trash = data.products.filter((p) => store.trashProducts().some((t) => normName(t.name) === normName(p.name))).length;
+  const venta = data.products.reduce((a, p) => a + p.v1 * p.p1 + p.v2 * (p.p2 || p.p1), 0);
+  modal("📥 Importar hoja del Excel", `
+    <p class="hint">${esc(fileName)}</p>
+    <label>Hoja<select id="importSheet">${wb.SheetNames.map((s) => `<option ${s === ui.importSheet ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
+    <div class="kpis mini">
+      ${kpi("Fecha", formatDate(data.date), weekday(data.date))}
+      ${kpi("Productos", data.products.length, `${nuevos} nuevos`)}
+      ${kpi("Venta", usd(venta), `Tasa ${data.rate || "—"} CUP`)}
+      ${kpi("Cuadre", data.cuadre ? "Sí" : "No", "panel inferior")}
+    </div>
+    ${trash ? `<div class="banner">⚠ ${trash} productos están en la papelera y se omitirán (no se duplican).</div>` : ""}
+    <p class="hint">Se actualizan precios, costos y comisiones (quedan en el historial), se ajusta la existencia al inicio del día, se crean las entradas/salidas/ventas de esa fecha y se guarda el cuadre. Reimportar la misma hoja reemplaza lo importado antes para ese día.</p>
+    <div class="row" style="margin-top:14px"><button class="btn" type="button" data-act="do-import">Importar ahora</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "importForm");
+}
+
+/* ============================ CONFETI ============================ */
+function confetti(msg) {
+  const cv = document.createElement("canvas");
+  cv.className = "confetti";
+  cv.width = innerWidth; cv.height = innerHeight;
+  document.body.appendChild(cv);
+  if (msg) { const b = document.createElement("div"); b.className = "celebrate"; b.innerHTML = msg; document.body.appendChild(b); setTimeout(() => b.remove(), 2600); }
+  let ctx = null;
+  try { ctx = cv.getContext("2d"); } catch {}
+  if (!ctx) { cv.remove(); return; }
+  const colors = ["#14b8a6", "#fbbf24", "#f472b6", "#60a5fa", "#a78bfa", "#34d399"];
+  const parts = Array.from({ length: 180 }, () => ({ x: innerWidth / 2, y: innerHeight / 3, vx: (Math.random() - 0.5) * 16, vy: Math.random() * -14 - 4, s: Math.random() * 7 + 4, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3, c: colors[(Math.random() * colors.length) | 0] }));
+  let f = 0;
+  const tick = () => {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    parts.forEach((p) => { p.vy += 0.35; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore(); });
+    if (++f < 160) requestAnimationFrame(tick); else cv.remove();
+  };
+  requestAnimationFrame(tick);
 }
 
 /* ============================ MODALES ============================ */
@@ -732,7 +971,7 @@ function confirmModal(text, onYes) {
 
 /* ============================ RENDER ============================ */
 function page() {
-  const views = { inventory: inventoryView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
+  const views = { pos: posView, analytics: analyticsView, inventory: inventoryView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
   return (views[ui.route] || homeView)();
 }
 
@@ -822,6 +1061,18 @@ function bindApp() {
     bindApp._t = setTimeout(render, 150);
   });
   search?.addEventListener("keydown", (e) => { if (e.key === "Escape") { ui.q = ""; render(); } });
+  $("#posDate")?.addEventListener("change", (e) => (ui.posDate = e.target.value));
+  $("#posCenter")?.addEventListener("change", (e) => (ui.posCenter = e.target.value));
+  $("#posDom")?.addEventListener("change", (e) => (ui.posDom = Number(e.target.value) || 0));
+  document.querySelectorAll("[data-cart-price]").forEach((el) => el.addEventListener("change", () => { ui.cart[+el.dataset.cartPrice].price = Number(el.value) || 0; render(); }));
+  $("#importSheet")?.addEventListener("change", (e) => { ui.importSheet = e.target.value; importModal(); render(); });
+  $("#xlsxFile")?.addEventListener("change", (e) => e.target.files[0] && handleExcel(e.target.files[0]));
+  const dz = $("#dropzone");
+  if (dz) {
+    dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("over"); });
+    dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+    dz.addEventListener("drop", (e) => { e.preventDefault(); dz.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) handleExcel(f); });
+  }
   $("#catFilter")?.addEventListener("change", (e) => { ui.cat = e.target.value; render(); });
   $("#sortSel")?.addEventListener("change", (e) => { ui.sort = e.target.value; render(); });
   $("#movDate")?.addEventListener("change", (e) => { ui.movDate = e.target.value; render(); });
@@ -854,7 +1105,9 @@ function bindApp() {
     const c = { ...store.cuadreFor(ui.cuadreDate || lastDataDate()) };
     for (const [k, v] of fd.entries()) c[k] = Number(v) || 0;
     store.saveCuadre(c);
-    toast("Cuadre guardado", "ok");
+    const res = cuadreCalc(c, store.activeMovements().filter((m) => m.date === c.date));
+    if (res.cuadre === 0) confetti(`<b>✔ ¡Cuadre perfecto!</b><span>${formatDate(c.date)} · diferencia 0.00</span>`);
+    else toast(`Cuadre guardado · diferencia ${usd(res.cuadre)}`, "err");
   });
   $("#weeklyForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -876,7 +1129,7 @@ function bindApp() {
     const fd = new FormData(e.target);
     const soloG = fd.get("comisionSoloGestor") === "true";
     const changed = soloG !== !!store.state.settings.comisionSoloGestor;
-    store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", comisionSoloGestor: soloG });
+    store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", comisionSoloGestor: soloG, goalDaily: Number(fd.get("goalDaily")) || 0, goalWeekly: Number(fd.get("goalWeekly")) || 0, sessionMinutes: Math.max(1, Number(fd.get("sessionMinutes")) || 20) });
     if (changed) { store.state.products.forEach((p) => store.recalcProduct(p.id)); store.emit(); }
     toast("Ajustes guardados", "ok");
   });
@@ -946,11 +1199,15 @@ function ensureClicks() {
 function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"); }
 
 function onClick(e) {
-  const t = e.target.closest("[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre]");
+  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
   if (t.tagName === "A" && !d.nav) e.preventDefault();
+  if (d.addCart) return addToCart(d.addCart);
+  if (d.poscat) { ui.posCat = d.poscat; return render(); }
+  if (d.cartInc) { const it = ui.cart[+d.cartInc]; const p = store.state.products.find((x) => x.id === it.productId); if (it.qty + 1 > p.stockActual) return toast(`Solo hay ${qty(p.stockActual)} en stock.`, "err"); it.qty++; return render(); }
+  if (d.cartDec) { const it = ui.cart[+d.cartDec]; it.qty--; if (it.qty <= 0) ui.cart.splice(+d.cartDec, 1); return render(); }
   if (d.nav) { e.preventDefault(); navTo(d.nav); }
   else if (d.filter) { ui.filter = d.filter; render(); }
   else if (d.period) { ui.period = d.period; render(); }
@@ -977,6 +1234,26 @@ function onClick(e) {
   else if (act === "confirm-yes") { const fn = ui.confirm; ui.confirm = null; ui.modal = null; fn?.(); render(); }
   else if (act === "logout") store.logout();
   else if (act === "palette") openPalette(paletteCtx());
+  else if (act === "cart-clear") { ui.cart = []; render(); }
+  else if (act === "checkout") {
+    const r = store.posCheckout(ui.cart, { date: ui.posDate || todayISO(), center: ui.posCenter, domicilioCup: ui.posDom || 0 });
+    if (r.error) return toast(r.error, "err");
+    ui.cart = []; ui.posDom = 0;
+    confetti(`<b>¡Venta registrada!</b><span>${usd(r.total)}</span>`);
+    const dd = ui.posDate || todayISO();
+    const dayTotal = store.activeMovements().filter((m) => m.date === dd && m.type === "VENTA").reduce((a, m) => a + m.importeUsd, 0);
+    const goal = store.state.settings.goalDaily;
+    if (goal && dayTotal >= goal && dayTotal - r.total < goal) setTimeout(() => confetti(`<b>🏆 ¡Meta diaria cumplida!</b><span>${usd(dayTotal)}</span>`), 1200);
+    render();
+  }
+  else if (act === "do-import") {
+    const rep = store.importSheet(ui.importData);
+    ui.modal = null;
+    confetti(`<b>Hoja ${esc(ui.importData.sheet)} importada</b><span>${rep.creados} nuevos · ${rep.actualizados} actualizados · ${rep.movimientos} movimientos</span>`);
+    if (rep.omitidos.length || rep.errores.length) toast(`Omitidos: ${rep.omitidos.length}. Avisos: ${rep.errores.join(" | ").slice(0, 200)}`, rep.errores.length ? "err" : "");
+    ui.cuadreDate = ui.importData.date;
+    render();
+  }
   else if (act === "tour") startTour();
   else if (act === "drawer") { ui.drawer = !ui.drawer; render(); }
   else if (act === "clear-q") { ui.q = ""; render(); $("#globalSearch")?.focus(); }
@@ -1045,5 +1322,11 @@ function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&
 
 window.addEventListener("hashchange", () => { const r = location.hash.slice(1); if (routes[r] && r !== ui.route) navTo(r); });
 initTooltips();
+let lastActivity = Date.now();
+["click", "keydown", "mousemove", "touchstart"].forEach((ev) => document.addEventListener(ev, () => (lastActivity = Date.now()), { passive: true }));
+setInterval(() => {
+  const mins = store.state.settings.sessionMinutes || 20;
+  if (store.state.session && Date.now() - lastActivity > mins * 60000) { store.logout(); toast(`Sesión cerrada por ${mins} min de inactividad`, "err"); }
+}, 30000);
 store.subscribe(() => render());
 store.init().then(() => { const r = location.hash.slice(1); if (routes[r]) ui.route = r; render(); });

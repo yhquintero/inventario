@@ -10,8 +10,15 @@ async function sha256(text) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** PBKDF2-SHA256 (150 000 iteraciones). Formato: "pbkdf2$<hex>". */
 export async function hashPassword(password, salt) {
-  return sha256(`${salt}:${password}`);
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: new TextEncoder().encode(salt), iterations: 150000 }, key, 256);
+  return "pbkdf2$" + [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+async function verifyPassword(password, salt, stored) {
+  if (String(stored).startsWith("pbkdf2$")) return (await hashPassword(password, salt)) === stored;
+  return (await sha256(`${salt}:${password}`)) === stored; // hash antiguo
 }
 
 function uid(prefix = "id") {
@@ -35,6 +42,9 @@ function emptyState() {
       defaultCupUsd: 750,
       defaultMxnUsd: 20,
       comisionSoloGestor: false,
+      goalDaily: 1000,
+      goalWeekly: 6000,
+      sessionMinutes: 20,
       lowStockAlerts: true,
       autoBackup: true,
     },
@@ -68,7 +78,8 @@ class Store {
   async init() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
-      this.state = { ...emptyState(), ...JSON.parse(raw) };
+      const saved = JSON.parse(raw);
+      this.state = { ...emptyState(), ...saved, settings: { ...emptyState().settings, ...(saved.settings || {}) } };
     } else {
       await this.seed();
     }
@@ -119,7 +130,7 @@ class Store {
       s.movements.push({
         id: uid("m"), seq: ++seq, date: m.date, productId: prod.id, productName: prod.name,
         type: m.type, quantity: m.quantity, unitPriceUsd: m.unitPriceUsd || 0, center: m.center || "TIENDA",
-        domicilioCup: m.domicilioCup || 0, notes: m.notes || "", userName: admin.displayName,
+        domicilioCup: m.domicilioCup || 0, notes: m.notes || "", userName: admin.displayName, importedFrom: "excel",
         createdAt: now + seq, deletedAt: null,
       });
     }
@@ -156,21 +167,21 @@ class Store {
   }
 
   async login(username, password) {
+    const { k, v } = this.lockInfo(username);
+    if (v.until > Date.now()) return { error: `Cuenta bloqueada por intentos fallidos. Espera ${Math.ceil((v.until - Date.now()) / 60000)} min.` };
     const user = this.state.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
-    if (!user || !user.active) return { error: "Usuario o contraseña incorrectos." };
-    const hash = await hashPassword(password, user.salt);
-    if (hash !== user.passwordHash) {
-      this.audit("LOGIN_FAIL", "users", "Contraseña inválida");
-      return { error: "Usuario o contraseña incorrectos." };
+    const ok = user && user.active && (await verifyPassword(password, user.salt, user.passwordHash));
+    if (!ok) {
+      const fails = v.fails + 1;
+      this.setLock(k, { fails: fails >= 5 ? 0 : fails, until: fails >= 5 ? Date.now() + 5 * 60000 : 0 });
+      this.audit("LOGIN_FAIL", "users", `Intento fallido para "${username}" (${fails}/5)`);
+      this.persist();
+      return { error: fails >= 5 ? "Demasiados intentos. Cuenta bloqueada 5 minutos." : `Usuario o contraseña incorrectos. Intentos restantes: ${5 - fails}.` };
     }
+    this.setLock(k, { fails: 0, until: 0 });
+    if (!String(user.passwordHash).startsWith("pbkdf2$")) user.passwordHash = await hashPassword(password, user.salt); // migración
     user.lastLoginAt = Date.now();
-    this.state.session = {
-      id: user.id,
-      username: user.username,
-      displayName: user.displayName,
-      role: user.role,
-      email: user.email,
-    };
+    this.state.session = { id: user.id, username: user.username, displayName: user.displayName, role: user.role, email: user.email, at: Date.now() };
     this.audit("LOGIN", "users", "Inicio de sesión");
     this.emit();
     return { user: this.state.session };
@@ -213,8 +224,7 @@ class Store {
   async recover(username, answer, newPassword) {
     const user = this.state.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
     if (!user) return { error: "No existe ese usuario." };
-    const h = await hashPassword(answer.toLowerCase().trim(), user.securityAnswerSalt);
-    if (h !== user.securityAnswerHash) return { error: "La respuesta de seguridad no coincide." };
+    if (!(await verifyPassword(answer.toLowerCase().trim(), user.securityAnswerSalt, user.securityAnswerHash))) return { error: "La respuesta de seguridad no coincide." };
     const salt = uid("s");
     user.salt = salt;
     user.passwordHash = await hashPassword(newPassword, salt);
@@ -477,6 +487,94 @@ class Store {
     this.state.weekly[weekStart] = { ...(this.state.weekly[weekStart] || {}), ...data };
     this.audit("INFORME", "weekly", `Informe semanal ${weekStart}`);
     this.emit();
+  }
+
+  /* ================= PUNTO DE VENTA ================= */
+  posCheckout(cart, { date, center, domicilioCup = 0, notes = "" }) {
+    if (!cart.length) return { error: "El carrito está vacío." };
+    const snapshot = JSON.stringify(this.state.movements);
+    const ids = [];
+    cart.forEach((it, i) => {
+      const prod = this.state.products.find((p) => p.id === it.productId);
+      this.state.movements.unshift({
+        id: uid("m"), date, productId: prod.id, productName: prod.name, type: "VENTA", quantity: Number(it.qty),
+        unitPriceUsd: Number(it.price), center, domicilioCup: i === 0 ? Number(domicilioCup) || 0 : 0,
+        notes: notes || "Punto de venta", userName: this.state.session?.displayName, createdAt: Date.now() + i, deletedAt: null,
+      });
+      ids.push(prod.id);
+    });
+    const bad = [...new Set(ids)].map((id) => this.recalcProduct(id)).find((r) => r.error);
+    if (bad) { this.state.movements = JSON.parse(snapshot); ids.forEach((id) => this.recalcProduct(id)); return bad; }
+    const total = cart.reduce((a, it) => a + it.qty * it.price, 0);
+    this.audit("POS", "movement", `Venta rápida ${cart.length} líneas · $${round2(total)}`);
+    this.emit();
+    return { ok: true, total };
+  }
+
+  /* ================= IMPORTAR HOJA DEL EXCEL ================= */
+  /** data = { date, rate, products:[{name,existencia,entrada,salida,v1,v2,comision,domicilio,costo,p1,p2,obs}], cuadre:{} } */
+  importSheet(data) {
+    const who = this.state.session?.displayName || "Excel";
+    const rep = { creados: 0, actualizados: 0, precios: 0, movimientos: 0, omitidos: [], errores: [] };
+    const date = data.date;
+    // 1) quitar movimientos importados antes para esa misma fecha (reimportación idempotente)
+    this.state.movements = this.state.movements.filter((m) => !(m.date === date && m.importedFrom === "excel"));
+    for (const r of data.products) {
+      const key = normName(r.name);
+      let prod = this.state.products.find((p) => normName(p.name) === key);
+      if (prod && prod.deletedAt) { rep.omitidos.push(`${r.name} (en papelera)`); continue; }
+      if (!prod) {
+        prod = { id: uid("p"), name: r.name, category: categorize(r.name), stockInicial: 0, stockActual: 0, precioVentaUsd: 0, precioVenta2Usd: 0,
+          precioCostoUsd: 0, comisionCup: 0, minStock: r.existencia > 0 ? 1 : 0, observaciones: "", image: null, deletedAt: null, createdAt: Date.now(), updatedAt: Date.now() };
+        this.state.products.push(prod);
+        rep.creados++;
+      } else rep.actualizados++;
+      const upd = { precioVentaUsd: r.p1, precioVenta2Usd: r.p2, precioCostoUsd: r.costo, comisionCup: r.comision };
+      for (const [f, v] of Object.entries(upd)) {
+        if (Number(prod[f] || 0) !== Number(v || 0)) {
+          if (prod.createdAt < Date.now() - 1000 || rep.creados === 0) this.state.priceHistory.unshift({ id: uid("h"), date, ts: Date.now(), productId: prod.id, productName: prod.name, field: f, old: prod[f] || 0, new: v || 0, userName: who + " (Excel)" });
+          prod[f] = v || 0; rep.precios++;
+        }
+      }
+      if (r.obs) prod.observaciones = r.obs;
+      // 2) stock inicial tal que al comenzar ese día haya "existencia"
+      const prev = this.state.movements.filter((m) => m.productId === prod.id && !m.deletedAt && m.date < date)
+        .reduce((a, m) => a + (m.type === "ENTRADA" ? m.quantity : -m.quantity), 0);
+      prod.stockInicial = round2(r.existencia - prev);
+      const add = (type, q, price) => {
+        if (!q) return;
+        this.state.movements.unshift({ id: uid("m"), date, productId: prod.id, productName: prod.name, type, quantity: q, unitPriceUsd: price,
+          center: type === "VENTA" ? "TIENDA" : "MOV", domicilioCup: type === "VENTA" && !add.dom ? (add.dom = 1, r.domicilio || 0) : 0,
+          notes: type !== "VENTA" ? r.obs || "" : "", importedFrom: "excel", userName: who, createdAt: Date.now() + rep.movimientos, deletedAt: null });
+        rep.movimientos++;
+      };
+      add("ENTRADA", r.entrada, 0); add("SALIDA", r.salida, 0); add("VENTA", r.v1, r.p1); add("VENTA", r.v2, r.p2 || r.p1);
+      const res = this.recalcProduct(prod.id);
+      if (res.error) rep.errores.push(res.error);
+    }
+    if (data.rate > 0 && Number(this.rateOn("USD", date)) !== Number(data.rate)) {
+      this.state.rates.push({ id: uid("r"), date, currency: "USD", rate: data.rate, note: "Importado de Excel", userName: who, createdAt: Date.now() });
+    }
+    if (data.cuadre) {
+      const i = this.state.cuadres.findIndex((c) => c.date === date);
+      const c = { id: i >= 0 ? this.state.cuadres[i].id : uid("c"), date, cupUsd: data.rate || this.rateOn("USD", date), ...data.cuadre, imported: true };
+      if (i >= 0) this.state.cuadres[i] = c; else this.state.cuadres.push(c);
+    }
+    this.state.products.sort((a, b) => a.name.localeCompare(b.name, "es"));
+    this.audit("IMPORT", "excel", `Hoja ${data.sheet}: ${rep.creados} nuevos, ${rep.actualizados} actualizados, ${rep.movimientos} movimientos`);
+    this.emit();
+    return rep;
+  }
+
+  /* ================= SEGURIDAD ================= */
+  lockInfo(username) {
+    const k = "lock:" + String(username).toLowerCase();
+    const v = JSON.parse(localStorage.getItem("cuadrepinar.sec") || "{}")[k] || { fails: 0, until: 0 };
+    return { k, v };
+  }
+  setLock(k, v) {
+    const all = JSON.parse(localStorage.getItem("cuadrepinar.sec") || "{}");
+    all[k] = v; localStorage.setItem("cuadrepinar.sec", JSON.stringify(all));
   }
 
   async saveUser(u, password, answer) {
