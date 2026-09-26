@@ -58,7 +58,8 @@ data class AuthState(
     val error: String? = null,
     val user: UserAccount? = null,
     val recovering: Boolean = false,
-    val question: String? = null
+    val question: String? = null,
+    val need2fa: Boolean = false
 )
 
 @HiltViewModel
@@ -75,12 +76,18 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun login(user: String, pass: String) {
+    /** Servidor guardado de la última conexión (vacío = modo solo local). */
+    val savedServer: String get() = auth.sync.server()
+
+    fun login(user: String, pass: String, server: String = "", code: String = "") {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true, error = null)
-            when (val r = auth.login(user, pass)) {
+            val r = if (server.isNotBlank()) auth.loginServer(server, user, pass, code.ifBlank { null }) else auth.login(user, pass)
+            when (r) {
                 is AppResult.Ok -> _state.value = AuthState(user = r.value)
-                is AppResult.Err -> _state.value = _state.value.copy(loading = false, error = r.message)
+                is AppResult.Err ->
+                    if (r.message == AuthRepository.NEED_2FA) _state.value = _state.value.copy(loading = false, need2fa = true, error = "Escribe el código de tu app autenticadora.")
+                    else _state.value = _state.value.copy(loading = false, error = r.message)
             }
         }
     }
@@ -124,6 +131,8 @@ fun LoginScreen(vm: AuthViewModel = hiltViewModel(), onLogged: (UserAccount) -> 
     var pass by remember { mutableStateOf("") }
     var answer by remember { mutableStateOf("") }
     var newPass by remember { mutableStateOf("") }
+    var server by remember { mutableStateOf(vm.savedServer) }
+    var code by remember { mutableStateOf("") }
     val context = LocalContext.current
     val helper = remember { BiometricHelper(context) }
 
@@ -166,9 +175,19 @@ fun LoginScreen(vm: AuthViewModel = hiltViewModel(), onLogged: (UserAccount) -> 
                     }
                 }
             )
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                server, { server = it }, label = { Text("Servidor (misma dirección que la Web)") }, singleLine = true,
+                placeholder = { Text("https://tienda.ejemplo.com") },
+                supportingText = { Text(if (server.isBlank()) "Vacío = datos solo en este teléfono" else "Datos compartidos con la Web · conexión cifrada") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (state.need2fa) {
+                OutlinedTextField(code, { code = it }, label = { Text("Código de verificación (2FA)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            }
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { vm.login(user, pass) },
+                onClick = { vm.login(user, pass, server, code) },
                 enabled = !state.loading,
                 modifier = Modifier.fillMaxWidth()
             ) {

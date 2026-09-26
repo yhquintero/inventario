@@ -35,7 +35,7 @@ Variables: `PORT`, `DATA_DIR`, `SSL_CERT`, `SSL_KEY`, `BACKUP_KEY`, `BACKUP_HOUR
 La primera vez que entra un administrador o jefe, el servidor se carga con la hoja «25 9 26» del Excel.
 **Cambia las contraseñas de demostración** (admin/Admin123!, jefe/Jefe123!, economico/Eco123!, almacenero/Alma123!) antes de publicar.
 
-**App Android:** la API (`/api/login`, `/api/state`…) ya permite que la App use los mismos datos (token Bearer), pero el cliente de sincronización Android aún está pendiente: la App sigue funcionando con su base local.
+**App Android conectada al servidor:** en la pantalla de acceso escribe la dirección del servidor (la misma de la Web, con `https://`), tu usuario y contraseña (y el código 2FA si lo tienes). La App descarga productos, movimientos, cuadres y tasas; los cambios hechos en el teléfono se suben solos en ~2 s, y cada 15 s comprueba si hubo cambios en la Web. Si otro usuario guardó antes, si tu rol no lo permite o si el día está cerrado, la App recarga los datos del servidor y lo avisa en *Ajustes → Servidor compartido*. Con el campo *Servidor* vacío la App sigue funcionando solo en local. Código: `app/.../data/sync/SyncManager.kt`.
 
 ## Novedades v3
 

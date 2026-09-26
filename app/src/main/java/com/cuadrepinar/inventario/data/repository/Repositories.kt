@@ -29,13 +29,37 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 import javax.inject.Singleton
 
 @Singleton
 class AuthRepository @Inject constructor(
     private val db: AppDatabase,
-    private val session: SessionManager
+    private val session: SessionManager,
+    val sync: com.cuadrepinar.inventario.data.sync.SyncManager
 ) {
+    /**
+     * Entrada contra el servidor compartido con la Web. Crea/actualiza un usuario local espejo (sin contraseña local)
+     * para que las pantallas de la App sigan funcionando igual.
+     */
+    suspend fun loginServer(server: String, username: String, password: String, code: String?): AppResult<UserAccount> {
+        val r = sync.login(server, username, password, code)
+        if (r.body.optBoolean("need2fa") && r.body.optString("token").isBlank()) {
+            return AppResult.Err(if (code.isNullOrBlank()) NEED_2FA else r.error)
+        }
+        if (!r.ok) return AppResult.Err(r.error)
+        val u = r.body.getJSONObject("user")
+        val existing = db.users().byUsername(u.getString("username"))
+        val entity = (existing ?: UserEntity(username = u.getString("username"), displayName = "", email = "", passwordHash = "remote", salt = "", role = ""))
+            .copy(displayName = u.optString("displayName"), email = u.optString("email"), role = u.getString("role"), active = true, lastLoginAt = System.currentTimeMillis())
+        val id = if (existing == null) db.users().insert(entity) else { db.users().update(entity); entity.id }
+        session.save(id, entity.username, entity.role, entity.displayName)
+        audit(id, entity.username, "LOGIN", "users", id, "Inicio de sesión en servidor ${sync.server()}")
+        return AppResult.Ok(entity.copy(id = id).toModel())
+    }
+
+    companion object { const val NEED_2FA = "NEED_2FA" }
+
     suspend fun login(username: String, password: String): AppResult<UserAccount> {
         val user = db.users().byUsername(username.trim())
             ?: return AppResult.Err("Usuario o contraseña incorrectos.")
@@ -52,6 +76,7 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun loginById(userId: Long): AppResult<UserAccount> {
+        if (sync.server().isNotBlank() && !sync.isConnected()) return AppResult.Err("Entra con tu contraseña para conectar con el servidor.")
         val user = db.users().get(userId) ?: return AppResult.Err("Sesión inválida.")
         if (!user.active) return AppResult.Err("La cuenta está desactivada.")
         session.save(user.id, user.username, user.role, user.displayName)
@@ -61,10 +86,15 @@ class AuthRepository @Inject constructor(
 
     suspend fun restoreSession(): UserAccount? {
         if (!session.isLoggedIn()) return null
+        if (sync.server().isNotBlank()) {
+            if (!sync.isConnected()) return null   // la sesión del servidor caducó: volver a entrar
+            sync.start()
+        }
         return db.users().get(session.userId())?.takeIf { it.active }?.toModel()
     }
 
     fun logout() {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { sync.logout() }
         val id = session.userId()
         val name = session.username() ?: ""
         session.clear()
@@ -120,7 +150,7 @@ class ProductRepository @Inject constructor(private val db: AppDatabase) {
             } else {
                 val current = db.products().get(product.id) ?: return AppResult.Err("Producto no encontrado.")
                 db.products().update(
-                    product.copy(stockActual = current.stockActual).toEntity()
+                    product.copy(stockActual = current.stockActual).toEntity().copy(remoteId = current.remoteId)
                 )
                 product.id
             }
