@@ -26,4 +26,4 @@ web/dist/
 .arena/
 
 # Datos del servidor (base de datos, copias y clave de cifrado)
-data/
+/data/
