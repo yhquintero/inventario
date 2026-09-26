@@ -1,4 +1,5 @@
 import { store } from "./store.js";
+import { applyTips, initTooltips, startTour, tourSeen, openPalette, animateCounters } from "./ux.js";
 import {
   addDays, can, CATEGORIES, cup, CURRENCIES, cuadreCalc, formatDate, inRange, normName, periodRange,
   qty, round2, stockCalculado, todayISO, usd, validatePassword, validateProduct, weekday, weekRange,
@@ -101,6 +102,8 @@ function shell(body) {
           <button class="btn ghost small menu-btn" data-act="drawer">☰</button>
           <div class="tb-title"><h2>${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP</span></div>
           ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" />${ui.q ? `<button class="x" data-act="clear-q">✕</button>` : ""}</div>` : `<div style="flex:1"></div>`}
+          <button class="btn ghost small kbd-btn" data-act="palette">⌘K</button>
+          <button class="btn ghost small" data-act="tour">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
         </div>
         <div class="content">${body}</div>
@@ -175,7 +178,29 @@ function homeView() {
   const byCat = {};
   prods.forEach((p) => { byCat[p.category] = (byCat[p.category] || 0) + Math.max(0, p.stockActual) * p.precioVentaUsd; });
   const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  const h = new Date().getHours();
+  const saludo = h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches";
+  const top = [...movs].filter((m) => m.type === "VENTA").reduce((a, m) => ((a[m.productName] = (a[m.productName] || 0) + m.importeUsd), a), {});
+  const topList = Object.entries(top).sort((a, b) => b[1] - a[1]).slice(0, 3);
   return `
+    <section class="hero">
+      <div class="hero-txt">
+        <div class="eyebrow">${formatDate(todayISO())} · ${esc(store.state.settings.businessName)}</div>
+        <h1>${saludo}, ${esc(store.state.session.displayName.split(" ")[0])} ✨</h1>
+        <p>${t.cuadre === 0 ? "El último cuadre está perfecto. ¡Sigue así!" : "El último cuadre tiene diferencia: revísalo."} Tienes <b>${prods.length}</b> productos y <b>${low.length}</b> alertas de stock.</p>
+        <div class="row">
+          ${allowed("MOVEMENT_CREATE") ? `<button class="btn glow" data-act="new-movement">⇄ Registrar venta</button>` : ""}
+          <button class="btn glass" data-nav="cuadre">☰ Ver cuadre</button>
+          <button class="btn glass" data-act="palette">⌕ Buscar (Ctrl+K)</button>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="ring" style="--p:${Math.min(100, Math.round((t.venta / Math.max(1, maxV)) * 100))}" data-tip="Venta del día comparada con el mejor día de la semana">
+          <div><b>${usd(t.venta).replace(".00", "")}</b><span>venta ${formatDate(d).slice(0, 5)}</span></div>
+        </div>
+        ${topList.length ? `<div class="toplist"><div class="k" style="color:#bfe9e3">Más vendidos</div>${topList.map(([n, v], i) => `<div><span>${["🥇", "🥈", "🥉"][i]} ${esc(n)}</span><b>${usd(v)}</b></div>`).join("")}</div>` : ""}
+      </div>
+    </section>
     ${low.length && store.state.settings.lowStockAlerts ? `<div class="banner">⚠ <strong>${low.length} productos</strong> con stock en el mínimo o agotados.</div>` : ""}
     <div class="kpis">
       ${kpi("Venta del día", usd(t.venta), `${formatDate(d)} · ${qty(t.unidades)} uds`, "teal")}
@@ -730,8 +755,37 @@ function render() {
     const el = document.getElementById(focusId);
     if (el) { el.focus(); try { if (selStart != null) el.setSelectionRange(selStart, selEnd); } catch {} }
   }
+  applyTips(app);
+  if (ui._lastRoute !== ui.route) { ui._lastRoute = ui.route; animateCounters(app); $(".content")?.classList.add("enter"); }
   bindApp();
+  if (!tourSeen() && !ui.modal && !document.querySelector(".tour") && innerWidth > 860) setTimeout(startTour, 400);
 }
+
+function paletteCtx() {
+  return {
+    routes, allowed, norm: normName, products: () => store.activeProducts(),
+    go: (k) => navTo(k),
+    act: (a) => runAct(a),
+    openProduct: (p) => { if (allowed("INVENTORY_EDIT")) { productModal(p); ui.route = "inventory"; render(); } else { ui.q = p.name; navTo("inventory"); } },
+  };
+}
+function runAct(a) {
+  if (a === "new-product") { productModal(null); render(); }
+  else if (a === "new-movement") { movementModal(); render(); }
+  else if (a === "theme") { const o = ["light", "dark", "system"]; store.saveSettings({ theme: o[(o.indexOf(store.state.settings.theme) + 1) % 3] }); }
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!store.state.session) return;
+  const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName);
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openPalette(paletteCtx()); return; }
+  if (e.key === "Escape" && ui.modal) { ui.modal = null; render(); return; }
+  if (typing || ui.modal || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "/") { const s = $("#globalSearch"); if (s) { e.preventDefault(); s.focus(); } }
+  else if (e.key === "n" && allowed("INVENTORY_EDIT")) runAct("new-product");
+  else if (e.key === "m" && allowed("MOVEMENT_CREATE")) runAct("new-movement");
+  else if (e.key === "?") startTour();
+});
 
 function bindLogin() {
   ensureClicks();
@@ -922,6 +976,8 @@ function onClick(e) {
   else if (d.toggleUser) { const u = store.state.users.find((x) => x.id === d.toggleUser); result(store.toggleUser(u.id, !u.active), "Estado actualizado"); }
   else if (act === "confirm-yes") { const fn = ui.confirm; ui.confirm = null; ui.modal = null; fn?.(); render(); }
   else if (act === "logout") store.logout();
+  else if (act === "palette") openPalette(paletteCtx());
+  else if (act === "tour") startTour();
   else if (act === "drawer") { ui.drawer = !ui.drawer; render(); }
   else if (act === "clear-q") { ui.q = ""; render(); $("#globalSearch")?.focus(); }
   else if (act === "clear-date") { ui.movDate = ""; render(); }
@@ -988,5 +1044,6 @@ function download(name, content, mime) {
 function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
 window.addEventListener("hashchange", () => { const r = location.hash.slice(1); if (routes[r] && r !== ui.route) navTo(r); });
+initTooltips();
 store.subscribe(() => render());
 store.init().then(() => { const r = location.hash.slice(1); if (routes[r]) ui.route = r; render(); });
