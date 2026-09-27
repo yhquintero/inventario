@@ -45,14 +45,29 @@ import javax.inject.Inject
 @HiltViewModel
 class CuadreViewModel @Inject constructor(
     private val repo: CuadreRepository,
-    movements: MovementRepository
+    movements: MovementRepository,
+    val sync: com.cuadrepinar.inventario.data.sync.SyncManager
 ) : ViewModel() {
+    var date by mutableStateOf(LocalDate.now())
+
+    fun closeDay() = viewModelScope.launch {
+        val r = sync.closeDay(date.toString())
+        info = if (r.ok) "🔒 Día ${Dates.format(Dates.startOfDay(date))} cerrado" else r.error
+        load(date)
+    }
+
+    fun reopenDay(reason: String) = viewModelScope.launch {
+        val r = sync.reopenDay(date.toString(), reason)
+        info = if (r.ok) "Día reabierto" else r.error
+        load(date)
+    }
     val movements = movements.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     var cuadre by mutableStateOf<DailyCuadre?>(null)
     var info by mutableStateOf<String?>(null)
 
-    fun load(date: LocalDate = LocalDate.now()) {
-        viewModelScope.launch { cuadre = repo.forDate(date) }
+    fun load(d: LocalDate = date) {
+        date = d
+        viewModelScope.launch { cuadre = repo.forDate(d) }
     }
 
     fun save(c: DailyCuadre, actor: UserAccount) {
@@ -71,15 +86,32 @@ fun CuadreScreen(user: UserAccount, vm: CuadreViewModel = hiltViewModel()) {
     val c = vm.cuadre ?: return
     val dayMovs = movs.filter { it.dateEpoch == c.dateEpoch }
     val totals = CuadreCalculator.totals(c, dayMovs)
-    val canEdit = RolePermissions.can(user.role, Permission.CUADRE_EDIT)
+    val sync by vm.sync.status.collectAsState()
+    val closed = c.closed || vm.date.toString() in sync.closedDays
+    val canEdit = RolePermissions.can(user.role, Permission.CUADRE_EDIT) && !closed
     var form by remember(c) { mutableStateOf(c) }
+    var reopenReason by remember { mutableStateOf<String?>(null) }
 
     fun n(v: Double) = if (v == 0.0) "" else v.toString()
     fun p(s: String) = s.replace(",", ".").toDoubleOrNull() ?: 0.0
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Cuadre del ${form.weekday}", style = MaterialTheme.typography.headlineMedium)
-        Text(Dates.formatLong(form.dateEpoch), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            androidx.compose.material3.TextButton(onClick = { vm.load(vm.date.minusDays(1)) }) { Text("‹") }
+            Text(Dates.formatLong(form.dateEpoch), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            androidx.compose.material3.TextButton(onClick = { vm.load(vm.date.plusDays(1)) }, enabled = vm.date < LocalDate.now()) { Text("›") }
+        }
+        if (closed) {
+            androidx.compose.material3.Card(Modifier.fillMaxWidth(), colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                Text("🔒 Día cerrado: movimientos y cuadre son de solo lectura. Solo un administrador puede reabrirlo.", Modifier.padding(12.dp))
+            }
+        }
+        if (sync.connected) {
+            val canClose = user.role.name in setOf("ADMINISTRADOR", "JEFE", "ECONOMICO")
+            if (!closed && canClose) androidx.compose.material3.OutlinedButton(onClick = { vm.closeDay() }, modifier = Modifier.fillMaxWidth()) { Text("🔒 Cerrar día") }
+            if (closed && user.role.name == "ADMINISTRADOR") androidx.compose.material3.OutlinedButton(onClick = { reopenReason = "" }, modifier = Modifier.fillMaxWidth()) { Text("🔓 Reabrir día") }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             KpiCard("VENTA TOTAL", Money.usd(totals.ventaTotal), modifier = Modifier.weight(1f))
             KpiCard("TOTAL GENERAL", Money.usd(totals.totalGeneral), modifier = Modifier.weight(1f))
@@ -124,5 +156,14 @@ fun CuadreScreen(user: UserAccount, vm: CuadreViewModel = hiltViewModel()) {
             Button(onClick = { vm.save(form, user) }, modifier = Modifier.fillMaxWidth()) { Text("Guardar cuadre") }
         }
         vm.info?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+    }
+    reopenReason?.let { reason ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { reopenReason = null },
+            title = { Text("Reabrir día") },
+            text = { OutlinedTextField(reason, { reopenReason = it }, label = { Text("Motivo (queda en la auditoría)") }) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { vm.reopenDay(reason); reopenReason = null }, enabled = reason.trim().length >= 5) { Text("Reabrir") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { reopenReason = null }) { Text("Cancelar") } }
+        )
     }
 }

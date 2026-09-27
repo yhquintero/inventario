@@ -190,6 +190,32 @@ class SyncManager @Inject constructor(
         return if (localSig() != lastLocalSig) { push(); true } else false
     }
 
+    // ------------------------------------------------------------------ cierre del día e historial
+    suspend fun closeDay(date: String, note: String = ""): ApiResponse {
+        flushIfDirty()
+        val r = call("/days/close", "POST", JSONObject().put("date", date).put("note", note))
+        if (r.ok) pull(force = true)
+        return r
+    }
+
+    suspend fun reopenDay(date: String, reason: String): ApiResponse {
+        val r = call("/days/reopen", "POST", JSONObject().put("date", date).put("reason", reason))
+        if (r.ok) pull(force = true)
+        return r
+    }
+
+    data class PriceChange(val date: String, val product: String, val field: String, val old: Double, val new: Double, val user: String)
+
+    /** Historial diario de cambios de precio y comisión (del estado compartido con la Web). */
+    fun priceHistory(): List<PriceChange> {
+        if (!stateFile.exists()) return emptyList()
+        return runCatching {
+            JSONObject(stateFile.readText()).optJSONArray("priceHistory").objects().map {
+                PriceChange(it.str("date"), it.str("productName"), it.str("field"), it.num("old"), it.num("new"), it.str("userName"))
+            }.sortedByDescending { it.date }
+        }.getOrDefault(emptyList())
+    }
+
     // ------------------------------------------------------------------ pull
     suspend fun pull(force: Boolean = false): Unit = mutex.withLock {
         if (!isConnected()) return@withLock
@@ -228,8 +254,8 @@ class SyncManager @Inject constructor(
                 db.movements().deleteAll(); db.products().deleteAll(); db.cuadre().deleteAll(); db.exchange().deleteAll()
                 val byRemote = HashMap<String, ProductEntity>()
                 for (p in state.optJSONArray("products").objects()) {
-                    if (isDeleted(p)) continue
                     val e = ProductEntity(
+                        active = !isDeleted(p), updatedAt = p.optLong("deletedAt", System.currentTimeMillis()),
                         name = p.str("name"), stockInicial = p.num("stockInicial"), stockActual = p.num("stockActual"),
                         precioVentaUsd = p.num("precioVentaUsd"), comisionCup = p.num("comisionCup"), minStock = p.num("minStock"),
                         category = p.str("category").ifBlank { "General" }, precioCostoUsd = p.num("precioCostoUsd"),
@@ -239,7 +265,7 @@ class SyncManager @Inject constructor(
                     byRemote[e.remoteId!!] = e.copy(id = id)
                 }
                 val movs = state.optJSONArray("movements").objects()
-                    .filter { !isDeleted(it) && byRemote.containsKey(it.str("productId")) }
+                    .filter { !isDeleted(it) && byRemote[it.str("productId")]?.active == true }
                     .sortedWith(compareBy({ it.str("date") }, { it.optLong("createdAt") }))
                 val running = HashMap<String, Double>()
                 val out = ArrayList<MovementEntity>()
@@ -285,7 +311,7 @@ class SyncManager @Inject constructor(
     /** Firma del contenido sincronizable de Room, para detectar cambios hechos en la App. */
     private suspend fun localSig(): String {
         val sb = StringBuilder()
-        db.products().all().sortedBy { it.id }.forEach { sb.append(listOf(it.remoteId, it.name, it.category, it.stockInicial, it.precioVentaUsd, it.precioVenta2Usd, it.precioCostoUsd, it.comisionCup, it.minStock, it.observaciones).joinToString("|")).append('\n') }
+        db.products().all().sortedBy { it.id }.forEach { sb.append(listOf(it.remoteId, it.name, it.category, it.stockInicial, it.precioVentaUsd, it.precioVenta2Usd, it.precioCostoUsd, it.comisionCup, it.minStock, it.observaciones, it.active).joinToString("|")).append('\n') }
         db.movements().all().forEach { sb.append(listOf(it.remoteId, it.productId, it.dateEpoch, it.type, it.quantity, it.unitPriceUsd, it.center, it.notes).joinToString("|")).append('\n') }
         db.cuadre().all().sortedBy { it.dateEpoch }.forEach { sb.append(it.copy(id = 0, userId = 0, closed = false).toString()).append('\n') }
         db.exchange().all().forEach { sb.append(listOf(it.remoteId, it.pair, it.rate, it.dateEpoch).joinToString("|")).append('\n') }
@@ -316,6 +342,7 @@ class SyncManager @Inject constructor(
         val pById = jProducts.objects().associateBy { it.str("id") }
         val history = state.optJSONArray("priceHistory") ?: JSONArray().also { state.put("priceHistory", it) }
         val localProducts = db.products().all()
+        var restored = false
         val remoteOfLocal = HashMap<Long, String>()
         for (p in localProducts) {
             val o = p.remoteId?.let { pById[it] }
@@ -329,6 +356,17 @@ class SyncManager @Inject constructor(
                 continue
             }
             remoteOfLocal[p.id] = p.remoteId!!
+            if (!p.active && !isDeleted(o)) {
+                o.put("deletedAt", now).put("deletedBy", "$who (App)")
+                for (m in (state.optJSONArray("movements")).objects()) if (m.str("productId") == p.remoteId && !isDeleted(m)) m.put("deletedAt", now).put("deletedWith", p.remoteId)
+                changes += "papelera ${p.name}"; continue
+            }
+            if (p.active && isDeleted(o)) {
+                o.put("deletedAt", JSONObject.NULL)
+                for (m in (state.optJSONArray("movements")).objects()) if (m.optString("deletedWith") == p.remoteId) { m.put("deletedAt", JSONObject.NULL); m.remove("deletedWith") }
+                restored = true; changes += "restaurado ${p.name}"; continue
+            }
+            if (!p.active) continue
             var changed = false
             fun set(k: String, v: Any) {
                 val diff = if (v is Double) o.num(k) != v else o.str(k) != v.toString()
@@ -347,14 +385,19 @@ class SyncManager @Inject constructor(
             set("comisionCup", p.comisionCup); set("minStock", p.minStock); set("observaciones", p.observaciones)
             if (changed) { o.put("updatedAt", now); changes += "producto ${p.name}" }
         }
+        // Productos que ya no existen en el teléfono = eliminados definitivamente (con sus movimientos)
         val liveRemote = remoteOfLocal.values.toSet()
-        val trashed = mutableSetOf<String>()
-        for (o in jProducts.objects()) if (!isDeleted(o) && o.str("id") !in liveRemote) {
-            o.put("deletedAt", now).put("deletedBy", "$who (App)"); trashed += o.str("id"); changes += "papelera ${o.str("name")}"
+        val purged = jProducts.objects().filter { it.str("id") !in liveRemote }.map { it.str("id") }.toSet()
+        val trashed = localProducts.filter { !it.active }.mapNotNull { it.remoteId }.toSet()
+        if (purged.isNotEmpty()) {
+            val keepP = JSONArray(); jProducts.objects().filter { it.str("id") !in purged }.forEach { keepP.put(it) }; state.put("products", keepP)
+            val keepM = JSONArray(); (state.optJSONArray("movements")).objects().filter { it.str("productId") !in purged }.forEach { keepM.put(it) }; state.put("movements", keepM)
+            changes += "${purged.size} producto(s) eliminados definitivamente"
         }
 
         // Movimientos
         val jMovs = state.optJSONArray("movements") ?: JSONArray().also { state.put("movements", it) }
+        val trashedOrPurged = trashed + purged
         val mById = jMovs.objects().associateBy { it.str("id") }
         val nameOf = localProducts.associate { it.id to it.name }
         val liveMovs = mutableSetOf<String>()
@@ -381,9 +424,8 @@ class SyncManager @Inject constructor(
                 changes += "movimiento modificado"
             }
         }
-        for (o in jMovs.objects()) if (!isDeleted(o) && o.str("id") !in liveMovs) {
-            o.put("deletedAt", now)
-            if (o.str("productId") in trashed) o.put("deletedWith", o.str("productId")) else changes += "movimiento a papelera"
+        for (o in jMovs.objects()) if (!isDeleted(o) && o.str("id") !in liveMovs && o.str("productId") !in trashedOrPurged) {
+            o.put("deletedAt", now); changes += "movimiento a papelera"
         }
 
         // Tasas (el historial solo crece)
@@ -426,7 +468,7 @@ class SyncManager @Inject constructor(
                 prefs.edit().putInt("version", r.body.optInt("version")).apply()
                 lastLocalSig = localSig()
                 _status.value = _status.value.copy(busy = false, version = r.body.optInt("version"), lastSync = now, message = "Guardado en el servidor ✔")
-                null
+                if (restored) "Producto restaurado con sus movimientos" else null
             }
             r.code == 401 -> { expired("La sesión del servidor caducó. Vuelve a entrar."); null }
             r.code == 0 -> { _status.value = _status.value.copy(busy = false, message = "Sin conexión: se reintentará."); null }

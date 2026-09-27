@@ -6,6 +6,13 @@ Sistema de control de inventario y cuadre diario para la tienda.
 > Historial: tasa CUP/USD (670 → 690 → 750) y 42 cambios de precio detectados en todas las hojas de septiembre.
 > Regenerar semillas: `pip install openpyxl && python3 tools/import_excel.py` (escribe `web/js/seed-data.js` y `app/src/main/assets/seed.json`).
 
+## Novedades v4.2 — App Android al nivel de la Web
+- **Vender (venta rápida):** cuadrícula de productos con foto de categoría, filtros, carrito, centro TIENDA/GESTOR y cobro en un paso (en la barra inferior).
+- **Papelera de reciclaje:** eliminar un producto lo envía a la Papelera (con sus movimientos); se puede restaurar o eliminar definitivamente. No se permite crear un producto con un nombre que ya está en la Papelera. Se sincroniza con la Papelera de la Web.
+- **Historial de precios:** cambios diarios de precio de venta, costo y comisión (compartido con la Web), con buscador.
+- **Cuadre:** navegación por días (‹ ›), aviso de día cerrado (solo lectura), botones *Cerrar día* / *Reabrir día* (con motivo) cuando hay servidor. No se registran ni eliminan movimientos en días cerrados.
+- 2FA al entrar, sincronización e indicador de nube (v4/v4.1).
+
 ## Novedades v4.1 — Móvil y Web
 - **Web instalable (PWA):** desde Chrome/Safari del móvil → «Añadir a pantalla de inicio». Abre a pantalla completa, con accesos directos a Venta rápida, Cuadre e Inventario, y la interfaz carga aunque no haya conexión (los datos siempre vienen del servidor).
 - **Indicador de guardado** en la barra superior: Guardado · Guardando… · Sin conexión · Revisar. Sin conexión los cambios se guardan solos al volver la red, y avisa antes de cerrar la pestaña si queda algo por guardar.

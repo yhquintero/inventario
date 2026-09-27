@@ -25,6 +25,9 @@ interface ProductDao {
     @Query("SELECT * FROM products WHERE active = 1 ORDER BY name")
     fun observeActive(): Flow<List<ProductEntity>>
 
+    @Query("SELECT * FROM products WHERE active = 0 ORDER BY updatedAt DESC")
+    fun observeTrash(): Flow<List<ProductEntity>>
+
     @Query("SELECT * FROM products WHERE id = :id")
     suspend fun get(id: Long): ProductEntity?
 
@@ -96,6 +99,9 @@ interface MovementDao {
 
     @Insert
     suspend fun insertAll(items: List<MovementEntity>)
+
+    @Query("DELETE FROM movements WHERE productId = :productId")
+    suspend fun deleteByProduct(productId: Long)
 
     @Query("UPDATE movements SET remoteId = :remoteId WHERE id = :id")
     suspend fun setRemoteId(id: Long, remoteId: String)

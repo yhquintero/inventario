@@ -131,7 +131,9 @@ class AuthRepository @Inject constructor(
 
 @Singleton
 class ProductRepository @Inject constructor(private val db: AppDatabase) {
-    fun observe(): Flow<List<Product>> = db.products().observeAll().map { it.map { e -> e.toModel() } }
+    fun observe(): Flow<List<Product>> = db.products().observeActive().map { it.map { e -> e.toModel() } }
+    /** Papelera de reciclaje: productos eliminados que se pueden recuperar. */
+    fun observeTrash(): Flow<List<Product>> = db.products().observeTrash().map { it.map { e -> e.toModel() } }
     fun observeLowStock(): Flow<List<Product>> = db.products().observeLowStock().map { it.map { e -> e.toModel() } }
     suspend fun get(id: Long) = db.products().get(id)?.toModel()
     suspend fun search(q: String) = db.products().search(q).map { it.toModel() }
@@ -142,7 +144,9 @@ class ProductRepository @Inject constructor(private val db: AppDatabase) {
         Validators.nonNegative(product.precioVentaUsd, "Precio de venta")?.let { return AppResult.Err(it) }
         Validators.nonNegative(product.comisionCup, "Comisión")?.let { return AppResult.Err(it) }
         val existing = db.products().byName(product.name)
-        if (existing != null && existing.id != product.id) return AppResult.Err("Ya existe un producto con ese nombre.")
+        if (existing != null && existing.id != product.id) {
+            return AppResult.Err(if (existing.active) "Ya existe un producto con ese nombre." else "Ese nombre ya existe en la Papelera: restáuralo en vez de crearlo de nuevo.")
+        }
         return try {
             val id = if (product.id == 0L) {
                 val stock = product.stockActual.takeIf { it > 0 } ?: product.stockInicial
@@ -168,18 +172,34 @@ class ProductRepository @Inject constructor(private val db: AppDatabase) {
 
     suspend fun delete(product: Product, actor: UserAccount): AppResult<Unit> {
         val entity = db.products().get(product.id) ?: return AppResult.Err("Producto no encontrado.")
-        db.products().delete(entity)
+        db.products().update(entity.copy(active = false, updatedAt = System.currentTimeMillis()))
         db.audit().insert(
-            AuditLogEntity(userId = actor.id, userName = actor.username, action = "DELETE", entity = "product", entityId = product.id, details = product.name)
+            AuditLogEntity(userId = actor.id, userName = actor.username, action = "TRASH", entity = "product", entityId = product.id, details = "${product.name} enviado a la papelera")
         )
         return AppResult.Ok(Unit)
     }
 
-    suspend fun all() = db.products().all().map { it.toModel() }
+    suspend fun restore(id: Long, actor: UserAccount): AppResult<Unit> {
+        val entity = db.products().get(id) ?: return AppResult.Err("Producto no encontrado.")
+        db.products().update(entity.copy(active = true, updatedAt = System.currentTimeMillis()))
+        db.audit().insert(AuditLogEntity(userId = actor.id, userName = actor.username, action = "RESTORE", entity = "product", entityId = id, details = entity.name))
+        return AppResult.Ok(Unit)
+    }
+
+    /** Eliminación definitiva (producto y sus movimientos). */
+    suspend fun purge(id: Long, actor: UserAccount): AppResult<Unit> {
+        val entity = db.products().get(id) ?: return AppResult.Err("Producto no encontrado.")
+        db.movements().deleteByProduct(id)
+        db.products().delete(entity)
+        db.audit().insert(AuditLogEntity(userId = actor.id, userName = actor.username, action = "PURGE", entity = "product", entityId = id, details = "${entity.name} eliminado definitivamente"))
+        return AppResult.Ok(Unit)
+    }
+
+    suspend fun all() = db.products().all().filter { it.active }.map { it.toModel() }
 }
 
 @Singleton
-class MovementRepository @Inject constructor(private val db: AppDatabase) {
+class MovementRepository @Inject constructor(private val db: AppDatabase, private val sync: com.cuadrepinar.inventario.data.sync.SyncManager) {
     fun observe(): Flow<List<Movement>> = combine(
         db.movements().observeAll(),
         db.products().observeAll(),
@@ -201,6 +221,7 @@ class MovementRepository @Inject constructor(private val db: AppDatabase) {
         overridePrice: Double? = null
     ): AppResult<Long> {
         StockCalculator.validateQuantity(quantity)?.let { return AppResult.Err(it) }
+        if (date.toString() in sync.status.value.closedDays) return AppResult.Err("El día ${Dates.format(Dates.startOfDay(date))} está cerrado. Un administrador debe reabrirlo.")
         val product = db.products().get(productId) ?: return AppResult.Err("Producto no encontrado.")
         val stockIni = product.stockActual
         if (StockCalculator.wouldGoNegative(stockIni, type, quantity)) {
@@ -244,6 +265,7 @@ class MovementRepository @Inject constructor(private val db: AppDatabase) {
 
     suspend fun delete(id: Long, actor: UserAccount): AppResult<Unit> {
         val mov = db.movements().get(id) ?: return AppResult.Err("Movimiento no encontrado.")
+        if (Dates.toLocalDate(mov.dateEpoch).toString() in sync.status.value.closedDays) return AppResult.Err("Ese día está cerrado; no se puede eliminar el movimiento.")
         db.movements().delete(mov)
         recalculateProduct(mov.productId)
         db.audit().insert(
@@ -306,7 +328,7 @@ class ReportRepository @Inject constructor(
     private val movements: MovementRepository
 ) {
     suspend fun comprobacion(from: Long, to: Long): List<ComprobacionRow> {
-        val products = db.products().all()
+        val products = db.products().all().filter { it.active }
         val movs = movements.inRange(from, to)
         return products.map { p ->
             val mine = movs.filter { it.productId == p.id }

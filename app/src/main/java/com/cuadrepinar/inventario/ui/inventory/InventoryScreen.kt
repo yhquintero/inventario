@@ -76,7 +76,7 @@ class InventoryViewModel @Inject constructor(private val repo: ProductRepository
     }
 
     fun delete(p: Product, actor: UserAccount) {
-        viewModelScope.launch { repo.delete(p, actor) }
+        viewModelScope.launch { repo.delete(p, actor); message = "«${p.name}» enviado a la Papelera (puedes restaurarlo)" }
     }
 }
 
@@ -197,7 +197,7 @@ private fun ProductDialog(
         },
         dismissButton = {
             Row {
-                if (canDelete) TextButton(onClick = { onDelete(product) }) { Text("Eliminar") }
+                if (canDelete) TextButton(onClick = { onDelete(product) }) { Text("Enviar a papelera") }
                 TextButton(onClick = onDismiss) { Text("Cancelar") }
             }
         }
@@ -208,7 +208,7 @@ private fun normalize(s: String): String =
     java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").replace(Regex("\\s+"), " ").trim().uppercase()
 
 @Composable
-private fun CategoryThumb(category: String) {
+fun CategoryThumb(category: String, size: androidx.compose.ui.unit.Dp = 44.dp) {
     val res = when (category) {
         "Solar / Energía" -> R.drawable.cat_solar
         "Cocina" -> R.drawable.cat_cocina
@@ -224,9 +224,9 @@ private fun CategoryThumb(category: String) {
     }
     if (res != null) {
         Image(painterResource(res), contentDescription = category, contentScale = ContentScale.Crop,
-            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)))
+            modifier = Modifier.size(size).clip(RoundedCornerShape(10.dp)))
     } else {
-        Box(Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(size).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
             Text(category.take(1), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
     }
