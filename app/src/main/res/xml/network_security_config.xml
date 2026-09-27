@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Release: HTTPS obligatorio (cleartextTrafficPermitted=false).
+     Ademas confia en las CA instaladas por el usuario, necesaria para el
+     servidor local de la laptop con mkcert (ver README: iniciar-https.bat):
+     instalar una vez rootCA.pem de mkcert en el movil. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

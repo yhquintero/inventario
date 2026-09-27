@@ -39,6 +39,28 @@ La Web ya **no guarda los datos en el navegador**: todo vive en un servidor con 
 pip install cryptography
 python3 server/cuadre_server.py        # http://localhost:8080  (o: cd web && python3 serve.py)
 ```
+
+#### Windows: compartir con el móvil (Zona con cobertura inalámbrica móvil)
+
+En la laptop, doble clic en **`iniciar-https.bat`** (raíz del proyecto; sustituye al arrancador manual). Hace tres cosas:
+
+1. Crea el certificado **mkcert** con *todas* las IPs de la laptop en ese momento —incluida `192.168.137.1`, la IP de la laptop dentro del punto de acceso móvil— más `localhost`, el nombre del equipo y `sqlserver`.
+2. Abre el **firewall** de Windows para el puerto 8443 (regla `Cuadre Pinar HTTPS 8443`; solo la primera vez pide un *Sí* de Control de cuentas de usuario).
+3. Imprime las URLs correctas de cada red y arranca el servidor en `https://0.0.0.0:8443` con registro en `data/logs/servidor_AAAA-MM-DD.log`.
+
+Con el móvil conectado a **Zona con cobertura inalámbrica móvil** (por ejemplo con IP `192.168.137.93`), abre en el navegador del móvil:
+
+```
+https://192.168.137.1:8443
+```
+
+- Si el navegador avisa del certificado, instala una vez la CA de mkcert en el móvil: `mkcert -caroot` → copia ese `rootCA.pem` al móvil → *Ajustes > Seguridad > Cifrado y credenciales > Instalar certificado > Autoridad de certificación* (Android) o *Ajustes > General > Info > Ajustes de certificados > Instalar certificado* (iPhone).
+- La **app Android** confía en las CA de usuario (`app/src/main/res/xml/network_security_config.xml`), necesaria para el certificado mkcert.
+- Si activas el punto de acceso *después* de ejecutar el `.bat`, vuelve a ejecutarlo: el certificado se regenera con la IP actual.
+- Si el móvil no conecta, comprueba la regla: `netsh advfirewall firewall show rule name="Cuadre Pinar HTTPS 8443"`.
+
+**Por qué fallaba antes:** el certificado solo incluía las IPs `10.x` (no `192.168.137.1`), no existía ninguna regla de firewall para el puerto 8443 y las URLs impresas no correspondían a la red del punto de acceso; el navegador del móvil quedaba bloqueado **sin llegar a aparecer en el registro del servidor** (los fallos de TLS no se registran).
+
 En producción (con dominio):
 ```bash
 DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
@@ -156,6 +178,8 @@ Cubren stock, comisiones, panel financiero del lunes del Excel y permisos por ro
 ```
 app/            Android (Kotlin)
 web/            Demo interactiva
+server/         Servidor Python (API + Web, SQLite)
 docs/           Mapeo Excel
+iniciar-https.bat   Arranque HTTPS en Windows (mkcert + firewall + URLs)
 Nuevo Cuadre Pinar.xlsx
 ```

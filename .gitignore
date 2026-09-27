@@ -27,3 +27,6 @@ web/dist/
 
 # Datos del servidor (base de datos, copias y clave de cifrado)
 /data/
+
+# Certificados locales de mkcert (iniciar-https.bat) - no versionar llaves
+/certs/
