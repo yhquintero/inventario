@@ -28,5 +28,5 @@ web/dist/
 # Datos del servidor (base de datos, copias y clave de cifrado)
 /data/
 
-# Certificados locales de mkcert (iniciar-https.bat) - no versionar llaves
+# Certificados locales de mkcert (server/iniciar-https.ps1) - no versionar llaves
 /certs/
