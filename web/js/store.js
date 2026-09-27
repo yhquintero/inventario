@@ -48,6 +48,7 @@ class Store {
     this.ready = false;
     this.onNotice = () => {};
     this.idleMinutes = 20;
+    this.sync = "ok"; // ok | saving | offline | error
     setUnauthorizedHandler((msg) => {
       if (!this.state.session) return;
       this.clearSession();
@@ -92,31 +93,42 @@ class Store {
     if (this.saving || !this.dirty) return;
     this.saving = true;
     this.dirty = false;
+    this.setSync("saving");
     const r = await api("/state", { method: "PUT", body: { version: this.version, state: this.shared() } });
     this.saving = false;
     if (r.ok) {
       this.version = r.version;
       this.lastSaved = Date.now();
+      this.setSync("ok");
       if (this.dirty) this.flush();
       return true;
     }
-    if (r.status === 0) { this.dirty = true; this.onNotice("Sin conexión: los cambios se guardarán al reconectar.", "error"); return false; }
+    if (r.status === 0) { this.dirty = true; this.setSync("offline"); if (this._offNote) return false; this._offNote = true; this.onNotice("Sin conexión: los cambios se guardarán al reconectar.", "error"); return false; }
+    this.setSync("error");
     // 409 conflicto, 403 permiso, 423 día cerrado: se recarga la versión del servidor
     this.onNotice(r.error, "error");
     await this.reload();
     return false;
   }
 
+  setSync(v) {
+    if (v === "ok") this._offNote = false;
+    if (this.sync === v) return;
+    this.sync = v;
+    this.onSync?.(v);
+  }
+
   async reload() {
     const r = await api("/state");
     if (r.status !== 200) return;
     this.applyServer(r);
+    this.setSync("ok");
     this.emit(false);
   }
 
   async poll() {
-    if (!this.state.session || this.saving || this.dirty) return;
-    if (this.dirty && this.lastFail) return;
+    if (!this.state.session || this.saving) return;
+    if (this.dirty) { this.flush(); return; }   // reintento automático tras quedarse sin conexión
     const r = await api("/state/version");
     if (r.status === 200 && (r.version !== this.version || r.closed !== this.closedDays.length)) {
       await this.reload();

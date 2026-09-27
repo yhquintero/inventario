@@ -354,3 +354,10 @@ kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); 
 .codes span { background: var(--surface-2, rgba(127,127,127,.12)); padding: 6px 10px; border-radius: 8px; text-align: center; letter-spacing: 1px; }
 .secure-note { text-align: center; margin-top: 10px; }
 td.nowrap, .row.nowrap { white-space: nowrap; flex-wrap: nowrap; }
+.sync-dot { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted, #667); padding: 4px 8px; border-radius: 99px; white-space: nowrap; }
+.sync-dot i { width: 8px; height: 8px; border-radius: 50%; background: #1f9d6b; box-shadow: 0 0 0 3px color-mix(in srgb, #1f9d6b 20%, transparent); }
+.sync-dot.saving i { background: #d9a400; animation: pulse 1s infinite alternate; }
+.sync-dot.offline i { background: #8a8f98; }
+.sync-dot.error i { background: #d64545; }
+@keyframes pulse { to { opacity: .35; } }
+@media (max-width: 640px) { .sync-dot em { display: none; } }

@@ -6,6 +6,11 @@ Sistema de control de inventario y cuadre diario para la tienda.
 > Historial: tasa CUP/USD (670 → 690 → 750) y 42 cambios de precio detectados en todas las hojas de septiembre.
 > Regenerar semillas: `pip install openpyxl && python3 tools/import_excel.py` (escribe `web/js/seed-data.js` y `app/src/main/assets/seed.json`).
 
+## Novedades v4.1 — Móvil y Web
+- **Web instalable (PWA):** desde Chrome/Safari del móvil → «Añadir a pantalla de inicio». Abre a pantalla completa, con accesos directos a Venta rápida, Cuadre e Inventario, y la interfaz carga aunque no haya conexión (los datos siempre vienen del servidor).
+- **Indicador de guardado** en la barra superior: Guardado · Guardando… · Sin conexión · Revisar. Sin conexión los cambios se guardan solos al volver la red, y avisa antes de cerrar la pestaña si queda algo por guardar.
+- **App Android:** icono de nube en la barra superior (sincronizado / sincronizando / sin conexión; al tocarlo sincroniza) y avisos cuando el servidor rechaza o recarga datos. Las compilaciones *debug* permiten probar contra un servidor de la red local sin HTTPS; la *release* exige HTTPS.
+
 ## Novedades v4 — servidor seguro compartido
 
 La Web ya **no guarda los datos en el navegador**: todo vive en un servidor con base de datos SQLite (`server/cuadre_server.py`, solo Python + `cryptography`). Todos los usuarios ven los mismos datos al instante (se sincroniza cada ~12 s y avisa si otra persona guardó).

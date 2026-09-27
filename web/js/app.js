@@ -106,6 +106,7 @@ function shell(body) {
           <button class="btn ghost small menu-btn" data-act="drawer">☰</button>
           <div class="tb-title"><h2>${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP</span></div>
           ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" />${ui.q ? `<button class="x" data-act="clear-q">✕</button>` : ""}</div>` : `<div style="flex:1"></div>`}
+          <span class="sync-dot ${store.sync}" id="syncDot" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
           <button class="btn ghost small kbd-btn" data-act="palette">⌘K</button>
           <button class="btn ghost small" data-act="tour">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
@@ -1454,6 +1455,14 @@ setInterval(() => {
   const mins = Math.min(store.state.settings.sessionMinutes || 20, store.idleMinutes || 20);
   if (store.state.session && Date.now() - lastActivity > mins * 60000) { ui.sec = null; store.logout(); toast(`Sesión cerrada por ${mins} min de inactividad`, "err"); }
 }, 30000);
+store.onSync = (v) => {
+  const el = document.getElementById("syncDot");
+  if (!el) return;
+  el.className = "sync-dot " + v;
+  el.querySelector("em").textContent = { ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[v];
+};
+window.addEventListener("beforeunload", (e) => { if (store.dirty || store.saving) { store.flush(); e.preventDefault(); e.returnValue = ""; } });
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker?.register("./sw.js").catch(() => {});
 store.onNotice = (msg, kind) => toast(msg, kind === "error" ? "err" : "");
 store.subscribe(() => render());
 store.init().then(() => { const r = location.hash.slice(1); if (routes[r]) ui.route = r; render(); });
