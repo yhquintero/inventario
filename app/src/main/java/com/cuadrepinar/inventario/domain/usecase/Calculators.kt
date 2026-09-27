@@ -46,6 +46,26 @@ object StockCalculator {
     fun comisionCup(center: SaleCenter, quantity: Double, unitCommissionCup: Double): Double =
         if (center == SaleCenter.GESTOR) round2(quantity * unitCommissionCup) else 0.0
 
+    /** CUADRE PINAR SEPT.xlsx: IMP COMISION = (VENTA 1 + VENTA 2) × COMISION, en toda venta. */
+    fun comisionVenta(type: MovementType, quantity: Double, unitCommissionCup: Double): Double =
+        if (type == MovementType.VENTA) round2(quantity * unitCommissionCup) else 0.0
+
+    /**
+     * Cuadre de la hoja diaria (filas 230–254). Todo en USD; los valores CUP se dividen por la tasa.
+     * CUADRE = (VENTA + FONDOS − GASTOS) − SALIDAS − CAPITAL − X COBRAR  → debe quedar en 0.
+     */
+    fun cuadreSept(
+        venta: Double, rate: Double, fondoCup: Double, fondoUsd: Double,
+        comisionesCup: Double, domiciliosCup: Double, gastosCup: Double,
+        salidasUsd: Double, usdEfectivo: Double, zelle: Double, mnCup: Double, xCobrar: Double = 0.0
+    ): Double {
+        val r = if (rate > 0) rate else 1.0
+        val total = venta + fondoCup / r + fondoUsd
+        val gastos = (comisionesCup + domiciliosCup + gastosCup) / r
+        val capital = usdEfectivo + zelle + mnCup / r
+        return round2(total - gastos - salidasUsd - capital - xCobrar)
+    }
+
     fun stockCalculado(stockInicial: Double, ventas: Double, entradas: Double, salidas: Double): Double =
         stockInicial - ventas + entradas - salidas
 

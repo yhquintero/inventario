@@ -17,11 +17,13 @@ import com.cuadrepinar.inventario.domain.model.SaleCenter
 import com.cuadrepinar.inventario.domain.model.UserAccount
 
 fun ProductEntity.toModel() = Product(
-    id, name, stockInicial, stockActual, precioVentaUsd, comisionCup, minStock, active, category, notes
+    id, name, stockInicial, stockActual, precioVentaUsd, comisionCup, minStock, active, category, notes,
+    precioCostoUsd = precioCostoUsd, precioVenta2Usd = precioVenta2Usd, observaciones = observaciones
 )
 
 fun Product.toEntity() = ProductEntity(
-    id, name, stockInicial, stockActual, precioVentaUsd, comisionCup, minStock, active, category, notes
+    id, name, stockInicial, stockActual, precioVentaUsd, comisionCup, minStock, active, category, notes,
+    precioCostoUsd = precioCostoUsd, precioVenta2Usd = precioVenta2Usd, observaciones = observaciones
 )
 
 fun MovementEntity.toModel(productName: String = "", userName: String = "") = Movement(

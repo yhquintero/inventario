@@ -1,6 +1,72 @@
 # Cuadre Pinar
 
-Sistema de control de inventario y cuadre diario para la tienda, digitalizando **Nuevo Cuadre Pinar.xlsx**.
+Sistema de control de inventario y cuadre diario para la tienda.
+
+> **Datos actuales:** `CUADRE PINAR SEPT.xlsx`, hoja **25 9 26** (227 productos, existencias, precios, costos, comisiones, ventas, domicilios y cuadre del día).
+> Historial: tasa CUP/USD (670 → 690 → 750) y 42 cambios de precio detectados en todas las hojas de septiembre.
+> Regenerar semillas: `pip install openpyxl && python3 tools/import_excel.py` (escribe `web/js/seed-data.js` y `app/src/main/assets/seed.json`).
+
+## Novedades v4.2 — App Android al nivel de la Web
+- **Vender (venta rápida):** cuadrícula de productos con foto de categoría, filtros, carrito, centro TIENDA/GESTOR y cobro en un paso (en la barra inferior).
+- **Papelera de reciclaje:** eliminar un producto lo envía a la Papelera (con sus movimientos); se puede restaurar o eliminar definitivamente. No se permite crear un producto con un nombre que ya está en la Papelera. Se sincroniza con la Papelera de la Web.
+- **Historial de precios:** cambios diarios de precio de venta, costo y comisión (compartido con la Web), con buscador.
+- **Cuadre:** navegación por días (‹ ›), aviso de día cerrado (solo lectura), botones *Cerrar día* / *Reabrir día* (con motivo) cuando hay servidor. No se registran ni eliminan movimientos en días cerrados.
+- 2FA al entrar, sincronización e indicador de nube (v4/v4.1).
+
+## Novedades v4.1 — Móvil y Web
+- **Web instalable (PWA):** desde Chrome/Safari del móvil → «Añadir a pantalla de inicio». Abre a pantalla completa, con accesos directos a Venta rápida, Cuadre e Inventario, y la interfaz carga aunque no haya conexión (los datos siempre vienen del servidor).
+- **Indicador de guardado** en la barra superior: Guardado · Guardando… · Sin conexión · Revisar. Sin conexión los cambios se guardan solos al volver la red, y avisa antes de cerrar la pestaña si queda algo por guardar.
+- **App Android:** icono de nube en la barra superior (sincronizado / sincronizando / sin conexión; al tocarlo sincroniza) y avisos cuando el servidor rechaza o recarga datos. Las compilaciones *debug* permiten probar contra un servidor de la red local sin HTTPS; la *release* exige HTTPS.
+
+## Novedades v4 — servidor seguro compartido
+
+La Web ya **no guarda los datos en el navegador**: todo vive en un servidor con base de datos SQLite (`server/cuadre_server.py`, solo Python + `cryptography`). Todos los usuarios ven los mismos datos al instante (se sincroniza cada ~12 s y avisa si otra persona guardó).
+
+| Seguridad | Cómo funciona |
+|---|---|
+| Servidor real + BD | `data/cuadre.db` (SQLite). Contraseñas PBKDF2-SHA256 210 000 iteraciones, solo en el servidor. |
+| Permisos en el servidor | Cada rol solo puede cambiar sus secciones (p. ej. el Económico no puede tocar productos). |
+| Sesiones | Cookie `HttpOnly` + token; caducan tras 20 min sin uso o 12 h. Lista de sesiones abiertas y "cerrar las demás". |
+| Bloqueo | 5 intentos fallidos → 5 minutos bloqueado (por usuario + IP). |
+| 2FA | Ajustes → *Activar 2FA*: QR para Google/Microsoft Authenticator + 8 códigos de recuperación. |
+| HTTPS | `deploy/docker-compose.yml` + `deploy/Caddyfile` (certificado Let's Encrypt automático) o `SSL_CERT`/`SSL_KEY`. |
+| Copias cifradas | Diarias a las 2:00 (y manuales), gzip + Fernet (AES-128 + HMAC), se guardan 30. Restaurar crea antes otra copia. **Guarda `data/backup.key` fuera del servidor.** |
+| Cierre del día | Cuadre diario → *Cerrar día*: movimientos y cuadre de esa fecha quedan bloqueados (también en el servidor). Solo el administrador puede reabrir indicando el motivo. |
+| Auditoría de seguridad | Auditoría → *Seguridad (servidor)*: accesos, fallos, IPs, 2FA, cierres, restauraciones. |
+
+### Arrancar
+```bash
+pip install cryptography
+python3 server/cuadre_server.py        # http://localhost:8080  (o: cd web && python3 serve.py)
+```
+En producción (con dominio):
+```bash
+DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
+```
+Variables: `PORT`, `DATA_DIR`, `SSL_CERT`, `SSL_KEY`, `BACKUP_KEY`, `BACKUP_HOUR`, `BACKUP_KEEP`, `SESSION_IDLE_MIN`, `SESSION_MAX_HOURS`.
+La primera vez que entra un administrador o jefe, el servidor se carga con la hoja «25 9 26» del Excel.
+**Cambia las contraseñas de demostración** (admin/Admin123!, jefe/Jefe123!, economico/Eco123!, almacenero/Alma123!) antes de publicar.
+
+**App Android conectada al servidor:** en la pantalla de acceso escribe la dirección del servidor (la misma de la Web, con `https://`), tu usuario y contraseña (y el código 2FA si lo tienes). La App descarga productos, movimientos, cuadres y tasas; los cambios hechos en el teléfono se suben solos en ~2 s, y cada 15 s comprueba si hubo cambios en la Web. Si otro usuario guardó antes, si tu rol no lo permite o si el día está cerrado, la App recarga los datos del servidor y lo avisa en *Ajustes → Servidor compartido*. Con el campo *Servidor* vacío la App sigue funcionando solo en local. Código: `app/.../data/sync/SyncManager.kt`.
+
+## Novedades v3
+
+- **Venta rápida (POS)**: cuadrícula con imágenes, carrito, rebaja de precio, domicilio y cobro en un clic.
+- **Importar Excel desde la Web** (Copias → arrastrar .xlsx): elige la hoja del día; reimportar es idempotente; respeta la papelera.
+- **Confeti** al cuadrar en 0, al vender y al cumplir la meta diaria.
+- **Análisis y metas**: tendencia diaria, semana vs anterior, mejor día, margen por categoría, productos sin movimiento, metas diaria/semanal/mensual.
+- **Seguridad**: contraseñas PBKDF2-SHA256 (150k iteraciones, migración automática), bloqueo 5 min tras 5 intentos, cierre por inactividad, CSP y cabeceras seguras, HTTPS opcional (`SSL_CERT=... SSL_KEY=... python3 web/serve.py`).
+
+## Novedades (septiembre 2026)
+
+- **Web**: buscador arreglado (no pierde el foco, sin acentos, resalta coincidencias), CRUD completo de productos, movimientos, tasas de cambio y cuadres; **Papelera de reciclaje** (restaurar / eliminar definitivo / vaciar). Mientras un producto está en la papelera no se puede crear otro con el mismo nombre (se ignoran mayúsculas, acentos y espacios).
+- Inventario con columna **Nº**, contador de ítems, imagen por categoría o foto propia, P. COSTO, precio venta 2, observaciones, filtros y orden.
+- **Cuadre diario** idéntico al Excel (VENTA + FONDOS − GASTOS − SALIDAS − CAPITAL − X COBRAR = 0).
+- **Informe semanal** (ventas, costo de venta, utilidad bruta, gastos fijos y variables, utilidad neta).
+- **Historial** diario de precios/costos/comisiones y del valor de USD, EUR, MXN, MLC, CAD en CUP.
+- Comisión = cantidad × comisión en **toda venta** (como la hoja nueva); configurable a “solo GESTOR”.
+- **App Android**: nueva semilla, P. COSTO / precio 2 / observaciones, comisión en toda venta, BD v2, inventario con Nº, contador e imágenes, paleta renovada.
+
 
 Incluye:
 

@@ -47,6 +47,23 @@ class StockCalculatorTest {
     }
 
     @Test
+    fun comisionEnTodaVenta_CuadreSept() {
+        // Hoja 25 9 26: TV 32" ROYAL, 2 ventas × 3000 CUP = 6000
+        assertEquals(6000.0, StockCalculator.comisionVenta(MovementType.VENTA, 2.0, 3000.0), 0.0)
+        assertEquals(0.0, StockCalculator.comisionVenta(MovementType.SALIDA, 2.0, 3000.0), 0.0)
+    }
+
+    @Test
+    fun cuadreHoja25Sept_quedaEnCero() {
+        val c = StockCalculator.cuadreSept(
+            venta = 590.0, rate = 750.0, fondoCup = 82_000.0, fondoUsd = 150.0,
+            comisionesCup = 0.0, domiciliosCup = 5600.0, gastosCup = 9500.0,
+            salidasUsd = 0.0, usdEfectivo = 715.0, zelle = 0.0, mnCup = 85_650.0
+        )
+        assertEquals(0.0, c, 0.01)
+    }
+
+    @Test
     fun comisionSoloGestor() {
         assertEquals(6000.0, StockCalculator.comisionCup(SaleCenter.GESTOR, 2.0, 3000.0), 0.0)
         assertEquals(0.0, StockCalculator.comisionCup(SaleCenter.TIENDA, 2.0, 3000.0), 0.0)

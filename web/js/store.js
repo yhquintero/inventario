@@ -1,24 +1,9 @@
 import { SEED } from "./seed-data.js";
-import {
-  categorize,
-  comisionCup,
-  importeUsd,
-  stockFinal,
-  weekday,
-  wouldGoNegative,
-} from "./calc.js";
+import { api, setToken, getToken, setUnauthorizedHandler } from "./api.js";
+import { categorize, importeUsd, round2, stockFinal, todayISO, normName, CUADRE_FIELDS } from "./calc.js";
 
-const KEY = "cuadrepinar.v1";
-const BIO = "cuadrepinar.bio";
-
-async function sha256(text) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-export async function hashPassword(password, salt) {
-  return sha256(`${salt}:${password}`);
-}
+const PRICE_FIELDS = ["precioVentaUsd", "precioVenta2Usd", "precioCostoUsd", "comisionCup"];
+const THEME = "cuadrepinar.theme";
 
 function uid(prefix = "id") {
   return prefix + "_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -29,26 +14,47 @@ function emptyState() {
     products: [],
     movements: [],
     cuadres: [],
-    users: [],
     audit: [],
     rates: [],
+    priceHistory: [],
+    weekly: {},
     backups: [],
     settings: {
       theme: "system",
       businessName: "Cuadre Pinar",
-      defaultCupUsd: 540,
+      defaultCupUsd: 750,
       defaultMxnUsd: 20,
+      comisionSoloGestor: false,
+      goalDaily: 1000,
+      goalWeekly: 6000,
+      sessionMinutes: 20,
       lowStockAlerts: true,
       autoBackup: true,
     },
     session: null,
+    users: [],
   };
 }
+const SHARED = ["products", "movements", "cuadres", "audit", "rates", "priceHistory", "weekly", "settings"];
 
 class Store {
   constructor() {
     this.state = emptyState();
     this.listeners = new Set();
+    this.version = 0;
+    this.closedDays = [];
+    this.saving = false;
+    this.dirty = false;
+    this.ready = false;
+    this.onNotice = () => {};
+    this.idleMinutes = 20;
+    this.sync = "ok"; // ok | saving | offline | error
+    setUnauthorizedHandler((msg) => {
+      if (!this.state.session) return;
+      this.clearSession();
+      this.onNotice(msg || "Tu sesión expiró. Vuelve a entrar.", "error");
+      this.listeners.forEach((fn) => fn(this.state));
+    });
   }
 
   subscribe(fn) {
@@ -56,154 +62,161 @@ class Store {
     return () => this.listeners.delete(fn);
   }
 
-  emit() {
-    this.persist();
+  /** Notifica a la interfaz y programa el guardado en el servidor. */
+  emit(save = true) {
+    if (save && this.ready && this.state.session) this.scheduleSave();
     this.listeners.forEach((fn) => fn(this.state));
   }
 
-  persist() {
-    const { session, ...rest } = this.state;
-    localStorage.setItem(KEY, JSON.stringify(rest));
-    if (session) sessionStorage.setItem("cuadrepinar.session", JSON.stringify(session));
-    else sessionStorage.removeItem("cuadrepinar.session");
+  shared() {
+    const o = {};
+    for (const k of SHARED) o[k] = this.state[k];
+    return o;
+  }
+
+  applyServer(r) {
+    const s = r.state || {};
+    const keep = { session: this.state.session, users: this.state.users };
+    this.state = { ...emptyState(), ...s, ...keep, settings: { ...emptyState().settings, ...(s.settings || {}) } };
+    this.state.settings.theme = localStorage.getItem(THEME) || this.state.settings.theme;
+    this.version = r.version;
+    this.closedDays = r.closedDays || this.closedDays;
+  }
+
+  scheduleSave() {
+    this.dirty = true;
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.flush(), 400);
+  }
+
+  async flush() {
+    if (this.saving || !this.dirty) return;
+    this.saving = true;
+    this.dirty = false;
+    this.setSync("saving");
+    const r = await api("/state", { method: "PUT", body: { version: this.version, state: this.shared() } });
+    this.saving = false;
+    if (r.ok) {
+      this.version = r.version;
+      this.lastSaved = Date.now();
+      this.setSync("ok");
+      if (this.dirty) this.flush();
+      return true;
+    }
+    if (r.status === 0) { this.dirty = true; this.setSync("offline"); if (this._offNote) return false; this._offNote = true; this.onNotice("Sin conexión: los cambios se guardarán al reconectar.", "error"); return false; }
+    this.setSync("error");
+    // 409 conflicto, 403 permiso, 423 día cerrado: se recarga la versión del servidor
+    this.onNotice(r.error, "error");
+    await this.reload();
+    return false;
+  }
+
+  setSync(v) {
+    if (v === "ok") this._offNote = false;
+    if (this.sync === v) return;
+    this.sync = v;
+    this.onSync?.(v);
+  }
+
+  async reload() {
+    const r = await api("/state");
+    if (r.status !== 200) return;
+    this.applyServer(r);
+    this.setSync("ok");
+    this.emit(false);
+  }
+
+  async poll() {
+    if (!this.state.session || this.saving) return;
+    if (this.dirty) { this.flush(); return; }   // reintento automático tras quedarse sin conexión
+    const r = await api("/state/version");
+    if (r.status === 200 && (r.version !== this.version || r.closed !== this.closedDays.length)) {
+      await this.reload();
+      if (r.updatedBy && r.updatedBy !== this.state.session?.displayName) this.onNotice(`Datos actualizados por ${r.updatedBy}.`, "info");
+    }
   }
 
   async init() {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      this.state = { ...emptyState(), ...JSON.parse(raw) };
-    } else {
-      await this.seed();
+    this.state.settings.theme = localStorage.getItem(THEME) || this.state.settings.theme;
+    if (getToken()) {
+      const me = await api("/me");
+      if (me.status === 200) await this.startSession(me);
     }
-    const ses = sessionStorage.getItem("cuadrepinar.session");
-    if (ses) this.state.session = JSON.parse(ses);
-    this.emit();
+    this.emit(false);
+    setInterval(() => this.poll(), 12000);
+    window.addEventListener?.("online", () => this.dirty && this.flush());
   }
 
-  async seed() {
+  async startSession(r) {
+    const u = r.user;
+    this.state.session = { id: u.id, username: u.username, displayName: u.displayName, role: u.role, email: u.email, totpEnabled: u.totpEnabled, loginAt: Date.now() };
+    this.idleMinutes = r.idleMinutes || 20;
+    const st = await api("/state");
+    if (st.status !== 200) return;
+    this.applyServer(st);
+    if (!st.state) {
+      if (["ADMINISTRADOR", "JEFE"].includes(u.role)) {
+        this.seed();
+        const res = await api("/state", { method: "PUT", body: { version: this.version, state: this.shared() } });
+        if (res.ok) this.version = res.version;
+      } else this.onNotice("El servidor aún no tiene datos. Un administrador debe entrar primero.", "error");
+    }
+    this.ready = true;
+  }
+
+  isClosed(date) { return this.closedDays.some((d) => d.date === date); }
+  closedErr(...dates) {
+    const d = dates.find((x) => x && this.isClosed(x));
+    return d ? { error: `El día ${d} está cerrado. Un administrador debe reabrirlo.` } : null;
+  }
+
+  seed() {
     const s = emptyState();
-    const mkUser = async (username, displayName, email, role, password) => {
-      const salt = uid("s");
-      const ansSalt = uid("a");
-      return {
-        id: uid("u"),
-        username,
-        displayName,
-        email,
-        role,
-        active: true,
-        biometricEnabled: false,
-        salt,
-        passwordHash: await hashPassword(password, salt),
-        securityQuestion: "¿Ciudad de la tienda?",
-        securityAnswerHash: await hashPassword("pinar", ansSalt),
-        securityAnswerSalt: ansSalt,
-        createdAt: Date.now(),
-        lastLoginAt: null,
-      };
-    };
-    s.users = [
-      await mkUser("admin", "Yosvany Hernández", "admin@cuadrepinar.cu", "ADMINISTRADOR", "Admin123!"),
-      await mkUser("jefe", "Jefe de Tienda", "jefe@cuadrepinar.cu", "JEFE", "Jefe123!"),
-      await mkUser("economico", "Área Económica", "economia@cuadrepinar.cu", "ECONOMICO", "Eco123!"),
-      await mkUser("almacenero", "Almacén Pinar", "almacen@cuadrepinar.cu", "ALMACENERO", "Alma123!"),
-    ];
-    const admin = s.users[0];
+    s.session = this.state.session;
+    const admin = { id: s.session?.id, username: s.session?.username || "admin", displayName: s.session?.displayName || "Administrador" };
+    const now = Date.now();
     const byName = {};
     s.products = SEED.products.map((p) => {
       const prod = {
-        id: uid("p"),
-        name: p.name,
-        stockInicial: p.stockInicial,
-        stockActual: p.stockInicial,
-        precioVentaUsd: p.precioVentaUsd,
-        comisionCup: p.comisionCup,
-        minStock: p.stockInicial > 0 ? 1 : 0,
-        active: true,
-        category: categorize(p.name),
-        notes: "",
+        id: uid("p"), name: p.name, category: p.category || categorize(p.name),
+        stockInicial: p.stockInicial, stockActual: p.stockInicial,
+        precioVentaUsd: p.precioVentaUsd, precioVenta2Usd: p.precioVenta2Usd || 0,
+        precioCostoUsd: p.precioCostoUsd || 0, comisionCup: p.comisionCup,
+        minStock: p.stockInicial > 0 ? 1 : 0, observaciones: p.observaciones || "",
+        image: null, deletedAt: null, createdAt: now, updatedAt: now,
       };
-      byName[p.name.trim().toUpperCase()] = prod;
+      byName[normName(p.name)] = prod;
       return prod;
     });
-
+    s.products.sort((a, b) => a.name.localeCompare(b.name, "es"));
+    let seq = 0;
     for (const m of SEED.movements) {
-      const prod = byName[m.product.trim().toUpperCase()];
+      const prod = byName[normName(m.product)];
       if (!prod) continue;
-      const type = String(m.type).toUpperCase();
-      const center = String(m.center || "MOV").toUpperCase();
-      const stockIni = prod.stockActual;
-      const stockFin = stockFinal(stockIni, type, m.quantity);
-      const mov = {
-        id: uid("m"),
-        date: m.date,
-        weekday: m.weekday,
-        productId: prod.id,
-        productName: prod.name,
-        type,
-        quantity: m.quantity,
-        unitPriceUsd: type === "VENTA" ? prod.precioVentaUsd : 0,
-        importeUsd: importeUsd(type, m.quantity, prod.precioVentaUsd),
-        center,
-        comisionCup: comisionCup(center, m.quantity, prod.comisionCup),
-        stockInicial: stockIni,
-        stockFinal: stockFin,
-        userId: admin.id,
-        userName: admin.displayName,
-        notes: "Importado de Nuevo Cuadre Pinar.xlsx",
-      };
-      s.movements.push(mov);
-      prod.stockActual = stockFin;
-    }
-
-    const num = (v) => (typeof v === "number" ? v : 0);
-    for (const c of SEED.cuadres) {
-      s.cuadres.push({
-        id: uid("c"),
-        date: c.date,
-        weekday: c.weekday,
-        cupUsd: num(c.cupUsd) || 540,
-        mxnUsd: num(c.mxnUsd) || 20,
-        cobroUsd: num(c.cobroUsd),
-        cobroZelle: num(c.cobroZelle),
-        cobroMxn: num(c.cobroMxn),
-        cobroCupEfectivo: num(c.cobroCupEfectivo),
-        cobroCupTransf: num(c.cobroCupTransf),
-        cobroEuropa: num(c.cobroEuropa),
-        entradaCup: num(c.entradaCup),
-        entradaUsd: num(c.entradaUsd),
-        extraccionCup: num(c.extraccionCup),
-        extraccionUsd: num(c.extraccionUsd),
-        fondoInicialCup: num(c.fondoInicialCup),
-        fondoInicialUsd: num(c.fondoInicialUsd),
-        cambioCup: num(c.cambioCup),
-        cambioUsd: 0,
-        domicilioCup: num(c.domicilioCup),
-        domicilioUsd: 0,
-        otrosGastosCup: num(c.otrosGastosCup),
-        otrosGastosUsd: 0,
-        otrosGastosObs: typeof c.otrosGastosObs === "string" ? c.otrosGastosObs : "",
-        comisionesCup: num(c.comisionesCup),
-        comisionesUsd: 0,
-        closed: c.weekday === "lunes",
-        userId: admin.id,
+      s.movements.push({
+        id: uid("m"), seq: ++seq, date: m.date, productId: prod.id, productName: prod.name,
+        type: m.type, quantity: m.quantity, unitPriceUsd: m.unitPriceUsd || 0, center: m.center || "TIENDA",
+        domicilioCup: m.domicilioCup || 0, notes: m.notes || "", userName: admin.displayName, importedFrom: "excel",
+        createdAt: now + seq, deletedAt: null,
       });
     }
-    s.rates = [
-      { id: uid("r"), pair: "CUP/USD", rate: 540, date: "2026-09-14", userId: admin.id, note: "Semilla Excel" },
-      { id: uid("r"), pair: "MXN/USD", rate: 20, date: "2026-09-14", userId: admin.id, note: "Semilla Excel" },
-      { id: uid("r"), pair: "CUP/USD", rate: 550, date: "2026-09-15", userId: admin.id, note: "Ajuste martes" },
-    ];
-    s.audit.push({
-      id: uid("a"),
-      userId: admin.id,
-      userName: admin.username,
-      action: "SEED",
-      entity: "database",
-      details: `Carga inicial desde Nuevo Cuadre Pinar.xlsx (${s.products.length} productos, ${s.movements.length} movimientos)`,
-      timestamp: Date.now(),
+    s.cuadres = SEED.cuadres.map((c) => ({ id: uid("c"), ...c, imported: true }));
+    s.rates = SEED.rates.map((r) => ({ id: uid("r"), ...r, userName: "Excel", createdAt: now }));
+    s.rates.push({ id: uid("r"), date: "2026-09-01", currency: "MXN", rate: 37, note: "Referencia inicial (editable)", userName: "sistema", createdAt: now });
+    s.rates.push({ id: uid("r"), date: "2026-09-01", currency: "EUR", rate: 780, note: "Referencia inicial (editable)", userName: "sistema", createdAt: now });
+    s.rates.push({ id: uid("r"), date: "2026-09-01", currency: "MLC", rate: 600, note: "Referencia inicial (editable)", userName: "sistema", createdAt: now });
+    s.priceHistory = SEED.priceHistory.map((h) => {
+      const prod = byName[normName(h.product)];
+      return { id: uid("h"), date: h.date, productId: prod?.id || null, productName: h.product, field: h.field, old: h.old, new: h.new, userName: "Excel", ts: now };
     });
+    s.audit.push({
+      id: uid("a"), userId: admin.id, userName: admin.username, action: "SEED", entity: "database",
+      details: `Carga desde ${SEED.source} · hoja ${SEED.sheet} (${s.products.length} productos, ${s.movements.length} movimientos, ${s.cuadres.length} cuadres)`,
+      timestamp: now,
+    });
+    s.settings.theme = this.state.settings.theme;
     this.state = s;
+    for (const p of s.products) this.recalcProduct(p.id);
   }
 
   audit(action, entity, details, entityId = null) {
@@ -220,95 +233,93 @@ class Store {
     });
   }
 
-  async login(username, password) {
-    const user = this.state.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
-    if (!user || !user.active) return { error: "Usuario o contraseña incorrectos." };
-    const hash = await hashPassword(password, user.salt);
-    if (hash !== user.passwordHash) {
-      this.audit("LOGIN_FAIL", "users", "Contraseña inválida");
-      return { error: "Usuario o contraseña incorrectos." };
-    }
-    user.lastLoginAt = Date.now();
-    this.state.session = {
-      id: user.id,
-      username: user.username,
-      displayName: user.displayName,
-      role: user.role,
-      email: user.email,
-    };
-    this.audit("LOGIN", "users", "Inicio de sesión");
-    this.emit();
-    return { user: this.state.session };
-  }
-
-  loginAs(userId) {
-    const user = this.state.users.find((u) => u.id === userId && u.active);
-    if (!user) return { error: "Sesión biométrica inválida." };
-    this.state.session = {
-      id: user.id,
-      username: user.username,
-      displayName: user.displayName,
-      role: user.role,
-      email: user.email,
-    };
-    this.audit("LOGIN_BIOMETRIC", "users", "Entrada biométrica");
-    this.emit();
-    return { user: this.state.session };
-  }
-
-  enableBiometric() {
-    if (!this.state.session) return;
-    localStorage.setItem(BIO, this.state.session.id);
-    const u = this.state.users.find((x) => x.id === this.state.session.id);
-    if (u) u.biometricEnabled = true;
-    this.audit("BIOMETRIC_ON", "users", "Biometría activada");
-    this.emit();
-  }
-
-  biometricUserId() {
-    return localStorage.getItem(BIO);
-  }
-
-  logout() {
-    this.audit("LOGOUT", "users", "Cierre de sesión");
-    this.state.session = null;
-    this.emit();
-  }
-
-  async recover(username, answer, newPassword) {
-    const user = this.state.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
-    if (!user) return { error: "No existe ese usuario." };
-    const h = await hashPassword(answer.toLowerCase().trim(), user.securityAnswerSalt);
-    if (h !== user.securityAnswerHash) return { error: "La respuesta de seguridad no coincide." };
-    const salt = uid("s");
-    user.salt = salt;
-    user.passwordHash = await hashPassword(newPassword, salt);
-    this.audit("PASSWORD_RESET", "users", "Recuperación por pregunta");
-    this.emit();
+  /* ================= SESIÓN (servidor) ================= */
+  async login(username, password, code) {
+    const r = await api("/login", { method: "POST", body: { username: username.trim(), password, code: code || undefined } });
+    if (r.need2fa && !r.token) return { need2fa: true, error: code ? r.error : null };
+    if (!r.token) return { error: r.error };
+    setToken(r.token);
+    await this.startSession(r);
+    this.emit(false);
     return { ok: true };
   }
 
-  question(username) {
-    return this.state.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase())
-      ?.securityQuestion;
+  clearSession() {
+    setToken(null);
+    this.state.session = null;
+    this.ready = false;
+    this.dirty = false;
   }
 
+  async logout() {
+    if (this.dirty) await this.flush();
+    await api("/logout", { method: "POST" });
+    this.clearSession();
+    this.emit(false);
+  }
+
+  async resetPassword(username, answer, newPassword, code) {
+    const r = await api("/recover", { method: "POST", body: { username, answer, newPassword, code } });
+    return r.ok ? { ok: true } : { error: r.error, need2fa: r.need2fa };
+  }
+
+  async question(username) {
+    return (await api("/question?u=" + encodeURIComponent(username.trim()))).question;
+  }
+
+  /* ================= CIERRE DEL DÍA ================= */
+  async closeDay(date, note = "") {
+    if (this.dirty || this.saving) { await this.flush(); }
+    const r = await api("/days/close", { method: "POST", body: { date, note } });
+    if (r.ok) await this.reload();
+    return r.ok ? { ok: true } : { error: r.error };
+  }
+  async reopenDay(date, reason) {
+    const r = await api("/days/reopen", { method: "POST", body: { date, reason } });
+    if (r.ok) await this.reload();
+    return r.ok ? { ok: true } : { error: r.error };
+  }
+
+  /* ================= PRODUCTOS (CRUD + papelera) ================= */
+  activeProducts() { return this.state.products.filter((p) => !p.deletedAt); }
+  trashProducts() { return this.state.products.filter((p) => p.deletedAt); }
+  activeMovements() { return this.state.movements.filter((m) => !m.deletedAt); }
+  trashMovements() { return this.state.movements.filter((m) => m.deletedAt && !m.deletedWith); }
+
   saveProduct(p) {
-    const dup = this.state.products.find(
-      (x) => x.name.trim().toUpperCase() === p.name.trim().toUpperCase() && x.id !== p.id
-    );
-    if (dup) return { error: "Ya existe un producto con ese nombre." };
+    const name = String(p.name || "").replace(/\s+/g, " ").trim().toUpperCase();
+    const key = normName(name);
+    const dup = this.state.products.find((x) => normName(x.name) === key && x.id !== p.id);
+    if (dup && dup.deletedAt) return { error: `"${dup.name}" está en la Papelera. Restáuralo en lugar de crearlo de nuevo.`, trashId: dup.id };
+    if (dup) return { error: `Ya existe un producto llamado "${dup.name}".` };
+    const today = todayISO();
+    const who = this.state.session?.displayName || "sistema";
     if (!p.id) {
-      p.id = uid("p");
-      p.stockActual = p.stockInicial;
-      p.active = true;
-      this.state.products.push(p);
-      this.audit("CREATE", "product", p.name, p.id);
+      const prod = {
+        id: uid("p"), name, category: p.category || categorize(name),
+        stockInicial: p.stockInicial, stockActual: p.stockInicial,
+        precioVentaUsd: p.precioVentaUsd, precioVenta2Usd: p.precioVenta2Usd || 0,
+        precioCostoUsd: p.precioCostoUsd || 0, comisionCup: p.comisionCup, minStock: p.minStock ?? 1,
+        observaciones: p.observaciones || "", image: p.image || null,
+        deletedAt: null, createdAt: Date.now(), updatedAt: Date.now(),
+      };
+      this.state.products.push(prod);
+      for (const f of PRICE_FIELDS) if (prod[f]) this.state.priceHistory.unshift({ id: uid("h"), date: today, ts: Date.now(), productId: prod.id, productName: name, field: f, old: null, new: prod[f], userName: who });
+      this.audit("CREATE", "product", name, prod.id);
+      p.id = prod.id;
     } else {
-      const i = this.state.products.findIndex((x) => x.id === p.id);
-      const prev = this.state.products[i];
-      this.state.products[i] = { ...prev, ...p, stockActual: prev.stockActual };
-      this.audit("UPDATE", "product", p.name, p.id);
+      const prev = this.state.products.find((x) => x.id === p.id);
+      if (!prev) return { error: "Producto no encontrado." };
+      for (const f of PRICE_FIELDS) {
+        if (p[f] !== undefined && Number(p[f]) !== Number(prev[f] || 0)) {
+          this.state.priceHistory.unshift({ id: uid("h"), date: today, ts: Date.now(), productId: prev.id, productName: name, field: f, old: prev[f] || 0, new: Number(p[f]), userName: who });
+        }
+      }
+      const oldName = prev.name;
+      Object.assign(prev, { ...p, name, image: p.image === undefined ? prev.image : p.image, updatedAt: Date.now() });
+      if (oldName !== name) this.state.movements.forEach((m) => { if (m.productId === prev.id) m.productName = name; });
+      this.recalcProduct(prev.id);
+      this.audit("UPDATE", "product", name, prev.id);
     }
     this.state.products.sort((a, b) => a.name.localeCompare(b.name, "es"));
     this.emit();
@@ -317,205 +328,345 @@ class Store {
 
   deleteProduct(id) {
     const p = this.state.products.find((x) => x.id === id);
-    this.state.products = this.state.products.filter((x) => x.id !== id);
-    this.audit("DELETE", "product", p?.name || id, id);
+    if (!p || p.deletedAt) return { error: "Producto no encontrado." };
+    const lk = this.productLocked(id);
+    if (lk) return lk;
+    const ts = Date.now();
+    p.deletedAt = ts;
+    p.deletedBy = this.state.session?.displayName;
+    this.state.movements.forEach((m) => { if (m.productId === id && !m.deletedAt) { m.deletedAt = ts; m.deletedWith = id; } });
+    this.audit("TRASH", "product", p.name, id);
     this.emit();
+    return { ok: true };
   }
 
-  addMovement({ productId, type, quantity, center, date, notes, overridePrice }) {
-    const prod = this.state.products.find((p) => p.id === productId);
+  restoreProduct(id) {
+    const p = this.state.products.find((x) => x.id === id);
+    if (!p) return { error: "No encontrado." };
+    const key = normName(p.name);
+    if (this.state.products.some((x) => x.id !== id && !x.deletedAt && normName(x.name) === key)) return { error: "Ya existe un producto activo con ese nombre." };
+    p.deletedAt = null;
+    this.state.movements.forEach((m) => { if (m.deletedWith === id) { m.deletedAt = null; delete m.deletedWith; } });
+    this.recalcProduct(id);
+    this.audit("RESTORE", "product", p.name, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  productLocked(id) {
+    const m = this.state.movements.find((x) => x.productId === id && this.isClosed(x.date));
+    return m ? { error: `Tiene movimientos en el día cerrado ${m.date}; no se puede eliminar.` } : null;
+  }
+
+  purgeProduct(id) {
+    const lk = this.productLocked(id);
+    if (lk) return lk;
+    const p = this.state.products.find((x) => x.id === id);
+    this.state.products = this.state.products.filter((x) => x.id !== id);
+    this.state.movements = this.state.movements.filter((m) => m.productId !== id);
+    this.audit("PURGE", "product", `${p?.name} eliminado definitivamente`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  /* ================= MOVIMIENTOS (CRUD + papelera) ================= */
+  saveMovement(data) {
+    const old = data.id && this.state.movements.find((m) => m.id === data.id);
+    const ce = this.closedErr(data.date, old?.date);
+    if (ce) return ce;
+    const prod = this.state.products.find((p) => p.id === data.productId && !p.deletedAt);
     if (!prod) return { error: "Producto no encontrado." };
-    const qty = Number(quantity);
-    if (!qty || qty <= 0) return { error: "La cantidad debe ser mayor que cero." };
-    if (wouldGoNegative(prod.stockActual, type, qty)) {
-      return { error: `Stock insuficiente. Disponible: ${prod.stockActual}.` };
-    }
-    const price = type === "VENTA" ? overridePrice ?? prod.precioVentaUsd : 0;
-    const stockIni = prod.stockActual;
-    const stockFin = stockFinal(stockIni, type, qty);
-    const mov = {
-      id: uid("m"),
-      date,
-      weekday: weekday(date),
-      productId: prod.id,
-      productName: prod.name,
-      type,
-      quantity: qty,
-      unitPriceUsd: price,
-      importeUsd: importeUsd(type, qty, overridePrice ?? prod.precioVentaUsd),
-      center,
-      comisionCup: comisionCup(center, qty, prod.comisionCup),
-      stockInicial: stockIni,
-      stockFinal: stockFin,
-      userId: this.state.session?.id,
-      userName: this.state.session?.displayName,
-      notes: notes || "",
+    const q = Number(data.quantity);
+    if (!(q > 0)) return { error: "La cantidad debe ser mayor que cero." };
+    const snapshot = JSON.stringify(this.state.movements);
+    const fields = {
+      date: data.date, productId: prod.id, productName: prod.name, type: data.type, quantity: q,
+      unitPriceUsd: data.type === "VENTA" ? (data.unitPriceUsd === "" || data.unitPriceUsd == null ? prod.precioVentaUsd : Number(data.unitPriceUsd)) : 0,
+      center: data.center || "TIENDA", domicilioCup: Number(data.domicilioCup) || 0, notes: data.notes || "",
     };
-    this.state.movements.unshift(mov);
-    prod.stockActual = stockFin;
-    this.audit("MOVEMENT", "movement", `${type} ${qty} × ${prod.name} (${center})`, mov.id);
+    let mov, oldProductId = null;
+    if (data.id) {
+      mov = this.state.movements.find((m) => m.id === data.id);
+      if (!mov) return { error: "Movimiento no encontrado." };
+      oldProductId = mov.productId;
+      Object.assign(mov, fields, { updatedAt: Date.now(), updatedBy: this.state.session?.displayName });
+    } else {
+      mov = { id: uid("m"), ...fields, userName: this.state.session?.displayName, createdAt: Date.now(), deletedAt: null };
+      this.state.movements.unshift(mov);
+    }
+    const bad = [prod.id, oldProductId].filter(Boolean).map((id) => this.recalcProduct(id)).find((r) => r.error);
+    if (bad) {
+      this.state.movements = JSON.parse(snapshot);
+      [prod.id, oldProductId].filter(Boolean).forEach((id) => this.recalcProduct(id));
+      return bad;
+    }
+    this.audit(data.id ? "UPDATE" : "CREATE", "movement", `${mov.type} ${q} × ${prod.name}`, mov.id);
     this.emit();
     return { ok: true, id: mov.id };
   }
 
   deleteMovement(id) {
     const m = this.state.movements.find((x) => x.id === id);
+    if (!m) return { error: "No encontrado." };
+    if (this.isClosed(m.date)) return this.closedErr(m.date);
+    m.deletedAt = Date.now();
+    const r = this.recalcProduct(m.productId);
+    if (r.error) { m.deletedAt = null; this.recalcProduct(m.productId); return { error: "No se puede eliminar: " + r.error }; }
+    this.audit("TRASH", "movement", `${m.type} ${m.quantity} × ${m.productName}`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  restoreMovement(id) {
+    const m = this.state.movements.find((x) => x.id === id);
+    if (!m) return { error: "No encontrado." };
+    const p = this.state.products.find((x) => x.id === m.productId);
+    if (!p || p.deletedAt) return { error: "Primero restaura el producto de este movimiento." };
+    if (this.isClosed(m.date)) return this.closedErr(m.date);
+    m.deletedAt = null;
+    const r = this.recalcProduct(m.productId);
+    if (r.error) { m.deletedAt = Date.now(); this.recalcProduct(m.productId); return r; }
+    this.audit("RESTORE", "movement", `${m.type} ${m.quantity} × ${m.productName}`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  purgeMovement(id) {
+    const m = this.state.movements.find((x) => x.id === id);
+    if (m && this.isClosed(m.date)) return this.closedErr(m.date);
     this.state.movements = this.state.movements.filter((x) => x.id !== id);
-    if (m) this.recalcProduct(m.productId);
-    this.audit("DELETE", "movement", `Movimiento ${m?.type} eliminado`, id);
+    this.audit("PURGE", "movement", `${m?.type} ${m?.productName}`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  emptyTrash() {
+    const ids = new Set(this.trashProducts().filter((p) => !this.productLocked(p.id)).map((p) => p.id));
+    this.state.products = this.state.products.filter((p) => !ids.has(p.id));
+    this.state.movements = this.state.movements.filter((m) => this.isClosed(m.date) || (!m.deletedAt && !ids.has(m.productId)));
+    this.audit("PURGE", "trash", "Papelera vaciada");
     this.emit();
   }
 
+  /** Recalcula stock, importes y comisiones de un producto en orden cronológico. */
   recalcProduct(productId) {
     const prod = this.state.products.find((p) => p.id === productId);
-    if (!prod) return;
-    let stock = prod.stockInicial;
+    if (!prod) return { ok: true };
+    const soloGestor = this.state.settings.comisionSoloGestor;
+    let stock = Number(prod.stockInicial) || 0;
+    let err = null;
     const movs = this.state.movements
-      .filter((m) => m.productId === productId)
-      .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+      .filter((m) => m.productId === productId && !m.deletedAt)
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0));
     for (const m of movs) {
       m.stockInicial = stock;
       m.stockFinal = stockFinal(stock, m.type, m.quantity);
+      m.importeUsd = importeUsd(m.type, m.quantity, m.unitPriceUsd);
+      m.costoUsd = m.type === "VENTA" ? round2(m.quantity * (prod.precioCostoUsd || 0)) : 0;
+      m.comisionCup = m.type === "VENTA" && (!soloGestor || m.center === "GESTOR") ? round2(m.quantity * (prod.comisionCup || 0)) : 0;
+      if (m.stockFinal < -1e-9 && !err) err = `Stock insuficiente de ${prod.name} el ${m.date} (quedaría en ${m.stockFinal}).`;
       stock = m.stockFinal;
     }
     prod.stockActual = stock;
+    return err ? { error: err } : { ok: true };
   }
 
+  /* ================= TIPOS DE CAMBIO (historial diario) ================= */
+  rateOn(currency, date = todayISO()) {
+    const list = this.state.rates.filter((r) => r.currency === currency && r.date <= date)
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0));
+    return list.length ? list[list.length - 1].rate : (currency === "USD" ? this.state.settings.defaultCupUsd : 0);
+  }
+
+  saveRate({ id, currency, rate, date, note }) {
+    rate = Number(rate);
+    if (!(rate > 0)) return { error: "La tasa debe ser mayor que cero." };
+    if (!currency) return { error: "Moneda requerida." };
+    const who = this.state.session?.displayName;
+    if (id) {
+      const r = this.state.rates.find((x) => x.id === id);
+      if (!r) return { error: "No encontrado." };
+      Object.assign(r, { currency, rate, date, note, userName: who, updatedAt: Date.now() });
+      this.audit("UPDATE", "exchange", `${currency} = ${rate} CUP (${date})`, id);
+    } else {
+      const same = this.state.rates.find((x) => x.currency === currency && x.date === date);
+      if (same) {
+        Object.assign(same, { rate, note: note || same.note, userName: who, updatedAt: Date.now() });
+      } else {
+        this.state.rates.push({ id: uid("r"), currency, rate, date, note, userName: who, createdAt: Date.now() });
+      }
+      this.audit("EXCHANGE", "exchange", `${currency} = ${rate} CUP (${date})`);
+    }
+    this.emit();
+    return { ok: true };
+  }
+
+  deleteRate(id) {
+    const r = this.state.rates.find((x) => x.id === id);
+    this.state.rates = this.state.rates.filter((x) => x.id !== id);
+    this.audit("DELETE", "exchange", `${r?.currency} ${r?.rate} (${r?.date})`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  /* ================= CUADRE DIARIO ================= */
   cuadreFor(date) {
     let c = this.state.cuadres.find((x) => x.date === date);
     if (!c) {
-      const lastCup = [...this.state.rates].reverse().find((r) => r.pair === "CUP/USD")?.rate || 540;
-      const lastMxn = [...this.state.rates].reverse().find((r) => r.pair === "MXN/USD")?.rate || 20;
-      c = {
-        id: uid("c"),
-        date,
-        weekday: weekday(date),
-        cupUsd: lastCup,
-        mxnUsd: lastMxn,
-        cobroUsd: 0, cobroZelle: 0, cobroMxn: 0, cobroCupEfectivo: 0, cobroCupTransf: 0, cobroEuropa: 0,
-        entradaCup: 0, entradaUsd: 0, extraccionCup: 0, extraccionUsd: 0,
-        fondoInicialCup: 0, fondoInicialUsd: 0, cambioCup: 0, cambioUsd: 0,
-        domicilioCup: 0, domicilioUsd: 0, otrosGastosCup: 0, otrosGastosUsd: 0, otrosGastosObs: "",
-        comisionesCup: 0, comisionesUsd: 0, closed: false, userId: this.state.session?.id,
-      };
-      this.state.cuadres.push(c);
+      const prev = [...this.state.cuadres].filter((x) => x.date < date).sort((a, b) => b.date.localeCompare(a.date))[0];
+      c = { id: null, date, cupUsd: this.rateOn("USD", date) };
+      for (const k of CUADRE_FIELDS) c[k] = 0;
+      if (prev) { c.fondoCupEfectivo = prev.fondoCupEfectivo || 0; c.fondoCupTarjeta = prev.fondoCupTarjeta || 0; c.fondoUsd = prev.fondoUsd || 0; }
     }
     return c;
   }
 
   saveCuadre(c) {
-    const i = this.state.cuadres.findIndex((x) => x.id === c.id);
-    if (i >= 0) this.state.cuadres[i] = c;
-    else this.state.cuadres.push(c);
-    this.state.rates.unshift({
-      id: uid("r"), pair: "CUP/USD", rate: Number(c.cupUsd), date: c.date,
-      userId: this.state.session?.id, note: "Cuadre diario",
-    });
-    this.state.rates.unshift({
-      id: uid("r"), pair: "MXN/USD", rate: Number(c.mxnUsd), date: c.date,
-      userId: this.state.session?.id, note: "Cuadre diario",
-    });
-    this.audit("CUADRE", "cuadre", `Cuadre ${c.weekday} ${c.date}`, c.id);
+    if (this.isClosed(c.date)) return this.closedErr(c.date);
+    if (!c.id) { c.id = uid("c"); this.state.cuadres.push(c); }
+    else { const i = this.state.cuadres.findIndex((x) => x.id === c.id); this.state.cuadres[i] = c; }
+    c.imported = false;
+    c.updatedBy = this.state.session?.displayName;
+    if (c.cupUsd > 0 && Number(this.rateOn("USD", c.date)) !== Number(c.cupUsd)) {
+      this.state.rates.push({ id: uid("r"), currency: "USD", rate: Number(c.cupUsd), date: c.date, note: "Cuadre diario", userName: c.updatedBy, createdAt: Date.now() });
+    }
+    this.audit("CUADRE", "cuadre", `Cuadre ${c.date}`, c.id);
     this.emit();
   }
 
-  addRate(pair, rate, note = "") {
-    if (!(rate > 0)) return { error: "El tipo de cambio debe ser mayor que cero." };
-    this.state.rates.unshift({
-      id: uid("r"), pair, rate: Number(rate), date: new Date().toISOString().slice(0, 10),
-      userId: this.state.session?.id, note,
-    });
-    this.audit("EXCHANGE", "exchange", `${pair} = ${rate}`);
+  deleteCuadre(id) {
+    const c = this.state.cuadres.find((x) => x.id === id);
+    if (c && this.isClosed(c.date)) return this.closedErr(c.date);
+    this.state.cuadres = this.state.cuadres.filter((x) => x.id !== id);
+    this.audit("DELETE", "cuadre", `Cuadre ${c?.date}`, id);
     this.emit();
-    return { ok: true };
   }
 
-  async saveUser(u, password, answer) {
-    const dup = this.state.users.find((x) => x.username.toLowerCase() === u.username.toLowerCase() && x.id !== u.id);
-    if (dup) return { error: "Ese usuario ya existe." };
-    if (!u.id) {
-      if (!password) return { error: "La contraseña es obligatoria." };
-      const salt = uid("s");
-      const ansSalt = uid("a");
-      const nu = {
-        ...u,
-        id: uid("u"),
-        salt,
-        passwordHash: await hashPassword(password, salt),
-        securityAnswerSalt: ansSalt,
-        securityAnswerHash: answer ? await hashPassword(answer.toLowerCase().trim(), ansSalt) : "",
-        createdAt: Date.now(),
-        active: true,
-      };
-      this.state.users.push(nu);
-      this.audit("CREATE", "users", nu.username, nu.id);
-    } else {
-      const cur = this.state.users.find((x) => x.id === u.id);
-      Object.assign(cur, {
-        username: u.username,
-        displayName: u.displayName,
-        email: u.email,
-        role: u.role,
-        active: u.active,
-        securityQuestion: u.securityQuestion,
+  saveWeekly(weekStart, data) {
+    this.state.weekly[weekStart] = { ...(this.state.weekly[weekStart] || {}), ...data };
+    this.audit("INFORME", "weekly", `Informe semanal ${weekStart}`);
+    this.emit();
+  }
+
+  /* ================= PUNTO DE VENTA ================= */
+  posCheckout(cart, { date, center, domicilioCup = 0, notes = "" }) {
+    if (!cart.length) return { error: "El carrito está vacío." };
+    if (this.isClosed(date)) return this.closedErr(date);
+    const snapshot = JSON.stringify(this.state.movements);
+    const ids = [];
+    cart.forEach((it, i) => {
+      const prod = this.state.products.find((p) => p.id === it.productId);
+      this.state.movements.unshift({
+        id: uid("m"), date, productId: prod.id, productName: prod.name, type: "VENTA", quantity: Number(it.qty),
+        unitPriceUsd: Number(it.price), center, domicilioCup: i === 0 ? Number(domicilioCup) || 0 : 0,
+        notes: notes || "Punto de venta", userName: this.state.session?.displayName, createdAt: Date.now() + i, deletedAt: null,
       });
-      if (password) {
-        cur.salt = uid("s");
-        cur.passwordHash = await hashPassword(password, cur.salt);
-      }
-      if (answer) {
-        cur.securityAnswerSalt = uid("a");
-        cur.securityAnswerHash = await hashPassword(answer.toLowerCase().trim(), cur.securityAnswerSalt);
-      }
-      this.audit("UPDATE", "users", cur.username, cur.id);
-    }
+      ids.push(prod.id);
+    });
+    const bad = [...new Set(ids)].map((id) => this.recalcProduct(id)).find((r) => r.error);
+    if (bad) { this.state.movements = JSON.parse(snapshot); ids.forEach((id) => this.recalcProduct(id)); return bad; }
+    const total = cart.reduce((a, it) => a + it.qty * it.price, 0);
+    this.audit("POS", "movement", `Venta rápida ${cart.length} líneas · $${round2(total)}`);
     this.emit();
-    return { ok: true };
+    return { ok: true, total };
   }
 
-  toggleUser(id, active) {
-    const u = this.state.users.find((x) => x.id === id);
-    if (!u) return { error: "No encontrado" };
-    if (!active && u.role === "ADMINISTRADOR") {
-      const others = this.state.users.filter((x) => x.role === "ADMINISTRADOR" && x.active && x.id !== id);
-      if (!others.length) return { error: "No se puede desactivar al último administrador." };
+  /* ================= IMPORTAR HOJA DEL EXCEL ================= */
+  /** data = { date, rate, products:[{name,existencia,entrada,salida,v1,v2,comision,domicilio,costo,p1,p2,obs}], cuadre:{} } */
+  importSheet(data) {
+    const who = this.state.session?.displayName || "Excel";
+    const rep = { creados: 0, actualizados: 0, precios: 0, movimientos: 0, omitidos: [], errores: [] };
+    const date = data.date;
+    if (this.isClosed(date)) { rep.errores.push(`El día ${date} está cerrado; no se importó.`); return rep; }
+    // 1) quitar movimientos importados antes para esa misma fecha (reimportación idempotente)
+    this.state.movements = this.state.movements.filter((m) => !(m.date === date && m.importedFrom === "excel"));
+    for (const r of data.products) {
+      const key = normName(r.name);
+      let prod = this.state.products.find((p) => normName(p.name) === key);
+      if (prod && prod.deletedAt) { rep.omitidos.push(`${r.name} (en papelera)`); continue; }
+      if (!prod) {
+        prod = { id: uid("p"), name: r.name, category: categorize(r.name), stockInicial: 0, stockActual: 0, precioVentaUsd: 0, precioVenta2Usd: 0,
+          precioCostoUsd: 0, comisionCup: 0, minStock: r.existencia > 0 ? 1 : 0, observaciones: "", image: null, deletedAt: null, createdAt: Date.now(), updatedAt: Date.now() };
+        this.state.products.push(prod);
+        rep.creados++;
+      } else rep.actualizados++;
+      const upd = { precioVentaUsd: r.p1, precioVenta2Usd: r.p2, precioCostoUsd: r.costo, comisionCup: r.comision };
+      for (const [f, v] of Object.entries(upd)) {
+        if (Number(prod[f] || 0) !== Number(v || 0)) {
+          if (prod.createdAt < Date.now() - 1000 || rep.creados === 0) this.state.priceHistory.unshift({ id: uid("h"), date, ts: Date.now(), productId: prod.id, productName: prod.name, field: f, old: prod[f] || 0, new: v || 0, userName: who + " (Excel)" });
+          prod[f] = v || 0; rep.precios++;
+        }
+      }
+      if (r.obs) prod.observaciones = r.obs;
+      // 2) stock inicial tal que al comenzar ese día haya "existencia"
+      const prev = this.state.movements.filter((m) => m.productId === prod.id && !m.deletedAt && m.date < date)
+        .reduce((a, m) => a + (m.type === "ENTRADA" ? m.quantity : -m.quantity), 0);
+      prod.stockInicial = round2(r.existencia - prev);
+      const add = (type, q, price) => {
+        if (!q) return;
+        this.state.movements.unshift({ id: uid("m"), date, productId: prod.id, productName: prod.name, type, quantity: q, unitPriceUsd: price,
+          center: type === "VENTA" ? "TIENDA" : "MOV", domicilioCup: type === "VENTA" && !add.dom ? (add.dom = 1, r.domicilio || 0) : 0,
+          notes: type !== "VENTA" ? r.obs || "" : "", importedFrom: "excel", userName: who, createdAt: Date.now() + rep.movimientos, deletedAt: null });
+        rep.movimientos++;
+      };
+      add("ENTRADA", r.entrada, 0); add("SALIDA", r.salida, 0); add("VENTA", r.v1, r.p1); add("VENTA", r.v2, r.p2 || r.p1);
+      const res = this.recalcProduct(prod.id);
+      if (res.error) rep.errores.push(res.error);
     }
-    u.active = active;
-    this.audit(active ? "ACTIVATE" : "DEACTIVATE", "users", u.username, id);
+    if (data.rate > 0 && Number(this.rateOn("USD", date)) !== Number(data.rate)) {
+      this.state.rates.push({ id: uid("r"), date, currency: "USD", rate: data.rate, note: "Importado de Excel", userName: who, createdAt: Date.now() });
+    }
+    if (data.cuadre) {
+      const i = this.state.cuadres.findIndex((c) => c.date === date);
+      const c = { id: i >= 0 ? this.state.cuadres[i].id : uid("c"), date, cupUsd: data.rate || this.rateOn("USD", date), ...data.cuadre, imported: true };
+      if (i >= 0) this.state.cuadres[i] = c; else this.state.cuadres.push(c);
+    }
+    this.state.products.sort((a, b) => a.name.localeCompare(b.name, "es"));
+    this.audit("IMPORT", "excel", `Hoja ${data.sheet}: ${rep.creados} nuevos, ${rep.actualizados} actualizados, ${rep.movimientos} movimientos`);
     this.emit();
-    return { ok: true };
+    return rep;
   }
+
+  /* ================= USUARIOS (servidor) ================= */
+  async loadUsers() {
+    const r = await api("/users");
+    if (r.users) this.state.users = r.users;
+    return this.state.users;
+  }
+  async saveUser(u, password, answer) {
+    const body = { ...u, password: password || undefined, answer: answer || undefined };
+    const r = u.id ? await api("/users/" + u.id, { method: "PUT", body }) : await api("/users", { method: "POST", body });
+    if (r.ok) await this.loadUsers();
+    return r.ok ? { ok: true } : { error: r.error };
+  }
+  async toggleUser(id, active) { return this.saveUser({ id, active }); }
+  async reset2fa(id) { return this.saveUser({ id, reset2fa: true }); }
 
   saveSettings(s) {
+    if (s.theme) localStorage.setItem(THEME, s.theme);
+    const onlyTheme = Object.keys(s).every((k) => k === "theme");
     this.state.settings = { ...this.state.settings, ...s };
+    if (onlyTheme) return this.emit(false);
     this.audit("SETTINGS", "settings", JSON.stringify(s));
     this.emit();
   }
 
+  /** Exporta una copia JSON local (sin usuarios ni contraseñas). */
   exportBackup() {
-    const payload = JSON.stringify({ ...this.state, session: undefined }, null, 2);
-    this.state.backups.unshift({
-      id: uid("b"),
-      createdAt: Date.now(),
-      automatic: false,
-      size: payload.length,
-      note: "Manual",
-    });
-    this.audit("BACKUP", "backup", "Copia creada");
-    this.emit();
-    return payload;
+    return JSON.stringify({ ...this.shared(), exportedAt: new Date().toISOString(), version: this.version }, null, 2);
   }
 
   importBackup(json) {
     const data = JSON.parse(json);
-    const session = this.state.session;
-    this.state = { ...emptyState(), ...data, session };
-    this.audit("RESTORE", "backup", "Copia restaurada");
+    for (const k of SHARED) if (data[k] !== undefined) this.state[k] = data[k];
+    this.audit("RESTORE", "backup", "Copia JSON importada");
     this.emit();
   }
 
   resetDemo() {
-    localStorage.removeItem(KEY);
+    this.seed();
+    this.audit("RESET", "database", "Datos reiniciados desde el Excel");
+    this.emit();
   }
 }
 

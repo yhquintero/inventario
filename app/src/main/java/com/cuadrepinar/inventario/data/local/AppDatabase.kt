@@ -33,7 +33,7 @@ import com.cuadrepinar.inventario.data.local.entity.UserEntity
         SettingsEntity::class,
         ReportCacheEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

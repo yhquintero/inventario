@@ -25,6 +25,9 @@ interface ProductDao {
     @Query("SELECT * FROM products WHERE active = 1 ORDER BY name")
     fun observeActive(): Flow<List<ProductEntity>>
 
+    @Query("SELECT * FROM products WHERE active = 0 ORDER BY updatedAt DESC")
+    fun observeTrash(): Flow<List<ProductEntity>>
+
     @Query("SELECT * FROM products WHERE id = :id")
     suspend fun get(id: Long): ProductEntity?
 
@@ -57,6 +60,12 @@ interface ProductDao {
 
     @Query("SELECT COUNT(*) FROM products")
     suspend fun count(): Int
+
+    @Query("DELETE FROM products")
+    suspend fun deleteAll()
+
+    @Query("UPDATE products SET remoteId = :remoteId WHERE id = :id")
+    suspend fun setRemoteId(id: Long, remoteId: String)
 }
 
 @Dao
@@ -87,6 +96,18 @@ interface MovementDao {
 
     @Query("SELECT * FROM movements ORDER BY dateEpoch, id")
     suspend fun all(): List<MovementEntity>
+
+    @Insert
+    suspend fun insertAll(items: List<MovementEntity>)
+
+    @Query("DELETE FROM movements WHERE productId = :productId")
+    suspend fun deleteByProduct(productId: Long)
+
+    @Query("UPDATE movements SET remoteId = :remoteId WHERE id = :id")
+    suspend fun setRemoteId(id: Long, remoteId: String)
+
+    @Query("DELETE FROM movements")
+    suspend fun deleteAll()
 }
 
 @Dao
@@ -102,6 +123,9 @@ interface CuadreDao {
 
     @Query("SELECT * FROM daily_cuadre")
     suspend fun all(): List<DailyCuadreEntity>
+
+    @Query("DELETE FROM daily_cuadre")
+    suspend fun deleteAll()
 }
 
 @Dao
@@ -159,6 +183,12 @@ interface ExchangeDao {
 
     @Query("SELECT * FROM exchange_rates ORDER BY dateEpoch DESC")
     suspend fun all(): List<ExchangeRateEntity>
+
+    @Query("DELETE FROM exchange_rates")
+    suspend fun deleteAll()
+
+    @Query("UPDATE exchange_rates SET remoteId = :remoteId WHERE id = :id")
+    suspend fun setRemoteId(id: Long, remoteId: String)
 }
 
 @Dao

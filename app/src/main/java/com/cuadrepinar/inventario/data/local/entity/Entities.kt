@@ -16,7 +16,12 @@ data class ProductEntity(
     val active: Boolean = true,
     val category: String = "General",
     val notes: String = "",
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val precioCostoUsd: Double = 0.0,
+    val precioVenta2Usd: Double = 0.0,
+    val observaciones: String = "",
+    /** Id del producto en el servidor (null = aún no sincronizado). */
+    val remoteId: String? = null
 )
 
 @Entity(
@@ -37,7 +42,8 @@ data class MovementEntity(
     val stockInicial: Double,
     val stockFinal: Double,
     val userId: Long,
-    val notes: String = ""
+    val notes: String = "",
+    val remoteId: String? = null
 )
 
 @Entity(tableName = "daily_cuadre", indices = [Index(value = ["dateEpoch"], unique = true)])
@@ -108,7 +114,8 @@ data class ExchangeRateEntity(
     val rate: Double,
     val dateEpoch: Long,
     val userId: Long,
-    val note: String = ""
+    val note: String = "",
+    val remoteId: String? = null
 )
 
 @Entity(tableName = "backups")

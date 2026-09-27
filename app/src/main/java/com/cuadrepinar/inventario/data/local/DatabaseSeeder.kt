@@ -27,15 +27,25 @@ object DatabaseSeeder {
         val admin = db.users().byUsername("admin") ?: return
 
         db.settings().upsert(SettingsEntity())
-        db.exchange().insert(
-            ExchangeRateEntity(pair = "CUP/USD", rate = 540.0, dateEpoch = Dates.startOfDay(LocalDate.of(2026, 9, 14)), userId = admin.id, note = "Semilla Excel")
-        )
-        db.exchange().insert(
-            ExchangeRateEntity(pair = "MXN/USD", rate = 20.0, dateEpoch = Dates.startOfDay(LocalDate.of(2026, 9, 14)), userId = admin.id, note = "Semilla Excel")
-        )
 
+        // Fuente: CUADRE PINAR SEPT.xlsx, hoja "25 9 26" (generado por tools/import_excel.py)
         val json = context.assets.open("seed.json").bufferedReader().use { it.readText() }
         val root = JSONObject(json)
+
+        val rates = root.optJSONArray("rates") ?: JSONArray()
+        for (i in 0 until rates.length()) {
+            val o = rates.getJSONObject(i)
+            db.exchange().insert(
+                ExchangeRateEntity(
+                    pair = "CUP/" + o.optString("currency", "USD"),
+                    rate = o.getDouble("rate"),
+                    dateEpoch = Dates.startOfDay(LocalDate.parse(o.getString("date"))),
+                    userId = admin.id,
+                    note = o.optString("note", "Excel")
+                )
+            )
+        }
+
         val productsArr = root.getJSONArray("products")
         val byName = mutableMapOf<String, ProductEntity>()
         for (i in 0 until productsArr.length()) {
@@ -49,7 +59,10 @@ object DatabaseSeeder {
                 precioVentaUsd = o.optDouble("precioVentaUsd", 0.0),
                 comisionCup = o.optDouble("comisionCup", 0.0),
                 minStock = if (stock > 0) 1.0 else 0.0,
-                category = categorize(name)
+                category = o.optString("category", "").ifBlank { categorize(name) },
+                precioCostoUsd = o.optDouble("precioCostoUsd", 0.0),
+                precioVenta2Usd = o.optDouble("precioVenta2Usd", 0.0),
+                observaciones = o.optString("observaciones", "")
             )
             val id = db.products().insert(entity)
             byName[name.uppercase()] = entity.copy(id = id)
@@ -62,31 +75,28 @@ object DatabaseSeeder {
             val product = byName[name.uppercase()] ?: continue
             val type = MovementType.from(o.getString("type"))
             val qty = o.optDouble("quantity", 0.0)
-            val center = SaleCenter.from(o.optString("center", "MOV"))
+            val center = SaleCenter.from(o.optString("center", "TIENDA"))
             val date = LocalDate.parse(o.getString("date"))
             val stockIni = product.stockActual
-            if (StockCalculator.wouldGoNegative(stockIni, type, qty) && type != MovementType.ENTRADA) {
-                // Excel permite negativos; la app los registra pero deja constancia.
-            }
             val stockFin = StockCalculator.stockFinal(stockIni, type, qty)
-            val price = if (type == MovementType.VENTA) product.precioVentaUsd else 0.0
-            val importe = StockCalculator.importeUsd(type, qty, product.precioVentaUsd)
-            val comm = StockCalculator.comisionCup(center, qty, product.comisionCup)
+            val price = if (type == MovementType.VENTA) o.optDouble("unitPriceUsd", product.precioVentaUsd) else 0.0
+            val dom = o.optDouble("domicilioCup", 0.0)
             db.movements().insert(
                 MovementEntity(
                     dateEpoch = Dates.startOfDay(date),
-                    weekday = o.optString("weekday"),
+                    weekday = Dates.weekday(date),
                     productId = product.id,
                     type = type.name,
                     quantity = qty,
                     unitPriceUsd = price,
-                    importeUsd = importe,
+                    importeUsd = StockCalculator.importeUsd(type, qty, price),
                     center = center.name,
-                    comisionCup = comm,
+                    comisionCup = StockCalculator.comisionVenta(type, qty, product.comisionCup),
                     stockInicial = stockIni,
                     stockFinal = stockFin,
                     userId = admin.id,
-                    notes = "Importado de Nuevo Cuadre Pinar.xlsx"
+                    notes = listOf(o.optString("notes", ""), if (dom > 0) "Domicilio ${dom.toLong()} CUP" else "")
+                        .filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "CUADRE PINAR SEPT.xlsx" }
                 )
             )
             val updated = product.copy(stockActual = stockFin)
@@ -94,46 +104,41 @@ object DatabaseSeeder {
             byName[name.uppercase()] = updated
         }
 
+        // Cuadres diarios de septiembre (panel inferior de cada hoja) → DailyCuadreEntity
         val cuadres = root.optJSONArray("cuadres") ?: JSONArray()
         for (i in 0 until cuadres.length()) {
             val o = cuadres.getJSONObject(i)
             val date = LocalDate.parse(o.getString("date"))
-            fun num(key: String): Double {
-                if (!o.has(key) || o.isNull(key)) return 0.0
-                return try {
-                    o.getDouble(key)
-                } catch (_: Exception) {
-                    0.0
-                }
-            }
+            fun num(key: String): Double = if (!o.has(key) || o.isNull(key)) 0.0 else o.optDouble(key, 0.0)
+            val rate = num("cupUsd").takeIf { it > 0 } ?: 750.0
             db.cuadre().upsert(
                 DailyCuadreEntity(
                     dateEpoch = Dates.startOfDay(date),
-                    weekday = o.optString("weekday"),
-                    cupUsd = num("cupUsd").takeIf { it > 0 } ?: 540.0,
-                    mxnUsd = num("mxnUsd").takeIf { it > 0 } ?: 20.0,
-                    cobroUsd = num("cobroUsd"),
-                    cobroZelle = num("cobroZelle"),
-                    cobroMxn = num("cobroMxn"),
-                    cobroCupEfectivo = num("cobroCupEfectivo"),
-                    cobroCupTransf = num("cobroCupTransf"),
-                    cobroEuropa = num("cobroEuropa"),
-                    entradaCup = num("entradaCup"),
-                    entradaUsd = num("entradaUsd"),
-                    extraccionCup = num("extraccionCup"),
-                    extraccionUsd = num("extraccionUsd"),
-                    fondoInicialCup = num("fondoInicialCup"),
-                    fondoInicialUsd = num("fondoInicialUsd"),
-                    cambioCup = num("cambioCup"),
-                    cambioUsd = 0.0,
-                    domicilioCup = num("domicilioCup"),
+                    weekday = Dates.weekday(date),
+                    cupUsd = rate,
+                    mxnUsd = 20.0,
+                    cobroUsd = num("usdEfectivo"),
+                    cobroZelle = num("zelle"),
+                    cobroMxn = 0.0,
+                    cobroCupEfectivo = num("mnEfectivoCup"),
+                    cobroCupTransf = num("mnTarjetaCup"),
+                    cobroEuropa = num("mlc"),
+                    entradaCup = num("aumentoFondoCup"),
+                    entradaUsd = num("aumentoFondoUsd"),
+                    extraccionCup = num("salidaJesusMn"),
+                    extraccionUsd = num("salidaJesusUsd") + num("salidaMlc"),
+                    fondoInicialCup = num("fondoCupEfectivo") + num("fondoCupTarjeta"),
+                    fondoInicialUsd = num("fondoUsd"),
+                    cambioCup = 0.0,
+                    cambioUsd = num("gastosCombosUsd"),
+                    domicilioCup = num("domiciliosCup"),
                     domicilioUsd = 0.0,
-                    otrosGastosCup = num("otrosGastosCup"),
+                    otrosGastosCup = num("gastosCup"),
                     otrosGastosUsd = 0.0,
-                    otrosGastosObs = o.optString("otrosGastosObs", ""),
+                    otrosGastosObs = "Venta del día: ${num("venta")} USD",
                     comisionesCup = num("comisionesCup"),
                     comisionesUsd = 0.0,
-                    closed = i == 0,
+                    closed = true,
                     userId = admin.id
                 )
             )
@@ -146,7 +151,7 @@ object DatabaseSeeder {
                 action = "SEED",
                 entity = "database",
                 entityId = null,
-                details = "Carga inicial desde Nuevo Cuadre Pinar.xlsx (${byName.size} productos)"
+                details = "Carga inicial desde CUADRE PINAR SEPT.xlsx, hoja 25 9 26 (${byName.size} productos)"
             )
         )
     }

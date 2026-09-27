@@ -1,0 +1,22 @@
+# Uso: DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
+services:
+  app:
+    build: ..
+    restart: unless-stopped
+    environment:
+      - TRUST_PROXY=1
+      # - BACKUP_KEY=...   # opcional: clave Fernet; si no, se genera en /data/backup.key (¡guárdala fuera del servidor!)
+    volumes:
+      - datos:/data
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      - DOMINIO=${DOMINIO}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+volumes:
+  datos:
+  caddy_data:

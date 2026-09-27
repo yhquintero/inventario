@@ -19,6 +19,13 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.outlined.CloudDone
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.Timeline
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.runtime.collectAsState
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material.icons.outlined.Logout
@@ -66,12 +73,18 @@ sealed class Dest(val route: String, val label: String, val icon: ImageVector, v
     data object Audit : Dest("audit", "Auditoría", Icons.Outlined.History, Permission.AUDIT_VIEW)
     data object Backup : Dest("backup", "Copias", Icons.Outlined.Backup, Permission.BACKUP_MANAGE)
     data object Settings : Dest("settings", "Ajustes", Icons.Outlined.Settings)
+    data object Pos : Dest("pos", "Vender", Icons.Outlined.PointOfSale, Permission.MOVEMENT_CREATE)
+    data object Trash : Dest("trash", "Papelera", Icons.Outlined.DeleteOutline, Permission.INVENTORY_EDIT)
+    data object History : Dest("history", "Historial precios", Icons.Outlined.Timeline, Permission.INVENTORY_VIEW)
 }
 
-private val bottom = listOf(Dest.Home, Dest.Inventory, Dest.Movements, Dest.Reports)
-private val drawer = listOf(Dest.Cuadre, Dest.Finance, Dest.Users, Dest.Audit, Dest.Backup, Dest.Settings)
+private val bottom = listOf(Dest.Home, Dest.Pos, Dest.Inventory, Dest.Movements)
+private val drawer = listOf(Dest.Reports, Dest.History, Dest.Trash, Dest.Cuadre, Dest.Finance, Dest.Users, Dest.Audit, Dest.Backup, Dest.Settings)
 
 @OptIn(ExperimentalMaterial3Api::class)
+@dagger.hilt.android.lifecycle.HiltViewModel
+class SyncStatusViewModel @javax.inject.Inject constructor(val sync: com.cuadrepinar.inventario.data.sync.SyncManager) : androidx.lifecycle.ViewModel()
+
 @Composable
 fun AppShell(
     user: UserAccount,
@@ -86,6 +99,12 @@ fun AppShell(
     val current = back?.destination?.route
 
     fun allowed(d: Dest) = d.permission == null || RolePermissions.can(user.role, d.permission)
+    val syncVm: SyncStatusViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    val sync by syncVm.sync.status.collectAsState()
+    val snackbar = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
+    androidx.compose.runtime.LaunchedEffect(sync.message) {
+        sync.message?.takeIf { !it.startsWith("Datos al día") && !it.startsWith("Guardado") }?.let { snackbar.showSnackbar(it) }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -127,6 +146,7 @@ fun AppShell(
         }
     ) {
         Scaffold(
+            snackbarHost = { androidx.compose.material3.SnackbarHost(snackbar) },
             topBar = {
                 TopAppBar(
                     title = { Text("Cuadre Pinar") },
@@ -136,6 +156,18 @@ fun AppShell(
                         }
                     },
                     actions = {
+                        if (syncVm.sync.server().isNotBlank()) {
+                            IconButton(onClick = { syncVm.sync.syncNow() }) {
+                                Icon(
+                                    when {
+                                        !sync.connected -> Icons.Outlined.CloudOff
+                                        sync.busy -> Icons.Outlined.CloudSync
+                                        else -> Icons.Outlined.CloudDone
+                                    },
+                                    if (sync.connected) "Sincronizado con el servidor" else "Sin conexión con el servidor"
+                                )
+                            }
+                        }
                         IconButton(onClick = onToggleTheme) { Icon(Icons.Outlined.Brightness6, "Tema") }
                     }
                 )
@@ -170,6 +202,9 @@ fun AppShell(
                 composable(Dest.Audit.route) { AuditScreen() }
                 composable(Dest.Backup.route) { BackupScreen(user) }
                 composable(Dest.Settings.route) { SettingsScreen(user, themeMode) }
+                composable(Dest.Pos.route) { com.cuadrepinar.inventario.ui.pos.PosScreen(user) }
+                composable(Dest.Trash.route) { com.cuadrepinar.inventario.ui.trash.TrashScreen(user) }
+                composable(Dest.History.route) { com.cuadrepinar.inventario.ui.history.PriceHistoryScreen() }
             }
         }
     }

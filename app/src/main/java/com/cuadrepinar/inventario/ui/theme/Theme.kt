@@ -12,30 +12,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Typography
 
-val Teal = Color(0xFF0F6E66)
+val Teal = Color(0xFF0F766E)
 val TealDark = Color(0xFF5EEAD4)
-val Gold = Color(0xFFC4A35A)
-val Paper = Color(0xFFF4F1EA)
-val Ink = Color(0xFF1C1917)
-val Forest = Color(0xFF0E1716)
+val Gold = Color(0xFFB7791F)
+val Paper = Color(0xFFF4F6F8)
+val Ink = Color(0xFF0F172A)
+val Forest = Color(0xFF0B1220)
 
 private val LightColors = lightColorScheme(
     primary = Teal,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFD1EBE7),
+    primaryContainer = Color(0xFFCCFBF1),
     onPrimaryContainer = Color(0xFF062E2B),
     secondary = Gold,
     onSecondary = Color(0xFF2A2108),
-    secondaryContainer = Color(0xFFF3E6C8),
-    tertiary = Color(0xFF7C4A1E),
+    secondaryContainer = Color(0xFFFEF3C7),
+    tertiary = Color(0xFF2563EB),
     background = Paper,
     onBackground = Ink,
-    surface = Color(0xFFFFFCF7),
+    surface = Color(0xFFFFFFFF),
     onSurface = Ink,
-    surfaceVariant = Color(0xFFE7E1D6),
-    onSurfaceVariant = Color(0xFF4A453D),
+    surfaceVariant = Color(0xFFE2E8F0),
+    onSurfaceVariant = Color(0xFF64748B),
     error = Color(0xFFB3261E),
-    outline = Color(0xFF7A746A)
+    outline = Color(0xFFCBD5E1)
 )
 
 private val DarkColors = darkColorScheme(
@@ -47,7 +47,7 @@ private val DarkColors = darkColorScheme(
     onSecondary = Color(0xFF2A2108),
     background = Forest,
     onBackground = Color(0xFFECFDF8),
-    surface = Color(0xFF152220),
+    surface = Color(0xFF111A2B),
     onSurface = Color(0xFFECFDF8),
     surfaceVariant = Color(0xFF243330),
     onSurfaceVariant = Color(0xFFC5D5D1),

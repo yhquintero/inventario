@@ -24,3 +24,6 @@ __pycache__/
 web/dist/
 *.log
 .arena/
+
+# Datos del servidor (base de datos, copias y clave de cifrado)
+/data/

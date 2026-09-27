@@ -29,13 +29,37 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 import javax.inject.Singleton
 
 @Singleton
 class AuthRepository @Inject constructor(
     private val db: AppDatabase,
-    private val session: SessionManager
+    private val session: SessionManager,
+    val sync: com.cuadrepinar.inventario.data.sync.SyncManager
 ) {
+    /**
+     * Entrada contra el servidor compartido con la Web. Crea/actualiza un usuario local espejo (sin contraseña local)
+     * para que las pantallas de la App sigan funcionando igual.
+     */
+    suspend fun loginServer(server: String, username: String, password: String, code: String?): AppResult<UserAccount> {
+        val r = sync.login(server, username, password, code)
+        if (r.body.optBoolean("need2fa") && r.body.optString("token").isBlank()) {
+            return AppResult.Err(if (code.isNullOrBlank()) NEED_2FA else r.error)
+        }
+        if (!r.ok) return AppResult.Err(r.error)
+        val u = r.body.getJSONObject("user")
+        val existing = db.users().byUsername(u.getString("username"))
+        val entity = (existing ?: UserEntity(username = u.getString("username"), displayName = "", email = "", passwordHash = "remote", salt = "", role = ""))
+            .copy(displayName = u.optString("displayName"), email = u.optString("email"), role = u.getString("role"), active = true, lastLoginAt = System.currentTimeMillis())
+        val id = if (existing == null) db.users().insert(entity) else { db.users().update(entity); entity.id }
+        session.save(id, entity.username, entity.role, entity.displayName)
+        audit(id, entity.username, "LOGIN", "users", id, "Inicio de sesión en servidor ${sync.server()}")
+        return AppResult.Ok(entity.copy(id = id).toModel())
+    }
+
+    companion object { const val NEED_2FA = "NEED_2FA" }
+
     suspend fun login(username: String, password: String): AppResult<UserAccount> {
         val user = db.users().byUsername(username.trim())
             ?: return AppResult.Err("Usuario o contraseña incorrectos.")
@@ -52,6 +76,7 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun loginById(userId: Long): AppResult<UserAccount> {
+        if (sync.server().isNotBlank() && !sync.isConnected()) return AppResult.Err("Entra con tu contraseña para conectar con el servidor.")
         val user = db.users().get(userId) ?: return AppResult.Err("Sesión inválida.")
         if (!user.active) return AppResult.Err("La cuenta está desactivada.")
         session.save(user.id, user.username, user.role, user.displayName)
@@ -61,10 +86,15 @@ class AuthRepository @Inject constructor(
 
     suspend fun restoreSession(): UserAccount? {
         if (!session.isLoggedIn()) return null
+        if (sync.server().isNotBlank()) {
+            if (!sync.isConnected()) return null   // la sesión del servidor caducó: volver a entrar
+            sync.start()
+        }
         return db.users().get(session.userId())?.takeIf { it.active }?.toModel()
     }
 
     fun logout() {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { sync.logout() }
         val id = session.userId()
         val name = session.username() ?: ""
         session.clear()
@@ -101,7 +131,9 @@ class AuthRepository @Inject constructor(
 
 @Singleton
 class ProductRepository @Inject constructor(private val db: AppDatabase) {
-    fun observe(): Flow<List<Product>> = db.products().observeAll().map { it.map { e -> e.toModel() } }
+    fun observe(): Flow<List<Product>> = db.products().observeActive().map { it.map { e -> e.toModel() } }
+    /** Papelera de reciclaje: productos eliminados que se pueden recuperar. */
+    fun observeTrash(): Flow<List<Product>> = db.products().observeTrash().map { it.map { e -> e.toModel() } }
     fun observeLowStock(): Flow<List<Product>> = db.products().observeLowStock().map { it.map { e -> e.toModel() } }
     suspend fun get(id: Long) = db.products().get(id)?.toModel()
     suspend fun search(q: String) = db.products().search(q).map { it.toModel() }
@@ -112,7 +144,9 @@ class ProductRepository @Inject constructor(private val db: AppDatabase) {
         Validators.nonNegative(product.precioVentaUsd, "Precio de venta")?.let { return AppResult.Err(it) }
         Validators.nonNegative(product.comisionCup, "Comisión")?.let { return AppResult.Err(it) }
         val existing = db.products().byName(product.name)
-        if (existing != null && existing.id != product.id) return AppResult.Err("Ya existe un producto con ese nombre.")
+        if (existing != null && existing.id != product.id) {
+            return AppResult.Err(if (existing.active) "Ya existe un producto con ese nombre." else "Ese nombre ya existe en la Papelera: restáuralo en vez de crearlo de nuevo.")
+        }
         return try {
             val id = if (product.id == 0L) {
                 val stock = product.stockActual.takeIf { it > 0 } ?: product.stockInicial
@@ -120,7 +154,7 @@ class ProductRepository @Inject constructor(private val db: AppDatabase) {
             } else {
                 val current = db.products().get(product.id) ?: return AppResult.Err("Producto no encontrado.")
                 db.products().update(
-                    product.copy(stockActual = current.stockActual).toEntity()
+                    product.copy(stockActual = current.stockActual).toEntity().copy(remoteId = current.remoteId)
                 )
                 product.id
             }
@@ -138,18 +172,34 @@ class ProductRepository @Inject constructor(private val db: AppDatabase) {
 
     suspend fun delete(product: Product, actor: UserAccount): AppResult<Unit> {
         val entity = db.products().get(product.id) ?: return AppResult.Err("Producto no encontrado.")
-        db.products().delete(entity)
+        db.products().update(entity.copy(active = false, updatedAt = System.currentTimeMillis()))
         db.audit().insert(
-            AuditLogEntity(userId = actor.id, userName = actor.username, action = "DELETE", entity = "product", entityId = product.id, details = product.name)
+            AuditLogEntity(userId = actor.id, userName = actor.username, action = "TRASH", entity = "product", entityId = product.id, details = "${product.name} enviado a la papelera")
         )
         return AppResult.Ok(Unit)
     }
 
-    suspend fun all() = db.products().all().map { it.toModel() }
+    suspend fun restore(id: Long, actor: UserAccount): AppResult<Unit> {
+        val entity = db.products().get(id) ?: return AppResult.Err("Producto no encontrado.")
+        db.products().update(entity.copy(active = true, updatedAt = System.currentTimeMillis()))
+        db.audit().insert(AuditLogEntity(userId = actor.id, userName = actor.username, action = "RESTORE", entity = "product", entityId = id, details = entity.name))
+        return AppResult.Ok(Unit)
+    }
+
+    /** Eliminación definitiva (producto y sus movimientos). */
+    suspend fun purge(id: Long, actor: UserAccount): AppResult<Unit> {
+        val entity = db.products().get(id) ?: return AppResult.Err("Producto no encontrado.")
+        db.movements().deleteByProduct(id)
+        db.products().delete(entity)
+        db.audit().insert(AuditLogEntity(userId = actor.id, userName = actor.username, action = "PURGE", entity = "product", entityId = id, details = "${entity.name} eliminado definitivamente"))
+        return AppResult.Ok(Unit)
+    }
+
+    suspend fun all() = db.products().all().filter { it.active }.map { it.toModel() }
 }
 
 @Singleton
-class MovementRepository @Inject constructor(private val db: AppDatabase) {
+class MovementRepository @Inject constructor(private val db: AppDatabase, private val sync: com.cuadrepinar.inventario.data.sync.SyncManager) {
     fun observe(): Flow<List<Movement>> = combine(
         db.movements().observeAll(),
         db.products().observeAll(),
@@ -171,6 +221,7 @@ class MovementRepository @Inject constructor(private val db: AppDatabase) {
         overridePrice: Double? = null
     ): AppResult<Long> {
         StockCalculator.validateQuantity(quantity)?.let { return AppResult.Err(it) }
+        if (date.toString() in sync.status.value.closedDays) return AppResult.Err("El día ${Dates.format(Dates.startOfDay(date))} está cerrado. Un administrador debe reabrirlo.")
         val product = db.products().get(productId) ?: return AppResult.Err("Producto no encontrado.")
         val stockIni = product.stockActual
         if (StockCalculator.wouldGoNegative(stockIni, type, quantity)) {
@@ -182,7 +233,7 @@ class MovementRepository @Inject constructor(private val db: AppDatabase) {
             else -> product.precioVentaUsd
         }
         val importe = StockCalculator.importeUsd(type, quantity, if (overridePrice != null) overridePrice else product.precioVentaUsd)
-        val comm = StockCalculator.comisionCup(center, quantity, product.comisionCup)
+        val comm = StockCalculator.comisionVenta(type, quantity, product.comisionCup)
         val stockFin = StockCalculator.stockFinal(stockIni, type, quantity)
         val id = db.movements().insert(
             com.cuadrepinar.inventario.data.local.entity.MovementEntity(
@@ -214,6 +265,7 @@ class MovementRepository @Inject constructor(private val db: AppDatabase) {
 
     suspend fun delete(id: Long, actor: UserAccount): AppResult<Unit> {
         val mov = db.movements().get(id) ?: return AppResult.Err("Movimiento no encontrado.")
+        if (Dates.toLocalDate(mov.dateEpoch).toString() in sync.status.value.closedDays) return AppResult.Err("Ese día está cerrado; no se puede eliminar el movimiento.")
         db.movements().delete(mov)
         recalculateProduct(mov.productId)
         db.audit().insert(
@@ -276,7 +328,7 @@ class ReportRepository @Inject constructor(
     private val movements: MovementRepository
 ) {
     suspend fun comprobacion(from: Long, to: Long): List<ComprobacionRow> {
-        val products = db.products().all()
+        val products = db.products().all().filter { it.active }
         val movs = movements.inRange(from, to)
         return products.map { p ->
             val mine = movs.filter { it.productId == p.id }

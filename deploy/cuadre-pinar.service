@@ -1,0 +1,17 @@
+# Sin Docker: sudo cp deploy/cuadre-pinar.service /etc/systemd/system/ && sudo systemctl enable --now cuadre-pinar
+[Unit]
+Description=Cuadre Pinar (inventario)
+After=network.target
+
+[Service]
+User=cuadre
+WorkingDirectory=/opt/cuadre-pinar
+Environment=PORT=8080 DATA_DIR=/var/lib/cuadre-pinar TRUST_PROXY=1
+ExecStart=/usr/bin/python3 server/cuadre_server.py
+Restart=always
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/cuadre-pinar
+
+[Install]
+WantedBy=multi-user.target
