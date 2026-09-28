@@ -5,6 +5,7 @@ import { applyTips, initTooltips, startTour, tourSeen, openPalette, animateCount
 import {
   addDays, can, CATEGORIES, cup, CURRENCIES, cuadreCalc, formatDate, inRange, normName, periodRange,
   qty, round2, stockCalculado, todayISO, usd, validatePassword, validateProduct, weekday, weekRange,
+  parseValuesText, summarizeRows, STATUS_LABEL, VALUE_FIELDS,
 } from "./calc.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -13,6 +14,8 @@ const app = document.getElementById("app");
 const routes = {
   home: { title: "Panel", icon: "⌂", perm: null, group: "General" },
   inventory: { title: "Inventario", icon: "▣", perm: "INVENTORY_VIEW", group: "Operación", search: true },
+  warehouses: { title: "Almacenes", icon: "🏬", perm: "WAREHOUSE_VIEW", group: "Operación", search: true },
+  importValues: { title: "Importar valores", icon: "📥", perm: "VALUES_IMPORT", group: "Operación", search: true },
   movements: { title: "Movimientos", icon: "⇄", perm: "MOVEMENT_VIEW", group: "Operación", search: true },
   pos: { title: "Venta rápida", icon: "🛒", perm: "MOVEMENT_CREATE", group: "Operación", search: true },
   cuadre: { title: "Cuadre diario", icon: "☰", perm: "CUADRE_VIEW", group: "Operación" },
@@ -32,6 +35,7 @@ let ui = {
   route: "home", q: "", filter: "TODOS", cat: "TODAS", period: "semanal", modal: null, toast: null,
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
   histTab: "precios",
+  whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, iv: null,
 };
 
 const role = () => store.state.session?.role;
@@ -106,6 +110,7 @@ function shell(body) {
           <button class="btn ghost small menu-btn" data-act="drawer">☰</button>
           <div class="tb-title"><h2>${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP</span></div>
           ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" />${ui.q ? `<button class="x" data-act="clear-q">✕</button>` : ""}</div>` : `<div style="flex:1"></div>`}
+          ${whPicker()}
           <span class="sync-dot ${store.sync}" id="syncDot" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
           <button class="btn ghost small kbd-btn" data-act="palette">⌘K</button>
           <button class="btn ghost small" data-act="tour">?</button>
@@ -229,6 +234,10 @@ function homeView() {
         <div class="card-h"><span class="k">Valor por categoría</span></div>
         ${cats.map(([k, v]) => `<div class="hbar"><span>${catBadge(k)}</span><div><i style="width:${(v / (cats[0][1] || 1)) * 100}%;background:${(CATEGORIES[k] || CATEGORIES.General).color}"></i></div><b class="mono">${usd(v)}</b></div>`).join("")}
       </div>
+      ${store.warehousesActive().length > 1 ? `<div class="card">
+        <div class="card-h"><span class="k">Existencias por almacén</span><button class="btn ghost small" data-nav="warehouses">Gestionar</button></div>
+        ${store.warehousesActive().map((w) => { const st = store.warehouseStats(w); return `<div class="hline"><span>🏬 ${esc(w.name)}${store.activeWarehouseId() === w.id ? " <span class='tag entrada'>en uso</span>" : ""}</span><b class="mono">${qty(st.unidades)} uds · ${usd(st.valor)}</b></div>`; }).join("")}
+      </div>` : ""}
     </div>
     <div class="grid-2" style="margin-top:16px">
       <div class="card">
@@ -253,6 +262,7 @@ function inventoryView() {
   if (ui.filter === "STOCK") list = list.filter((p) => p.stockActual > 0);
   if (ui.filter === "AGOTADOS") list = list.filter((p) => p.stockActual <= 0);
   if (ui.filter === "BAJO") list = list.filter((p) => p.stockActual <= p.minStock);
+  if (ui.filter === "AQUI") list = list.filter((p) => store.stockIn(p, wh?.id) !== 0);
   const sorters = {
     name: (a, b) => a.name.localeCompare(b.name, "es"),
     stock: (a, b) => b.stockActual - a.stockActual,
@@ -261,31 +271,40 @@ function inventoryView() {
   };
   list = [...list].sort(sorters[ui.sort] || sorters.name);
   const canEdit = allowed("INVENTORY_EDIT");
+  const canImp = allowed("VALUES_IMPORT");
+  const wh = store.activeWarehouse();
+  const multi = store.warehousesActive().length > 1;
   const tot = {
     ini: list.reduce((a, p) => a + p.stockInicial, 0), act: list.reduce((a, p) => a + p.stockActual, 0),
     val: list.reduce((a, p) => a + Math.max(0, p.stockActual) * p.precioVentaUsd, 0),
+    wh: list.reduce((a, p) => a + store.stockIn(p, wh?.id), 0),
   };
+  const cols = 10 + (canEdit ? 1 : 0) + (multi ? 1 : 0);
   const cats = [...new Set(all.map((p) => p.category))].sort();
   return `
     <div class="toolbar">
       <div class="chips">
-        ${[["TODOS", "Todos"], ["STOCK", "Con stock"], ["BAJO", "Stock bajo"], ["AGOTADOS", "Agotados"]].map(([k, l]) => `<button class="chip ${ui.filter === k ? "on" : ""}" data-filter="${k}">${l}</button>`).join("")}
+        ${[["TODOS", "Todos"], ["STOCK", "Con stock"], ["BAJO", "Stock bajo"], ["AGOTADOS", "Agotados"], ...(multi ? [["AQUI", `En ${wh?.code || wh?.name || ""}`]] : [])].map(([k, l]) => `<button class="chip ${ui.filter === k ? "on" : ""}" data-filter="${k}">${l}</button>`).join("")}
       </div>
       <div class="row">
         <select id="catFilter" class="sel"><option value="TODAS">Todas las categorías</option>${cats.map((c) => `<option ${ui.cat === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
         <select id="sortSel" class="sel">${[["name", "Orden: nombre"], ["cat", "Orden: categoría"], ["stock", "Orden: stock"], ["price", "Orden: precio"]].map(([k, l]) => `<option value="${k}" ${ui.sort === k ? "selected" : ""}>${l}</option>`).join("")}</select>
         ${canEdit ? `<button class="btn" data-act="new-product">＋ Nuevo producto</button>` : ""}
+        ${canImp ? `<button class="btn ghost" data-act="iv-go" data-tip="Pegar del Excel, subir un archivo o escribir los valores de este almacén">📥 Importar valores</button>` : ""}
+        <button class="btn ghost" data-nav="warehouses" data-tip="Crear almacenes y ver sus entradas">🏬 Almacenes</button>
       </div>
     </div>
     <div class="summary">
       <span><b>${list.length}</b> ítems${list.length !== all.length ? ` de ${all.length}` : ""}</span>
       <span>Stock inicial <b>${qty(tot.ini)}</b></span><span>Stock actual <b>${qty(tot.act)}</b></span><span>Valor <b>${usd(tot.val)}</b></span>
+      ${multi ? `<span>En «${esc(wh?.name || "")}» <b>${qty(tot.wh)}</b> uds</span>` : ""}
       <span class="hint">Fuente: hoja 25 9 26</span>
     </div>
     <div class="card table-wrap flush">
       <table class="inv">
         <thead><tr>
           <th class="num">Nº</th><th></th><th>PRODUCTOS</th><th class="r">STOCK INICIAL</th><th class="r">STOCK ACTUAL</th>
+          ${multi ? `<th class="r" data-tip="Existencia en el almacén seleccionado arriba">EN ${esc(wh?.code || wh?.name || "")}</th>` : ""}
           <th class="r">PRECIO VENTA</th><th class="r">P. COSTO</th><th class="r">COMISION</th><th>Categoría</th><th>Observ.</th>${canEdit ? "<th></th>" : ""}
         </tr></thead>
         <tbody>
@@ -296,15 +315,16 @@ function inventoryView() {
               <td><strong>${hl(p.name)}</strong></td>
               <td class="mono r">${qty(p.stockInicial)}</td>
               <td class="mono r"><span class="stock ${p.stockActual <= 0 ? "out" : p.stockActual <= p.minStock ? "low" : "ok"}">${qty(p.stockActual)}</span></td>
+              ${multi ? `<td class="mono r"><span class="stock ${store.stockIn(p, wh?.id) <= 0 ? "out" : store.stockIn(p, wh?.id) <= p.minStock ? "low" : "ok"}">${qty(store.stockIn(p, wh?.id))}</span></td>` : ""}
               <td class="mono r">${usd(p.precioVentaUsd)}${p.precioVenta2Usd ? `<div class="hint">V2 ${usd(p.precioVenta2Usd)}</div>` : ""}</td>
               <td class="mono r">${p.precioCostoUsd ? usd(p.precioCostoUsd) : "—"}</td>
               <td class="mono r">${p.comisionCup ? cup(p.comisionCup) : "—"}</td>
               <td>${catBadge(p.category)}</td>
               <td class="hint">${esc(p.observaciones || "")}</td>
-              ${canEdit ? `<td class="actions"><button class="icon-btn" data-edit-product="${p.id}" title="Modificar">✎</button><button class="icon-btn" data-quick-mov="${p.id}" title="Movimiento">⇄</button><button class="icon-btn danger" data-del-product="${p.id}" title="Enviar a papelera">🗑</button></td>` : ""}
-            </tr>`).join("") || `<tr><td colspan="11" class="empty">Ningún producto coincide con “${esc(ui.q)}”.</td></tr>`}
+              ${canEdit ? `<td class="actions"><button class="icon-btn" data-edit-product="${p.id}" title="Modificar">✎</button><button class="icon-btn" data-quick-mov="${p.id}" title="Movimiento">⇄</button>${multi && canEdit ? `<button class="icon-btn" data-send-wh="${p.id}" title="Traspasar a otro almacén">🏬</button>` : ""}<button class="icon-btn danger" data-del-product="${p.id}" title="Enviar a papelera">🗑</button></td>` : ""}
+            </tr>`).join("") || `<tr><td colspan="${cols}" class="empty">Ningún producto coincide con “${esc(ui.q)}”.</td></tr>`}
         </tbody>
-        <tfoot><tr><td></td><td></td><td>TOTAL · ${list.length} ítems</td><td class="mono r">${qty(tot.ini)}</td><td class="mono r">${qty(tot.act)}</td><td colspan="${canEdit ? 6 : 5}"></td></tr></tfoot>
+        <tfoot><tr><td></td><td></td><td>TOTAL · ${list.length} ítems</td><td class="mono r">${qty(tot.ini)}</td><td class="mono r">${qty(tot.act)}</td>${multi ? `<td class="mono r">${qty(tot.wh)}</td>` : ""}<td colspan="${canEdit ? 6 : 5}"></td></tr></tfoot>
       </table>
     </div>
     ${canEdit ? `<button class="fab" data-act="new-product">+</button>` : ""}`;
@@ -337,7 +357,7 @@ function movementsView() {
     <div class="summary"><span><b>${list.length}</b> movimientos</span><span>Ventas <b>${usd(ventas.reduce((a, m) => a + m.importeUsd, 0))}</b></span><span>Comisiones <b>${cup(ventas.reduce((a, m) => a + m.comisionCup, 0))}</b></span><span>Domicilios <b>${cup(ventas.reduce((a, m) => a + (m.domicilioCup || 0), 0))}</b></span></div>
     <div class="card table-wrap flush">
       <table>
-        <thead><tr><th class="num">Nº</th><th>Fecha</th><th>PRODUCTO</th><th>MOVIMIENTO</th><th class="r">CANT.</th><th class="r">PRECIO</th><th class="r">IMPORTE</th><th>TIPO</th><th class="r">COMISIÓN</th><th class="r">DOMICILIO</th><th class="r">STOCK</th><th>Obs.</th>${canE ? "<th></th>" : ""}</tr></thead>
+        <thead><tr><th class="num">Nº</th><th>Fecha</th><th>PRODUCTO</th><th>MOVIMIENTO</th><th class="r">CANT.</th><th class="r">PRECIO</th><th class="r">IMPORTE</th><th>TIPO</th><th>ALMACÉN</th><th class="r">COMISIÓN</th><th class="r">DOMICILIO</th><th class="r">STOCK</th><th>Obs.</th>${canE ? "<th></th>" : ""}</tr></thead>
         <tbody>
           ${list.map((m, i) => `
             <tr>
@@ -349,12 +369,13 @@ function movementsView() {
               <td class="mono r">${m.type === "VENTA" ? usd(m.unitPriceUsd) : "—"}</td>
               <td class="mono r">${m.type === "VENTA" ? usd(m.importeUsd) : "—"}</td>
               <td><span class="tag ${m.center.toLowerCase()}">${m.center}</span></td>
+              <td>${esc(store.warehouseName(store.warehouseOf(m)))}</td>
               <td class="mono r">${m.comisionCup ? cup(m.comisionCup) : "—"}</td>
               <td class="mono r">${m.domicilioCup ? cup(m.domicilioCup) : "—"}</td>
               <td class="mono r">${qty(m.stockInicial)} → ${qty(m.stockFinal)}</td>
               <td class="hint">${esc(m.notes || "")}</td>
               ${canE ? `<td class="actions"><button class="icon-btn" data-edit-mov="${m.id}" title="Modificar">✎</button><button class="icon-btn danger" data-del-mov="${m.id}" title="Enviar a papelera">🗑</button></td>` : ""}
-            </tr>`).join("") || `<tr><td colspan="13" class="empty">Sin movimientos.</td></tr>`}
+            </tr>`).join("") || `<tr><td colspan="14" class="empty">Sin movimientos.</td></tr>`}
         </tbody>
       </table>
     </div>
@@ -750,8 +771,10 @@ ui.posCat = "TODAS";
 ui.posCenter = "TIENDA";
 function posView() {
   const all = store.activeProducts();
-  const list = all.filter((p) => p.stockActual > 0 && (ui.posCat === "TODAS" || p.category === ui.posCat) && (!ui.q || has(p.name, ui.q)));
-  const cats = [...new Set(all.filter((p) => p.stockActual > 0).map((p) => p.category))].sort();
+  const wid = store.activeWarehouseId();
+  const wname = store.warehouseName(wid);
+  const list = all.filter((p) => store.stockIn(p, wid) > 0 && (ui.posCat === "TODAS" || p.category === ui.posCat) && (!ui.q || has(p.name, ui.q)));
+  const cats = [...new Set(all.filter((p) => store.stockIn(p, wid) > 0).map((p) => p.category))].sort();
   const total = ui.cart.reduce((a, it) => a + it.qty * it.price, 0);
   const uds = ui.cart.reduce((a, it) => a + it.qty, 0);
   return `
@@ -764,11 +787,12 @@ function posView() {
         <div class="pos-grid">
           ${list.map((p) => {
             const inCart = ui.cart.find((x) => x.productId === p.id)?.qty || 0;
-            return `<button class="pcard ${inCart ? "in" : ""}" data-add-cart="${p.id}" data-tip="Clic para añadir 1 al carrito · stock ${qty(p.stockActual)}">
+            const sw = store.stockIn(p, wid);
+            return `<button class="pcard ${inCart ? "in" : ""}" data-add-cart="${p.id}" data-tip="Clic para añadir 1 al carrito · ${qty(sw)} en ${esc(wname)}">
               ${inCart ? `<span class="badge">${inCart}</span>` : ""}
               ${thumb(p, 999).replace('style="width:999px;height:999px"', "")}
               <div class="pname">${hl(p.name)}</div>
-              <div class="pfoot"><b>${usd(p.precioVentaUsd)}</b><span class="stock ${p.stockActual <= p.minStock ? "low" : "ok"}">${qty(p.stockActual)}</span></div>
+              <div class="pfoot"><b>${usd(p.precioVentaUsd)}</b><span class="stock ${sw <= p.minStock ? "low" : "ok"}">${qty(sw)}</span></div>
             </button>`;
           }).join("") || `<div class="card empty">No hay productos con stock que coincidan.</div>`}
         </div>
@@ -789,6 +813,7 @@ function posView() {
         <div class="form-grid">
           <label>Fecha<input type="date" id="posDate" value="${ui.posDate || todayISO()}"></label>
           <label>Tipo<select id="posCenter">${["TIENDA", "GESTOR"].map((c) => `<option ${ui.posCenter === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
+          <label class="span-2">Almacén<select id="posWh" data-tip="La venta descuenta del almacén elegido">${store.warehousesActive().map((w) => `<option value="${w.id}" ${w.id === wid ? "selected" : ""}>${esc(w.name)} · ${qty(store.warehouseStats(w).unidades)} uds</option>`).join("")}</select></label>
           <label class="span-2">Domicilio <small>CUP</small><input type="number" id="posDom" step="any" value="${ui.posDom || 0}"></label>
         </div>
         <div class="cart-total"><span>${qty(uds)} uds</span><b>${usd(total)}</b></div>
@@ -801,7 +826,8 @@ function addToCart(id) {
   const p = store.state.products.find((x) => x.id === id);
   const it = ui.cart.find((x) => x.productId === id);
   const cur = it?.qty || 0;
-  if (cur + 1 > p.stockActual) return toast(`Solo hay ${qty(p.stockActual)} en stock.`, "err");
+  const have = store.stockIn(p, store.activeWarehouseId());
+  if (cur + 1 > have) return toast(`Solo hay ${qty(have)} en «${store.warehouseName(store.activeWarehouseId())}».`, "err");
   if (it) it.qty++; else ui.cart.push({ productId: id, qty: 1, price: p.precioVentaUsd });
   render();
 }
@@ -931,6 +957,10 @@ async function handleExcel(file) {
 function importModal() {
   const { XLSX, wb, fileName } = ui.xlsx;
   const data = parseSheet(XLSX, wb, ui.importSheet);
+  const whs = store.warehousesActive();
+  const importWh = whs.some((w) => w.id === ui.importWarehouseId) ? ui.importWarehouseId : store.activeWarehouseId();
+  ui.importWarehouseId = importWh;
+  data.warehouseId = importWh;
   ui.importData = data;
   const known = new Set(store.state.products.map((p) => normName(p.name)));
   const nuevos = data.products.filter((p) => !known.has(normName(p.name))).length;
@@ -938,7 +968,10 @@ function importModal() {
   const venta = data.products.reduce((a, p) => a + p.v1 * p.p1 + p.v2 * (p.p2 || p.p1), 0);
   modal("📥 Importar hoja del Excel", `
     <p class="hint">${esc(fileName)}</p>
-    <label>Hoja<select id="importSheet">${wb.SheetNames.map((s) => `<option ${s === ui.importSheet ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
+    <div class="form-grid">
+      <label>Hoja<select id="importSheet">${wb.SheetNames.map((s) => `<option ${s === ui.importSheet ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
+      <label>Almacén destino<select id="importWh" data-tip="Las entradas, salidas y ventas de esta hoja entran en ese almacén">${whs.map((w) => `<option value="${w.id}" ${w.id === importWh ? "selected" : ""}>${esc(w.name)}</option>`).join("")}</select></label>
+    </div>
     <div class="kpis mini">
       ${kpi("Fecha", formatDate(data.date), weekday(data.date))}
       ${kpi("Productos", data.products.length, `${nuevos} nuevos`)}
@@ -946,8 +979,421 @@ function importModal() {
       ${kpi("Cuadre", data.cuadre ? "Sí" : "No", "panel inferior")}
     </div>
     ${trash ? `<div class="banner">⚠ ${trash} productos están en la papelera y se omitirán (no se duplican).</div>` : ""}
-    <p class="hint">Se actualizan precios, costos y comisiones (quedan en el historial), se ajusta la existencia al inicio del día, se crean las entradas/salidas/ventas de esa fecha y se guarda el cuadre. Reimportar la misma hoja reemplaza lo importado antes para ese día.</p>
+    <p class="hint">Se actualizan precios, costos y comisiones (quedan en el historial), se ajusta la existencia al inicio del día <b>en «${esc(store.warehouseName(importWh))}»</b>, se crean las entradas/salidas/ventas de esa fecha y se guarda el cuadre. Reimportar la misma hoja reemplaza lo importado antes para ese día y almacén.</p>
     <div class="row" style="margin-top:14px"><button class="btn" type="button" data-act="do-import">Importar ahora</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "importForm");
+}
+
+/* ============================ ALMACENES ============================ */
+const WH_KIND = { CREACION: "Creación", VALORES: "Valores", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Eliminación", DESHACER: "Deshacer" };
+const WH_KIND_TAG = { CREACION: "entrada", VALORES: "venta", TRASPASO: "gestor", AJUSTE: "mov", ELIMINACION: "salida", DESHACER: "tienda" };
+const fieldLabel = (k) => (k === "created" ? "producto nuevo" : VALUE_FIELDS.find((f) => f.key === k)?.short || k);
+const fmtVal = (v) => (v === null || v === undefined || v === "" ? "—" : esc(String(v)));
+
+/** Selector de almacén de la barra superior: todo apunta al almacén elegido. */
+function whPicker() {
+  const list = store.warehousesActive();
+  if (!list.length) return "";
+  const id = store.activeWarehouseId();
+  const w = store.warehouseById(id);
+  return `<label class="wh-pick" data-tip="Almacén activo: la existencia, la venta y las importaciones apuntan aquí">
+    <span>🏬</span>
+    <select id="whSel">${list.map((x) => `<option value="${x.id}" ${x.id === id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select>
+    <small class="hint">${w ? `${qty(store.warehouseStats(w).unidades)} uds` : ""}</small>
+  </label>`;
+}
+
+function warehouseCard(w, s, active) {
+  const canEdit = allowed("WAREHOUSE_EDIT");
+  const canImport = allowed("VALUES_IMPORT");
+  const isActive = active?.id === w.id;
+  return `<div class="card wh-card ${isActive ? "on" : ""}">
+    <div class="card-h"><span class="k">${w.isDefault ? "★ Principal" : "Almacén"}${isActive ? " · en uso" : ""}</span><span class="tag mov">${esc(w.code || "")}</span></div>
+    <h3 class="wh-name">${hl(w.name)}</h3>
+    <p class="hint">${esc(w.location || "Sin ubicación")}${w.notes ? ` · ${esc(w.notes)}` : ""}</p>
+    <div class="wh-stats">
+      <div><span>Ítems</span><b>${s.items}</b></div>
+      <div><span>Unidades</span><b>${qty(s.unidades)}</b></div>
+      <div><span>Valor</span><b>${usd(s.valor)}</b></div>
+      <div><span>Movimientos</span><b>${s.movs}</b></div>
+    </div>
+    ${s.bajo ? `<div class="banner" style="margin:10px 0 0">⚠ ${s.bajo} productos en el mínimo</div>` : ""}
+    <p class="hint" style="margin-top:8px">${s.last ? `Última entrada: ${WH_KIND[s.last.kind] || s.last.kind} · ${esc(s.last.userName || "")} · ${new Date(s.last.ts).toLocaleString("es-CU")}` : "Sin entradas registradas"}</p>
+    <div class="row" style="margin-top:12px">
+      <button class="btn small" data-wh-use="${w.id}">Ver existencias</button>
+      ${canImport ? `<button class="btn ghost small" data-wh-imp="${w.id}">📥 Importar</button>` : ""}
+      ${canEdit ? `<button class="btn ghost small" data-wh-edit="${w.id}">✎ Editar</button>` : ""}
+      ${canEdit ? `<button class="btn ghost small" data-wh-tr="${w.id}">⇄ Traspaso</button>` : ""}
+      <button class="btn ghost small" data-wh-export="${w.id}">CSV</button>
+      ${canEdit ? `<button class="btn ghost small danger-t" data-wh-del="${w.id}">Eliminar</button>` : ""}
+    </div>
+  </div>`;
+}
+
+function warehouseEntriesPanel() {
+  const all = store.state.warehouseEntries || [];
+  const list = all
+    .filter((e) => (ui.whKind === "TODOS" || e.kind === ui.whKind) && (!ui.whFilter || e.warehouseId === ui.whFilter) &&
+      (!ui.q || has(e.summary, ui.q) || has(e.warehouseName, ui.q) || has(e.userName, ui.q) || has(WH_KIND[e.kind] || "", ui.q)))
+    .slice(0, 300);
+  const kinds = ["TODOS", ...Object.keys(WH_KIND).filter((k) => all.some((e) => e.kind === k))];
+  const canUndo = allowed("VALUES_IMPORT");
+  return `
+    <div class="toolbar">
+      <div class="chips">${kinds.map((k) => `<button class="chip ${ui.whKind === k ? "on" : ""}" data-wh-kind="${k}">${k === "TODOS" ? "Todas" : WH_KIND[k]}</button>`).join("")}</div>
+      <div class="row">
+        <select class="sel" id="whFilterSel"><option value="">Todos los almacenes</option>${store.warehousesActive().map((w) => `<option value="${w.id}" ${ui.whFilter === w.id ? "selected" : ""}>${esc(w.name)}</option>`).join("")}</select>
+      </div>
+    </div>
+    <p class="hint">Aquí queda cada entrada: cuando se creó un almacén, cada vez que se importaron valores y cada traspaso. Se puede deshacer la última entrada de valores o un traspaso.</p>
+    <div class="card table-wrap flush"><table>
+      <thead><tr><th>Fecha</th><th>Tipo</th><th>Almacén</th><th>Entrada</th><th>Usuario</th><th class="r">Cambios</th><th></th></tr></thead>
+      <tbody>${list.map((e) => `
+        <tr class="${e.undoneAt ? "off" : ""}">
+          <td class="hint">${new Date(e.ts).toLocaleString("es-CU")}</td>
+          <td><span class="tag ${WH_KIND_TAG[e.kind] || "mov"}">${WH_KIND[e.kind] || e.kind}</span></td>
+          <td>${esc(e.warehouseName || "")}</td>
+          <td>${hl(e.summary)}${e.undoneAt ? ` <span class="tag salida">DESHECHA</span>` : ""}</td>
+          <td>${esc(e.userName || "")}</td>
+          <td class="mono r">${(e.items || []).length || ""}</td>
+          <td class="actions">
+            ${(e.items || []).length ? `<button class="icon-btn" data-wh-entry="${e.id}" title="Ver el detalle">👁</button>` : ""}
+            ${canUndo && (e.items || []).length && !e.undoneAt ? `<button class="btn ghost small danger-t" data-wh-undo="${e.id}">Deshacer</button>` : ""}
+          </td>
+        </tr>
+        ${ui.whDetail === e.id ? `<tr><td colspan="7"><div class="wh-detail">
+          ${(e.items || []).slice(0, 200).map((it) => `<div class="cline"><span>${esc(it.productName)} · ${fieldLabel(it.field)}${it.warehouseName ? ` · ${esc(it.warehouseName)}` : ""}</span><b class="mono">${fmtVal(it.old)} → ${fmtVal(it.new)}</b></div>`).join("")}
+          ${e.counts && Object.keys(e.counts).length ? `<p class="hint">${Object.entries(e.counts).map(([k, v]) => `${k}: ${v}`).join(" · ")}</p>` : ""}
+        </div></td></tr>` : ""}`).join("") || `<tr><td colspan="7" class="empty">Sin entradas registradas todavía.</td></tr>`}</tbody>
+    </table></div>`;
+}
+
+function warehousesView() {
+  const whs = store.warehousesActive();
+  if (ui.whFilter && !whs.some((w) => w.id === ui.whFilter)) ui.whFilter = "";
+  const canEdit = allowed("WAREHOUSE_EDIT");
+  const canImport = allowed("VALUES_IMPORT");
+  const active = store.activeWarehouse() || whs[0];
+  const stats = whs.map((w) => ({ w, s: store.warehouseStats(w) }));
+  const tot = stats.reduce((a, { s }) => ({ items: a.items + s.items, unidades: a.unidades + s.unidades, valor: a.valor + s.valor }), { items: 0, unidades: 0, valor: 0 });
+  const entradas = (store.state.warehouseEntries || []).length;
+  return `
+    <div class="toolbar">
+      <div class="chips">
+        <button class="chip ${ui.whTab === "almacenes" ? "on" : ""}" data-wh-tab="almacenes">Almacenes (${whs.length})</button>
+        <button class="chip ${ui.whTab === "entradas" ? "on" : ""}" data-wh-tab="entradas">Entradas (${entradas})</button>
+      </div>
+      <div class="row">
+        ${canEdit ? `<button class="btn" data-act="wh-new">＋ Nuevo almacén</button>` : ""}
+        ${canEdit && whs.length > 1 && active ? `<button class="btn ghost" data-wh-tr="${active.id}">⇄ Traspaso</button>` : ""}
+        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button>` : ""}
+      </div>
+    </div>
+    <div class="kpis">
+      ${kpi("Almacenes", whs.length, canEdit ? "Crea tantos como necesites" : "Solo lectura", "teal")}
+      ${kpi("Ítems con existencia", tot.items, `De ${store.activeProducts().length} productos`, "blue")}
+      ${kpi("Unidades en total", qty(tot.unidades), "Suma de todos los almacenes", "gold")}
+      ${kpi("Valor a precio venta", usd(tot.valor), `Almacén en uso: ${esc(active?.name || "—")}`, "green")}
+    </div>
+    ${ui.whTab === "entradas" ? warehouseEntriesPanel() : `<div class="wh-grid" style="margin-top:14px">${stats.map(({ w, s }) => warehouseCard(w, s, active)).join("") || `<div class="card empty">Todavía no hay almacenes. Crea el primero para empezar.</div>`}</div>`}`;
+}
+
+/* ---------------------------- modales de almacén ---------------------------- */
+function warehouseModal(w = null) {
+  const x = w || { name: "", code: "", location: "", notes: "" };
+  modal(w ? "Modificar almacén" : "Nuevo almacén", `
+    <p class="hint">El almacén se identifica por su nombre (por ejemplo «ALMACÉN CENTRAL», «TIENDA PINAR», «CASA DEL TECHO»). Todo lo que importes para él queda registrado en Entradas.</p>
+    <label>Nombre del almacén <input name="name" id="whName" value="${esc(x.name)}" placeholder="ALMACÉN CENTRAL" required autocomplete="off"></label>
+    <div class="form-grid">
+      <label>Código corto <small>(para las columnas)</small><input name="code" value="${esc(x.code || "")}" maxlength="6" placeholder="CEN"></label>
+      <label>Ubicación <input name="location" value="${esc(x.location || "")}" placeholder="Pinar del Río"></label>
+      <label class="span-2">Notas <input name="notes" value="${esc(x.notes || "")}" placeholder="Mercancía general, se cuenta los viernes…"></label>
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn">${w ? "Guardar cambios" : "Crear almacén"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "warehouseForm", `data-id="${w?.id || ""}"`);
+}
+
+function transferModal({ fromId = null, productId = null } = {}) {
+  const whs = store.warehousesActive();
+  if (whs.length < 2) { toast("Necesitas al menos dos almacenes para hacer un traspaso.", "err"); return; }
+  const from = store.warehouseById(fromId) || store.activeWarehouse() || whs[0];
+  const dest = whs.find((w) => w.id !== from.id);
+  const prods = store.activeProducts().filter((p) => store.stockIn(p, from.id) > 0);
+  const sel = productId || prods[0]?.id || store.activeProducts()[0]?.id;
+  modal("⇄ Traspaso entre almacenes", `
+    <p class="hint">El traspaso mueve existencia de un almacén a otro. No es una venta: el cuadre del día y las ventas no se tocan.</p>
+    <div class="form-grid">
+      <label>Desde<input value="${esc(from.name)}" readonly><input type="hidden" name="fromId" value="${from.id}"></label>
+      <label>Hacia<select name="toId">${whs.filter((w) => w.id !== from.id).map((w) => `<option value="${w.id}" ${w.id === dest?.id ? "selected" : ""}>${esc(w.name)}</option>`).join("")}</select></label>
+    </div>
+    <label>Producto<select name="productId" id="trProd">
+      ${prods.map((p) => `<option value="${p.id}" ${p.id === sel ? "selected" : ""}>${esc(p.name)} · hay ${qty(store.stockIn(p, from.id))}</option>`).join("") || `<option value="">— sin existencia en ${esc(from.name)} —</option>`}
+    </select></label>
+    <div class="form-grid">
+      <label>Cantidad <input name="qty" type="number" step="any" min="0" value="1" required></label>
+      <label>Fecha<input name="date" type="date" value="${todayISO()}"></label>
+      <label class="span-2">Nota <input name="note" placeholder="Ej.: pedido de la tienda"></label>
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn">Traspasar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "transferForm", `data-from="${from.id}"`);
+}
+
+function whDeleteFlow(id) {
+  const w = store.warehouseById(id);
+  if (!w) return;
+  const st = store.warehouseStats(w);
+  const others = store.warehousesActive().filter((x) => x.id !== id);
+  if (!others.length) return toast("Es el único almacén: crea otro antes de eliminarlo.", "err");
+  if (st.items || st.movs) {
+    ui.modal = `<div class="modal-back" data-act="close-modal"><form class="modal" id="whMoveForm" data-id="${id}">
+      <div class="modal-h"><div class="h2">Eliminar «${esc(w.name)}»</div><button type="button" class="icon-btn" data-act="close-modal">✕</button></div>
+      <p>Tiene <b>${st.items} ítems</b> (${qty(st.unidades)} unidades) y <b>${st.movs} movimientos</b>. Elige a qué almacén se pasan antes de eliminarlo: nada se pierde.</p>
+      <label>Mover todo a<select name="moveTo">${others.map((o) => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></label>
+      <div class="row" style="margin-top:14px"><button class="btn danger">Mover y eliminar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>
+    </form></div>`;
+    render();
+    return;
+  }
+  confirmModal(`¿Eliminar el almacén <b>${esc(w.name)}</b>? No tiene existencias ni movimientos.`, () => {
+    const r = store.deleteWarehouse(id);
+    if (r.error) return toast(r.error, "err");
+    toast("Almacén eliminado", "ok");
+    render();
+  });
+}
+
+/* ============================ IMPORTAR VALORES ============================ */
+function ivState() {
+  if (!ui.iv) ui.iv = { warehouseId: store.activeWarehouseId(), src: "pegar", text: "", rows: [], q: "", note: "", fileName: "", sheets: [], sheetName: "", last: null };
+  if (!store.warehouseById(ui.iv.warehouseId)) ui.iv.warehouseId = store.activeWarehouseId();
+  return ui.iv;
+}
+const ivBlankRows = (n = 8) => Array.from({ length: n }, () => ({ sel: true, name: "" }));
+
+function ivFieldCell(r, i, f, info) {
+  const cur = info?.current?.[f.key];
+  const ph = cur === undefined || cur === null || cur === "" || cur === 0 ? "" : String(cur);
+  return `<td><input class="cell iv-${f.kind}" data-iv-row="${i}" data-iv-field="${f.key}" value="${esc(r[f.key] ?? "")}" ${f.kind === "number" ? 'inputmode="decimal"' : ""} placeholder="${esc(ph)}" data-tip="${f.label}${f.unit ? ` (${f.unit})` : ""}${ph ? ` · ahora: ${esc(ph)}` : ""}"></td>`;
+}
+
+function importValuesView() {
+  const iv = ivState();
+  const whs = store.warehousesActive();
+  if (!whs.length) {
+    return `<div class="card"><div class="card-h"><span class="k">Primero crea un almacén</span></div>
+      <p>Los valores entran siempre a un almacén. Crea el primero y vuelve aquí: podrás pegar del Excel, subir un archivo o escribir en la tabla.</p>
+      ${allowed("WAREHOUSE_EDIT") ? `<button class="btn" data-act="wh-new">＋ Nuevo almacén</button>` : ""}</div>`;
+  }
+  const w = store.warehouseById(iv.warehouseId) || whs[0];
+  const s = store.warehouseStats(w);
+  const sum = iv.rows.length ? summarizeRows(store.state.products, w.id, iv.rows) : null;
+  const selected = sum ? sum.selected : 0;
+  const conflicts = sum ? sum.conflicts : [];
+  const names = store.activeProducts().map((p) => p.name);
+
+  const result = iv.last ? `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-h"><span class="k">✔ Entrada registrada</span><span class="tag entrada">${WH_KIND.VALORES}</span></div>
+      <div class="kpis mini">
+        ${kpi("Almacén", esc(iv.last.almacen), "destino de los valores")}
+        ${kpi("Cambios", (iv.last.items || []).length, `${iv.last.creados} productos nuevos`)}
+        ${kpi("Existencias", iv.last.existencias, "unidades ajustadas")}
+        ${kpi("Precios", iv.last.precios, "venta, costo y comisión")}
+      </div>
+      ${iv.last.sobrescritos ? `<div class="banner">⚠ Se sobrescribieron valores de ${iv.last.sobrescritos} producto(s) que ya estaban guardados.</div>` : ""}
+      ${iv.last.omitidos.length ? `<p class="hint">Omitidos: ${iv.last.omitidos.length} · ${iv.last.omitidos.slice(0, 6).map(esc).join(" · ")}${iv.last.omitidos.length > 6 ? " …" : ""}</p>` : ""}
+      ${iv.last.errores.length ? `<div class="error">${iv.last.errores.slice(0, 4).map(esc).join("<br>")}</div>` : ""}
+      <div class="row" style="margin-top:12px">
+        <button class="btn" data-wh-use="${w.id}">Ver existencias de «${esc(w.name)}»</button>
+        <button class="btn ghost" data-wh-tab="entradas">Ver en Entradas</button>
+        ${iv.last.entryId ? `<button class="btn ghost danger-t" data-wh-undo="${iv.last.entryId}">Deshacer esta entrada</button>` : ""}
+        <button class="btn ghost" data-act="iv-clear">Importar otra vez</button>
+      </div>
+    </div>` : "";
+
+  const steps = `<div class="iv-steps">
+      <span class="${iv.rows.length ? "done" : "on"}">1 · Almacén de destino</span>
+      <span class="${iv.rows.length ? "done" : "on"}">2 · De dónde salen los valores</span>
+      <span class="${iv.rows.length ? "on" : ""}">3 · Revisar y aplicar</span>
+    </div>`;
+
+  const destCard = `
+    <div class="card">
+      <div class="card-h"><span class="k">1 · ¿A qué almacén entran los valores?</span><span class="tag mov">${esc(w.code || "")}</span></div>
+      <div class="chips">
+        ${whs.map((x) => `<button class="chip ${x.id === w.id ? "on" : ""}" data-iv-wh="${x.id}">🏬 ${esc(x.name)}</button>`).join("")}
+      </div>
+      <div class="wh-stats" style="margin-top:12px">
+        <div><span>Ítems ahora</span><b>${s.items}</b></div>
+        <div><span>Unidades</span><b>${qty(s.unidades)}</b></div>
+        <div><span>Valor</span><b>${usd(s.valor)}</b></div>
+        <div><span>Entradas</span><b>${s.entradas}</b></div>
+      </div>
+      <p class="hint">Todo lo que apliques aquí apunta a «${esc(w.name)}». Los otros almacenes no se tocan.</p>
+    </div>`;
+
+  const originCard = `
+    <div class="card" style="margin-top:14px">
+      <div class="card-h"><span class="k">2 · ¿De dónde salen los valores?</span>
+        <button class="btn ghost small" data-act="iv-template" data-tip="Descarga esta lista (producto y su existencia actual) para llenarla en Excel y volver a pegarla">⬇ Plantilla de «${esc(w.code || w.name.slice(0, 3))}»</button>
+      </div>
+      <div class="chips">
+        ${[["pegar", "📋 Pegar del Excel"], ["archivo", "📄 Subir archivo .xlsx / .csv"], ["manual", "✍ Escribir en la tabla"]]
+          .map(([k, l]) => `<button class="chip ${iv.src === k ? "on" : ""}" data-iv-src="${k}">${l}</button>`).join("")}
+      </div>
+      ${iv.src === "pegar" ? `
+        <label style="margin-top:12px">Pega las columnas copiadas del Excel (Ctrl+V)
+          <textarea id="ivText" rows="6" placeholder="PRODUCTO&#9;EXISTENCIA&#9;PRECIO VENTA&#9;P. COSTO&#9;COMISIÓN&#10;PANEL SOLAR 500W&#9;8&#9;120&#9;70&#9;5&#10;NEVERA 11 PIES&#9;3&#9;900&#9;700&#9;20">${esc(iv.text || "")}</textarea>
+        </label>
+        <p class="hint">Se aceptan encabezados (PRODUCTO, EXISTENCIA/STOCK, PRECIO, COSTO, COMISIÓN, OBSERVACIONES) en cualquier orden, con o sin ellos, y números con coma decimal. Las columnas que dejes vacías no se tocan.</p>
+        <div class="row" style="margin-top:10px"><button class="btn" data-act="iv-analyze">Analizar lo pegado</button></div>` : ""}
+      ${iv.src === "archivo" ? `
+        <label class="dropzone" style="margin-top:12px" id="ivDrop">
+          <div class="dz-ico">📄</div><b>Arrastra el archivo .xlsx, .csv o .tsv</b>
+          <span class="hint">${iv.fileName ? `Último archivo: <b>${esc(iv.fileName)}</b>${iv.sheetName ? ` · hoja «${esc(iv.sheetName)}»` : ""}` : "La primera fila puede ser el encabezado de las columnas"}</span>
+          <input type="file" id="ivFile" accept=".xlsx,.xls,.csv,.tsv,.txt" hidden>
+        </label>
+        ${iv.sheets.length > 1 ? `<label>Hoja<select id="ivSheet">${iv.sheets.map((x) => `<option ${x === iv.sheetName ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></label>` : ""}
+        <div class="row" style="margin-top:10px"><button class="btn ghost small" data-act="iv-template">⬇ Descargar plantilla CSV</button></div>` : ""}
+      ${iv.src === "manual" ? `
+        <p class="hint" style="margin-top:12px">Escribe los productos y sus valores directamente en la tabla de abajo. Puedes empezar por el nombre (te sugiere los que ya existen) y seguir con existencia, precios y comisión.</p>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" data-act="iv-addrow">＋ Añadir fila</button>
+          <button class="btn ghost" data-act="iv-fillrows">Rellenar 20 filas</button>
+          <span class="hint">Las filas sin nombre se ignoran al aplicar.</span>
+        </div>` : ""}
+    </div>`;
+
+  const reviewCard = !iv.rows.length ? "" : `
+    <div class="card flush" style="margin-top:14px">
+      <div class="card-h pad"><span class="k">3 · Revisar y aplicar · «${esc(w.name)}»</span>
+        <span class="hint">${sum.total} filas · ${selected} seleccionadas</span>
+      </div>
+      <div class="toolbar" style="padding:0 16px">
+        <div class="chips">
+          <button class="chip" data-act="iv-selall">☑ Todos</button>
+          <button class="chip" data-act="iv-selnone">☐ Ninguno</button>
+          <button class="chip" data-act="iv-selinvert">⇄ Invertir</button>
+          <button class="chip" data-iv-selonly="nuevo">Marcar nuevos (${sum.nuevo + sum.nuevo_almacen})</button>
+          <button class="chip" data-iv-selonly="sobrescribe">Marcar los que sobrescriben (${sum.sobrescribe})</button>
+        </div>
+        <div class="row">
+          <input class="sel" id="ivSearch" placeholder="Filtrar filas…" value="${esc(iv.q)}" style="min-width:180px">
+          <button class="btn ghost small" data-act="iv-refresh" data-tip="Recalcula los estados después de editar la tabla">↻ Estado</button>
+        </div>
+      </div>
+      <div class="iv-statusbar">
+        <span class="tag entrada">${sum.nuevo} nuevos</span>
+        <span class="tag venta">${sum.nuevo_almacen} entran al almacén</span>
+        <span class="tag gestor">${sum.sobrescribe} sobrescriben</span>
+        <span class="tag mov">${sum.igual} iguales</span>
+        ${sum.papelera ? `<span class="tag salida">${sum.papelera} en papelera</span>` : ""}
+        ${sum.duplicates.length ? `<span class="tag salida">${sum.duplicates.length} nombres repetidos</span>` : ""}
+      </div>
+      ${conflicts.length ? `<div class="banner" style="margin:12px 16px">
+        <b>⚠ ${conflicts.length} fila(s) ya tienen valores guardados en «${esc(w.name)}».</b> Si continúas, esos valores se sobrescriben.
+        <div class="wh-detail" style="margin-top:8px">${conflicts.slice(0, 10).map((c) => `<div class="cline"><span>${esc(c.name)}</span><b class="mono">${(c.warns.length ? c.warns : c.changed).map((k) => `${fieldLabel(k)}: ${fmtVal(c.current[k])} → ${fmtVal(c.row[k])}`).join(" · ")}</b></div>`).join("")}${conflicts.length > 10 ? `<p class="hint">y ${conflicts.length - 10} más…</p>` : ""}</div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn danger" data-iv-confirm="sobrescribir">Sobrescribir los ${conflicts.length}</button>
+          <button class="btn" data-iv-confirm="completar">Solo completar lo que falta</button>
+          <span class="hint">«Completar» respeta lo que ya tenía valor.</span>
+        </div>
+      </div>` : ""}
+      <div class="table-wrap"><table class="iv-table">
+        <thead><tr><th></th><th class="num">Nº</th><th>PRODUCTO</th>
+          ${VALUE_FIELDS.map((f) => `<th class="r">${f.label}${f.unit ? ` <small>${f.unit}</small>` : ""}</th>`).join("")}
+          <th>ESTADO</th><th></th></tr></thead>
+        <tbody>${ivRowsHtml(iv, w)}</tbody>
+      </table></div>
+      <div class="iv-bar">
+        <label>Nota de la entrada <small>(queda en el historial)</small><input id="ivNote" value="${esc(iv.note)}" placeholder="Ej.: conteo físico del viernes"></label>
+        <div class="row">
+          <button class="btn" data-act="iv-apply" ${selected ? "" : "disabled"}>📥 Aplicar ${selected} fila(s) a «${esc(w.name)}»</button>
+          <button class="btn ghost" data-act="iv-clear">Empezar de nuevo</button>
+        </div>
+      </div>
+    </div>`;
+
+  return `<datalist id="ivNames">${names.map((n) => `<option value="${esc(n)}"></option>`).join("")}</datalist>
+    ${result}${steps}${destCard}${originCard}${reviewCard}`;
+}
+
+function ivRowsHtml(iv, w) {
+  const q = normName(iv.q || ui.q || "");
+  const pairs = iv.rows.map((r, i) => ({ r, i })).filter(({ r }) => !q || normName(r.name).includes(q));
+  return pairs.map(({ r, i }) => {
+    const st = STATUS_LABEL[r.status];
+    const info = r._info;
+    return `<tr class="${r.sel ? "" : "off"}">
+      <td><input type="checkbox" data-iv-sel="${i}" ${r.sel ? "checked" : ""}></td>
+      <td class="num mono">${i + 1}</td>
+      <td><input class="iv-name" list="ivNames" data-iv-row="${i}" data-iv-field="name" value="${esc(r.name || "")}" placeholder="Nombre del producto"></td>
+      ${VALUE_FIELDS.map((f) => ivFieldCell(r, i, f, info)).join("")}
+      <td class="iv-status">${st ? `<span class="tag ${st.tone}" data-tip="${st.help}">${st.text}</span>` : `<span class="hint">—</span>`}</td>
+      <td class="actions"><button class="icon-btn danger" data-iv-delrow="${i}" title="Quitar fila">🗑</button></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="${VALUE_FIELDS.length + 4}" class="empty">Ninguna fila coincide con el filtro.</td></tr>`;
+}
+
+function ivApply(mode = null) {
+  const iv = ivState();
+  const rows = iv.rows.filter((r) => r.sel !== false && String(r.name || "").trim());
+  if (!rows.length) return toast("Marca al menos una fila (o pulsa «Todos») para aplicar.", "err");
+  const sum = summarizeRows(store.state.products, iv.warehouseId, iv.rows);
+  if (!mode && sum.conflicts.length) {
+    ui.iv.warn = true;
+    render();
+    document.querySelector(".iv-statusbar")?.scrollIntoView?.({ block: "center" });
+    return toast(`Ojo: ${sum.conflicts.length} fila(s) ya tenían valores en «${store.warehouseName(iv.warehouseId)}». Elige sobrescribir o completar.`, "err");
+  }
+  const rep = store.applyWarehouseImport({
+    warehouseId: iv.warehouseId, rows: iv.rows, mode: mode || "sobrescribir", source: iv.src,
+    fileName: iv.src === "archivo" ? iv.fileName : "", note: iv.note,
+  });
+  if (rep.error) return toast(rep.error, "err");
+  if (rep.sinCambios) return toast("No había nada que cambiar: los valores ya coinciden.", "");
+  iv.last = rep;
+  iv.rows = [];
+  iv.warn = false;
+  render();
+  const r = store.state.warehouseEntries.find((e) => e.id === rep.entryId);
+  confetti(`<b>📥 Valores cargados</b><span>${esc(rep.almacen)} · ${(rep.items || []).length} cambios${rep.creados ? ` · ${rep.creados} productos nuevos` : ""}</span>`);
+  if (!r) toast("Valores aplicados", "ok");
+}
+
+async function ivReadFile(file) {
+  const iv = ivState();
+  const name = String(file.name || "").toLowerCase();
+  try {
+    if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+      const XLSX = await loadXLSX();
+      const wb = XLSX.read(await file.arrayBuffer(), { raw: true });
+      iv.sheets = wb.SheetNames;
+      iv.sheetName = wb.SheetNames.includes(iv.sheetName) ? iv.sheetName : wb.SheetNames[0];
+      const grid = XLSX.utils.sheet_to_json(wb.Sheets[iv.sheetName], { header: 1, raw: true, defval: "" });
+      const text = grid.map((r) => r.map((c) => (c === null || c === undefined ? "" : String(c))).join("\t")).join("\n");
+      iv.rows = parseValuesText(text).rows;
+    } else {
+      iv.rows = parseValuesText(await file.text()).rows;
+    }
+    iv.src = "archivo";
+    iv.fileName = file.name;
+    iv.last = null;
+    summarizeRows(store.state.products, iv.warehouseId, iv.rows);
+    render();
+    toast(iv.rows.length ? `${iv.rows.length} filas listas para revisar.` : "No se encontraron productos en el archivo.", iv.rows.length ? "ok" : "err");
+  } catch (e) {
+    toast("No se pudo leer el archivo: " + e.message, "err");
+  }
+}
+
+function ivTemplate() {
+  const iv = ivState();
+  const w = store.warehouseById(iv.warehouseId);
+  const lines = [["PRODUCTO", "EXISTENCIA", "PRECIO VENTA", "PRECIO VENTA 2", "P. COSTO", "COMISIÓN", "OBSERVACIONES"].join(",")];
+  for (const p of store.activeProducts()) {
+    lines.push([p.name, store.stockIn(p, w.id), p.precioVentaUsd, p.precioVenta2Usd || 0, p.precioCostoUsd || 0, p.comisionCup || 0, p.observaciones || ""]
+      .map((v) => csv(v)).join(","));
+  }
+  download(`valores_${w.code || "almacen"}_${todayISO()}.csv`, "\uFEFF" + lines.join("\n"), "text/csv");
+  toast("Plantilla descargada: llénala en Excel y pégala aquí.", "ok");
 }
 
 /* ============================ CONFETI ============================ */
@@ -979,12 +1425,15 @@ function modal(title, body, id, extra = "") {
 function productModal(p = null) {
   const x = p || { name: "", stockInicial: 0, precioVentaUsd: 0, precioVenta2Usd: 0, precioCostoUsd: 0, comisionCup: 0, minStock: 1, category: "General", observaciones: "" };
   const cats = Object.keys(CATEGORIES);
+  const wh = store.activeWarehouse();
+  const whStock = p ? Number(p.stocksInicial?.[wh?.id] ?? p.stockInicial) : 0;
+  const whList = store.warehousesActive();
   modal(p ? "Modificar producto" : "Nuevo producto", `
     <div class="img-pick">${thumb(x, 72)}<div><label class="btn ghost small">Subir imagen<input type="file" id="prodImg" accept="image/*" hidden></label>${x.image ? `<button type="button" class="btn ghost small" data-act="rm-img">Quitar</button>` : ""}<div class="hint">Si no subes foto se usa la imagen de la categoría.</div></div></div>
     <label>PRODUCTOS <input name="name" id="prodName" value="${esc(x.name)}" required autocomplete="off"></label>
     <div id="nameHint"></div>
     <div class="form-grid">
-      <label>STOCK INICIAL <input name="stockInicial" type="number" step="any" min="0" value="${x.stockInicial}"></label>
+      <label>STOCK INICIAL <small>en «${esc(wh?.name || "")}»</small><input name="stockInicial" type="number" step="any" min="0" value="${whStock}"></label>
       <label>Stock mínimo <input name="minStock" type="number" step="any" min="0" value="${x.minStock}"></label>
       <label>PRECIO VENTA <small>USD</small><input name="precioVentaUsd" type="number" step="any" min="0" value="${x.precioVentaUsd}"></label>
       <label>PRECIO VENTA 2 <small>USD</small><input name="precioVenta2Usd" type="number" step="any" min="0" value="${x.precioVenta2Usd || 0}"></label>
@@ -993,6 +1442,7 @@ function productModal(p = null) {
       <label>Categoría<select name="category">${cats.map((c) => `<option ${x.category === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
       <label>Observaciones <input name="observaciones" value="${esc(x.observaciones || "")}"></label>
     </div>
+    ${p && whList.length > 1 ? `<p class="hint">Existencias: ${whList.map((w) => `${esc(w.code || w.name)} <b>${qty(store.stockIn(p, w.id))}</b>`).join(" · ")} · total <b>${qty(p.stockActual)}</b></p>` : ""}
     ${p ? `<p class="hint">Stock actual: <b>${qty(p.stockActual)}</b>. Los cambios de precio/comisión se guardan en el historial del día.</p>` : ""}
     <div class="row" style="margin-top:14px"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button>
       ${p ? `<button type="button" class="btn danger" data-del-product="${p.id}" style="margin-left:auto">Enviar a papelera</button>` : ""}</div>`, "productForm", `data-id="${p?.id || ""}"`);
@@ -1001,15 +1451,18 @@ function productModal(p = null) {
 
 function movementModal(m = null, productId = null) {
   const products = store.activeProducts();
-  const x = m || { productId: productId || products[0]?.id, type: "VENTA", center: "TIENDA", quantity: 1, date: lastDataDate() > todayISO() ? lastDataDate() : todayISO(), notes: "", unitPriceUsd: "", domicilioCup: 0 };
+  const whs = store.warehousesActive();
+  const wid = m ? store.warehouseOf(m) : store.activeWarehouseId();
+  const x = m || { productId: productId || products[0]?.id, type: "VENTA", center: "TIENDA", quantity: 1, date: lastDataDate() > todayISO() ? lastDataDate() : todayISO(), notes: "", unitPriceUsd: "", domicilioCup: 0, warehouseId: wid };
   modal(m ? "Modificar movimiento" : "Nuevo movimiento", `
     <label>PRODUCTO <input id="movProdSearch" placeholder="Filtrar productos…" autocomplete="off"></label>
     <select name="productId" id="movProd" size="6" class="prod-list" required>
-      ${products.map((p) => `<option value="${p.id}" ${p.id === x.productId ? "selected" : ""}>${esc(p.name)} · stock ${qty(p.stockActual)} · ${usd(p.precioVentaUsd)}</option>`).join("")}
+      ${products.map((p) => `<option value="${p.id}" ${p.id === x.productId ? "selected" : ""}>${esc(p.name)} · ${qty(store.stockIn(p, wid))} en ${esc(store.warehouseById(wid)?.code || "")} · total ${qty(p.stockActual)} · ${usd(p.precioVentaUsd)}</option>`).join("")}
     </select>
     <div class="form-grid">
       <label>MOVIMIENTO<select name="type">${["VENTA", "ENTRADA", "SALIDA"].map((t) => `<option ${x.type === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       <label>TIPO<select name="center">${["TIENDA", "GESTOR", "MOV"].map((t) => `<option ${x.center === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      <label>ALMACÉN<select name="warehouseId">${whs.map((w) => `<option value="${w.id}" ${w.id === x.warehouseId ? "selected" : ""}>${esc(w.name)}</option>`).join("")}</select></label>
       <label>CANTIDAD <input name="quantity" type="number" step="any" min="0" value="${x.quantity}" required></label>
       <label>Fecha <input name="date" type="date" value="${x.date}" required></label>
       <label>Precio unitario <small>USD (vacío = lista)</small><input name="unitPriceUsd" type="number" step="any" min="0" value="${m ? x.unitPriceUsd : ""}"></label>
@@ -1055,7 +1508,7 @@ function confirmModal(text, onYes) {
 
 /* ============================ RENDER ============================ */
 function page() {
-  const views = { pos: posView, analytics: analyticsView, inventory: inventoryView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
+  const views = { pos: posView, analytics: analyticsView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
   return (views[ui.route] || homeView)();
 }
 
@@ -1095,6 +1548,8 @@ function paletteCtx() {
 function runAct(a) {
   if (a === "new-product") { productModal(null); render(); }
   else if (a === "new-movement") { movementModal(); render(); }
+  else if (a === "new-warehouse") { warehouseModal(); ui.route = "warehouses"; render(); }
+  else if (a === "import-values") { const st = ivState(); st.warehouseId = store.activeWarehouseId(); ui.route = "importValues"; render(); }
   else if (a === "theme") { const o = ["light", "dark", "system"]; store.saveSettings({ theme: o[(o.indexOf(store.state.settings.theme) + 1) % 3] }); }
 }
 
@@ -1154,8 +1609,12 @@ function bindApp() {
   $("#posDate")?.addEventListener("change", (e) => (ui.posDate = e.target.value));
   $("#posCenter")?.addEventListener("change", (e) => (ui.posCenter = e.target.value));
   $("#posDom")?.addEventListener("change", (e) => (ui.posDom = Number(e.target.value) || 0));
+  $("#posWh")?.addEventListener("change", (e) => { store.setActiveWarehouse(e.target.value); ui.cart = []; render(); });
   document.querySelectorAll("[data-cart-price]").forEach((el) => el.addEventListener("change", () => { ui.cart[+el.dataset.cartPrice].price = Number(el.value) || 0; render(); }));
   $("#importSheet")?.addEventListener("change", (e) => { ui.importSheet = e.target.value; importModal(); render(); });
+  $("#importWh")?.addEventListener("change", (e) => { ui.importWarehouseId = e.target.value; importModal(); render(); });
+  $("#whSel")?.addEventListener("change", (e) => { store.setActiveWarehouse(e.target.value); ui.cart = []; render(); });
+  $("#whFilterSel")?.addEventListener("change", (e) => { ui.whFilter = e.target.value; render(); });
   $("#xlsxFile")?.addEventListener("change", (e) => e.target.files[0] && handleExcel(e.target.files[0]));
   const dz = $("#dropzone");
   if (dz) {
@@ -1234,6 +1693,7 @@ function bindApp() {
       precioVenta2Usd: Number(fd.get("precioVenta2Usd")) || 0, precioCostoUsd: Number(fd.get("precioCostoUsd")) || 0,
       comisionCup: Number(fd.get("comisionCup")) || 0, minStock: Number(fd.get("minStock")) || 0,
       category: fd.get("category"), observaciones: fd.get("observaciones") || "",
+      warehouseId: store.activeWarehouseId(),
     };
     if (ui.pendingImage !== undefined) p.image = ui.pendingImage;
     const err = validateProduct(p);
@@ -1248,6 +1708,7 @@ function bindApp() {
     const r = store.saveMovement({
       id: e.target.dataset.id || null, productId: fd.get("productId"), type: fd.get("type"), quantity: fd.get("quantity"),
       center: fd.get("center"), date: fd.get("date"), notes: fd.get("notes"), unitPriceUsd: fd.get("unitPriceUsd"), domicilioCup: fd.get("domicilioCup"),
+      warehouseId: fd.get("warehouseId"),
     });
     if (r.error) return toast(r.error, "err");
     ui.modal = null; toast(e.target.dataset.id ? "Movimiento modificado · stock recalculado" : "Movimiento registrado · stock actualizado", "ok");
@@ -1280,6 +1741,57 @@ function bindApp() {
     if (!r.ok) return toast(r.error, "err");
     store.state.session.totpEnabled = false; toast("2FA desactivada", "ok");
   });
+  $("#warehouseForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const r = store.saveWarehouse({ id: e.target.dataset.id || null, name: fd.get("name"), code: fd.get("code"), location: fd.get("location"), notes: fd.get("notes") });
+    if (r.error) return toast(r.error, "err");
+    ui.modal = null;
+    ui.whTab = "almacenes";
+    toast(e.target.dataset.id ? "Almacén modificado" : `Almacén «${String(fd.get("name")).trim().toUpperCase()}» creado`, "ok");
+    render();
+  });
+  $("#transferForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const r = store.transferStock({ fromId: fd.get("fromId"), toId: fd.get("toId"), productId: fd.get("productId"), qty: fd.get("qty"), note: fd.get("note"), date: fd.get("date") });
+    if (r.error) return toast(r.error, "err");
+    ui.modal = null;
+    toast(`Traspaso hecho: ${qty(r.qty)} de «${r.from}» a «${r.to}»`, "ok");
+    render();
+  });
+  $("#whMoveForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const r = store.deleteWarehouse(e.target.dataset.id, new FormData(e.target).get("moveTo"));
+    if (r.error) return toast(r.error, "err");
+    ui.modal = null;
+    toast(`Almacén eliminado · ${r.moved} productos y ${r.movimientos} movimientos movidos`, "ok");
+    render();
+  });
+  /* ---- Importar valores: cuadrícula editable sin repintar (no pierde el foco) ---- */
+  const iv = ui.iv;
+  if (iv) {
+    $("#ivText")?.addEventListener("input", (e) => { iv.text = e.target.value; });
+    $("#ivNote")?.addEventListener("input", (e) => { iv.note = e.target.value; });
+    $("#ivSearch")?.addEventListener("input", (e) => { iv.q = e.target.value; clearTimeout(bindApp._ivT); bindApp._ivT = setTimeout(render, 180); });
+    $("#ivFile")?.addEventListener("change", (e) => { const f = e.target.files[0]; if (f) { iv.file = f; ivReadFile(f); } });
+    $("#ivSheet")?.addEventListener("change", (e) => { iv.sheetName = e.target.value; if (iv.file) ivReadFile(iv.file); });
+    document.querySelectorAll("[data-iv-row][data-iv-field]").forEach((el) => el.addEventListener("input", () => {
+      const row = iv.rows[+el.dataset.ivRow];
+      if (row) row[el.dataset.ivField] = el.value;
+    }));
+    document.querySelectorAll("[data-iv-sel]").forEach((el) => el.addEventListener("change", () => {
+      const row = iv.rows[+el.dataset.ivSel];
+      if (row) row.sel = el.checked;
+      render();
+    }));
+    const dz = $("#ivDrop");
+    if (dz) {
+      dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("over"); });
+      dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+      dz.addEventListener("drop", (e) => { e.preventDefault(); dz.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) { iv.file = f; ivReadFile(f); } });
+    }
+  }
   $("#pwForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -1314,14 +1826,14 @@ function ensureClicks() {
 function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"); }
 
 function onClick(e) {
-  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore]");
+  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
   if (t.tagName === "A" && !d.nav) e.preventDefault();
   if (d.addCart) return addToCart(d.addCart);
   if (d.poscat) { ui.posCat = d.poscat; return render(); }
-  if (d.cartInc) { const it = ui.cart[+d.cartInc]; const p = store.state.products.find((x) => x.id === it.productId); if (it.qty + 1 > p.stockActual) return toast(`Solo hay ${qty(p.stockActual)} en stock.`, "err"); it.qty++; return render(); }
+  if (d.cartInc) { const it = ui.cart[+d.cartInc]; const p = store.state.products.find((x) => x.id === it.productId); const have = store.stockIn(p, store.activeWarehouseId()); if (it.qty + 1 > have) return toast(`Solo hay ${qty(have)} en «${store.warehouseName(store.activeWarehouseId())}».`, "err"); it.qty++; return render(); }
   if (d.cartDec) { const it = ui.cart[+d.cartDec]; it.qty--; if (it.qty <= 0) ui.cart.splice(+d.cartDec, 1); return render(); }
   if (d.nav) { e.preventDefault(); navTo(d.nav); }
   else if (d.filter) { ui.filter = d.filter; render(); }
@@ -1330,6 +1842,29 @@ function onClick(e) {
   else if (d.wdate) { ui.weekDate = d.wdate; render(); }
   else if (d.htab) { ui.histTab = d.htab; render(); }
   else if (d.htabGo) { ui.histTab = d.htabGo; navTo("history"); }
+  else if (d.whTab) { ui.whTab = d.whTab; ui.whDetail = null; render(); }
+  else if (d.whKind) { ui.whKind = d.whKind; render(); }
+  else if (d.whFilter) { ui.whFilter = ui.whFilter === d.whFilter ? "" : d.whFilter; render(); }
+  else if (d.whUse) { store.setActiveWarehouse(d.whUse); ui.cat = "TODAS"; ui.filter = "TODOS"; navTo("inventory"); }
+  else if (d.whEdit) { warehouseModal(store.warehouseById(d.whEdit)); render(); }
+  else if (d.whDel) whDeleteFlow(d.whDel);
+  else if (d.whTr) { transferModal({ fromId: d.whTr }); render(); }
+  else if (d.whImp) { const st = ivState(); st.warehouseId = d.whImp; st.last = null; navTo("importValues"); }
+  else if (d.whEntry) { ui.whDetail = ui.whDetail === d.whEntry ? null : d.whEntry; ui.whTab = "entradas"; render(); }
+  else if (d.whUndo) confirmModal("¿Deshacer esta entrada? Los valores y el stock vuelven a como estaban antes.", () => {
+    const r = store.undoWarehouseEntry(d.whUndo);
+    if (r.error) return toast(r.error, "err");
+    if (ui.iv?.last?.entryId === d.whUndo) ui.iv.last = null;
+    toast(`Entrada deshecha · ${r.revertidos} valores revertidos`, "ok");
+    render();
+  });
+  else if (d.whExport) exportWarehouse(d.whExport);
+  else if (d.sendWh) { transferModal({ fromId: store.activeWarehouseId(), productId: d.sendWh }); render(); }
+  else if (d.ivWh) { const st = ivState(); st.warehouseId = d.ivWh; st.last = null; summarizeRows(store.state.products, st.warehouseId, st.rows); render(); }
+  else if (d.ivSrc) { const st = ivState(); st.src = d.ivSrc; if (d.ivSrc === "manual" && !st.rows.length) st.rows = ivBlankRows(); render(); }
+  else if (d.ivDelrow !== undefined) { const st = ivState(); st.rows.splice(+d.ivDelrow, 1); summarizeRows(store.state.products, st.warehouseId, st.rows); render(); }
+  else if (d.ivSelonly) { const st = ivState(); const want = d.ivSelonly === "sobrescribe" ? ["sobrescribe"] : ["nuevo", "nuevo_almacen"]; st.rows.forEach((r) => (r.sel = want.includes(r.status))); render(); }
+  else if (d.ivConfirm) ivApply(d.ivConfirm);
   else if (d.gotoCuadre) { ui.cuadreDate = d.gotoCuadre; navTo("cuadre"); }
   else if (d.editProduct) { productModal(store.state.products.find((x) => x.id === d.editProduct)); render(); }
   else if (d.quickMov) { movementModal(null, d.quickMov); render(); }
@@ -1365,7 +1900,7 @@ function onClick(e) {
   else if (act === "palette") openPalette(paletteCtx());
   else if (act === "cart-clear") { ui.cart = []; render(); }
   else if (act === "checkout") {
-    const r = store.posCheckout(ui.cart, { date: ui.posDate || todayISO(), center: ui.posCenter, domicilioCup: ui.posDom || 0 });
+    const r = store.posCheckout(ui.cart, { date: ui.posDate || todayISO(), center: ui.posCenter, domicilioCup: ui.posDom || 0, warehouseId: store.activeWarehouseId() });
     if (r.error) return toast(r.error, "err");
     ui.cart = []; ui.posDom = 0;
     confetti(`<b>¡Venta registrada!</b><span>${usd(r.total)}</span>`);
@@ -1378,11 +1913,32 @@ function onClick(e) {
   else if (act === "do-import") {
     const rep = store.importSheet(ui.importData);
     ui.modal = null;
-    confetti(`<b>Hoja ${esc(ui.importData.sheet)} importada</b><span>${rep.creados} nuevos · ${rep.actualizados} actualizados · ${rep.movimientos} movimientos</span>`);
+    confetti(`<b>Hoja ${esc(ui.importData.sheet)} importada</b><span>${esc(rep.almacen || "")} · ${rep.creados} nuevos · ${rep.actualizados} actualizados · ${rep.movimientos} movimientos</span>`);
     if (rep.omitidos.length || rep.errores.length) toast(`Omitidos: ${rep.omitidos.length}. Avisos: ${rep.errores.join(" | ").slice(0, 200)}`, rep.errores.length ? "err" : "");
     ui.cuadreDate = ui.importData.date;
     render();
   }
+  else if (act === "wh-new") { warehouseModal(); render(); }
+  else if (act === "iv-go") { const st = ivState(); st.warehouseId = store.activeWarehouseId(); navTo("importValues"); }
+  else if (act === "iv-analyze") {
+    const st = ivState();
+    const parsed = parseValuesText(st.text);
+    st.rows = parsed.rows;
+    st.last = null;
+    if (!st.rows.length) return toast("No se reconoció ningún producto. Revisa que la primera columna sea el nombre (PRODUCTO).", "err");
+    const sum = summarizeRows(store.state.products, st.warehouseId, st.rows);
+    render();
+    toast(`${sum.total} filas listas · ${sum.nuevo + sum.nuevo_almacen} nuevas · ${sum.sobrescribe} por sobrescribir`, "ok");
+  }
+  else if (act === "iv-addrow") { const st = ivState(); st.rows.push(...ivBlankRows(1)); render(); }
+  else if (act === "iv-fillrows") { const st = ivState(); st.rows.push(...ivBlankRows(20)); render(); }
+  else if (act === "iv-selall") { const st = ivState(); st.rows.forEach((r) => (r.sel = true)); render(); }
+  else if (act === "iv-selnone") { const st = ivState(); st.rows.forEach((r) => (r.sel = false)); render(); }
+  else if (act === "iv-selinvert") { const st = ivState(); st.rows.forEach((r) => (r.sel = r.sel === false)); render(); }
+  else if (act === "iv-refresh") { const st = ivState(); summarizeRows(store.state.products, st.warehouseId, st.rows); render(); toast("Estados recalculados", "ok"); }
+  else if (act === "iv-apply") ivApply();
+  else if (act === "iv-clear") { const st = ivState(); st.rows = []; st.text = ""; st.last = null; st.warn = false; render(); }
+  else if (act === "iv-template") ivTemplate();
   else if (act === "tour") startTour();
   else if (act === "drawer") { ui.drawer = !ui.drawer; render(); }
   else if (act === "clear-q") { ui.q = ""; render(); $("#globalSearch")?.focus(); }
@@ -1428,9 +1984,22 @@ function exportMovements() {
   download("movimientos.csv", "\uFEFF" + lines.join("\n"), "text/csv");
 }
 function exportInventory() {
-  const lines = ["Nº,PRODUCTOS,STOCK INICIAL,STOCK ACTUAL,PRECIO VENTA,P. COSTO,COMISION,CATEGORIA,OBSERVACIONES"];
-  store.activeProducts().forEach((p, i) => lines.push([i + 1, p.name, p.stockInicial, p.stockActual, p.precioVentaUsd, p.precioCostoUsd, p.comisionCup, p.category, p.observaciones].map(csv).join(",")));
+  const whs = store.warehousesActive();
+  const head = ["Nº", "PRODUCTOS", "STOCK INICIAL", "STOCK ACTUAL", ...whs.map((w) => `EXIST. ${w.name}`), "PRECIO VENTA", "P. COSTO", "COMISION", "CATEGORIA", "OBSERVACIONES"];
+  const lines = [head.map(csv).join(",")];
+  store.activeProducts().forEach((p, i) => lines.push([i + 1, p.name, p.stockInicial, p.stockActual, ...whs.map((w) => store.stockIn(p, w.id)), p.precioVentaUsd, p.precioCostoUsd, p.comisionCup, p.category, p.observaciones].map(csv).join(",")));
   download("inventario.csv", "\uFEFF" + lines.join("\n"), "text/csv");
+}
+/** CSV de todo lo que hay en un almacén (para contar o revisar). */
+function exportWarehouse(warehouseId) {
+  const w = store.warehouseById(warehouseId);
+  if (!w) return;
+  const rows = store.warehouseInventory(warehouseId);
+  const head = ["Nº", "PRODUCTOS", "EXIST. INICIAL", "EXISTENCIA", "PRECIO VENTA", "P. COSTO", "VALOR", "CATEGORIA", "OBSERVACIONES"];
+  const lines = [head.join(",")];
+  rows.forEach((r, i) => lines.push([i + 1, r.p.name, r.inicial, r.qty, r.p.precioVentaUsd, r.p.precioCostoUsd, round2(Math.max(0, r.qty) * r.p.precioVentaUsd), r.p.category, r.p.observaciones].map(csv).join(",")));
+  download(`almacen_${(w.code || "x").toLowerCase()}_${todayISO()}.csv`, "\uFEFF" + lines.join("\n"), "text/csv");
+  toast(`${rows.length} productos de «${w.name}» exportados`, "ok");
 }
 function exportWeekly() {
   const r = weeklyData(ui.weekDate || lastDataDate());

@@ -1,9 +1,14 @@
 import { SEED } from "./seed-data.js";
 import { api, setToken, getToken, setUnauthorizedHandler } from "./api.js";
-import { categorize, importeUsd, round2, stockFinal, todayISO, normName, CUADRE_FIELDS } from "./calc.js";
+import {
+  categorize, importeUsd, round2, stockFinal, todayISO, normName, CUADRE_FIELDS, can,
+  classifyValueRow, rowFieldKeys, warehouseValues, WAREHOUSE_DEFAULT_ID,
+} from "./calc.js";
 
 const PRICE_FIELDS = ["precioVentaUsd", "precioVenta2Usd", "precioCostoUsd", "comisionCup"];
+export const WAREHOUSE_KINDS = { CREACION: "Almacén creado", VALORES: "Valores importados", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Almacén eliminado", DESHACER: "Deshacer" };
 const THEME = "cuadrepinar.theme";
+const WAREHOUSE = "cuadrepinar.warehouse";
 
 function uid(prefix = "id") {
   return prefix + "_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -19,6 +24,8 @@ function emptyState() {
     priceHistory: [],
     weekly: {},
     backups: [],
+    warehouses: [],
+    warehouseEntries: [],
     settings: {
       theme: "system",
       businessName: "Cuadre Pinar",
@@ -35,7 +42,7 @@ function emptyState() {
     users: [],
   };
 }
-const SHARED = ["products", "movements", "cuadres", "audit", "rates", "priceHistory", "weekly", "settings"];
+const SHARED = ["products", "movements", "cuadres", "audit", "rates", "priceHistory", "weekly", "settings", "warehouses", "warehouseEntries"];
 
 class Store {
   constructor() {
@@ -49,6 +56,7 @@ class Store {
     this.onNotice = () => {};
     this.idleMinutes = 20;
     this.sync = "ok"; // ok | saving | offline | error
+    try { this.warehouseId = localStorage.getItem(WAREHOUSE); } catch { this.warehouseId = null; }
     setUnauthorizedHandler((msg) => {
       if (!this.state.session) return;
       this.clearSession();
@@ -81,6 +89,41 @@ class Store {
     this.state.settings.theme = localStorage.getItem(THEME) || this.state.settings.theme;
     this.version = r.version;
     this.closedDays = r.closedDays || this.closedDays;
+    if (this.ensureWarehouses()) for (const p of this.state.products) this.recalcProduct(p.id);
+  }
+
+  /**
+   * Prepara el estado para trabajar por almacén (una sola vez):
+   * crea el almacén principal y reparte las existencias que ya había.
+   * Devuelve true si hubo que convertir algo.
+   */
+  ensureWarehouses() {
+    const st = this.state;
+    let changed = false;
+    if (!Array.isArray(st.warehouses)) { st.warehouses = []; changed = true; }
+    if (!Array.isArray(st.warehouseEntries)) { st.warehouseEntries = []; changed = true; }
+    let def = st.warehouses.find((w) => !w.deletedAt && w.isDefault) || st.warehouses.find((w) => !w.deletedAt);
+    if (!def) {
+      def = {
+        id: WAREHOUSE_DEFAULT_ID, name: "ALMACÉN PRINCIPAL", code: "PRI", location: "", notes: "Creado automáticamente al activar los almacenes.",
+        active: true, isDefault: true, createdAt: Date.now(), createdBy: "sistema", deletedAt: null,
+      };
+      st.warehouses.push(def);
+      changed = true;
+    }
+    const wid = def.id;
+    for (const p of st.products || []) {
+      if (!p.stocks || typeof p.stocks !== "object") { p.stocks = {}; changed = true; }
+      if (!p.stocksInicial || typeof p.stocksInicial !== "object") { p.stocksInicial = {}; changed = true; }
+      if (!Object.keys(p.stocksInicial).length) { p.stocksInicial[wid] = Number(p.stockInicial) || 0; changed = true; }
+      for (const k of Object.keys(p.stocksInicial)) if (p.stocks[k] === undefined) { p.stocks[k] = 0; changed = true; }
+      for (const w of st.warehouses) {
+        if (p.stocks[w.id] === undefined) { p.stocks[w.id] = 0; changed = true; }
+        if (p.stocksInicial[w.id] === undefined) { p.stocksInicial[w.id] = 0; changed = true; }
+      }
+    }
+    for (const m of st.movements || []) if (!m.warehouseId) { m.warehouseId = wid; changed = true; }
+    return changed;
   }
 
   scheduleSave() {
@@ -176,10 +219,16 @@ class Store {
     const admin = { id: s.session?.id, username: s.session?.username || "admin", displayName: s.session?.displayName || "Administrador" };
     const now = Date.now();
     const byName = {};
+    s.warehouses = [{
+      id: WAREHOUSE_DEFAULT_ID, name: "ALMACÉN PRINCIPAL", code: "PRI", location: "", notes: "Se creó al cargar los datos del Excel.",
+      active: true, isDefault: true, createdAt: now, createdBy: admin.displayName, deletedAt: null,
+    }];
     s.products = SEED.products.map((p) => {
       const prod = {
         id: uid("p"), name: p.name, category: p.category || categorize(p.name),
         stockInicial: p.stockInicial, stockActual: p.stockInicial,
+        stocks: { [WAREHOUSE_DEFAULT_ID]: Number(p.stockInicial) || 0 },
+        stocksInicial: { [WAREHOUSE_DEFAULT_ID]: Number(p.stockInicial) || 0 },
         precioVentaUsd: p.precioVentaUsd, precioVenta2Usd: p.precioVenta2Usd || 0,
         precioCostoUsd: p.precioCostoUsd || 0, comisionCup: p.comisionCup,
         minStock: p.stockInicial > 0 ? 1 : 0, observaciones: p.observaciones || "",
@@ -196,6 +245,7 @@ class Store {
       s.movements.push({
         id: uid("m"), seq: ++seq, date: m.date, productId: prod.id, productName: prod.name,
         type: m.type, quantity: m.quantity, unitPriceUsd: m.unitPriceUsd || 0, center: m.center || "TIENDA",
+        warehouseId: WAREHOUSE_DEFAULT_ID,
         domicilioCup: m.domicilioCup || 0, notes: m.notes || "", userName: admin.displayName, importedFrom: "excel",
         createdAt: now + seq, deletedAt: null,
       });
@@ -215,6 +265,12 @@ class Store {
       timestamp: now,
     });
     s.settings.theme = this.state.settings.theme;
+    s.warehouseEntries = [{
+      id: uid("e"), ts: now, date: todayISO(), warehouseId: WAREHOUSE_DEFAULT_ID, warehouseName: "ALMACÉN PRINCIPAL",
+      kind: "CREACION", source: "excel", userName: admin.displayName,
+      summary: `Almacén «ALMACÉN PRINCIPAL» creado con los datos del Excel (${s.products.length} productos)`,
+      items: [], counts: { productos: s.products.length }, undoneAt: null,
+    }];
     this.state = s;
     for (const p of s.products) this.recalcProduct(p.id);
   }
@@ -294,10 +350,13 @@ class Store {
     if (dup) return { error: `Ya existe un producto llamado "${dup.name}".` };
     const today = todayISO();
     const who = this.state.session?.displayName || "sistema";
+    const wid = p.warehouseId || this.activeWarehouseId();
     if (!p.id) {
+      const inicial = Number(p.stockInicial) || 0;
       const prod = {
         id: uid("p"), name, category: p.category || categorize(name),
-        stockInicial: p.stockInicial, stockActual: p.stockInicial,
+        stockInicial: inicial, stockActual: inicial,
+        stocks: { [wid]: inicial }, stocksInicial: { [wid]: inicial },
         precioVentaUsd: p.precioVentaUsd, precioVenta2Usd: p.precioVenta2Usd || 0,
         precioCostoUsd: p.precioCostoUsd || 0, comisionCup: p.comisionCup, minStock: p.minStock ?? 1,
         observaciones: p.observaciones || "", image: p.image || null,
@@ -305,7 +364,8 @@ class Store {
       };
       this.state.products.push(prod);
       for (const f of PRICE_FIELDS) if (prod[f]) this.state.priceHistory.unshift({ id: uid("h"), date: today, ts: Date.now(), productId: prod.id, productName: name, field: f, old: null, new: prod[f], userName: who });
-      this.audit("CREATE", "product", name, prod.id);
+      this.audit("CREATE", "product", `${name} · alta en «${this.warehouseName(wid)}»`, prod.id);
+      this.recalcProduct(prod.id);
       p.id = prod.id;
     } else {
       const prev = this.state.products.find((x) => x.id === p.id);
@@ -316,7 +376,12 @@ class Store {
         }
       }
       const oldName = prev.name;
-      Object.assign(prev, { ...p, name, image: p.image === undefined ? prev.image : p.image, updatedAt: Date.now() });
+      const oldInicial = Number(prev.stocksInicial?.[wid] || 0);
+      const { warehouseId: _wh, ...fields } = p;
+      Object.assign(prev, { ...fields, name, image: p.image === undefined ? prev.image : p.image, updatedAt: Date.now() });
+      prev.stocks = prev.stocks || {};
+      prev.stocksInicial = prev.stocksInicial || {};
+      if (p.stockInicial !== undefined && Number(p.stockInicial) !== oldInicial) prev.stocksInicial[wid] = Number(p.stockInicial) || 0;
       if (oldName !== name) this.state.movements.forEach((m) => { if (m.productId === prev.id) m.productName = name; });
       this.recalcProduct(prev.id);
       this.audit("UPDATE", "product", name, prev.id);
@@ -379,8 +444,10 @@ class Store {
     const q = Number(data.quantity);
     if (!(q > 0)) return { error: "La cantidad debe ser mayor que cero." };
     const snapshot = JSON.stringify(this.state.movements);
+    const wid = data.warehouseId && this.warehouseById(data.warehouseId) ? data.warehouseId : this.warehouseOf(old) || this.activeWarehouseId();
     const fields = {
       date: data.date, productId: prod.id, productName: prod.name, type: data.type, quantity: q,
+      warehouseId: wid,
       unitPriceUsd: data.type === "VENTA" ? (data.unitPriceUsd === "" || data.unitPriceUsd == null ? prod.precioVentaUsd : Number(data.unitPriceUsd)) : 0,
       center: data.center || "TIENDA", domicilioCup: Number(data.domicilioCup) || 0, notes: data.notes || "",
     };
@@ -448,26 +515,37 @@ class Store {
     this.emit();
   }
 
-  /** Recalcula stock, importes y comisiones de un producto en orden cronológico. */
+  /** Recalcula stock, importes y comisiones de un producto en orden cronológico, almacén por almacén. */
   recalcProduct(productId) {
     const prod = this.state.products.find((p) => p.id === productId);
     if (!prod) return { ok: true };
+    if (!prod.stocks || typeof prod.stocks !== "object") prod.stocks = {};
+    if (!prod.stocksInicial || typeof prod.stocksInicial !== "object") prod.stocksInicial = {};
     const soloGestor = this.state.settings.comisionSoloGestor;
-    let stock = Number(prod.stockInicial) || 0;
-    let err = null;
+    const wids = new Set([...Object.keys(prod.stocks), ...Object.keys(prod.stocksInicial), ...this.warehousesActive().map((w) => w.id)]);
+    for (const m of this.state.movements) if (m.productId === productId && !m.deletedAt) wids.add(this.warehouseOf(m));
     const movs = this.state.movements
       .filter((m) => m.productId === productId && !m.deletedAt)
-      .sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0));
-    for (const m of movs) {
-      m.stockInicial = stock;
-      m.stockFinal = stockFinal(stock, m.type, m.quantity);
-      m.importeUsd = importeUsd(m.type, m.quantity, m.unitPriceUsd);
-      m.costoUsd = m.type === "VENTA" ? round2(m.quantity * (prod.precioCostoUsd || 0)) : 0;
-      m.comisionCup = m.type === "VENTA" && (!soloGestor || m.center === "GESTOR") ? round2(m.quantity * (prod.comisionCup || 0)) : 0;
-      if (m.stockFinal < -1e-9 && !err) err = `Stock insuficiente de ${prod.name} el ${m.date} (quedaría en ${m.stockFinal}).`;
-      stock = m.stockFinal;
+      .map((m) => ({ m, wid: this.warehouseOf(m) }))
+      .sort((a, b) => a.m.date.localeCompare(b.m.date) || (a.m.createdAt || 0) - (b.m.createdAt || 0));
+    let err = null;
+    for (const wid of wids) {
+      let stock = Number(prod.stocksInicial[wid]) || 0;
+      prod.stocksInicial[wid] = stock;
+      for (const { m, wid: mw } of movs) {
+        if (mw !== wid) continue;
+        m.stockInicial = stock;
+        m.stockFinal = stockFinal(stock, m.type, m.quantity);
+        m.importeUsd = importeUsd(m.type, m.quantity, m.unitPriceUsd);
+        m.costoUsd = m.type === "VENTA" ? round2(m.quantity * (prod.precioCostoUsd || 0)) : 0;
+        m.comisionCup = m.type === "VENTA" && (!soloGestor || m.center === "GESTOR") ? round2(m.quantity * (prod.comisionCup || 0)) : 0;
+        if (m.stockFinal < -1e-9 && !err) err = `Stock insuficiente de ${prod.name} en «${this.warehouseName(wid)}» el ${m.date} (quedaría en ${m.stockFinal}).`;
+        stock = m.stockFinal;
+      }
+      prod.stocks[wid] = round2(stock);
     }
-    prod.stockActual = stock;
+    prod.stockInicial = round2(Object.values(prod.stocksInicial).reduce((a, v) => a + (Number(v) || 0), 0));
+    prod.stockActual = round2(Object.values(prod.stocks).reduce((a, v) => a + (Number(v) || 0), 0));
     return err ? { error: err } : { ok: true };
   }
 
@@ -549,15 +627,17 @@ class Store {
   }
 
   /* ================= PUNTO DE VENTA ================= */
-  posCheckout(cart, { date, center, domicilioCup = 0, notes = "" }) {
+  posCheckout(cart, { date, center, domicilioCup = 0, notes = "", warehouseId = null }) {
     if (!cart.length) return { error: "El carrito está vacío." };
     if (this.isClosed(date)) return this.closedErr(date);
+    const wid = warehouseId && this.warehouseById(warehouseId) ? warehouseId : this.activeWarehouseId();
     const snapshot = JSON.stringify(this.state.movements);
     const ids = [];
     cart.forEach((it, i) => {
       const prod = this.state.products.find((p) => p.id === it.productId);
       this.state.movements.unshift({
         id: uid("m"), date, productId: prod.id, productName: prod.name, type: "VENTA", quantity: Number(it.qty),
+        warehouseId: wid,
         unitPriceUsd: Number(it.price), center, domicilioCup: i === 0 ? Number(domicilioCup) || 0 : 0,
         notes: notes || "Punto de venta", userName: this.state.session?.displayName, createdAt: Date.now() + i, deletedAt: null,
       });
@@ -575,17 +655,19 @@ class Store {
   /** data = { date, rate, products:[{name,existencia,entrada,salida,v1,v2,comision,domicilio,costo,p1,p2,obs}], cuadre:{} } */
   importSheet(data) {
     const who = this.state.session?.displayName || "Excel";
-    const rep = { creados: 0, actualizados: 0, precios: 0, movimientos: 0, omitidos: [], errores: [] };
+    const wid = data.warehouseId && this.warehouseById(data.warehouseId) ? data.warehouseId : this.activeWarehouseId();
+    const rep = { creados: 0, actualizados: 0, precios: 0, movimientos: 0, omitidos: [], errores: [], almacen: this.warehouseName(wid), warehouseId: wid };
     const date = data.date;
     if (this.isClosed(date)) { rep.errores.push(`El día ${date} está cerrado; no se importó.`); return rep; }
-    // 1) quitar movimientos importados antes para esa misma fecha (reimportación idempotente)
-    this.state.movements = this.state.movements.filter((m) => !(m.date === date && m.importedFrom === "excel"));
+    // 1) quitar movimientos importados antes para esa misma fecha y almacén (reimportación idempotente)
+    this.state.movements = this.state.movements.filter((m) => !(m.date === date && m.importedFrom === "excel" && this.warehouseOf(m) === wid));
     for (const r of data.products) {
       const key = normName(r.name);
       let prod = this.state.products.find((p) => normName(p.name) === key);
       if (prod && prod.deletedAt) { rep.omitidos.push(`${r.name} (en papelera)`); continue; }
       if (!prod) {
         prod = { id: uid("p"), name: r.name, category: categorize(r.name), stockInicial: 0, stockActual: 0, precioVentaUsd: 0, precioVenta2Usd: 0,
+          stocks: { [wid]: 0 }, stocksInicial: { [wid]: 0 },
           precioCostoUsd: 0, comisionCup: 0, minStock: r.existencia > 0 ? 1 : 0, observaciones: "", image: null, deletedAt: null, createdAt: Date.now(), updatedAt: Date.now() };
         this.state.products.push(prod);
         rep.creados++;
@@ -598,13 +680,16 @@ class Store {
         }
       }
       if (r.obs) prod.observaciones = r.obs;
-      // 2) stock inicial tal que al comenzar ese día haya "existencia"
-      const prev = this.state.movements.filter((m) => m.productId === prod.id && !m.deletedAt && m.date < date)
+      // 2) existencia inicial tal que al comenzar ese día haya "existencia" (en el almacén elegido)
+      prod.stocks = prod.stocks || {};
+      prod.stocksInicial = prod.stocksInicial || {};
+      const prev = this.state.movements.filter((m) => m.productId === prod.id && !m.deletedAt && m.date < date && this.warehouseOf(m) === wid)
         .reduce((a, m) => a + (m.type === "ENTRADA" ? m.quantity : -m.quantity), 0);
-      prod.stockInicial = round2(r.existencia - prev);
+      prod.stocksInicial[wid] = round2(r.existencia - prev);
       const add = (type, q, price) => {
         if (!q) return;
         this.state.movements.unshift({ id: uid("m"), date, productId: prod.id, productName: prod.name, type, quantity: q, unitPriceUsd: price,
+          warehouseId: wid,
           center: type === "VENTA" ? "TIENDA" : "MOV", domicilioCup: type === "VENTA" && !add.dom ? (add.dom = 1, r.domicilio || 0) : 0,
           notes: type !== "VENTA" ? r.obs || "" : "", importedFrom: "excel", userName: who, createdAt: Date.now() + rep.movimientos, deletedAt: null });
         rep.movimientos++;
@@ -625,6 +710,342 @@ class Store {
     this.audit("IMPORT", "excel", `Hoja ${data.sheet}: ${rep.creados} nuevos, ${rep.actualizados} actualizados, ${rep.movimientos} movimientos`);
     this.emit();
     return rep;
+  }
+
+  /* ================= ALMACENES ================= */
+  warehousesActive() { return (this.state.warehouses || []).filter((w) => !w.deletedAt); }
+  warehouseById(id) { return (this.state.warehouses || []).find((w) => w.id === id) || null; }
+  warehouseName(id) { return this.warehouseById(id)?.name || "Almacén eliminado"; }
+  defaultWarehouse() {
+    const list = this.warehousesActive();
+    return list.find((w) => w.isDefault) || list[0] || null;
+  }
+  /** Almacén en uso (se recuerda en el dispositivo). */
+  activeWarehouseId() {
+    return this.warehouseById(this.warehouseId)?.id || this.defaultWarehouse()?.id || WAREHOUSE_DEFAULT_ID;
+  }
+  activeWarehouse() { return this.warehouseById(this.activeWarehouseId()); }
+  setActiveWarehouse(id) {
+    if (!this.warehouseById(id)) return;
+    this.warehouseId = id;
+    try { localStorage.setItem(WAREHOUSE, id); } catch {}
+    this.emit(false);
+  }
+  /** Almacén al que apunta un movimiento (los anteriores al módulo usan el principal). */
+  warehouseOf(m) {
+    const id = m?.warehouseId;
+    if (id && this.warehouseById(id)) return id;
+    return this.defaultWarehouse()?.id || WAREHOUSE_DEFAULT_ID;
+  }
+  stockIn(product, warehouseId) { return Number(product?.stocks?.[warehouseId] || 0); }
+  stockTotal(product) { return round2(Object.values(product?.stocks || {}).reduce((a, v) => a + (Number(v) || 0), 0)); }
+  /** Entradas − salidas (ventas incluidas) de un producto en un almacén. */
+  movementNet(productId, warehouseId) {
+    let net = 0;
+    for (const m of this.state.movements) {
+      if (m.deletedAt || m.productId !== productId) continue;
+      if (this.warehouseOf(m) !== warehouseId) continue;
+      net += m.type === "ENTRADA" ? Number(m.quantity) || 0 : -(Number(m.quantity) || 0);
+    }
+    return round2(net);
+  }
+  /** Fija la existencia de un producto en un almacén desde los valores iniciales. */
+  setStockIn(product, warehouseId, value) {
+    const before = Number(product.stocksInicial?.[warehouseId] || 0);
+    product.stocks = product.stocks || {};
+    product.stocksInicial = product.stocksInicial || {};
+    product.stocksInicial[warehouseId] = round2((Number(value) || 0) - this.movementNet(product.id, warehouseId));
+    const r = this.recalcProduct(product.id);
+    if (r.error) {
+      product.stocksInicial[warehouseId] = before;
+      this.recalcProduct(product.id);
+      return r;
+    }
+    return { ok: true };
+  }
+  warehouseStats(w) {
+    const prods = this.activeProducts();
+    let items = 0, unidades = 0, valor = 0, costo = 0, bajo = 0;
+    for (const p of prods) {
+      const s = this.stockIn(p, w.id);
+      if (s !== 0) items++;
+      if (s > 0) {
+        unidades += s;
+        valor += s * (Number(p.precioVentaUsd) || 0);
+        costo += s * (Number(p.precioCostoUsd) || 0);
+        if (s <= (Number(p.minStock) || 0)) bajo++;
+      }
+    }
+    const movs = this.activeMovements().filter((m) => this.warehouseOf(m) === w.id).length;
+    const entries = (this.state.warehouseEntries || []).filter((e) => e.warehouseId === w.id);
+    return { items, unidades: round2(unidades), valor: round2(valor), costo: round2(costo), bajo, movs, entradas: entries.length, last: entries[0] || null };
+  }
+  /** Registra una entrada en el historial de almacenes. */
+  logEntry(data) {
+    if (!Array.isArray(this.state.warehouseEntries)) this.state.warehouseEntries = [];
+    const e = {
+      id: uid("e"), ts: Date.now(), date: data.date || todayISO(),
+      warehouseId: data.warehouseId, warehouseName: data.warehouseName || this.warehouseName(data.warehouseId),
+      kind: data.kind || "AJUSTE", source: data.source || "manual", summary: data.summary || "",
+      items: data.items || [], counts: data.counts || {},
+      userName: data.userName || this.state.session?.displayName || "sistema", undoneAt: null,
+    };
+    this.state.warehouseEntries.unshift(e);
+    if (this.state.warehouseEntries.length > 2000) this.state.warehouseEntries.length = 2000;
+    return e;
+  }
+
+  saveWarehouse(data) {
+    if (!can(this.state.session?.role, "WAREHOUSE_EDIT")) return { error: "Tu rol no puede crear ni modificar almacenes." };
+    if (data.id && (!this.warehouseById(data.id) || this.warehouseById(data.id).deletedAt)) return { error: "Almacén no encontrado." };
+    const name = String(data.name || "").replace(/\s+/g, " ").trim().toUpperCase();
+    if (name.length < 3) return { error: "El nombre del almacén debe tener al menos 3 caracteres." };
+    const key = normName(name);
+    const dup = (this.state.warehouses || []).find((w) => !w.deletedAt && w.id !== data.id && normName(w.name) === key);
+    if (dup) return { error: `Ya existe un almacén llamado «${dup.name}».` };
+    const who = this.state.session?.displayName || "sistema";
+    const code = String(data.code || "").trim().toUpperCase().slice(0, 6) || name.slice(0, 3);
+    if (data.id) {
+      const w = this.warehouseById(data.id);
+      Object.assign(w, { name, code, location: String(data.location || "").trim(), notes: String(data.notes || "").trim(), active: data.active !== false, updatedAt: Date.now(), updatedBy: who });
+      this.audit("UPDATE", "warehouse", name, w.id);
+      this.emit();
+      return { ok: true, id: w.id };
+    }
+    const w = {
+      id: uid("w"), name, code, location: String(data.location || "").trim(), notes: String(data.notes || "").trim(),
+      active: true, isDefault: !this.warehousesActive().length, createdAt: Date.now(), createdBy: who, deletedAt: null,
+    };
+    this.state.warehouses.push(w);
+    for (const p of this.state.products) {
+      p.stocks = p.stocks || {};
+      p.stocksInicial = p.stocksInicial || {};
+      if (p.stocks[w.id] === undefined) p.stocks[w.id] = 0;
+      if (p.stocksInicial[w.id] === undefined) p.stocksInicial[w.id] = 0;
+    }
+    this.logEntry({ warehouseId: w.id, kind: "CREACION", source: "manual", summary: `Almacén «${name}» creado${w.location ? ` · ${w.location}` : ""}`, counts: {} });
+    this.audit("CREATE", "warehouse", name, w.id);
+    this.emit();
+    return { ok: true, id: w.id };
+  }
+
+  /** Elimina un almacén. Si tiene existencias hay que indicar a cuál se mueven. */
+  deleteWarehouse(id, moveTo = null) {
+    if (!can(this.state.session?.role, "WAREHOUSE_EDIT")) return { error: "Tu rol no puede eliminar almacenes." };
+    const w = this.warehouseById(id);
+    if (!w || w.deletedAt) return { error: "Almacén no encontrado." };
+    const others = this.warehousesActive().filter((x) => x.id !== id);
+    if (!others.length) return { error: "Es el único almacén. Crea otro antes de eliminarlo." };
+    const hasStock = this.state.products.some((p) => Number(p.stocks?.[id] || 0) !== 0 || Number(p.stocksInicial?.[id] || 0) !== 0);
+    const movs = this.state.movements.filter((m) => this.warehouseOf(m) === id).length;
+    const target = moveTo ? this.warehouseById(moveTo) : null;
+    let moved = 0;
+    if ((hasStock || movs) && (!target || target.deletedAt || target.id === id)) {
+      return { error: `«${w.name}» todavía tiene existencias o movimientos. Elige a qué almacén moverlos.`, needsTarget: true, options: others.map((o) => ({ id: o.id, name: o.name })), movimientos: movs };
+    }
+    // Se marca como eliminado antes de recalcular: así el recálculo ya no reparte nada a este almacén.
+    w.deletedAt = Date.now();
+    w.deletedBy = this.state.session?.displayName || "sistema";
+    w.active = false;
+    if (hasStock || movs) {
+      for (const p of this.state.products) {
+        const si = Number(p.stocksInicial?.[id] || 0);
+        const s = Number(p.stocks?.[id] || 0);
+        p.stocks = p.stocks || {};
+        p.stocksInicial = p.stocksInicial || {};
+        if (si || s) {
+          p.stocksInicial[target.id] = round2((Number(p.stocksInicial[target.id]) || 0) + si);
+          p.stocks[target.id] = round2((Number(p.stocks[target.id]) || 0) + s);
+          moved++;
+        }
+        delete p.stocks[id];
+        delete p.stocksInicial[id];
+      }
+      this.state.movements.forEach((m) => { if (m.warehouseId === id) m.warehouseId = target.id; });
+      this.state.products.forEach((p) => this.recalcProduct(p.id));
+    }
+    if (w.isDefault) { w.isDefault = false; others[0].isDefault = true; }
+    if (!this.warehouseById(this.warehouseId)) this.warehouseId = others[0].id;
+    this.logEntry({
+      warehouseId: id, kind: "ELIMINACION", source: "manual", warehouseName: w.name,
+      summary: `Almacén «${w.name}» eliminado${target ? `; ${moved} productos y ${movs} movimientos pasaron a «${target.name}»` : ""}`,
+      counts: { productos: moved, movimientos: movs, destino: target?.name || "" },
+    });
+    this.audit("DELETE", "warehouse", w.name, id);
+    this.emit();
+    return { ok: true, moved, movimientos: movs };
+  }
+
+  /** Traspaso de existencia entre almacenes (no es venta ni salida: no toca el cuadre). */
+  transferStock({ fromId, toId, productId, qty, note = "", date = todayISO() }) {
+    if (!can(this.state.session?.role, "WAREHOUSE_EDIT")) return { error: "Tu rol no puede hacer traspasos." };
+    const from = this.warehouseById(fromId), to = this.warehouseById(toId);
+    const prod = this.state.products.find((p) => p.id === productId && !p.deletedAt);
+    if (!from || from.deletedAt || !to || to.deletedAt) return { error: "Revisa el almacén de origen y el de destino." };
+    if (from.id === to.id) return { error: "El origen y el destino deben ser almacenes distintos." };
+    if (!prod) return { error: "Producto no encontrado." };
+    const q = Number(qty);
+    if (!(q > 0)) return { error: "La cantidad debe ser mayor que cero." };
+    const avail = this.stockIn(prod, from.id);
+    if (q > avail + 1e-9) return { error: `En «${from.name}» solo hay ${round2(avail)} de ${prod.name}.` };
+    const destBefore = this.stockIn(prod, to.id);
+    const items = [
+      { productId: prod.id, productName: prod.name, warehouseId: from.id, warehouseName: from.name, field: "stock", old: avail, new: round2(avail - q) },
+      { productId: prod.id, productName: prod.name, warehouseId: to.id, warehouseName: to.name, field: "stock", old: destBefore, new: round2(destBefore + q) },
+    ];
+    const r1 = this.setStockIn(prod, from.id, round2(avail - q));
+    if (r1.error) return { error: r1.error };
+    const r2 = this.setStockIn(prod, to.id, round2(destBefore + q));
+    if (r2.error) { this.setStockIn(prod, from.id, avail); return { error: r2.error }; }
+    this.logEntry({
+      warehouseId: from.id, kind: "TRASPASO", source: "manual", date,
+      summary: `${q} × ${prod.name}: «${from.name}» → «${to.name}»${note ? ` · ${note}` : ""}`,
+      items, counts: { unidades: q, destino: to.name },
+    });
+    this.audit("TRANSFER", "warehouse", `${q} × ${prod.name} de ${from.name} a ${to.name}`, prod.id);
+    this.emit();
+    return { ok: true, from: from.name, to: to.name, qty: q };
+  }
+
+  /**
+   * Importa valores al almacén elegido.
+   * mode = "sobrescribir" (por defecto) | "completar" (solo rellena lo vacío).
+   */
+  applyWarehouseImport({ warehouseId, rows, mode = "sobrescribir", source = "pegado", note = "", fileName = "" }) {
+    if (!can(this.state.session?.role, "VALUES_IMPORT")) return { error: "Tu rol no puede importar valores." };
+    const w = this.warehouseById(warehouseId);
+    if (!w || w.deletedAt) return { error: "Elige el almacén al que entran los valores." };
+    const who = this.state.session?.displayName || "sistema";
+    const date = todayISO();
+    const rep = {
+      almacen: w.name, warehouseId: w.id, creados: 0, actualizados: 0, precios: 0, existencias: 0, nuevosEnAlmacen: 0,
+      sobrescritos: 0, sinCambios: 0, omitidos: [], errores: [], items: [], entryId: null,
+    };
+    const seen = new Set();
+    for (const row of rows || []) {
+      if (row.sel === false) continue;
+      const name = String(row.name || "").replace(/\s+/g, " ").trim().toUpperCase();
+      if (!name) continue;
+      const key = normName(name);
+      if (seen.has(key)) { rep.omitidos.push(`${name} (repetido)`); continue; }
+      seen.add(key);
+      let prod = this.state.products.find((p) => normName(p.name) === key);
+      if (prod && prod.deletedAt) { rep.omitidos.push(`${prod.name} (está en la Papelera)`); continue; }
+      const fields = rowFieldKeys(row);
+      if (!fields.length) { rep.omitidos.push(`${name} (sin valores)`); continue; }
+      const info = classifyValueRow(prod, w.id, row);
+      if (!prod) {
+        prod = {
+          id: uid("p"), name, category: row.category || categorize(name), stockInicial: 0, stockActual: 0,
+          stocks: { [w.id]: 0 }, stocksInicial: { [w.id]: 0 },
+          precioVentaUsd: 0, precioVenta2Usd: 0, precioCostoUsd: 0, comisionCup: 0, minStock: 0,
+          observaciones: "", image: null, deletedAt: null, createdAt: Date.now(), updatedAt: Date.now(),
+        };
+        this.state.products.push(prod);
+        rep.creados++;
+        this.audit("CREATE", "product", `${name} · importado a «${w.name}»`, prod.id);
+        rep.items.push({ productId: prod.id, productName: prod.name, warehouseId: w.id, warehouseName: w.name, field: "created", old: null, new: name });
+      } else if (info.status === "sobrescribe") rep.sobrescritos++;
+      else if (!this.warehouseHasProduct(prod, w.id)) rep.nuevosEnAlmacen++;
+
+      let touched = false;
+      for (const f of fields) {
+        if (f === "stock") {
+          const value = round2(row.stock);
+          const before = this.stockIn(prod, w.id);
+          if (Math.abs(before - value) < 1e-9) { rep.sinCambios++; continue; }
+          if (mode === "completar" && (before !== 0 || Number(prod.stocksInicial?.[w.id] || 0) !== 0)) { rep.omitidos.push(`${prod.name} (ya tenía existencia en «${w.name}»)`); continue; }
+          const r = this.setStockIn(prod, w.id, value);
+          if (r.error) { rep.errores.push(r.error); continue; }
+          rep.items.push({ productId: prod.id, productName: prod.name, warehouseId: w.id, warehouseName: w.name, field: "stock", old: before, new: value });
+          rep.existencias++;
+          touched = true;
+        } else {
+          const cur = f === "observaciones" ? String(prod[f] || "") : Number(prod[f] || 0);
+          const value = f === "observaciones" ? String(row[f] ?? "").trim() : Number(row[f]) || 0;
+          if (f === "observaciones" ? cur === value : Math.abs(cur - value) < 1e-9) { rep.sinCambios++; continue; }
+          if (mode === "completar" && (f === "observaciones" ? cur !== "" : cur !== 0)) { rep.omitidos.push(`${prod.name} (ya tenía ${f} en «${w.name}»)`); continue; }
+          if (PRICE_FIELDS.includes(f)) {
+            this.state.priceHistory.unshift({
+              id: uid("h"), date, ts: Date.now(), productId: prod.id, productName: prod.name, field: f,
+              old: cur, new: value, userName: `${who} (almacén ${w.name})`,
+            });
+            rep.precios++;
+          }
+          rep.items.push({ productId: prod.id, productName: prod.name, warehouseId: w.id, warehouseName: w.name, field: f, old: cur, new: value });
+          prod[f] = value;
+          touched = true;
+        }
+      }
+      if (touched) {
+        prod.updatedAt = Date.now();
+        this.recalcProduct(prod.id);
+        rep.actualizados++;
+      }
+    }
+    if (!rep.items.length) { rep.sinCambios = true; return rep; }
+    this.state.products.sort((a, b) => a.name.localeCompare(b.name, "es"));
+    const entry = this.logEntry({
+      warehouseId: w.id, kind: "VALORES", source: fileName ? `${source} · ${fileName}` : source, userName: who,
+      summary: `Entrada de valores en «${w.name}»: ${rep.items.length} cambios · ${rep.creados} productos nuevos · ${rep.existencias} existencias · ${rep.precios} precios${note ? ` · ${note}` : ""}`,
+      items: rep.items,
+      counts: { cambios: rep.items.length, productos: rep.creados, existencias: rep.existencias, precios: rep.precios, omitidos: rep.omitidos.length, sobrescritos: rep.sobrescritos },
+    });
+    rep.entryId = entry.id;
+    this.audit("IMPORT", "warehouse", `Valores a «${w.name}»: ${rep.items.length} cambios (${rep.creados} productos nuevos)`, w.id);
+    this.emit();
+    return rep;
+  }
+
+  warehouseHasProduct(product, warehouseId) {
+    if (!product) return false;
+    if (product.stocksInicial?.[warehouseId] !== undefined && Number(product.stocksInicial[warehouseId]) !== 0) return true;
+    return Number(product.stocks?.[warehouseId] || 0) !== 0;
+  }
+
+  /** Deshace una entrada del historial de almacenes (valores o traspaso). */
+  undoWarehouseEntry(id) {
+    if (!can(this.state.session?.role, "VALUES_IMPORT")) return { error: "Tu rol no puede deshacer entradas." };
+    const e = (this.state.warehouseEntries || []).find((x) => x.id === id);
+    if (!e) return { error: "Entrada no encontrada." };
+    if (e.undoneAt) return { error: "Esa entrada ya se había deshecho." };
+    const who = this.state.session?.displayName || "sistema";
+    const errs = [];
+    for (const it of [...(e.items || [])].reverse()) {
+      const prod = this.state.products.find((p) => p.id === it.productId);
+      if (!prod) continue;
+      if (it.field === "created") {
+        prod.deletedAt = Date.now();
+        prod.deletedBy = `${who} (deshacer entrada)`;
+        continue;
+      }
+      if (it.field === "stock") {
+        const r = this.setStockIn(prod, it.warehouseId || e.warehouseId, Number(it.old) || 0);
+        if (r.error) errs.push(r.error);
+      } else if (PRICE_FIELDS.includes(it.field)) {
+        this.state.priceHistory.unshift({ id: uid("h"), date: todayISO(), ts: Date.now(), productId: prod.id, productName: prod.name, field: it.field, old: prod[it.field], new: it.old, userName: `${who} (deshacer)` });
+        prod[it.field] = it.old;
+      } else {
+        prod[it.field] = it.old;
+      }
+    }
+    e.undoneAt = Date.now();
+    e.undoneBy = who;
+    this.logEntry({
+      warehouseId: e.warehouseId, kind: "DESHACER", source: "manual", warehouseName: e.warehouseName,
+      summary: `Se deshizo «${e.summary}»`, counts: { revertidos: (e.items || []).length },
+    });
+    this.audit("UNDO", "warehouse", `Deshecho: ${e.summary}`, e.id);
+    this.emit();
+    return { ok: true, revertidos: (e.items || []).length, errores: errs };
+  }
+
+  /** Lista de productos con su existencia en un almacén (para ver/exportar). */
+  warehouseInventory(warehouseId) {
+    return this.activeProducts()
+      .map((p) => ({ p, qty: this.stockIn(p, warehouseId), inicial: Number(p.stocksInicial?.[warehouseId] || 0) }))
+      .filter((r) => r.qty !== 0 || r.inicial !== 0)
+      .sort((a, b) => a.p.name.localeCompare(b.p.name, "es"));
   }
 
   /* ================= USUARIOS (servidor) ================= */

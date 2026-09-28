@@ -40,10 +40,13 @@ WRITE = {
     "rates": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
     "weekly": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
     "settings": {"ADMINISTRADOR", "JEFE"},
+    "warehouses": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
+    "warehouseEntries": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
     "audit": set(ROLES),
 }
 CLOSE_DAY = {"ADMINISTRADOR", "JEFE", "ECONOMICO"}
-MOV_CORE = ("date", "productId", "type", "quantity", "unitPriceUsd", "center", "domicilioCup", "deletedAt", "notes")
+MOV_CORE = ("date", "productId", "type", "quantity", "unitPriceUsd", "center", "domicilioCup", "deletedAt", "notes", "warehouseId")
+WAREHOUSE_DEFAULT_ID = "w_principal"
 
 os.makedirs(BACKUPS, exist_ok=True)
 DB_PATH = os.path.join(DATA, "cuadre.db")
@@ -203,6 +206,66 @@ def backup_loop():
 # ------------------------------------------------------------------ validación del estado
 def by_id(items):
     return {x.get("id"): x for x in (items or []) if isinstance(x, dict)}
+
+
+def ensure_warehouses(st):
+    """Convierte un estado que venía de antes del módulo de almacenes.
+
+    Todo lo que había queda en el almacén principal, de modo que los totales
+    (stockInicial, stockActual) siguen siendo los mismos. Devuelve (estado, cambio).
+    """
+    if not isinstance(st, dict):
+        return st, False
+    changed = False
+    if not isinstance(st.get("warehouses"), list):
+        st["warehouses"] = []
+        changed = True
+    if not isinstance(st.get("warehouseEntries"), list):
+        st["warehouseEntries"] = []
+        changed = True
+    ws = st["warehouses"]
+    active = [w for w in ws if isinstance(w, dict) and not w.get("deletedAt")]
+    if not active:
+        ws.append({
+            "id": WAREHOUSE_DEFAULT_ID, "name": "ALMACÉN PRINCIPAL", "code": "PRI", "location": "", "notes": "",
+            "active": True, "isDefault": True, "createdAt": now(), "createdBy": "servidor", "deletedAt": None,
+        })
+        changed = True
+    wid = (active[0]["id"] if active else WAREHOUSE_DEFAULT_ID)
+    for p in st.get("products") or []:
+        if not isinstance(p, dict):
+            continue
+        if not isinstance(p.get("stocks"), dict):
+            p["stocks"] = {}
+            changed = True
+        if not isinstance(p.get("stocksInicial"), dict):
+            p["stocksInicial"] = {}
+            changed = True
+        if not p["stocksInicial"]:
+            p["stocksInicial"][wid] = p.get("stockInicial", 0) or 0
+            changed = True
+        for k in list(p["stocksInicial"].keys()):
+            if p["stocks"].get(k) is None:
+                p["stocks"][k] = 0
+                changed = True
+    for i, m in enumerate(st.get("movements") or []):
+        if isinstance(m, dict) and not m.get("warehouseId"):
+            m["warehouseId"] = wid
+            changed = True
+    return st, changed
+
+
+def migrate_state():
+    """Aplica la conversión al estado guardado (arranque del servidor)."""
+    with _lock:
+        r = q("SELECT version,data FROM app_state WHERE id=1", one=True)
+        if not r or not r["data"]:
+            return
+        st, changed = ensure_warehouses(json.loads(r["data"]))
+        if changed:
+            q("UPDATE app_state SET version=?, data=?, updated_at=?, updated_by=? WHERE id=1",
+              (r["version"] + 1, json.dumps(st, ensure_ascii=False, separators=(",", ":")), now(), "conversión a almacenes"))
+            audit("sistema", "MIGRATE", "Datos convertidos al módulo de almacenes (todo quedó en el ALMACÉN PRINCIPAL)")
 
 
 def core(m):
@@ -581,6 +644,15 @@ def closed_set():
 @route("GET", "/api/state")
 def state_get(h, u, _):
     r = q("SELECT * FROM app_state WHERE id=1", one=True)
+    if r["data"]:
+        st, changed = ensure_warehouses(json.loads(r["data"]))
+        if changed:
+            with _lock:
+                v = q("SELECT version FROM app_state WHERE id=1", one=True)["version"] + 1
+                q("UPDATE app_state SET version=?, data=?, updated_at=?, updated_by=? WHERE id=1",
+                  (v, json.dumps(st, ensure_ascii=False, separators=(",", ":")), now(), "conversión a almacenes"))
+            r = q("SELECT * FROM app_state WHERE id=1", one=True)
+            audit(u["username"], "MIGRATE", "Datos convertidos al módulo de almacenes", h.ip())
     h.send_json(200, {"version": r["version"], "state": json.loads(r["data"]) if r["data"] else None, "updatedBy": r["updated_by"],
                       "updatedAt": r["updated_at"], "closedDays": [dict(x, snapshot=None) for x in q("SELECT date,closed_by,closed_at,note FROM closed_days ORDER BY date DESC")]})
 
@@ -599,6 +671,13 @@ def state_put(h, u, _):
         if int(b.get("version", -1)) != r["version"]:
             return h.send_json(409, {"error": "Otro usuario guardó cambios antes. Se recargarán los datos.", "version": r["version"]})
         new = b.get("state")
+        if r["data"] is not None and isinstance(new, dict):
+            # Un cliente con la interfaz antigua (caché del navegador) no manda estas
+            # secciones: se conservan las que ya hay en el servidor.
+            old = json.loads(r["data"]) or {}
+            for k in ("warehouses", "warehouseEntries"):
+                if k not in new:
+                    new[k] = old.get(k)
         if r["data"] is None:
             if u["role"] not in ADMINS: return h.err(403, "Solo un administrador puede inicializar los datos.")
         else:
@@ -685,6 +764,7 @@ def sec_log(h, u, _):
 
 def main():
     init_db()
+    migrate_state()
     threading.Thread(target=backup_loop, daemon=True).start()
     port = int(os.environ.get("PORT", "8080"))
     httpd = ThreadingHTTPServer(("0.0.0.0", port), Api)
