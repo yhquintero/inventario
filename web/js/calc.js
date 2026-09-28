@@ -15,11 +15,12 @@ export const PERMS = {
   ECONOMICO: [
     "INVENTORY_VIEW", "MOVEMENT_VIEW", "CUADRE_VIEW", "CUADRE_EDIT",
     "REPORTS_VIEW", "REPORTS_EXPORT", "REPORTS_FINANCIAL", "EXCHANGE_EDIT", "AUDIT_VIEW",
-    "HISTORY_VIEW", "WEEKLY_VIEW", "WEEKLY_EDIT",
+    "HISTORY_VIEW", "WEEKLY_VIEW", "WEEKLY_EDIT", "WAREHOUSE_VIEW",
   ],
   ALMACENERO: [
     "INVENTORY_VIEW", "INVENTORY_EDIT", "MOVEMENT_VIEW", "MOVEMENT_CREATE", "MOVEMENT_EDIT",
     "CUADRE_VIEW", "TRASH_VIEW", "HISTORY_VIEW",
+    "WAREHOUSE_VIEW", "WAREHOUSE_EDIT", "VALUES_IMPORT",
   ],
 };
 
@@ -227,4 +228,216 @@ export function validatePassword(pw) {
   if (!/\d/.test(pw)) return "La contraseña debe incluir un número.";
   if (!/[A-Z]/.test(pw)) return "La contraseña debe incluir una mayúscula.";
   return null;
+}
+
+/* ============================================================
+   ALMACENES · Importar Valores  (lógica pura, probada en tools/test_almacenes.mjs)
+   ============================================================ */
+
+export const WAREHOUSE_DEFAULT_ID = "w_principal";
+
+/** Campos que se pueden importar/llenar por almacén. El orden es el de la cuadrícula. */
+export const VALUE_FIELDS = [
+  { key: "stock", label: "EXISTENCIA", short: "Exist.", unit: "uds", kind: "number" },
+  { key: "precioVentaUsd", label: "PRECIO VENTA", short: "P. venta", unit: "USD", kind: "number" },
+  { key: "precioVenta2Usd", label: "PRECIO VENTA 2", short: "P. venta 2", unit: "USD", kind: "number" },
+  { key: "precioCostoUsd", label: "P. COSTO", short: "Costo", unit: "USD", kind: "number" },
+  { key: "comisionCup", label: "COMISIÓN", short: "Comisión", unit: "CUP", kind: "number" },
+  { key: "observaciones", label: "OBSERVACIONES", short: "Obs.", unit: "", kind: "text" },
+];
+
+export const VALUE_FIELD_KEYS = VALUE_FIELDS.map((f) => f.key);
+
+/** Encabezados aceptados al pegar/leer archivos (sin acentos, en mayúsculas). */
+const HEADER_ALIASES = {
+  stock: ["STOCK", "EXISTENCIA", "EXISTENCIAS", "CANTIDAD", "CANT", "UNIDADES", "UDS", "SALDO", "INVENTARIO", "STOCK ACTUAL", "EXIST"],
+  precioVentaUsd: ["PRECIO", "PRECIO VENTA", "P VENTA", "PV", "P1", "PRECIO1", "PRECIO 1", "PRECIO VENTA 1", "VENTA", "PRECIO USD"],
+  precioVenta2Usd: ["PRECIO 2", "PRECIO VENTA 2", "P2", "PV2", "PRECIO2"],
+  precioCostoUsd: ["COSTO", "P COSTO", "PRECIO COSTO", "PC", "COSTO USD", "P. COSTO"],
+  comisionCup: ["COMISION", "COMISIÓN", "COMISION CUP", "COM"],
+  observaciones: ["OBS", "OBSERVACIONES", "OBSERVACION", "NOTA", "NOTAS", "DETALLE"],
+  name: ["PRODUCTO", "PRODUCTOS", "NOMBRE", "ARTICULO", "ARTÍCULO", "DESCRIPCION", "DESCRIPCIÓN", "MERCANCIA", "MERCANCÍA"],
+};
+
+export function normHeader(h) {
+  return normName(h).replace(/[.:]/g, "").replace(/\s+/g, " ").trim();
+}
+
+/** Devuelve la clave del campo a la que corresponde un encabezado, o null. */
+export function headerField(header) {
+  const h = normHeader(header);
+  if (!h) return null;
+  for (const [key, list] of Object.entries(HEADER_ALIASES)) if (list.includes(h)) return key;
+  for (const [key, list] of Object.entries(HEADER_ALIASES)) if (list.some((a) => h === a || h.startsWith(a + " ") || h.endsWith(" " + a))) return key;
+  return null;
+}
+
+const num = (v) => {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  const s = String(v ?? "").replace(/\s/g, "").replace(/[^\d.,-]/g, "");
+  if (!s) return 0;
+  // 1.234,56 (formato Cuba/España) o 1234.56
+  const normalized = /,\d{1,2}$/.test(s) && s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : 0;
+};
+
+export const parseNumber = num;
+
+function splitLine(line, sep) {
+  const out = [];
+  let cur = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (quoted && line[i + 1] === '"') { cur += '"'; i++; } else quoted = !quoted;
+      continue;
+    }
+    if (ch === sep && !quoted) { out.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  return out.map((x) => x.trim());
+}
+
+function guessSeparator(lines) {
+  const sample = lines.slice(0, 5).join("\n");
+  const count = (c) => (sample.match(new RegExp("\\" + c, "g")) || []).length;
+  const tabs = count("\t"), semis = count(";"), commas = count(",");
+  if (tabs >= semis && tabs >= commas && tabs) return "\t";
+  if (semis > commas) return ";";
+  return ",";
+}
+
+/**
+ * Convierte texto pegado (Excel/CSV/TSV) o filas de una hoja en filas de valores.
+ * Acepta con o sin fila de encabezados, y también "PRODUCTO  5" (nombre y cantidad).
+ * Devuelve { rows, headers, detected }.
+ */
+export function parseValuesText(text) {
+  const lines = String(text || "").replace(/\r/g, "").split("\n").filter((l) => l.trim() !== "");
+  if (!lines.length) return { rows: [], headers: [], detected: [] };
+  const sep = guessSeparator(lines);
+  const table = lines.map((l) => splitLine(l, sep));
+  const head = table[0].map((h) => headerField(h));
+  const hasHeader = head.includes("name") || head.filter(Boolean).length >= 2;
+  const map = [];
+  let start = 0;
+  if (hasHeader) {
+    start = 1;
+    head.forEach((f, i) => { if (f) map[i] = f; });
+    if (!Object.values(map).includes("name")) map[0] = "name";
+  } else {
+    map[0] = "name";
+    const width = Math.max(...table.map((r) => r.length));
+    const order = ["stock", "precioVentaUsd", "precioVenta2Usd", "precioCostoUsd", "comisionCup", "observaciones"];
+    for (let i = 1; i < width; i++) map[i] = order[i - 1] || null;
+  }
+  const rows = [];
+  for (let i = start; i < table.length; i++) {
+    const cells = table[i];
+    const row = { sel: true, source: hasHeader ? "pegado" : "pegado" };
+    map.forEach((field, c) => {
+      if (!field) return;
+      const raw = cells[c];
+      if (raw === undefined || raw === "") return;
+      if (field === "name") {
+        if (normHeader(raw) === "TOTAL") return;
+        row.name = raw.replace(/\s+/g, " ").trim();
+      } else if (field === "observaciones") row[field] = String(raw).trim();
+      else row[field] = num(raw);
+    });
+    if (!row.name) continue;
+    if (normHeader(row.name) === "TOTAL") continue;
+    rows.push(row);
+  }
+  return { rows, headers: hasHeader ? table[0] : [], detected: map.filter(Boolean) };
+}
+
+/** Valores actuales de un producto en un almacén concreto. */
+export function warehouseValues(product, warehouseId) {
+  const s = product?.stocks || {};
+  const si = product?.stocksInicial || {};
+  return {
+    stock: Number(s[warehouseId] || 0),
+    stockInicial: Number(si[warehouseId] || 0),
+    precioVentaUsd: Number(product?.precioVentaUsd || 0),
+    precioVenta2Usd: Number(product?.precioVenta2Usd || 0),
+    precioCostoUsd: Number(product?.precioCostoUsd || 0),
+    comisionCup: Number(product?.comisionCup || 0),
+    observaciones: String(product?.observaciones || ""),
+  };
+}
+
+/** ¿El almacén ya tiene datos de este producto? */
+export function warehouseHasProduct(product, warehouseId) {
+  if (!product) return false;
+  const s = product.stocks || {};
+  const si = product.stocksInicial || {};
+  if (si[warehouseId] !== undefined) return true;
+  return Number(s[warehouseId] || 0) !== 0;
+}
+
+const sameText = (a, b) => normName(a) === normName(b);
+const sameNumber = (a, b) => Math.abs(Number(a || 0) - Number(b || 0)) < 1e-9;
+
+/** Campos que vienen con valor en la fila. */
+export function rowFieldKeys(row) {
+  return VALUE_FIELD_KEYS.filter((k) => row[k] !== undefined && row[k] !== null && row[k] !== "");
+}
+
+/**
+ * Estado de una fila frente al almacén destino:
+ *  - nuevo        · el producto no existe (se crea)
+ *  - nuevo_almacen· el producto existe pero el almacén no tenía sus datos
+ *  - sobrescribe  · ya hay datos distintos a los que se importan (ADVERTENCIA)
+ *  - igual        · no cambia nada
+ *  - papelera     · el producto está en la Papelera (se omite)
+ */
+export function classifyValueRow(product, warehouseId, row) {
+  const fields = rowFieldKeys(row);
+  const cur = warehouseValues(product || {}, warehouseId);
+  if (product && product.deletedAt) return { status: "papelera", fields, current: cur, changed: [] };
+  if (!product) return { status: "nuevo", fields, current: cur, changed: fields };
+  const changed = fields.filter((k) => (k === "observaciones" ? !sameText(row[k], cur[k]) : !sameNumber(row[k], cur[k])));
+  if (!changed.length) return { status: "igual", fields, current: cur, changed };
+  // Solo hay advertencia si algún valor que ya estaba guardado (distinto de cero) se va a reemplazar.
+  const warns = changed.filter((k) => (k === "observaciones" ? String(cur[k] || "").trim() !== "" : Number(cur[k] || 0) !== 0));
+  if (warns.length) return { status: "sobrescribe", fields, current: cur, changed, warns };
+  return { status: "nuevo_almacen", fields, current: cur, changed };
+}
+
+export const STATUS_LABEL = {
+  nuevo: { text: "NUEVO", tone: "entrada", help: "El producto no existe: se crea." },
+  nuevo_almacen: { text: "ENTRA AL ALMACÉN", tone: "venta", help: "El producto existe pero este almacén no tenía sus datos." },
+  sobrescribe: { text: "SOBRESCRIBE", tone: "gestor", help: "Ya hay valores guardados y son distintos: se pedirá confirmación." },
+  igual: { text: "IGUAL", tone: "mov", help: "Los valores coinciden con lo que ya hay." },
+  papelera: { text: "PAPELERA", tone: "salida", help: "Está en la Papelera: no se toca." },
+};
+
+/** Resumen de un lote de filas para la pantalla de revisión. */
+export function summarizeRows(products, warehouseId, rows) {
+  const out = { total: 0, selected: 0, nuevo: 0, nuevo_almacen: 0, sobrescribe: 0, igual: 0, papelera: 0, conflicts: [], duplicates: [] };
+  const byName = {};
+  for (const p of products || []) if (!p.deletedAt) byName[normName(p.name)] = p;
+  const trash = {};
+  for (const p of products || []) if (p.deletedAt) trash[normName(p.name)] = p;
+  const seen = {};
+  rows.forEach((row, i) => {
+    if (!String(row.name || "").trim()) return;
+    out.total++;
+    const key = normName(row.name);
+    seen[key] = (seen[key] || []).concat(i);
+    const product = byName[key];
+    const info = classifyValueRow(product || trash[key], warehouseId, row);
+    row.status = info.status;
+    row._productId = product?.id || null;
+    row._info = info;
+    out[info.status] = (out[info.status] || 0) + 1;
+    if (row.sel) out.selected++;
+    if (info.status === "sobrescribe" && row.sel) out.conflicts.push({ index: i, name: row.name, changed: info.changed, warns: info.warns || [], current: info.current, row });
+  });
+  out.duplicates = Object.entries(seen).filter(([, ix]) => ix.length > 1).map(([k, ix]) => ({ key: k, indexes: ix }));
+  return out;
 }

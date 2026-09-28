@@ -6,6 +6,18 @@ Sistema de control de inventario y cuadre diario para la tienda.
 > Historial: tasa CUP/USD (670 → 690 → 750) y 42 cambios de precio detectados en todas las hojas de septiembre.
 > Regenerar semillas: `pip install openpyxl && python3 tools/import_excel.py` (escribe `web/js/seed-data.js` y `app/src/main/assets/seed.json`).
 
+## Novedades v5 — Almacenes e Importar Valores
+
+- **Almacenes por su nombre:** crea los que necesites (`ALMACÉN CENTRAL`, `TIENDA PINAR`, `CASA DEL TECHO`…) desde **Almacenes → ＋ Nuevo almacén**. Cada uno guarda **su propia existencia** de cada producto y el stock total es la suma. Los datos que ya había quedan en el **ALMACÉN PRINCIPAL** sin cambiar ningún total.
+- **Cada entrada queda registrada:** crear un almacén, importar valores, traspasar mercancía y eliminar un almacén (moviendo todo a otro) aparecen en **Almacenes → Entradas**, con quién, cuándo y el detalle `antes → después`. Se puede **deshacer** una importación o un traspaso.
+- **Almacén en uso:** el selector 🏬 de la barra superior decide de dónde descuenta la venta rápida, qué columna de existencia muestra el Inventario y a qué almacén entran los valores. Los movimientos guardan su almacén y se pueden filtrar.
+- **Importar valores:** pega directamente desde Excel (Ctrl+V), sube `.xlsx/.csv/.tsv` o **escribe en la tabla**, con **selección de una, varias o todas** las filas (Todos · Ninguno · Invertir · Marcar nuevos · Marcar los que sobrescriben).
+- **Aviso de sobrescritura:** si algún dato que vas a importar **ya está guardado** en ese almacén, sale una advertencia con la lista `antes → después` y eliges entre *Sobrescribir los N* o *Solo completar lo que falta*. Con «completar» lo que ya tenía valores no se toca.
+- **Traspasos entre almacenes** (no afectan al cuadre ni a las ventas), **plantilla CSV** para llenar en Excel y devolverla, y **CSV por almacén** para contar o revisar.
+- **Servidor:** nuevas secciones `warehouses`/`warehouseEntries` con permisos por rol (Almacenero puede; Económico solo ver), conversión automática de los datos que ya había y el almacén del movimiento protegido en los días cerrados.
+- **Pruebas:** `node tools/test_almacenes.mjs` → 14 pruebas de la lógica (conversión, existencias por almacén, pegado del Excel, sobrescritura, modo completar, traspasos, deshacer, borrado con fusión).
+- Guía completa: [`docs/ALMACENES.md`](docs/ALMACENES.md).
+
 ## Novedades v4.2 — App Android al nivel de la Web
 - **Vender (venta rápida):** cuadrícula de productos con foto de categoría, filtros, carrito, centro TIENDA/GESTOR y cobro en un paso (en la barra inferior).
 - **Papelera de reciclaje:** eliminar un producto lo envía a la Papelera (con sus movimientos); se puede restaurar o eliminar definitivamente. No se permite crear un producto con un nombre que ya está en la Papelera. Se sincroniza con la Papelera de la Web.

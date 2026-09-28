@@ -15,6 +15,8 @@
   ],
   "shortcuts": [
     { "name": "Venta rápida", "url": "./#pos" },
+    { "name": "Almacenes", "url": "./#warehouses" },
+    { "name": "Importar valores", "url": "./#importValues" },
     { "name": "Cuadre diario", "url": "./#cuadre" },
     { "name": "Inventario", "url": "./#inventory" }
   ]

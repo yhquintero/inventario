@@ -1,5 +1,5 @@
 /* Service worker: la interfaz abre al instante y sin conexión; los datos (/api) siempre van al servidor. */
-const CACHE = "cuadre-pinar-v4";
+const CACHE = "cuadre-pinar-v5";
 const SHELL = ["./", "./index.html", "./css/app.css", "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/ux.js",
   "./js/seed-data.js", "./vendor/qrcode.mjs", "./public/icon-app.png", "./manifest.webmanifest"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
