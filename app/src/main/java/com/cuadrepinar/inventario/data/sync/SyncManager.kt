@@ -115,7 +115,12 @@ class SyncManager @Inject constructor(
                 val stream = if (code >= 400) conn.errorStream else conn.inputStream
                 val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
                 conn.disconnect()
-                ApiResponse(code, if (text.isBlank()) JSONObject() else JSONObject(text))
+                val resp = ApiResponse(code, if (text.isBlank()) JSONObject() else JSONObject(text))
+                // LICENCIA: si el servidor responde 402, es error de licencia
+                if (code == 402 || resp.body.optBoolean("licenseError")) {
+                    _status.value = _status.value.copy(message = "⛔ Licencia no válida: ${resp.error}. Active una licencia.")
+                }
+                resp
             } catch (e: Exception) {
                 ApiResponse(0, JSONObject().put("error", "Sin conexión con el servidor: ${e.message ?: ""}".trim()))
             }
