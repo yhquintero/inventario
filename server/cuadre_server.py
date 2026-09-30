@@ -31,6 +31,12 @@ ISSUER = "Cuadre Pinar"
 ROLES = ("ADMINISTRADOR", "JEFE", "ECONOMICO", "ALMACENERO")
 ADMINS = {"ADMINISTRADOR", "JEFE"}
 
+# ------------------------------------------------------------------ licencia de uso
+LICENSE_PRODUCT = os.environ.get("LICENSE_PRODUCT", "Cuadre Pinar")
+LICENSE_FILE = os.path.join(DATA, "license.key")
+LICENSE_TRIAL_DAYS = int(os.environ.get("LICENSE_TRIAL_DAYS", "15"))
+LICENSE_EXEMPT = {"/api/health", "/api/license/status", "/api/license/activate", "/api/license/verify"}
+
 # Quién puede modificar cada sección del estado compartido
 WRITE = {
     "products": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
@@ -74,6 +80,249 @@ def q(sql, args=(), one=False):
 
 def now():
     return int(time.time())
+
+
+# ------------------------------------------------------------------ licencia de uso
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
+def _b64url_decode(s: str) -> bytes:
+    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+def get_license_secret() -> bytes:
+    # Prioridad: LICENSE_SECRET > LICENSE_KEY > BACKUP_KEY > archivo local > generado
+    for env_key in ("LICENSE_SECRET", "LICENSE_KEY", "BACKUP_KEY"):
+        v = os.environ.get(env_key)
+        if not v:
+            continue
+        v = v.strip()
+        # Si es una clave Fernet (44 chars base64), la usamos tal cual como secreto
+        try:
+            # Intenta decodificar como base64 urlsafe, si funciona y tiene 32 bytes, es Fernet key raw
+            raw = base64.urlsafe_b64decode(v + "=" * (-len(v) % 4))
+            if len(raw) == 32:
+                return raw
+        except Exception:
+            pass
+        return v.encode()
+    # Archivo local
+    if os.path.exists(LICENSE_FILE):
+        try:
+            data = open(LICENSE_FILE, "rb").read().strip()
+            # Si el archivo contiene base64 de 32 bytes, decodifica
+            try:
+                raw = base64.urlsafe_b64decode(data + b"=" * (-len(data) % 4))
+                if len(raw) == 32:
+                    return raw
+            except Exception:
+                pass
+            return data if isinstance(data, bytes) else data.encode()
+        except Exception:
+            pass
+    # Generar nuevo secreto
+    os.makedirs(DATA, exist_ok=True)
+    secret = secrets.token_bytes(32)
+    try:
+        with open(LICENSE_FILE, "wb") as f:
+            f.write(base64.urlsafe_b64encode(secret))
+        os.chmod(LICENSE_FILE, 0o600)
+    except Exception:
+        pass
+    return secret
+
+
+def sign_license_payload(payload_b64: str) -> str:
+    secret = get_license_secret()
+    sig = hmac.new(secret, payload_b64.encode(), hashlib.sha256).digest()
+    return _b64url_encode(sig)
+
+
+def create_license_token(payload: dict) -> str:
+    # payload debe ser serializable
+    json_bytes = json.dumps(payload, separators=(",", ":"), ensure_ascii=False, sort_keys=True).encode()
+    b64 = _b64url_encode(json_bytes)
+    sig = sign_license_payload(b64)
+    return f"{b64}.{sig}"
+
+
+def verify_license_token(token: str):
+    try:
+        if not token:
+            return None
+        # Limpia solo espacios y prefijo CP-, conserva '-' y '_' que son válidos en base64url
+        t = token.strip().replace(" ", "").replace("\n", "").replace("\r", "").replace("\t", "")
+        if t.upper().startswith("CP-"):
+            t = t[3:]
+        # Si no tiene punto, intenta recuperar (últimos 43 chars son firma)
+        if "." not in t:
+            if len(t) > 50:
+                b64_part = t[:-43]
+                sig_part = t[-43:]
+                t = f"{b64_part}.{sig_part}"
+            else:
+                return None
+        if "." not in t:
+            return None
+        b64, sig = t.rsplit(".", 1)
+        # Solo permitimos caracteres base64url
+        def clean_b64url(s):
+            return "".join(c for c in s if c.isalnum() or c in "-_")
+        b64 = clean_b64url(b64)
+        sig = clean_b64url(sig)
+        if not b64 or not sig:
+            return None
+        expected = sign_license_payload(b64)
+        if not hmac.compare_digest(expected, sig):
+            return None
+        payload_json = _b64url_decode(b64)
+        payload = json.loads(payload_json)
+        return payload
+    except Exception:
+        return None
+
+
+def format_license_key(token: str) -> str:
+    # Formato legible: CP-<token> con el token original intacto (no inserta guiones que rompan base64url)
+    # Para mostrar bonito, agrupa con espacios cada 4 chars solo visualmente, pero devuelve original con prefijo
+    try:
+        raw = token.strip()
+        if raw.upper().startswith("CP-"):
+            return raw
+        # Devuelve con prefijo CP- y el token original (preserva punto)
+        return f"CP-{raw}"
+    except Exception:
+        return token
+
+
+def format_license_pretty(token: str) -> str:
+    # Versión bonita con saltos para UI, pero no usar para verificación
+    try:
+        raw = token.strip()
+        if raw.upper().startswith("CP-"):
+            raw = raw[3:]
+        # Agrupa visualmente sin alterar el token real: usa espacios
+        def group(s):
+            return " ".join(s[i:i+4] for i in range(0, len(s), 4))
+        if "." in raw:
+            b64, sig = raw.split(".", 1)
+            return f"CP-{group(b64)} . {group(sig)}"
+        return "CP-" + group(raw)
+    except Exception:
+        return token
+
+
+def generate_license_payload(client_name="Cuadre Pinar", product=None, license_type="FULL", days=365, max_users=20, max_devices=10, features=None, license_id=None):
+    product = product or LICENSE_PRODUCT
+    issued = now()
+    expires = 0 if str(days).upper() in ("0", "NEVER", "LIFETIME", "PERMANENTE") else issued + int(days) * 86400
+    return {
+        "license_id": license_id or secrets.token_hex(8).upper(),
+        "client_name": client_name,
+        "product": product,
+        "type": license_type,
+        "issued_at": issued,
+        "expires_at": expires,
+        "max_users": int(max_users),
+        "max_devices": int(max_devices),
+        "features": features or ["*"],
+        "version": 1,
+    }
+
+
+def get_active_license_info():
+    try:
+        rows = q("SELECT * FROM licenses WHERE active=1 ORDER BY expires_at DESC, issued_at DESC")
+    except Exception:
+        rows = []
+    ts = now()
+    for r in rows:
+        exp = r["expires_at"]
+        if exp != 0 and exp < ts:
+            continue
+        payload = verify_license_token(r["key"])
+        # Permitir licencias TRIAL- legacy sin firma si no expiraron
+        if not payload and not str(r["key"]).startswith("TRIAL-"):
+            # Firma inválida, posible cambio de secreto -> invalida
+            continue
+        # Si tiene payload, valida expiración del payload también
+        if payload:
+            p_exp = payload.get("expires_at", 0)
+            if p_exp != 0 and p_exp < ts:
+                continue
+        # Actualiza last_verified
+        try:
+            q("UPDATE licenses SET last_verified=? WHERE id=?", (ts, r["id"]))
+        except Exception:
+            pass
+        return {
+            "valid": True,
+            "db_row": dict(r),
+            "payload": payload or {
+                "client_name": r["client_name"],
+                "product": r["product"],
+                "type": r["type"],
+                "issued_at": r["issued_at"],
+                "expires_at": r["expires_at"],
+                "max_users": r["max_users"],
+                "max_devices": r["max_devices"],
+                "features": json.loads(r["features"] or '["*"]'),
+                "license_id": r["key"][:16],
+            },
+        }
+    return {"valid": False, "reason": "No hay licencia activa válida", "db_row": None, "payload": None}
+
+
+def check_license_active():
+    info = get_active_license_info()
+    if info["valid"]:
+        return info
+    return {"valid": False, "reason": info.get("reason", "Licencia no válida"), "db_row": None, "payload": None}
+
+
+def ensure_trial_license():
+    try:
+        cnt = q("SELECT COUNT(*) as c FROM licenses", one=True)
+        if cnt and cnt["c"] > 0:
+            return
+    except Exception:
+        return
+    # Crea licencia de prueba
+    payload = generate_license_payload(
+        client_name="Cuadre Pinar (Prueba)",
+        product=LICENSE_PRODUCT,
+        license_type="TRIAL",
+        days=LICENSE_TRIAL_DAYS,
+        max_users=5,
+        max_devices=3,
+        features=["*"],
+    )
+    token = create_license_token(payload)
+    try:
+        q(
+            "INSERT INTO licenses(key, client_name, product, type, issued_at, expires_at, max_users, max_devices, features, active, created_by, created_at, last_verified, metadata) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                token,
+                payload["client_name"],
+                payload["product"],
+                payload["type"],
+                payload["issued_at"],
+                payload["expires_at"],
+                payload["max_users"],
+                payload["max_devices"],
+                json.dumps(payload["features"], ensure_ascii=False),
+                1,
+                "sistema",
+                now(),
+                now(),
+                json.dumps({"auto_trial": True}, ensure_ascii=False),
+            ),
+        )
+        audit("sistema", "LICENSE_TRIAL", f"Licencia de prueba creada ({LICENSE_TRIAL_DAYS} días) · {payload['license_id']}")
+        print(f"[LICENCIA] Licencia de prueba creada: {payload['license_id']} expira en {LICENSE_TRIAL_DAYS} días", flush=True)
+    except Exception as e:
+        print(f"[LICENCIA] No se pudo crear licencia de prueba: {e}", flush=True)
 
 
 # ------------------------------------------------------------------ contraseñas
@@ -131,8 +380,39 @@ def init_db():
     CREATE TABLE IF NOT EXISTS closed_days(date TEXT PRIMARY KEY, closed_by TEXT, closed_at INTEGER, note TEXT, snapshot TEXT);
     CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, ts INTEGER, user TEXT, action TEXT, details TEXT, ip TEXT);
     CREATE TABLE IF NOT EXISTS fails(k TEXT PRIMARY KEY, n INTEGER, until INTEGER);
+    CREATE TABLE IF NOT EXISTS licenses(
+      id INTEGER PRIMARY KEY,
+      key TEXT UNIQUE,
+      client_name TEXT,
+      product TEXT,
+      type TEXT,
+      issued_at INTEGER,
+      expires_at INTEGER,
+      max_users INTEGER DEFAULT 10,
+      max_devices INTEGER DEFAULT 5,
+      features TEXT DEFAULT '[\"*\"]',
+      active INTEGER DEFAULT 1,
+      created_by TEXT,
+      created_at INTEGER,
+      last_verified INTEGER,
+      metadata TEXT);
+    CREATE TABLE IF NOT EXISTS license_activations(
+      id INTEGER PRIMARY KEY,
+      license_key TEXT,
+      license_id INTEGER REFERENCES licenses(id) ON DELETE CASCADE,
+      device_id TEXT,
+      device_info TEXT,
+      ip TEXT,
+      activated_at INTEGER,
+      last_seen INTEGER,
+      active INTEGER DEFAULT 1);
     """)
     CON.commit()
+    # Licencia de uso: si no hay ninguna, crea una de prueba automáticamente
+    try:
+        ensure_trial_license()
+    except Exception as e:
+        print(f"[LICENCIA] Error al verificar licencia inicial: {e}", flush=True)
     if not q("SELECT 1 FROM users LIMIT 1", one=True):
         demo = [("admin", "Yosvany Hernández", "admin@cuadrepinar.cu", "ADMINISTRADOR", "Admin123!"),
                 ("jefe", "Jefe de Tienda", "jefe@cuadrepinar.cu", "JEFE", "Jefe123!"),
@@ -175,6 +455,8 @@ def make_backup(kind="auto", user="sistema"):
         "createdAt": now(), "kind": kind, "version": st["version"], "state": json.loads(st["data"]) if st["data"] else None,
         "closedDays": [dict(r) for r in q("SELECT * FROM closed_days")],
         "users": [dict(r) for r in q("SELECT * FROM users")],
+        "licenses": [dict(r) for r in q("SELECT * FROM licenses")],
+        "licenseActivations": [dict(r) for r in q("SELECT * FROM license_activations")],
     }
     blob = fernet().encrypt(gzip.compress(json.dumps(payload, ensure_ascii=False).encode()))
     name = dt.datetime.now().strftime(f"cuadre_%Y-%m-%d_%H%M%S_{kind}.bak")
@@ -380,6 +662,11 @@ class Api(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if not path.startswith("/api/"):
             return self.static(path) if method == "GET" else self.err(405, "Método no permitido")
+        # --- LICENCIA DE USO: verificación obligatoria siempre primero ---
+        if path not in LICENSE_EXEMPT and not path.startswith("/api/license/"):
+            lic = check_license_active()
+            if not lic["valid"]:
+                return self.send_json(402, {"error": "Licencia no válida o expirada. Active una licencia para continuar.", "licenseError": True, "reason": lic.get("reason", ""), "code": "LICENSE_REQUIRED"})
         # CSRF: toda petición que modifica exige la cabecera X-CP (un formulario de otro sitio no puede ponerla)
         if method != "GET" and self.headers.get("X-CP") != "1":
             return self.err(403, "Falta cabecera anti-CSRF")
@@ -430,10 +717,211 @@ def route(method, path, need=True, roles=None):
     return deco
 
 
+# ------------------------------------------------------------------ licencia de uso (verificación obligatoria primero)
+@route("GET", "/api/license/status", need=False)
+def license_status(h, _, __):
+    info = get_active_license_info()
+    if info["valid"]:
+        p = info["payload"]
+        db_row = info["db_row"]
+        exp = p.get("expires_at", 0) if p else db_row["expires_at"]
+        days_left = -1
+        if exp != 0:
+            days_left = max(0, (exp - now()) // 86400)
+        h.send_json(200, {
+            "valid": True,
+            "hasLicense": True,
+            "clientName": p.get("client_name", db_row["client_name"]) if p else db_row["client_name"],
+            "product": p.get("product", db_row["product"]) if p else db_row["product"],
+            "type": p.get("type", db_row["type"]) if p else db_row["type"],
+            "issuedAt": p.get("issued_at", db_row["issued_at"]) if p else db_row["issued_at"],
+            "expiresAt": exp,
+            "daysLeft": days_left,
+            "maxUsers": p.get("max_users", db_row["max_users"]) if p else db_row["max_users"],
+            "maxDevices": p.get("max_devices", db_row["max_devices"]) if p else db_row["max_devices"],
+            "features": p.get("features", json.loads(db_row["features"] or '["*"]')) if p else json.loads(db_row["features"] or '["*"]'),
+            "licenseId": p.get("license_id", "") if p else db_row["key"][:12],
+            "formattedKey": format_license_key(db_row["key"]) if db_row else "",
+        })
+    else:
+        # Verifica si hay licencias expiradas para dar más contexto
+        rows = q("SELECT * FROM licenses ORDER BY expires_at DESC LIMIT 1")
+        last = dict(rows[0]) if rows else None
+        h.send_json(200, {
+            "valid": False,
+            "hasLicense": bool(last),
+            "reason": info.get("reason", "Sin licencia"),
+            "lastLicense": {
+                "clientName": last["client_name"],
+                "type": last["type"],
+                "expiresAt": last["expires_at"],
+                "expired": last["expires_at"] != 0 and last["expires_at"] < now(),
+            } if last else None,
+            "trialDays": LICENSE_TRIAL_DAYS,
+        })
+
+
+@route("POST", "/api/license/verify", need=False)
+def license_verify(h, _, __):
+    b = h.body()
+    key = str(b.get("license_key") or b.get("key") or "").strip()
+    if not key:
+        return h.err(400, "Debe proporcionar la clave de licencia.")
+    payload = verify_license_token(key)
+    if not payload:
+        return h.send_json(200, {"valid": False, "error": "Clave de licencia no válida o firma incorrecta."})
+    exp = payload.get("expires_at", 0)
+    if exp != 0 and exp < now():
+        return h.send_json(200, {"valid": False, "error": "La licencia está expirada.", "expired": True, "payload": payload})
+    h.send_json(200, {"valid": True, "payload": payload, "formattedKey": format_license_key(key)})
+
+
+@route("POST", "/api/license/activate", need=False)
+def license_activate(h, _, __):
+    b = h.body()
+    raw_key = str(b.get("license_key") or b.get("key") or "").strip()
+    if not raw_key:
+        return h.err(400, "Debe proporcionar la clave de licencia.")
+    # Limpieza: permite formato con guiones y prefijo CP-
+    key = raw_key.strip()
+    payload = verify_license_token(key)
+    if not payload:
+        audit("anon", "LICENSE_FAIL", f"Intento de activación fallido: firma inválida · {h.ip()}", h.ip())
+        return h.err(400, "Clave de licencia no válida. Verifique que la copió completa (incluyendo el punto).")
+    exp = payload.get("expires_at", 0)
+    if exp != 0 and exp < now():
+        return h.err(400, f"La licencia expiró el {dt.datetime.fromtimestamp(exp).strftime('%d/%m/%Y')}.")
+    # Verifica si ya existe
+    existing = q("SELECT * FROM licenses WHERE key=?", (key,), one=True)
+    if existing:
+        # Reactiva si estaba inactiva
+        q("UPDATE licenses SET active=1, last_verified=?, client_name=?, product=?, type=?, issued_at=?, expires_at=?, max_users=?, max_devices=?, features=? WHERE id=?",
+          (now(), payload.get("client_name", existing["client_name"]), payload.get("product", existing["product"]),
+           payload.get("type", existing["type"]), payload.get("issued_at", existing["issued_at"]),
+           payload.get("expires_at", existing["expires_at"]), payload.get("max_users", existing["max_users"]),
+           payload.get("max_devices", existing["max_devices"]), json.dumps(payload.get("features", ["*"]), ensure_ascii=False),
+           existing["id"]))
+        lic_id = existing["id"]
+    else:
+        # Desactiva otras licencias del mismo producto si es FULL/ENTERPRISE (solo una activa a la vez)
+        if payload.get("type") in ("FULL", "ENTERPRISE", "LIFETIME"):
+            q("UPDATE licenses SET active=0 WHERE product=?", (payload.get("product", LICENSE_PRODUCT),))
+        q("INSERT INTO licenses(key, client_name, product, type, issued_at, expires_at, max_users, max_devices, features, active, created_by, created_at, last_verified, metadata) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          (key, payload.get("client_name", "Cliente"), payload.get("product", LICENSE_PRODUCT), payload.get("type", "FULL"),
+           payload.get("issued_at", now()), payload.get("expires_at", 0), payload.get("max_users", 20), payload.get("max_devices", 10),
+           json.dumps(payload.get("features", ["*"]), ensure_ascii=False), 1, "activacion", now(), now(),
+           json.dumps({"activated_from": h.ip(), "license_id": payload.get("license_id")}, ensure_ascii=False)))
+        lic_row = q("SELECT * FROM licenses WHERE key=?", (key,), one=True)
+        lic_id = lic_row["id"] if lic_row else 0
+    # Registra activación de dispositivo
+    device_id = str(b.get("device_id") or b.get("deviceId") or "")[:100] or h.ip()
+    device_info = str(b.get("device_info") or b.get("deviceInfo") or h.headers.get("User-Agent", ""))[:300]
+    q("INSERT INTO license_activations(license_key, license_id, device_id, device_info, ip, activated_at, last_seen, active) VALUES(?,?,?,?,?,?,?,?)",
+      (key, lic_id, device_id, device_info, h.ip(), now(), now(), 1))
+    audit("sistema", "LICENSE_ACTIVATE", f"Licencia activada · {payload.get('license_id')} · {payload.get('client_name')} · tipo {payload.get('type')} · {h.ip()}", h.ip())
+    # Respuesta con info completa
+    info = get_active_license_info()
+    p = info["payload"] if info["valid"] else payload
+    exp_final = p.get("expires_at", 0)
+    days_left = -1 if exp_final == 0 else max(0, (exp_final - now()) // 86400)
+    h.send_json(200, {
+        "ok": True,
+        "valid": True,
+        "clientName": p.get("client_name"),
+        "product": p.get("product"),
+        "type": p.get("type"),
+        "expiresAt": exp_final,
+        "daysLeft": days_left,
+        "licenseId": p.get("license_id"),
+        "formattedKey": format_license_key(key),
+        "message": f"Licencia activada correctamente para {p.get('client_name')}."
+    })
+
+
+@route("GET", "/api/license/info", roles=ADMINS)
+def license_info(h, u, _):
+    licenses = [dict(r) for r in q("SELECT * FROM licenses ORDER BY active DESC, expires_at DESC")]
+    activations = [dict(r) for r in q("SELECT * FROM license_activations ORDER BY last_seen DESC LIMIT 100")]
+    # Oculta parte de la clave por seguridad, muestra formateada parcial
+    for lic in licenses:
+        lic["formattedKey"] = format_license_key(lic["key"])
+        lic["keyPreview"] = lic["key"][:20] + "..." + lic["key"][-10:] if len(lic["key"]) > 35 else lic["key"]
+        # No exponer clave completa a no-admin? Admin sí puede verla, pero la ocultamos parcialmente en listado
+        # Para admin completo, la clave completa se devuelve solo si se pide detalle
+    active = get_active_license_info()
+    h.send_json(200, {
+        "licenses": licenses,
+        "activations": activations,
+        "active": {
+            "valid": active["valid"],
+            "payload": active.get("payload"),
+            "db_row": {k: v for k, v in (active["db_row"] or {}).items() if k != "key"} if active.get("db_row") else None,
+        },
+        "product": LICENSE_PRODUCT,
+    })
+
+
+@route("POST", "/api/license/generate", roles=ADMINS)
+def license_generate(h, u, _):
+    b = h.body()
+    client = str(b.get("client_name") or b.get("clientName") or "Cuadre Pinar").strip()[:120]
+    ltype = str(b.get("type") or "FULL").upper()
+    if ltype not in ("TRIAL", "FULL", "ENTERPRISE", "LIFETIME"):
+        ltype = "FULL"
+    days = b.get("days")
+    if days is None:
+        days = 365 if ltype != "LIFETIME" else 0
+    try:
+        days_int = int(days)
+    except Exception:
+        if str(days).upper() in ("NEVER", "LIFETIME", "PERMANENTE", "0"):
+            days_int = 0
+        else:
+            days_int = 365
+    max_users = int(b.get("max_users") or b.get("maxUsers") or 20)
+    max_devices = int(b.get("max_devices") or b.get("maxDevices") or 10)
+    features = b.get("features") or ["*"]
+    payload = generate_license_payload(client_name=client, product=LICENSE_PRODUCT, license_type=ltype, days=days_int, max_users=max_users, max_devices=max_devices, features=features)
+    token = create_license_token(payload)
+    # Guarda como inactiva hasta que se active (o activa directamente si se pide)
+    auto_activate = bool(b.get("activate"))
+    q("INSERT INTO licenses(key, client_name, product, type, issued_at, expires_at, max_users, max_devices, features, active, created_by, created_at, last_verified, metadata) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      (token, payload["client_name"], payload["product"], payload["type"], payload["issued_at"], payload["expires_at"],
+       payload["max_users"], payload["max_devices"], json.dumps(payload["features"], ensure_ascii=False),
+       1 if auto_activate else 0, u["username"], now(), now(),
+       json.dumps({"generated_by": u["username"], "license_id": payload["license_id"]}, ensure_ascii=False)))
+    if auto_activate:
+        q("UPDATE licenses SET active=0 WHERE id<>? AND product=?", (q("SELECT id FROM licenses WHERE key=?", (token,), one=True)["id"], LICENSE_PRODUCT))
+    audit(u["username"], "LICENSE_GENERATE", f"Licencia generada · {payload['license_id']} · {client} · {ltype} · {days_int}d", h.ip())
+    h.send_json(200, {
+        "ok": True,
+        "license_key": token,
+        "formattedKey": format_license_key(token),
+        "payload": payload,
+    })
+
+
+@route("DELETE", "/api/license/:id", roles=ADMINS)
+def license_revoke(h, u, ident):
+    row = q("SELECT * FROM licenses WHERE id=?", (ident,), one=True)
+    if not row:
+        return h.err(404, "Licencia no encontrada.")
+    # No permitir dejar el sistema sin licencia válida
+    active_count = q("SELECT COUNT(*) as c FROM licenses WHERE active=1 AND id<>?", (ident,), one=True)
+    if row["active"] and (not active_count or active_count["c"] == 0):
+        # Permite revocar pero crea trial si no queda ninguna? Mejor bloquear y pedir generar otra primero
+        return h.err(400, "No puedes revocar la única licencia activa. Genera otra licencia primero.")
+    q("UPDATE licenses SET active=0 WHERE id=?", (ident,))
+    q("UPDATE license_activations SET active=0 WHERE license_id=?", (ident,))
+    audit(u["username"], "LICENSE_REVOKE", f"Licencia revocada · {row['client_name']} · {row['key'][:20]}...", h.ip())
+    h.send_json(200, {"ok": True})
+
+
 # ------------------------------------------------------------------ autenticación
 @route("GET", "/api/health", need=False)
 def health(h, u, _):
-    h.send_json(200, {"ok": True, "https": h.secure(), "time": now()})
+    lic = get_active_license_info()
+    h.send_json(200, {"ok": True, "https": h.secure(), "time": now(), "licenseValid": lic["valid"], "licenseType": (lic["payload"] or {}).get("type") if lic["valid"] else None})
 
 
 def new_session(h, user):
@@ -752,6 +1240,23 @@ def backups_restore(h, u, name):
         for c in data.get("closedDays", []):
             q("INSERT INTO closed_days(date,closed_by,closed_at,note,snapshot) VALUES(?,?,?,?,?)",
               (c["date"], c["closed_by"], c["closed_at"], c.get("note"), c.get("snapshot")))
+        # Restaura licencias si el backup las contiene (no borra actuales, solo inserta/actualiza)
+        if data.get("licenses"):
+            for lic in data["licenses"]:
+                try:
+                    q("INSERT OR REPLACE INTO licenses(id,license_id,client_name,product,type,issued_at,expires_at,max_users,max_devices,features,token,status,activated_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (lic.get("id"), lic.get("license_id"), lic.get("client_name"), lic.get("product"), lic.get("type"),
+                       lic.get("issued_at"), lic.get("expires_at"), lic.get("max_users"), lic.get("max_devices"),
+                       lic.get("features"), lic.get("token"), lic.get("status"), lic.get("activated_at"), lic.get("created_at")))
+                except Exception:
+                    pass
+        if data.get("licenseActivations"):
+            for act in data["licenseActivations"]:
+                try:
+                    q("INSERT OR IGNORE INTO license_activations(id,license_id,device_id,device_info,activated_at,last_seen) VALUES(?,?,?,?,?,?)",
+                      (act.get("id"), act.get("license_id"), act.get("device_id"), act.get("device_info"), act.get("activated_at"), act.get("last_seen")))
+                except Exception:
+                    pass
     audit(u["username"], "BACKUP_RESTORE", name, h.ip())
     h.send_json(200, {"ok": True, "version": v})
 

@@ -36,13 +36,20 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val db: AppDatabase,
     private val session: SessionManager,
-    val sync: com.cuadrepinar.inventario.data.sync.SyncManager
+    val sync: com.cuadrepinar.inventario.data.sync.SyncManager,
+    private val licenseManager: com.cuadrepinar.inventario.security.LicenseManager
 ) {
     /**
      * Entrada contra el servidor compartido con la Web. Crea/actualiza un usuario local espejo (sin contraseña local)
      * para que las pantallas de la App sigan funcionando igual.
+     * LICENCIA DE USO: verificación obligatoria siempre primero.
      */
     suspend fun loginServer(server: String, username: String, password: String, code: String?): AppResult<UserAccount> {
+        // --- LICENCIA DE USO: verificación primero ---
+        val lic = licenseManager.fetchStatus(server)
+        if (!lic.valid) {
+            return AppResult.Err("Licencia no válida: ${lic.reason}. Active una licencia en la pantalla de licencia.")
+        }
         val r = sync.login(server, username, password, code)
         if (r.body.optBoolean("need2fa") && r.body.optString("token").isBlank()) {
             return AppResult.Err(if (code.isNullOrBlank()) NEED_2FA else r.error)
@@ -61,6 +68,16 @@ class AuthRepository @Inject constructor(
     companion object { const val NEED_2FA = "NEED_2FA" }
 
     suspend fun login(username: String, password: String): AppResult<UserAccount> {
+        // LICENCIA: si hay servidor configurado, exige licencia válida; si no, exige licencia local válida
+        if (sync.server().isNotBlank()) {
+            val lic = licenseManager.fetchStatus(sync.server())
+            if (!lic.valid) return AppResult.Err("Licencia no válida: ${lic.reason}")
+        } else {
+            if (!licenseManager.isLocallyValid()) {
+                val cached = licenseManager.getCached()
+                if (cached == null || !cached.valid) return AppResult.Err("Licencia requerida. Active una licencia primero.")
+            }
+        }
         val user = db.users().byUsername(username.trim())
             ?: return AppResult.Err("Usuario o contraseña incorrectos.")
         if (!user.active) return AppResult.Err("La cuenta está desactivada.")
@@ -76,7 +93,14 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun loginById(userId: Long): AppResult<UserAccount> {
-        if (sync.server().isNotBlank() && !sync.isConnected()) return AppResult.Err("Entra con tu contraseña para conectar con el servidor.")
+        // LICENCIA: verificación primero también para biometría
+        if (sync.server().isNotBlank()) {
+            if (!sync.isConnected()) return AppResult.Err("Entra con tu contraseña para conectar con el servidor.")
+            val lic = licenseManager.fetchStatus(sync.server())
+            if (!lic.valid) return AppResult.Err("Licencia no válida: ${lic.reason}")
+        } else {
+            if (!licenseManager.isLocallyValid()) return AppResult.Err("Licencia requerida.")
+        }
         val user = db.users().get(userId) ?: return AppResult.Err("Sesión inválida.")
         if (!user.active) return AppResult.Err("La cuenta está desactivada.")
         session.save(user.id, user.username, user.role, user.displayName)
@@ -86,9 +110,14 @@ class AuthRepository @Inject constructor(
 
     suspend fun restoreSession(): UserAccount? {
         if (!session.isLoggedIn()) return null
+        // LICENCIA: verifica antes de restaurar sesión
         if (sync.server().isNotBlank()) {
             if (!sync.isConnected()) return null   // la sesión del servidor caducó: volver a entrar
+            val lic = licenseManager.fetchStatus(sync.server())
+            if (!lic.valid) return null
             sync.start()
+        } else {
+            if (!licenseManager.isLocallyValid()) return null
         }
         return db.users().get(session.userId())?.takeIf { it.active }?.toModel()
     }

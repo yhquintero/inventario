@@ -1,5 +1,6 @@
 import { store } from "./store.js";
-import { api } from "./api.js";
+import { api, setLicenseErrorHandler } from "./api.js";
+import { LicenseManager } from "./license.js";
 import qrcode from "../vendor/qrcode.mjs";
 import { applyTips, initTooltips, startTour, tourSeen, openPalette, animateCounters } from "./ux.js";
 import {
@@ -36,6 +37,7 @@ let ui = {
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
   histTab: "precios",
   whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, iv: null,
+  license: { status: null, loading: true, error: null, key: "", activating: false, info: null },
 };
 
 const role = () => store.state.session?.role;
@@ -108,10 +110,11 @@ function shell(body) {
       <section class="main">
         <div class="topbar">
           <button class="btn ghost small menu-btn" data-act="drawer">☰</button>
-          <div class="tb-title"><h2>${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP</span></div>
+          <div class="tb-title"><h2>${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP ${ui.license.status?.valid ? `· 🔐 ${esc(ui.license.status.type)} ${ui.license.status.daysLeft === -1 ? "· Permanente" : `· ${ui.license.status.daysLeft}d`}` : ""}</span></div>
           ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" />${ui.q ? `<button class="x" data-act="clear-q">✕</button>` : ""}</div>` : `<div style="flex:1"></div>`}
           ${whPicker()}
           <span class="sync-dot ${store.sync}" id="syncDot" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
+          <button class="btn ghost small" data-act="license-manage" title="Licencia de uso" data-tip="Licencia ${ui.license.status?.valid ? `${ui.license.status.type} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}` : "no válida"}">🔐</button>
           <button class="btn ghost small kbd-btn" data-act="palette">⌘K</button>
           <button class="btn ghost small" data-act="tour">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
@@ -128,7 +131,66 @@ function shell(body) {
   `;
 }
 
+function licenseView() {
+  const lic = ui.license;
+  const st = lic.status;
+  const isExpired = st && !st.valid && st.lastLicense?.expired;
+  const hasExpired = st && !st.valid && st.hasLicense;
+  const days = st?.daysLeft;
+  const expText = st?.valid ? (days === -1 ? "Permanente" : `${days} días restantes · expira ${LicenseManager.fmtDate(st.expiresAt)}`) : "";
+  return `
+    <div class="login-wrap license-wrap">
+      <div class="login-hero">
+        <div class="eyebrow">🔐 Licencia de Uso · Acceso controlado</div>
+        <h1>Acceso protegido<br>por licencia</h1>
+        <p>Para garantizar el uso legítimo de <strong>Cuadre Pinar</strong>, el acceso a todas las Apps se verifica <b>siempre primero</b> por la licencia de uso. Sin una licencia válida no se puede entrar al sistema.</p>
+        <div class="license-features">
+          <div>✔ Verificación criptográfica HMAC-SHA256</div>
+          <div>✔ Control de expiración y dispositivos</div>
+          <div>✔ Activación segura en el servidor</div>
+          <div>✔ Bloqueo total sin licencia</div>
+        </div>
+        <div class="hero-cats">${Object.values(CATEGORIES).filter((c) => c.img).slice(0, 6).map((c) => `<img src="./public/cat/${c.img}.jpg" alt="">`).join("")}</div>
+        ${st?.valid ? `<div class="card" style="margin-top:16px"><div class="card-h"><span class="k">Licencia actual</span><span class="tag entrada">${esc(st.type)}</span></div>
+          <p><b>${esc(st.clientName)}</b> · ${esc(st.product)}<br><span class="hint">${expText} · ID ${esc(st.licenseId || "")}</span></p>
+          ${LicenseManager.isExpiringSoon(st) ? `<div class="banner">⚠ La licencia vence en ${days} días. Renueve antes de que expire.</div>` : ""}
+        </div>` : ""}
+      </div>
+      <div class="login-panel">
+        <form class="login-card" id="licenseForm">
+          <div class="brand-row"><img src="./public/icon-app.png" alt="" /><div><div class="eyebrow">Licencia de Uso</div><div>Activación</div></div></div>
+          ${lic.loading ? `<div class="card"><p class="hint">Verificando licencia en el servidor…</p><div class="loader"></div></div>` : `
+            ${st?.valid ? `<div class="banner ok">✔ Licencia válida · ${esc(st.clientName)} · ${expText}</div>` : `
+              ${hasExpired ? `<div class="banner">${isExpired ? `⛔ La licencia expiró el ${LicenseManager.fmtDate(st.lastLicense.expiresAt)}. Debe activar una nueva.` : `⚠ ${esc(st.reason || "No hay licencia activa")}`}</div>` : `<div class="banner">${esc(st?.reason || "No hay licencia activa. Active una licencia para continuar.")}</div>`}
+            `}
+            <div class="h2">${st?.valid ? "Cambiar / Renovar licencia" : "Activar licencia de uso"}</div>
+            <p class="hint">Pegue la clave de licencia completa (incluye el punto). Formato: <code>CP-XXXX-...XXXX.YYYY</code>. La clave es verificada criptográficamente en el servidor antes de permitir cualquier acceso.</p>
+            <label>Clave de licencia<textarea name="license_key" id="licenseKey" rows="4" placeholder="CP-...." required style="font-family:monospace;word-break:break-all">${esc(lic.key || "")}</textarea></label>
+            <div class="row" style="margin-top:12px">
+              <button class="btn full" ${lic.activating ? "disabled" : ""}>${lic.activating ? "Verificando…" : st?.valid ? "Actualizar licencia" : "Activar licencia"}</button>
+            </div>
+            ${lic.error ? `<div class="error" style="margin-top:12px">${esc(lic.error)}</div>` : ""}
+            ${lic.info ? `<div class="card" style="margin-top:12px"><div class="card-h"><span class="k">Verificación</span></div><p class="hint">${esc(lic.info)}</p></div>` : ""}
+            <div class="row" style="margin-top:12px">
+              <button type="button" class="btn ghost small" data-act="license-refresh">↻ Verificar de nuevo</button>
+              ${st?.valid ? `<button type="button" class="btn ghost small" data-act="license-continue">Continuar a la App →</button>` : ""}
+            </div>
+            <p class="hint secure-note" style="margin-top:16px">🔒 La licencia se valida primero en el servidor. Sin licencia válida no se puede iniciar sesión ni usar la App Web o Móvil.</p>
+            <div class="demo">
+              <strong>¿No tiene licencia?</strong><br>
+              Contacte al administrador para generar una licencia FULL, TRIAL o ENTERPRISE desde <code>Ajustes → Licencia</code> (requiere rol Administrador).<br>
+              Prueba automática: ${st?.trialDays || 15} días.
+            </div>
+          `}
+        </form>
+      </div>
+    </div>`;
+}
+
 function loginView() {
+  // Si la licencia no es válida, no muestra login, muestra licencia
+  if (!ui.license.status?.valid) return licenseView();
+  const expiring = LicenseManager.isExpiringSoon(ui.license.status);
   return `
     <div class="login-wrap">
       <div class="login-hero">
@@ -136,6 +198,11 @@ function loginView() {
         <h1>El cuadre,<br>sin errores.</h1>
         <p>Existencias, ventas, comisiones, domicilios, cuadre diario e informe semanal — sincronizado con <strong>CUADRE PINAR SEPT.xlsx</strong>.</p>
         <div class="hero-cats">${Object.values(CATEGORIES).filter((c) => c.img).slice(0, 6).map((c) => `<img src="./public/cat/${c.img}.jpg" alt="">`).join("")}</div>
+        ${expiring ? `<div class="banner" style="margin-top:16px">⚠ Licencia vence en ${ui.license.status.daysLeft} días (${LicenseManager.fmtDate(ui.license.status.expiresAt)}). Renueve pronto.</div>` : ""}
+        <div class="card" style="margin-top:12px"><div class="card-h"><span class="k">Licencia</span><span class="tag entrada">${esc(ui.license.status.type)}</span></div>
+          <p class="hint">${esc(ui.license.status.clientName)} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días restantes`}</p>
+          <button class="btn ghost small" data-act="license-manage">Gestionar licencia</button>
+        </div>
       </div>
       <div class="login-panel">
         <form class="login-card" id="loginForm">
@@ -161,7 +228,7 @@ function loginView() {
             <button type="button" class="btn ghost full" data-act="recover" style="margin-top:8px">Olvidé mi contraseña</button>
           `}
           <div id="loginErr">${ui.loginErr ? `<div class="error">${esc(ui.loginErr)}</div>` : ""}</div>
-          <p class="hint secure-note">🔒 Conexión ${location.protocol === "https:" ? "cifrada (HTTPS)" : "sin cifrar — usa HTTPS en producción"} · datos en el servidor</p>
+          <p class="hint secure-note">🔒 Conexión ${location.protocol === "https:" ? "cifrada (HTTPS)" : "sin cifrar — usa HTTPS en producción"} · Licencia verificada primero</p>
           <div class="demo">
             <strong>Cuentas de demostración</strong><br>
             admin / <code>Admin123!</code> · jefe / <code>Jefe123!</code><br>
@@ -702,6 +769,67 @@ function backupView() {
     </label>`;
 }
 
+function licenseCard() {
+  const lic = ui.license.status;
+  const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
+  const lastGen = ui.license.lastGenerated;
+  if (!ui.license.infoLoaded && admin) {
+    ui.license.infoLoaded = true;
+    api("/license/info").then((r) => {
+      ui.license.info = r;
+      render();
+    });
+  }
+  const info = ui.license.info;
+  const expText = lic?.valid ? (lic.daysLeft === -1 ? "Permanente" : `${lic.daysLeft} días · expira ${LicenseManager.fmtDate(lic.expiresAt)}`) : "No válida";
+  return `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-h"><span class="k">🔐 Licencia de Uso</span>${lic?.valid ? `<span class="tag entrada">${esc(lic.type)} · ${expText}</span>` : `<span class="tag salida">Sin licencia válida</span>`}</div>
+      ${lic?.valid ? `
+        <div class="kpis mini">
+          ${kpi("Cliente", esc(lic.clientName), esc(lic.product))}
+          ${kpi("Tipo", esc(lic.type), `ID ${esc(lic.licenseId || "")}`)}
+          ${kpi("Expira", LicenseManager.fmtDate(lic.expiresAt), lic.daysLeft === -1 ? "Permanente" : `${lic.daysLeft} días`)}
+          ${kpi("Usuarios / Dispositivos", `${lic.maxUsers} / ${lic.maxDevices}`, "límites")}
+        </div>
+        ${LicenseManager.isExpiringSoon(lic) ? `<div class="banner">⚠ La licencia vence en ${lic.daysLeft} días. Renueve antes de que expire para no bloquear el acceso.</div>` : ""}
+        <p class="hint">El acceso a todas las Apps (Web y Móvil) se verifica siempre primero por la licencia. Sin licencia válida no se puede iniciar sesión.</p>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost small" data-act="license-refresh">↻ Verificar</button>
+          <button class="btn ghost small" data-act="license-manage">Gestionar</button>
+        </div>
+      ` : `
+        <div class="banner">⛔ No hay licencia activa. Active una licencia para usar la App.</div>
+        <p class="hint">Pegue la clave completa con punto. La verificación es criptográfica y se hace en el servidor antes de cualquier acceso.</p>
+        <form id="licenseFormInline" class="form-grid">
+          <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="CP-..." style="font-family:monospace"></textarea></label>
+          <div class="span-2 row"><button class="btn small" data-act="license-activate-inline">Activar</button><button type="button" class="btn ghost small" data-act="license-refresh">Verificar estado</button></div>
+        </form>
+      `}
+      ${admin ? `
+        <div class="card" style="margin-top:14px">
+          <div class="card-h"><span class="k">Generar nueva licencia (Admin)</span></div>
+          <form id="licenseGenForm" class="form-grid">
+            <label>Cliente<input name="client_name" value="${esc(lic?.clientName || "Cuadre Pinar")}" required></label>
+            <label>Tipo<select name="type"><option>FULL</option><option>TRIAL</option><option>ENTERPRISE</option><option>LIFETIME</option></select></label>
+            <label>Días (0 = permanente)<input name="days" type="number" value="365"></label>
+            <label>Max usuarios<input name="max_users" type="number" value="20"></label>
+            <label>Max dispositivos<input name="max_devices" type="number" value="10"></label>
+            <label><input type="checkbox" name="activate"> Activar al generar (desactiva otras)</label>
+            <div class="span-2 row"><button type="button" class="btn small" data-act="license-gen">Generar licencia</button></div>
+          </form>
+          ${lastGen ? `<div class="card" style="margin-top:12px"><div class="card-h"><span class="k">Última generada · ${esc(lastGen.payload.license_id)}</span><span class="tag entrada">${esc(lastGen.payload.type)}</span></div>
+            <p class="mono" style="word-break:break-all;background:#f5f5f5;padding:8px;border-radius:6px">${esc(lastGen.license_key)}</p>
+            <p class="hint">Formateada: ${esc(lastGen.formattedKey)}</p>
+            <div class="row"><button class="btn ghost small" data-act="license-copy">Copiar clave</button></div>
+          </div>` : ""}
+          ${info?.licenses?.length ? `<div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Cliente</th><th>Tipo</th><th>Expira</th><th>Activa</th><th>Clave</th></tr></thead>
+            <tbody>${info.licenses.map((l) => `<tr><td>${esc(l.client_name)}</td><td><span class="tag ${l.active ? "entrada" : "salida"}">${esc(l.type)}</span></td><td>${l.expires_at ? LicenseManager.fmtDate(l.expires_at) : "Permanente"}${l.expires_at && l.expires_at < Math.floor(Date.now()/1000) ? " · expirada" : ""}</td><td>${l.active ? "✔" : "—"}</td><td class="mono hint" title="${esc(l.key)}">${esc(l.keyPreview || l.formattedKey || "")}</td></tr>`).join("")}</tbody></table></div>` : ""}
+        </div>
+      ` : `<p class="hint">Solo administradores pueden generar licencias.</p>`}
+    </div>`;
+}
+
 function securityCard() {
   const u = store.state.session;
   const sec = ui.sec || (ui.sec = { sessions: null });
@@ -750,6 +878,7 @@ function settingsView() {
   const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
   const dis = admin ? "" : "disabled";
   return `
+    ${licenseCard()}
     ${securityCard()}
     <form id="settingsForm" class="card form-grid" style="margin-top:14px">
       <div class="span-2 card-h"><span class="k">Ajustes del negocio</span>${admin ? "" : `<span class="hint">Solo administrador o jefe pueden cambiarlos (salvo el tema).</span>`}</div>
@@ -1512,13 +1641,39 @@ function page() {
   return (views[ui.route] || homeView)();
 }
 
+async function checkLicenseFirst() {
+  if (ui.license.status?.valid) return true;
+  if (ui.license.loading) {
+    ui.license.status = await LicenseManager.fetchStatus();
+    ui.license.loading = false;
+  }
+  return !!ui.license.status?.valid;
+}
+
 function render() {
   applyTheme();
   // Conserva foco y cursor (arregla el buscador que perdía el foco al escribir).
-  const act = document.activeElement;
-  const focusId = act?.id;
-  const selStart = act?.selectionStart, selEnd = act?.selectionEnd;
+  const activeEl = document.activeElement;
+  const focusId = activeEl?.id;
+  const selStart = activeEl?.selectionStart, selEnd = activeEl?.selectionEnd;
   const scroll = $(".content")?.scrollTop;
+  // LICENCIA DE USO: verificación obligatoria siempre primero
+  if (ui.license.loading) {
+    app.innerHTML = `<div class="login-wrap"><div class="login-hero"><div class="eyebrow">Verificando licencia…</div><h1>Cuadre Pinar</h1><p>Comprobando licencia de uso antes de permitir el acceso.</p></div><div class="login-panel"><div class="login-card"><div class="loader"></div><p class="hint">Conectando con el servidor…</p></div></div></div>`;
+    // Lanza verificación async
+    LicenseManager.fetchStatus().then((st) => {
+      ui.license.status = st;
+      ui.license.loading = false;
+      render();
+    });
+    return;
+  }
+  if (!ui.license.status?.valid) {
+    app.innerHTML = licenseView();
+    bindLicense();
+    ensureClicks();
+    return;
+  }
   if (!store.state.session) { app.innerHTML = loginView(); bindLogin(); return; }
   if (!allowed(routes[ui.route]?.perm)) ui.route = "home";
   const formVals = {};
@@ -1565,8 +1720,45 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "?") startTour();
 });
 
+function bindLicense() {
+  ensureClicks();
+  $("#licenseKey")?.addEventListener("input", (e) => {
+    ui.license.key = e.target.value;
+  });
+  $("#licenseForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const key = String(fd.get("license_key") || "").trim();
+    if (!key) return toast("Pegue la clave de licencia.", "err");
+    ui.license.activating = true;
+    ui.license.error = null;
+    render();
+    const r = await LicenseManager.activate(key);
+    ui.license.activating = false;
+    if (r.ok) {
+      ui.license.status = await LicenseManager.fetchStatus();
+      ui.license.key = "";
+      ui.license.error = null;
+      toast(`Licencia activada · ${r.clientName} · ${r.type}`, "ok");
+      // Si ya había sesión, recarga datos
+      if (store.state.session) {
+        await store.reload();
+      }
+      render();
+    } else {
+      ui.license.error = r.error;
+      render();
+    }
+  });
+}
+
 function bindLogin() {
   ensureClicks();
+  // Si la licencia no es válida, no intenta login
+  if (!ui.license.status?.valid) {
+    bindLicense();
+    return;
+  }
   $("#loginForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -1801,6 +1993,20 @@ function bindApp() {
     if (!r.ok) return toast(r.error, "err");
     ui.sec.sessions = null; e.target.reset(); toast("Contraseña cambiada · otras sesiones cerradas", "ok");
   });
+  $("#licenseFormInline")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const key = String(fd.get("license_key") || "").trim();
+    if (!key) return toast("Pegue la clave de licencia.", "err");
+    const r = await LicenseManager.activate(key);
+    if (r.ok) {
+      ui.license.status = await LicenseManager.fetchStatus();
+      toast(`Licencia activada · ${r.clientName}`, "ok");
+      render();
+    } else {
+      toast(r.error, "err");
+    }
+  });
 }
 
 function resizeImage(file, max) {
@@ -1939,6 +2145,73 @@ function onClick(e) {
   else if (act === "iv-apply") ivApply();
   else if (act === "iv-clear") { const st = ivState(); st.rows = []; st.text = ""; st.last = null; st.warn = false; render(); }
   else if (act === "iv-template") ivTemplate();
+  else if (act === "license-refresh") {
+    ui.license.loading = true;
+    ui.license.error = null;
+    render();
+    LicenseManager.fetchStatus().then((st) => {
+      ui.license.status = st;
+      ui.license.loading = false;
+      render();
+      toast(st.valid ? "Licencia verificada · válida" : `Licencia: ${st.reason || "no válida"}`, st.valid ? "ok" : "err");
+    });
+  }
+  else if (act === "license-continue") {
+    if (ui.license.status?.valid) render();
+  }
+  else if (act === "license-manage") {
+    ui.license.loading = true;
+    render();
+    LicenseManager.fetchStatus().then((st) => {
+      ui.license.status = st;
+      ui.license.loading = false;
+      render();
+    });
+  }
+  else if (act === "license-gen") {
+    // Solo admin: genera licencia desde el modal
+    const form = document.getElementById("licenseGenForm");
+    if (!form) return;
+    const fd = new FormData(form);
+    const body = {
+      client_name: fd.get("client_name"),
+      type: fd.get("type"),
+      days: fd.get("days"),
+      max_users: fd.get("max_users"),
+      max_devices: fd.get("max_devices"),
+      activate: fd.get("activate") === "on",
+    };
+    api("/license/generate", { method: "POST", body }).then((r) => {
+      if (r.error) return toast(r.error, "err");
+      ui.license.lastGenerated = r;
+      toast(`Licencia generada · ${r.payload.license_id}`, "ok");
+      render();
+    });
+  }
+  else if (act === "license-copy") {
+    const key = ui.license.lastGenerated?.license_key || ui.license.status?.formattedKey || "";
+    if (key) {
+      navigator.clipboard?.writeText(key).then(() => toast("Clave copiada al portapapeles", "ok")).catch(() => toast(key, ""));
+    }
+  }
+  else if (act === "license-activate-inline") {
+    const form = document.getElementById("licenseFormInline");
+    if (!form) return;
+    const fd = new FormData(form);
+    const key = String(fd.get("license_key") || "").trim();
+    if (!key) return toast("Pegue la clave de licencia.", "err");
+    LicenseManager.activate(key).then((r) => {
+      if (r.ok) {
+        LicenseManager.fetchStatus().then((st) => {
+          ui.license.status = st;
+          toast(`Licencia activada · ${r.clientName}`, "ok");
+          render();
+        });
+      } else {
+        toast(r.error, "err");
+      }
+    });
+  }
   else if (act === "tour") startTour();
   else if (act === "drawer") { ui.drawer = !ui.drawer; render(); }
   else if (act === "clear-q") { ui.q = ""; render(); $("#globalSearch")?.focus(); }
@@ -2024,6 +2297,22 @@ setInterval(() => {
   const mins = Math.min(store.state.settings.sessionMinutes || 20, store.idleMinutes || 20);
   if (store.state.session && Date.now() - lastActivity > mins * 60000) { ui.sec = null; store.logout(); toast(`Sesión cerrada por ${mins} min de inactividad`, "err"); }
 }, 30000);
+// Verificación periódica de licencia (cada 5 min) - si expira, bloquea acceso
+setInterval(async () => {
+  if (!ui.license.status?.valid) return;
+  const st = await LicenseManager.fetchStatus();
+  if (!st.valid) {
+    ui.license.status = st;
+    ui.license.loading = false;
+    if (store.state.session) {
+      store.clearSession();
+    }
+    toast("Licencia expirada o revocada. Active una nueva licencia.", "err");
+    render();
+  } else {
+    ui.license.status = st;
+  }
+}, 300000);
 store.onSync = (v) => {
   const el = document.getElementById("syncDot");
   if (!el) return;
@@ -2033,5 +2322,24 @@ store.onSync = (v) => {
 window.addEventListener("beforeunload", (e) => { if (store.dirty || store.saving) { store.flush(); e.preventDefault(); e.returnValue = ""; } });
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker?.register("./sw.js").catch(() => {});
 store.onNotice = (msg, kind) => toast(msg, kind === "error" ? "err" : "");
+// Manejador de errores de licencia: si el servidor responde 402, fuerza pantalla de licencia
+setLicenseErrorHandler((msg) => {
+  LicenseManager.fetchStatus().then((st) => {
+    ui.license.status = st;
+    ui.license.loading = false;
+    ui.license.error = msg;
+    if (store.state.session) store.clearSession();
+    render();
+  });
+});
 store.subscribe(() => render());
-store.init().then(() => { const r = location.hash.slice(1); if (routes[r]) ui.route = r; render(); });
+// Flujo de inicio: primero licencia, luego sesión
+LicenseManager.fetchStatus().then((st) => {
+  ui.license.status = st;
+  ui.license.loading = false;
+  render();
+  // Solo si hay licencia válida inicia el store (que intenta restaurar sesión)
+  if (st.valid) {
+    store.init().then(() => { const r = location.hash.slice(1); if (routes[r]) ui.route = r; render(); });
+  }
+});

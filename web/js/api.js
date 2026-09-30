@@ -1,7 +1,9 @@
 /** Cliente de la API del servidor Cuadre Pinar. Sesión por cookie HttpOnly + token Bearer (para vista embebida). */
 const TOKEN = "cuadrepinar.token";
 let onUnauthorized = () => {};
+let onLicenseError = () => {};
 export const setUnauthorizedHandler = (fn) => (onUnauthorized = fn);
+export const setLicenseErrorHandler = (fn) => (onLicenseError = fn);
 export const getToken = () => sessionStorage.getItem(TOKEN);
 export const setToken = (t) => (t ? sessionStorage.setItem(TOKEN, t) : sessionStorage.removeItem(TOKEN));
 
@@ -19,5 +21,8 @@ export async function api(path, { method = "GET", body } = {}) {
   let data = {};
   try { data = await res.json(); } catch {}
   if (res.status === 401 && !path.startsWith("/login") && !path.startsWith("/recover")) onUnauthorized(data.error);
+  if (res.status === 402 || data.licenseError) {
+    onLicenseError(data.error || data.reason || "Licencia no válida");
+  }
   return { status: res.status, ...data, error: res.ok ? data.error : data.error || `Error ${res.status}` };
 }

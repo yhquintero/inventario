@@ -397,6 +397,14 @@ tr.off, tr.off td { opacity: .5; }
 .iv-table tr:hover td { background: color-mix(in srgb, var(--primary) 4%, transparent); }
 textarea { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 9px 11px; color: var(--ink); font-family: var(--mono); font-size: 12.5px; width: 100%; }
 textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+/* ===== Licencia de Uso ===== */
+.license-wrap .login-hero { background: linear-gradient(145deg, #0b1f33, #1a0b2e 40%, #0f766e); }
+.license-features { margin-top: 18px; display: grid; gap: 8px; }
+.license-features div { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); padding: 8px 12px; border-radius: 10px; font-size: 13px; color: #cfe7e4; }
+.license-wrap textarea { font-family: var(--mono); font-size: 11.5px; }
+.banner.ok { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 35%, transparent); color: var(--ok); }
+.loader { width: 36px; height: 36px; border: 3px solid var(--line); border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; margin: 12px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 640px) {
   .wh-stats { grid-template-columns: repeat(2, 1fr); }
   .wh-pick { display: none; }
