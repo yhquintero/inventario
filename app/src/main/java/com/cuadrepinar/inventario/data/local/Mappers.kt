@@ -42,12 +42,13 @@ fun MovementEntity.toModel(productName: String = "", userName: String = "") = Mo
     stockFinal = stockFinal,
     userId = userId,
     userName = userName,
-    notes = notes
+    notes = notes,
+    unitCostUsd = unitCostUsd
 )
 
 fun Movement.toEntity() = MovementEntity(
     id, dateEpoch, weekday, productId, type.name, quantity, unitPriceUsd, importeUsd,
-    center.name, comisionCup, stockInicial, stockFinal, userId, notes
+    center.name, comisionCup, stockInicial, stockFinal, userId, notes, unitCostUsd = unitCostUsd
 )
 
 fun DailyCuadreEntity.toModel() = DailyCuadre(

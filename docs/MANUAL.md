@@ -8,7 +8,7 @@
 
 ## Inventario
 
-Los 191 productos vienen de la hoja `Configuracion`. Pulsa un producto para editar nombre, stock inicial, precio USD y comisión CUP. El stock actual lo mueven las operaciones, no el formulario.
+El catálogo inicial procede de `CUADRE PINAR SEPT.xlsx` (hoja `25 9 26`). Los libros NOVA agregan o actualizan productos al importar sus hojas diarias. Pulsa un producto para editar nombre, stock inicial, precio USD y comisión CUP. El stock actual lo mueven las operaciones, no el formulario.
 
 ## Almacenes
 
@@ -38,6 +38,15 @@ rápida, la columna de existencia del Inventario, los movimientos y las importac
 
 Guía completa: `docs/ALMACENES.md`. Pruebas de la lógica: `node tools/test_almacenes.mjs`.
 
+### Libros diarios y semanales de `xlsx/`
+
+- **PCH.xlsx**: en Importar valores, sube el libro, selecciona Pinar del Río, Consolación o Herradura y revisa la existencia antes de aplicar. Los nombres repetidos dentro de una ubicación suman stock; no se importan precios.
+- **RESUMEN POR SEMANA PINAR.xlsx**: desde Informe semanal, selecciona Importar resumen Excel. El año se muestra en la vista previa; las cifras se guardan como referencia y no sustituyen el cálculo de la aplicación.
+- **CUADRE PINAR SEPT.xlsx**: desde Copias, sube el libro, revisa las hojas con fecha y selecciona las que quieras importar al almacén. Se aplican cronológicamente; se importan existencias, movimientos, tasa y panel diario. Las diferencias de apertura/cierre se anotan como ajustes explícitos.
+- **NOVA PINAR / CONSOLACION / HERRADURA.xlsx**: desde Copias, sube el libro para analizar todas sus hojas diarias. Revisa el almacén, corrige fechas incompletas y cambia o excluye una de las hojas que repita fecha. La aplicación bloquea la importación si queda una fecha vacía o duplicada. Las ventas conservan el importe USD, costo unitario y comisión CUP del Excel; el informe muestra las diferencias entre el detalle, el panel financiero y el saldo de existencias.
+
+Reimportar el mismo archivo y hoja reemplaza ese lote incluso si se corrigió su fecha. No se debe asignar la fecha únicamente a partir del número de pestaña.
+
 ## Movimientos
 
 - **VENTA**: descuenta stock, calcula importe y, si el centro es GESTOR, comisión CUP.
@@ -54,8 +63,10 @@ Los totales se recalculan al instante. Guardar deja rastro en el historial de ti
 
 ## Reportes
 
-Periodo diario, semanal (lunes–sábado, como el libro) o mensual. La tabla **COMPROBACION** replica columnas del Excel. Exporta CSV o imprime a PDF.
+Elige día, semana operativa (lunes–sábado), mes, año o **Período** con fechas Desde/Hasta; puedes filtrar por almacén. La tabla muestra existencias de apertura, ventas, entradas, salidas, saldo al cierre e importes de lista/venta/costo/utilidad. Los encabezados de Inventario y Comprobación permanecen fijos mientras se desplazan las filas. Los importes y costos históricos se mantienen aunque cambie el catálogo. Las referencias NOVA presentan el detalle frente a la venta declarada, las diferencias de caja y el cierre de stock comparado con el Excel. Exporta el informe y sus movimientos a CSV o PDF. Inventario, Movimientos y cada almacén también tienen exportación a PDF; en el diálogo de impresión elige «Guardar como PDF».
+
+El resumen semanal conserva gastos fijos introducidos manualmente y admite importar el libro semanal como referencia. Los resultados importados no reemplazan los movimientos originales.
 
 ## Copias
 
-En Android las copias se cifran (AES-GCM) y WorkManager programa una automática cada 24 h. En la demo web se descarga un JSON restaurable.
+En Android las copias se cifran (AES-GCM) y WorkManager programa una automática cada 24 h. En Web, Copias permite exportar/restaurar JSON y cargar los libros diarios CUADRE PINAR y NOVA desde `xlsx/` (seleccionados explícitamente por quien importa).

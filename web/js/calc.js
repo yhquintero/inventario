@@ -196,11 +196,14 @@ export function periodRange(period, iso = todayISO()) {
     const z = (n) => String(n).padStart(2, "0");
     return `${x.getFullYear()}-${z(x.getMonth() + 1)}-${z(x.getDate())}`;
   };
-  if (period === "diario") return { from: iso, to: iso };
+  if (period === "diario") return { from: toISO(d), to: toISO(d) };
   if (period === "mensual") {
     const from = new Date(d.getFullYear(), d.getMonth(), 1);
     const to = new Date(d.getFullYear(), d.getMonth() + 1, 0);
     return { from: toISO(from), to: toISO(to) };
+  }
+  if (period === "anual") {
+    return { from: `${d.getFullYear()}-01-01`, to: `${d.getFullYear()}-12-31` };
   }
   const day = d.getDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
@@ -211,8 +214,31 @@ export function periodRange(period, iso = todayISO()) {
   return { from: toISO(monday), to: toISO(saturday) };
 }
 
+/** Intervalos estándar para los informes. Las semanas operativas van de lunes a sábado. */
+export function reportPeriodRange(period, iso = todayISO(), customFrom = "", customTo = "") {
+  if (period === "período") {
+    return { from: String(customFrom || ""), to: String(customTo || ""), valid: !!customFrom && !!customTo && customFrom <= customTo };
+  }
+  if (period === "semanal") return { ...weekRange(iso), valid: true };
+  return { ...periodRange(period, iso), valid: true };
+}
+
+/** Balance de inventario al comienzo de un período. Los movimientos anteriores
+ * ajustan la existencia inicial, y cada almacén conserva su propia base. */
+export function stockAtStart(product, movements, from, warehouseId = null) {
+  const openingStock = warehouseId
+    ? Number(product?.stocksInicial?.[warehouseId] ?? 0)
+    : Number(product?.stockInicial ?? 0);
+  const before = (movements || []).reduce((total, movement) => {
+    if (movement?.date >= from || (warehouseId && movement?.warehouseId !== warehouseId)) return total;
+    const quantity = Number(movement?.quantity) || 0;
+    return total + (movement?.type === MovementType.ENTRADA ? quantity : -quantity);
+  }, 0);
+  return round2(openingStock + before);
+}
+
 export function inRange(iso, from, to) {
-  return iso >= from && iso <= to;
+  return !!from && !!to && iso >= from && iso <= to;
 }
 
 export function validateProduct(p) {

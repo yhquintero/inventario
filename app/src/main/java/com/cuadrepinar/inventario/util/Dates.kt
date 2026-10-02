@@ -52,6 +52,7 @@ object Dates {
         "diario" -> startOfDay(date) to endOfDay(date)
         "semanal" -> weekRange(date)
         "mensual" -> monthRange(date)
+        "anual" -> startOfDay(date.withDayOfYear(1)) to endOfDay(date.withDayOfYear(date.lengthOfYear()))
         else -> startOfDay(date.minusDays(30)) to endOfDay(date)
     }
 }

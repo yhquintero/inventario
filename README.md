@@ -2,7 +2,7 @@
 
 **Control de inventario, movimientos y cuadre diario** para la operación de Pinar del Río. El proyecto incluye una aplicación Web y una aplicación Android; ambas pueden trabajar conectadas al servidor compartido.
 
-> 📊 Los libros de Excel se usan como fuentes de importación explícita y como referencias de consulta. La aplicación no importa ni reemplaza datos automáticamente.
+> 📊 Los libros de Excel sirven como fuentes de importación y referencia. La Web no los vuelve a importar ni sustituye los datos operativos sin una acción explícita; una instalación nueva puede iniciar con la semilla incluida en el proyecto.
 
 ## 🧭 Contenido
 
@@ -29,7 +29,7 @@
 - 🔄 **Movimientos:** ventas, entradas y salidas, con almacén, centro de venta, cantidades, importes y observaciones.
 - 🛒 **Venta rápida:** registra ventas y descuenta del almacén seleccionado.
 - 🧮 **Cuadre diario:** tasas CUP/USD y MXN/USD, cobros, entradas, extracciones, fondos y gastos.
-- 📊 **Informes:** resumen semanal y comprobación de inventario en períodos diario, semanal y mensual.
+- 📊 **Informes:** cuadres diarios, resumen semanal y comprobación de inventario diaria, semanal, mensual, anual o en un período personalizado; exportación CSV/PDF.
 - 🕵️ **Historial y auditoría:** cambios relevantes y movimientos quedan registrados según la operación y el rol.
 - ☁️ **Sincronización:** al conectarse al servidor, los usuarios Web y Android trabajan sobre el mismo estado.
 
@@ -37,12 +37,12 @@
 
 Las importaciones se inician desde la interfaz y muestran una **vista previa** antes de guardar. No sustituyen movimientos ni se ejecutan automáticamente al abrir la aplicación.
 
-| Libro | Dónde se importa | Qué conserva |
+| Libro en `xlsx/` | Dónde se aplica | Qué conserva |
 |---|---|---|
-| `PCH.xlsx` | Web → **Importar valores** → subir archivo | Se elige una ubicación y se importan sus existencias al almacén de destino. El libro contiene **Pinar del Río**, **Consolación** y **Herradura**. Los nombres repetidos dentro de una ubicación se consolidan sumando existencias. No se modifican precios globales: el libro tiene precios por ubicación y el catálogo usa precios compartidos. |
-| `RESUMEN POR SEMANA PINAR .xlsx` | Web → **Informe semanal** → **Importar resumen Excel** | Se lee la hoja `PINAR` cuando existe y se muestran semanas, fechas y totales antes de guardar. Cada semana queda como **referencia del Excel** junto a los datos actuales; no reemplaza movimientos, cuadres ni cálculos del informe. |
-| `CUADRE PINAR SEPT.xlsx` | Fuente de referencia del conjunto de datos | Libro utilizado como referencia para los datos de septiembre y las semillas incluidas en el proyecto. |
-| `Nuevo Cuadre Pinar.xlsx` | Fuente de referencia de la estructura del cuadre | Libro utilizado para documentar el mapeo de productos, movimientos y comprobación. |
+| `CUADRE PINAR SEPT.xlsx` | Web → **Copias** → importar libro | Detecta y permite importar en orden cronológico todas las hojas diarias seleccionadas: existencias, entradas, salidas, ventas, tasa y cuadre. La fecha proviene del nombre de la hoja. Las diferencias de apertura/cierre se anotan como ajustes explícitos; reimportar sustituye cada lote. También alimenta las semillas del proyecto. |
+| `NOVA PINAR.xlsx`, `NOVA CONSOLACION.xlsx`, `NOVA HERRADURA.xlsx` | Web → **Copias** → importar libro | Importación masiva de sus hojas diarias con fecha, almacén y selección corregibles. Advierte fechas vacías y duplicadas antes de guardar. Conserva importe real, costo unitario y comisión CUP por venta y crea referencias financieras diarias para revisar diferencias de caja y existencias. |
+| `PCH.xlsx` | Web → **Importar valores** → subir archivo | Se elige una de las ubicaciones **Pinar del Río**, **Consolación** o **Herradura** y se importan sus existencias al almacén de destino. Los nombres repetidos se consolidan sumando stock. No modifica precios globales, pues varían por ubicación. |
+| `RESUMEN POR SEMANA PINAR.xlsx` | Web → **Informe semanal** → **Importar resumen Excel** | Lee la hoja `PINAR`, muestra semanas, fechas y totales antes de guardar y conserva cada semana como referencia del Excel, sin reemplazar movimientos, cuadres ni cálculos de la aplicación. |
 
 📅 **Año del resumen semanal:** el libro semanal no imprime el año. La importación propone el año de la última fecha con datos (o el año actual si no hay fecha) y lo enseña en la vista previa antes de guardar.
 
@@ -54,20 +54,22 @@ Además de `PCH.xlsx`, el módulo **Importar valores** admite pegar columnas des
 
 ## 🖨️ Informes y PDF
 
-- **Web:** desde Cuadre diario, Informe semanal o Comprobación, pulsa **Imprimir / PDF** o **PDF** y selecciona *Guardar como PDF* en el diálogo del navegador. La impresión aplica página A4 horizontal, encabezado con el negocio y el período, estilos para tablas y ocultación de controles de navegación. La numeración depende de las opciones de impresión disponibles en el navegador.
-- **Android:** Cuadre diario permite **Exportar cuadre a PDF** y Reportes permite **Exportar comprobación PDF**. Los documentos incluyen encabezados, cifras clave, tablas paginadas y pie de página; se comparten mediante el diálogo estándar de Android.
-- 📄 En Android también están disponibles exportaciones CSV y Excel de la comprobación y CSV de movimientos.
+- **Web:** desde Inventario, Movimientos, Almacenes, Cuadre diario, Informe semanal o Comprobación puedes imprimir/guardar como PDF los datos visibles o el almacén elegido. En Comprobación elige día de referencia, semana, mes, año o fechas **Desde/Hasta** y filtra por almacén. El informe compara existencias de apertura/cierre y movimientos, y usa los importes y costos históricos por venta. Las hojas NOVA importadas muestran el detalle frente a la venta declarada y las diferencias de caja/stock. Pulsa **PDF** o **Imprimir / PDF** y selecciona *Guardar como PDF* en el diálogo del navegador. Inventario y comprobación mantienen los encabezados fijos mientras se desplazan sus filas. La impresión aplica página A4 horizontal, encabezado con el negocio y período, estilos de tabla y controles ocultos.
+- **Android:** Cuadre diario permite **Exportar cuadre a PDF** y Reportes permite **Exportar comprobación PDF**. Los documentos incluyen encabezados, cifras clave, tablas paginadas y pie de página; la comprobación muestra costo histórico, utilidad bruta y comisión CUP. Se comparten mediante el diálogo estándar de Android.
+- 📄 En Android también están disponibles exportaciones CSV y Excel de la comprobación —con costo, utilidad y comisión— y CSV de movimientos con snapshot de costo.
 
 ## 🚀 Puesta en marcha
 
 ### Servidor y aplicación Web
 
-Requisitos: Python 3.10 o posterior y el paquete `cryptography`.
+Requisitos: Python 3.10 o posterior y los paquetes `cryptography` (servidor) y `openpyxl` (regenerar las semillas desde los Excel).
 
 ```bash
-python3 -m pip install cryptography
+python3 -m pip install cryptography openpyxl
 python3 server/cuadre_server.py
 ```
+
+Para reconstruir `web/js/seed-data.js` y `app/src/main/assets/seed.json` desde todas las hojas fechadas de `xlsx/CUADRE PINAR SEPT.xlsx`, ejecuta `python3 tools/import_excel.py`. El generador conserva ventas, costos y comisiones por movimiento y anota los ajustes de apertura/cierre.
 
 El servidor escucha en `http://localhost:8080` por defecto y sirve la interfaz Web junto con la API. Para cambiar el puerto: `PORT=9090 python3 server/cuadre_server.py`.
 
@@ -109,7 +111,7 @@ En una base de datos nueva se crean estas cuentas de demostración:
 Desde la raíz del repositorio:
 
 ```bash
-node tools/test_excel_sources.mjs  # libros PCH y resumen semanal
+node tools/test_excel_sources.mjs  # PCH, resumen semanal, CUADRE PINAR y los tres libros NOVA
 node tools/test_almacenes.mjs      # lógica de almacenes e importación
 node tools/smoke_web.mjs           # recorrido de pantallas Web con DOM simulado
 ```
@@ -130,4 +132,4 @@ docs/      Manuales y documentación del mapeo Excel
 tools/     Pruebas y utilidades de importación
 ```
 
-📚 Referencia del modelo: [docs/MAPEO_EXCEL.md](docs/MAPEO_EXCEL.md). Los libros de referencia listados se encuentran en la raíz del repositorio; las bases de datos operativas, copias y claves generadas deben mantenerse fuera del control de versiones.
+📚 Referencia del modelo: [docs/MAPEO_EXCEL.md](docs/MAPEO_EXCEL.md). Los seis libros de referencia están en [`xlsx/`](xlsx/); la base de datos operativa, las copias y las claves generadas deben mantenerse fuera del control de versiones.

@@ -1,5 +1,6 @@
 package com.cuadrepinar.inventario.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -43,7 +44,9 @@ data class MovementEntity(
     val stockFinal: Double,
     val userId: Long,
     val notes: String = "",
-    val remoteId: String? = null
+    val remoteId: String? = null,
+    /** Coste unitario capturado al crear la venta; no cambia con el catálogo. */
+    @ColumnInfo(defaultValue = "0.0") val unitCostUsd: Double = 0.0
 )
 
 @Entity(tableName = "daily_cuadre", indices = [Index(value = ["dateEpoch"], unique = true)])

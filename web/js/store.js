@@ -23,6 +23,7 @@ function emptyState() {
     rates: [],
     priceHistory: [],
     weekly: {},
+    excelDailyReports: [],
     backups: [],
     warehouses: [],
     warehouseEntries: [],
@@ -42,7 +43,7 @@ function emptyState() {
     users: [],
   };
 }
-const SHARED = ["products", "movements", "cuadres", "audit", "rates", "priceHistory", "weekly", "settings", "warehouses", "warehouseEntries"];
+const SHARED = ["products", "movements", "cuadres", "audit", "rates", "priceHistory", "weekly", "excelDailyReports", "settings", "warehouses", "warehouseEntries"];
 
 class Store {
   constructor() {
@@ -246,7 +247,14 @@ class Store {
         id: uid("m"), seq: ++seq, date: m.date, productId: prod.id, productName: prod.name,
         type: m.type, quantity: m.quantity, unitPriceUsd: m.unitPriceUsd || 0, center: m.center || "TIENDA",
         warehouseId: WAREHOUSE_DEFAULT_ID,
+        unitCostUsd: m.type === "VENTA" ? (m.unitCostUsd == null ? Number(prod.precioCostoUsd) || 0 : Number(m.unitCostUsd) || 0) : 0,
+        importedAmountUsd: m.importeUsd == null ? null : Number(m.importeUsd) || 0,
+        importedCommissionCup: m.comisionCup == null ? null : Number(m.comisionCup) || 0,
+        importeUsd: m.importeUsd == null ? undefined : Number(m.importeUsd) || 0,
+        comisionCup: m.comisionCup == null ? undefined : Number(m.comisionCup) || 0,
         domicilioCup: m.domicilioCup || 0, notes: m.notes || "", userName: admin.displayName, importedFrom: "excel",
+        ...(m.importKey ? { importBatchKey: `${normName(m.importKey)}::${WAREHOUSE_DEFAULT_ID}` } : {}),
+        sourceSheet: m.sourceSheet || "", sourceFormat: m.sourceFormat || "pinar", sourceFile: SEED.source,
         createdAt: now + seq, deletedAt: null,
       });
     }
@@ -257,7 +265,12 @@ class Store {
     s.rates.push({ id: uid("r"), date: "2026-09-01", currency: "MLC", rate: 600, note: "Referencia inicial (editable)", userName: "sistema", createdAt: now });
     s.priceHistory = SEED.priceHistory.map((h) => {
       const prod = byName[normName(h.product)];
-      return { id: uid("h"), date: h.date, productId: prod?.id || null, productName: h.product, field: h.field, old: h.old, new: h.new, userName: "Excel", ts: now };
+      return {
+        id: uid("h"), date: h.date, productId: prod?.id || null, productName: h.product, field: h.field, old: h.old, new: h.new,
+        userName: "Excel", ts: now, importedFrom: "excel", sourceFormat: h.sourceFormat || "pinar", sourceFile: SEED.source,
+        sourceSheet: h.sourceSheet || "",
+        ...(h.importKey ? { importBatchKey: `${normName(h.importKey)}::${WAREHOUSE_DEFAULT_ID}` } : {}),
+      };
     });
     s.audit.push({
       id: uid("a"), userId: admin.id, userName: admin.username, action: "SEED", entity: "database",
@@ -449,6 +462,7 @@ class Store {
       date: data.date, productId: prod.id, productName: prod.name, type: data.type, quantity: q,
       warehouseId: wid,
       unitPriceUsd: data.type === "VENTA" ? (data.unitPriceUsd === "" || data.unitPriceUsd == null ? prod.precioVentaUsd : Number(data.unitPriceUsd)) : 0,
+      unitCostUsd: data.type === "VENTA" ? Number(old?.unitCostUsd ?? prod.precioCostoUsd) || 0 : 0,
       center: data.center || "TIENDA", domicilioCup: Number(data.domicilioCup) || 0, notes: data.notes || "",
     };
     let mov, oldProductId = null;
@@ -536,9 +550,19 @@ class Store {
         if (mw !== wid) continue;
         m.stockInicial = stock;
         m.stockFinal = stockFinal(stock, m.type, m.quantity);
-        m.importeUsd = importeUsd(m.type, m.quantity, m.unitPriceUsd);
-        m.costoUsd = m.type === "VENTA" ? round2(m.quantity * (prod.precioCostoUsd || 0)) : 0;
-        m.comisionCup = m.type === "VENTA" && (!soloGestor || m.center === "GESTOR") ? round2(m.quantity * (prod.comisionCup || 0)) : 0;
+        m.importeUsd = m.type === "VENTA"
+          ? (m.importedAmountUsd != null ? round2(m.importedAmountUsd) : importeUsd(m.type, m.quantity, m.unitPriceUsd))
+          : 0;
+        if (m.type === "VENTA") {
+          if (m.unitCostUsd == null) m.unitCostUsd = Number(prod.precioCostoUsd) || 0;
+          m.costoUsd = round2(m.quantity * (Number(m.unitCostUsd) || 0));
+          m.comisionCup = m.importedCommissionCup != null
+            ? round2(m.importedCommissionCup)
+            : (!soloGestor || m.center === "GESTOR" ? round2(m.quantity * (prod.comisionCup || 0)) : 0);
+        } else {
+          m.costoUsd = 0;
+          m.comisionCup = 0;
+        }
         if (m.stockFinal < -1e-9 && !err) err = `Stock insuficiente de ${prod.name} en «${this.warehouseName(wid)}» el ${m.date} (quedaría en ${m.stockFinal}).`;
         stock = m.stockFinal;
       }
@@ -666,59 +690,178 @@ class Store {
   }
 
   /* ================= IMPORTAR HOJA DEL EXCEL ================= */
+  /** Limpia movimientos Excel antiguos sin clave de lote antes de una carga histórica en bloque. */
+  removeLegacyExcelImports(dates, warehouseId) {
+    const selectedDates = new Set((dates || []).map(String));
+    const closedDate = [...selectedDates].find((date) => this.isClosed(date));
+    if (closedDate) return { error: `El día ${closedDate} está cerrado; no se modificó.` };
+    const isLegacyPinar = (movement) => !movement.importBatchKey || movement.sourceFormat === "pinar" || movement.sourceFile === "CUADRE PINAR SEPT.xlsx";
+    const removed = this.state.movements.filter((movement) => movement.importedFrom === "excel" && isLegacyPinar(movement) &&
+      selectedDates.has(movement.date) && this.warehouseOf(movement) === warehouseId);
+    const removedIds = new Set(removed.map((movement) => movement.id));
+    this.state.movements = this.state.movements.filter((movement) => !removedIds.has(movement.id));
+    const legacyHistory = this.state.priceHistory.filter((item) => selectedDates.has(item.date) &&
+      (item.sourceFormat === "pinar" || item.sourceFile === "CUADRE PINAR SEPT.xlsx" || (!item.importBatchKey && item.userName === "Excel")));
+    const removedHistoryIds = new Set(legacyHistory.map((item) => item.id));
+    this.state.priceHistory = this.state.priceHistory.filter((item) => !removedHistoryIds.has(item.id));
+    [...new Set(removed.map((movement) => movement.productId))].forEach((productId) => this.recalcProduct(productId));
+    return { ok: true, removed: removed.length, removedHistory: legacyHistory.length };
+  }
+
   /** data = { date, rate, products:[{name,existencia,entrada,salida,v1,v2,comision,domicilio,costo,p1,p2,obs}], cuadre:{} } */
   importSheet(data) {
     const who = this.state.session?.displayName || "Excel";
     const wid = data.warehouseId && this.warehouseById(data.warehouseId) ? data.warehouseId : this.activeWarehouseId();
     const rep = { creados: 0, actualizados: 0, precios: 0, movimientos: 0, omitidos: [], errores: [], almacen: this.warehouseName(wid), warehouseId: wid };
-    const date = data.date;
+    const date = String(data.date || "");
+    const parsedDate = /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00Z`) : null;
+    if (!parsedDate || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date) {
+      rep.errores.push("La fecha de importación no es válida.");
+      return rep;
+    }
     if (this.isClosed(date)) { rep.errores.push(`El día ${date} está cerrado; no se importó.`); return rep; }
-    // 1) quitar movimientos importados antes para esa misma fecha y almacén (reimportación idempotente)
-    this.state.movements = this.state.movements.filter((m) => !(m.date === date && m.importedFrom === "excel" && this.warehouseOf(m) === wid));
-    for (const r of data.products) {
+
+    // Cada archivo + hoja constituye un lote idempotente, incluso si se corrige la fecha.
+    const batchKey = data.importKey ? `${normName(data.importKey)}::${wid}` : "";
+    const previous = this.state.movements.filter((m) => m.importedFrom === "excel" && this.warehouseOf(m) === wid && (
+      batchKey ? m.importBatchKey === batchKey || (!m.importBatchKey && m.date === date) : m.date === date
+    ));
+    const closedPrevious = previous.find((m) => this.isClosed(m.date));
+    if (closedPrevious) { rep.errores.push(`La hoja tiene movimientos en el día cerrado ${closedPrevious.date}; no se modificó.`); return rep; }
+    const previousProductIds = [...new Set(previous.map((m) => m.productId).filter(Boolean))];
+    const previousIds = new Set(previous.map((m) => m.id));
+    this.state.movements = this.state.movements.filter((m) => !previousIds.has(m.id));
+    if (batchKey) {
+      this.state.priceHistory = (this.state.priceHistory || []).filter((item) => item.importBatchKey !== batchKey);
+      this.state.excelDailyReports = (this.state.excelDailyReports || []).filter((report) => report.importKey !== batchKey);
+    }
+
+    for (const r of (data.products || [])) {
       const key = normName(r.name);
+      if (!key) continue;
       let prod = this.state.products.find((p) => normName(p.name) === key);
       if (prod && prod.deletedAt) { rep.omitidos.push(`${r.name} (en papelera)`); continue; }
+      const isNewProduct = !prod;
       if (!prod) {
-        prod = { id: uid("p"), name: r.name, category: categorize(r.name), stockInicial: 0, stockActual: 0, precioVentaUsd: 0, precioVenta2Usd: 0,
+        prod = {
+          id: uid("p"), name: r.name, category: categorize(r.name), stockInicial: 0, stockActual: 0,
+          precioVentaUsd: 0, precioVenta2Usd: 0,
           stocks: { [wid]: 0 }, stocksInicial: { [wid]: 0 },
-          precioCostoUsd: 0, comisionCup: 0, minStock: r.existencia > 0 ? 1 : 0, observaciones: "", image: null, deletedAt: null, createdAt: Date.now(), updatedAt: Date.now() };
+          precioCostoUsd: 0, comisionCup: 0, minStock: r.existencia > 0 ? 1 : 0,
+          observaciones: "", image: null, deletedAt: null, createdAt: Date.now(), updatedAt: Date.now(),
+        };
         this.state.products.push(prod);
         rep.creados++;
       } else rep.actualizados++;
-      const upd = { precioVentaUsd: r.p1, precioVenta2Usd: r.p2, precioCostoUsd: r.costo, comisionCup: r.comision };
-      for (const [f, v] of Object.entries(upd)) {
-        if (Number(prod[f] || 0) !== Number(v || 0)) {
-          if (prod.createdAt < Date.now() - 1000 || rep.creados === 0) this.state.priceHistory.unshift({ id: uid("h"), date, ts: Date.now(), productId: prod.id, productName: prod.name, field: f, old: prod[f] || 0, new: v || 0, userName: who + " (Excel)" });
-          prod[f] = v || 0; rep.precios++;
+
+      const priorMovements = this.state.movements.filter((movement) => movement.productId === prod.id && !movement.deletedAt && movement.date < date && this.warehouseOf(movement) === wid);
+      const updates = { precioVentaUsd: r.p1, precioVenta2Usd: r.p2, precioCostoUsd: r.costo, comisionCup: r.comision };
+      for (const [field, value] of Object.entries(updates)) {
+        if (value == null && data.partialCatalog) continue;
+        if (value === undefined) continue;
+        const next = Number(value) || 0;
+        if (Number(prod[field] || 0) !== next) {
+          if (!isNewProduct && !r.skipPriceHistory) {
+            this.state.priceHistory.unshift({
+              id: uid("h"), date, ts: Date.now(), productId: prod.id, productName: prod.name, field,
+              old: prod[field] || 0, new: next, userName: who + " (Excel)", importedFrom: "excel",
+              sourceFormat: data.sourceFormat || "pinar", sourceFile: data.sourceFile || "", sourceSheet: data.sheet || "",
+              ...(batchKey ? { importBatchKey: batchKey } : {}),
+            });
+          }
+          prod[field] = next;
+          rep.precios++;
         }
       }
       if (r.obs) prod.observaciones = r.obs;
-      // 2) existencia inicial tal que al comenzar ese día haya "existencia" (en el almacén elegido)
+
+      // La existencia indicada por la hoja corresponde al comienzo de ese día.
       prod.stocks = prod.stocks || {};
       prod.stocksInicial = prod.stocksInicial || {};
-      const prev = this.state.movements.filter((m) => m.productId === prod.id && !m.deletedAt && m.date < date && this.warehouseOf(m) === wid)
-        .reduce((a, m) => a + (m.type === "ENTRADA" ? m.quantity : -m.quantity), 0);
-      prod.stocksInicial[wid] = round2(r.existencia - prev);
-      const add = (type, q, price) => {
-        if (!q) return;
-        this.state.movements.unshift({ id: uid("m"), date, productId: prod.id, productName: prod.name, type, quantity: q, unitPriceUsd: price,
-          warehouseId: wid,
-          center: type === "VENTA" ? "TIENDA" : "MOV", domicilioCup: type === "VENTA" && !add.dom ? (add.dom = 1, r.domicilio || 0) : 0,
-          notes: type !== "VENTA" ? r.obs || "" : "", importedFrom: "excel", userName: who, createdAt: Date.now() + rep.movimientos, deletedAt: null });
+      const prevStockMovements = priorMovements.reduce((sum, m) => sum + (m.type === "ENTRADA" ? m.quantity : -m.quantity), 0);
+      let openingAdjustment = 0;
+      if (priorMovements.length) {
+        const ledgerOpening = (Number(prod.stocksInicial[wid]) || 0) + prevStockMovements;
+        openingAdjustment = round2((Number(r.existencia) || 0) - ledgerOpening);
+      } else {
+        // La primera hoja importada establece el saldo base; posteriores no reescriben
+        // el pasado, sino que registran explícitamente cualquier corrección de apertura.
+        prod.stocksInicial[wid] = Number(r.existencia) || 0;
+      }
+
+      const add = (type, quantity, unitPrice = 0, sale = null, noteOverride = null) => {
+        const qty = Number(quantity) || 0;
+        if (!qty) return;
+        const movement = {
+          id: uid("m"), date, productId: prod.id, productName: prod.name, type, quantity: qty, unitPriceUsd: Number(unitPrice) || 0,
+          warehouseId: wid, center: type === "VENTA" ? "TIENDA" : "MOV",
+          domicilioCup: type === "VENTA" && !add.dom ? (add.dom = 1, Number(r.domicilio) || 0) : 0,
+          notes: type !== "VENTA" ? (noteOverride || r.obs || "") : "", importedFrom: "excel", userName: who,
+          createdAt: Date.now() + rep.movimientos, deletedAt: null,
+          sourceSheet: data.sheet || "", sourceFormat: data.sourceFormat || "pinar", sourceFile: data.sourceFile || "",
+        };
+        if (batchKey) movement.importBatchKey = batchKey;
+        if (type === "VENTA") {
+          const importedCost = sale?.unitCostUsd ?? r.costo;
+          if (importedCost != null) movement.unitCostUsd = Number(importedCost) || 0;
+          if (sale?.importeUsd != null) movement.importedAmountUsd = Number(sale.importeUsd) || 0;
+          if (sale?.commissionCup != null) movement.importedCommissionCup = Number(sale.commissionCup) || 0;
+          if (sale?.sourceRow != null) movement.sourceRow = sale.sourceRow;
+        }
+        this.state.movements.unshift(movement);
         rep.movimientos++;
       };
-      add("ENTRADA", r.entrada, 0); add("SALIDA", r.salida, 0); add("VENTA", r.v1, r.p1); add("VENTA", r.v2, r.p2 || r.p1);
-      const res = this.recalcProduct(prod.id);
-      if (res.error) rep.errores.push(res.error);
+      if (openingAdjustment > 0.01) add("ENTRADA", openingAdjustment, 0, null, "Ajuste de apertura según el Excel");
+      else if (openingAdjustment < -0.01) add("SALIDA", -openingAdjustment, 0, null, "Ajuste de apertura según el Excel");
+      add("ENTRADA", r.entrada, 0);
+      add("SALIDA", r.salida, 0);
+      if (Array.isArray(r.sales)) {
+        for (const sale of r.sales) add("VENTA", sale.quantity, sale.unitPriceUsd ?? r.p1, sale);
+      } else {
+        add("VENTA", r.v1, r.p1);
+        add("VENTA", r.v2, r.p2 || r.p1);
+      }
+      if (r.existenciaFinalExcel != null) {
+        const sold = Array.isArray(r.sales)
+          ? r.sales.reduce((total, sale) => total + (Number(sale.quantity) || 0), 0)
+          : (Number(r.v1) || 0) + (Number(r.v2) || 0);
+        const expected = (Number(r.existencia) || 0) + (Number(r.entrada) || 0) - (Number(r.salida) || 0) - sold;
+        const adjustment = round2((Number(r.existenciaFinalExcel) || 0) - expected);
+        if (adjustment > 0.01) add("ENTRADA", adjustment, 0, null, "Ajuste de existencias según el Excel");
+        else if (adjustment < -0.01) add("SALIDA", -adjustment, 0, null, "Ajuste de existencias según el Excel");
+      }
+      const result = this.recalcProduct(prod.id);
+      if (result.error) rep.errores.push(result.error);
     }
-    if (data.rate > 0 && Number(this.rateOn("USD", date)) !== Number(data.rate)) {
+
+    // Al reimportar un lote pueden quedar productos que ya no están en la hoja.
+    for (const productId of previousProductIds) {
+      if (!data.products?.some((r) => normName(r.name) === normName(this.state.products.find((p) => p.id === productId)?.name))) {
+        this.recalcProduct(productId);
+      }
+    }
+    if (data.rate > 0 && data.sourceFormat !== "nova" && Number(this.rateOn("USD", date)) !== Number(data.rate)) {
       this.state.rates.push({ id: uid("r"), date, currency: "USD", rate: data.rate, note: "Importado de Excel", userName: who, createdAt: Date.now() });
     }
     if (data.cuadre) {
-      const i = this.state.cuadres.findIndex((c) => c.date === date);
-      const c = { id: i >= 0 ? this.state.cuadres[i].id : uid("c"), date, cupUsd: data.rate || this.rateOn("USD", date), ...data.cuadre, imported: true };
-      if (i >= 0) this.state.cuadres[i] = c; else this.state.cuadres.push(c);
+      const index = this.state.cuadres.findIndex((c) => c.date === date);
+      const cuadre = { id: index >= 0 ? this.state.cuadres[index].id : uid("c"), date, cupUsd: data.rate || this.rateOn("USD", date), ...data.cuadre, imported: true };
+      if (index >= 0) this.state.cuadres[index] = cuadre; else this.state.cuadres.push(cuadre);
+    }
+    if (data.sourceFormat === "nova" && data.finance) {
+      const dailyReport = {
+        id: uid("xdr"), importKey: batchKey || `${normName(data.sourceFile || data.sheet || "nova")}::${wid}`,
+        date, sheet: data.sheet || "", sourceFile: data.sourceFile || "", sourceFormat: "nova",
+        warehouseId: wid, importedAt: Date.now(), finance: data.finance, summary: data.summary || {},
+        stockRows: (data.products || []).map((product) => ({
+          productName: product.name, opening: Number(product.existencia) || 0,
+          entries: Number(product.entrada) || 0, transfers: Number(product.salida) || 0,
+          sold: Number(product.v1) || 0, excelEnding: Number(product.existenciaFinalExcel) || 0,
+        })),
+      };
+      this.state.excelDailyReports = (this.state.excelDailyReports || []).filter((report) => report.importKey !== dailyReport.importKey);
+      this.state.excelDailyReports.push(dailyReport);
+      rep.informeGuardado = true;
     }
     this.state.products.sort((a, b) => a.name.localeCompare(b.name, "es"));
     this.audit("IMPORT", "excel", `Hoja ${data.sheet}: ${rep.creados} nuevos, ${rep.actualizados} actualizados, ${rep.movimientos} movimientos`);

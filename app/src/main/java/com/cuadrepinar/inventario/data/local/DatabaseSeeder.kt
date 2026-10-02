@@ -80,6 +80,9 @@ object DatabaseSeeder {
             val stockIni = product.stockActual
             val stockFin = StockCalculator.stockFinal(stockIni, type, qty)
             val price = if (type == MovementType.VENTA) o.optDouble("unitPriceUsd", product.precioVentaUsd) else 0.0
+            val amount = if (type == MovementType.VENTA && o.has("importeUsd")) o.optDouble("importeUsd") else StockCalculator.importeUsd(type, qty, price)
+            val commission = if (type == MovementType.VENTA && o.has("comisionCup")) o.optDouble("comisionCup") else StockCalculator.comisionVenta(type, qty, product.comisionCup)
+            val unitCost = if (type == MovementType.VENTA) o.optDouble("unitCostUsd", product.precioCostoUsd) else 0.0
             val dom = o.optDouble("domicilioCup", 0.0)
             db.movements().insert(
                 MovementEntity(
@@ -89,14 +92,15 @@ object DatabaseSeeder {
                     type = type.name,
                     quantity = qty,
                     unitPriceUsd = price,
-                    importeUsd = StockCalculator.importeUsd(type, qty, price),
+                    importeUsd = amount,
                     center = center.name,
-                    comisionCup = StockCalculator.comisionVenta(type, qty, product.comisionCup),
+                    comisionCup = commission,
                     stockInicial = stockIni,
                     stockFinal = stockFin,
                     userId = admin.id,
                     notes = listOf(o.optString("notes", ""), if (dom > 0) "Domicilio ${dom.toLong()} CUP" else "")
-                        .filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "CUADRE PINAR SEPT.xlsx" }
+                        .filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "CUADRE PINAR SEPT.xlsx" },
+                    unitCostUsd = unitCost
                 )
             )
             val updated = product.copy(stockActual = stockFin)
