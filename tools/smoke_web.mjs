@@ -64,13 +64,28 @@ globalThis.history = { replaceState() {} };
 globalThis.sessionStorage = { store: new Map(), getItem(k) { return this.store.get(k) ?? null; }, setItem(k, v) { this.store.set(k, String(v)); }, removeItem(k) { this.store.delete(k); } };
 const mem = new Map();
 globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
-globalThis.fetch = async (url) => ({
-  status: 200,
-  ok: true,
-  json: async () => String(url).includes("/api/license/status")
-    ? { valid: true, hasLicense: true, clientName: "Prueba", product: "Cuadre Pinar", type: "FULL", daysLeft: -1 }
-    : {},
-});
+const fetchCalls = [];
+globalThis.fetch = async (url, opts = {}) => {
+  const u = String(url);
+  fetchCalls.push({ url: u, method: (opts.method || "GET").toUpperCase() });
+  let data = {};
+  if (u.includes("/api/license/status")) {
+    data = { valid: true, hasLicense: true, clientName: "Prueba", product: "Cuadre Pinar", type: "FULL", daysLeft: -1 };
+  } else if (u.includes("/api/license/info")) {
+    data = {
+      licenses: [
+        { id: 1, key: "CP-AAAA.BBBB", keyPreview: "CP-AAAA...BBBB", client_name: "Cliente Uno", product: "Cuadre Pinar", type: "ENTERPRISE", issued_at: 1700000000, expires_at: 0, active: 1, max_users: 20, max_devices: 10 },
+        { id: 2, key: "CP-CCCC.DDDD", keyPreview: "CP-CCCC...DDDD", client_name: "Cliente Dos", product: "Cuadre Pinar", type: "TRIAL", issued_at: 1700000000, expires_at: 4102444800, active: 0, max_users: 5, max_devices: 3 },
+      ],
+      activations: [], active: { valid: true }, product: "Cuadre Pinar",
+    };
+  } else if (u.includes("/api/license/delete-all")) {
+    data = { ok: true, deleted: 2, activations: 0 };
+  } else if (/\/api\/license\/\d+$/.test(u)) {
+    data = { ok: true, deleted: 1 };
+  }
+  return { status: 200, ok: true, json: async () => data };
+};
 globalThis.prompt = () => "motivo";
 globalThis.URL.createObjectURL = () => "blob:x";
 globalThis.URL.revokeObjectURL = () => {};
@@ -286,6 +301,79 @@ test("El servidor recibe las secciones nuevas al guardar", () => {
   const shared = store.shared();
   assert.ok(Array.isArray(shared.warehouses) && shared.warehouses.length === 2);
   assert.ok(Array.isArray(shared.warehouseEntries));
+});
+
+/* ----------------------------- licencias (Ajustes) ----------------------------- */
+console.log("\nWeb · Licencias en Ajustes\n");
+
+// Deja llegar /api/license/info (el listado se pide al dibujar la vista)
+go("settings");
+await new Promise((resolve) => setImmediate(resolve));
+await new Promise((resolve) => setImmediate(resolve));
+
+test("Ajustes lista las licencias con Nº y las columnas Cliente/Tipo/Expira/Activa/Clave", () => {
+  const html = go("settings");
+  assert.match(html, /Licencias creadas · 2/);
+  assert.match(html, /<th>Nº<\/th><th>Cliente<\/th><th>Tipo<\/th><th>Expira<\/th><th>Activa<\/th><th>Clave<\/th>/);
+  assert.match(html, />1<\/td>\s*<td>Cliente Uno</);
+  assert.match(html, />2<\/td>\s*<td>Cliente Dos</);
+});
+
+test("Solo ADMINISTRADOR ve el botón de eliminar por licencia y el de eliminar todas", () => {
+  const html = go("settings");
+  assert.match(html, /data-act="license-del" data-lic-del="1"/);
+  assert.match(html, /data-act="license-del" data-lic-del="2"/);
+  assert.match(html, /data-act="license-del-all"/);
+  assert.match(html, /Eliminar todas las licencias/);
+});
+
+test("Eliminar una licencia pide confirmación antes de llamar al servidor", () => {
+  go("settings");
+  app.dispatch("click", { target: { closest: () => ({ dataset: { act: "license-del", licDel: "1" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+  assert.match(app.innerHTML, /Eliminar definitivamente la licencia/);
+  assert.match(app.innerHTML, /Cliente Uno/);
+  assert.match(app.innerHTML, /no se puede deshacer/);
+});
+
+fetchCalls.length = 0;
+app.dispatch("click", { target: { closest: () => ({ dataset: { act: "confirm-yes" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+await new Promise((resolve) => setImmediate(resolve));
+await new Promise((resolve) => setImmediate(resolve));
+
+test("Confirmar la eliminación llama a DELETE /api/license/:id", () => {
+  assert.ok(fetchCalls.some((c) => c.method === "DELETE" && /\/api\/license\/1$/.test(c.url)), `llamadas: ${JSON.stringify(fetchCalls)}`);
+});
+
+test("Eliminar todas exige doble confirmación y llama a la API", () => {
+  go("settings");
+  app.dispatch("click", { target: { closest: () => ({ dataset: { act: "license-del-all" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+  assert.match(app.innerHTML, /Eliminar <b>las 2 licencias<\/b>/);
+  app.dispatch("click", { target: { closest: () => ({ dataset: { act: "confirm-yes" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+  assert.match(app.innerHTML, /Última confirmación/);
+  fetchCalls.length = 0;
+  app.dispatch("click", { target: { closest: () => ({ dataset: { act: "confirm-yes" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+});
+
+await new Promise((resolve) => setImmediate(resolve));
+await new Promise((resolve) => setImmediate(resolve));
+
+test("La eliminación total se envía a POST /api/license/delete-all", () => {
+  assert.ok(fetchCalls.some((c) => c.method === "POST" && /\/api\/license\/delete-all$/.test(c.url)), `llamadas: ${JSON.stringify(fetchCalls)}`);
+});
+
+test("El rol JEFE puede ver las licencias pero no eliminarlas", () => {
+  const original = store.state.session;
+  try {
+    store.state.session = { ...original, role: "JEFE" };
+    const html = go("settings");
+    assert.match(html, /Cliente Uno/);
+    assert.doesNotMatch(html, /data-act="license-del"/);
+    assert.doesNotMatch(html, /data-act="license-del-all"/);
+    assert.match(html, /Solo el rol <b>ADMINISTRADOR<\/b> puede eliminar licencias/);
+  } finally {
+    store.state.session = original;
+    go("settings");
+  }
 });
 
 console.log(`\n${ok} comprobaciones correctas, ${fail} fallidas\n`);
