@@ -1,5 +1,6 @@
 import { store } from "./store.js";
 import { api, setLicenseErrorHandler } from "./api.js";
+import { parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
 import { LicenseManager } from "./license.js";
 import qrcode from "../vendor/qrcode.mjs";
 import { applyTips, initTooltips, startTour, tourSeen, openPalette, animateCounters } from "./ux.js";
@@ -73,9 +74,11 @@ function lastDataDate() {
 
 function thumb(p, size = 40) {
   const c = CATEGORIES[p.category] || CATEGORIES.General;
-  if (p.image) return `<img class="thumb" style="width:${size}px;height:${size}px" src="${p.image}" alt="">`;
-  if (c.img) return `<img class="thumb" style="width:${size}px;height:${size}px" src="./public/cat/${c.img}.jpg" alt="" loading="lazy">`;
-  return `<span class="thumb ph" style="width:${size}px;height:${size}px;background:${c.color}22;color:${c.color}">${c.icon}</span>`;
+  const dimensions = size == null ? "" : `width:${size}px;height:${size}px;`;
+  const imageStyle = dimensions ? ` style="${dimensions}"` : "";
+  if (p.image) return `<img class="thumb"${imageStyle} src="${p.image}" alt="">`;
+  if (c.img) return `<img class="thumb"${imageStyle} src="./public/cat/${c.img}.jpg" alt="" loading="lazy">`;
+  return `<span class="thumb ph" style="${dimensions}--thumb-color:${c.color}">${c.icon}</span>`;
 }
 const catBadge = (cat) => {
   const c = CATEGORIES[cat] || CATEGORIES.General;
@@ -462,6 +465,7 @@ function cuadreView() {
   const line = (l, v, cls = "") => `<div class="cline ${cls}"><span>${l}</span><b class="mono">${usd(v)}</b></div>`;
   const dates = store.state.cuadres.map((x) => x.date).sort().reverse();
   return `
+    ${printReportHeader("Cuadre diario", `${weekday(date)} · ${formatDate(date)}`)}
     <div class="toolbar">
       <div class="row">
         <button class="btn ghost small" data-cdate="${addDays(date, -1)}">‹</button>
@@ -524,6 +528,13 @@ function cuadreView() {
 /* ============================ INFORME SEMANAL ============================ */
 const FIJOS = [["salarioEstibadores", "Salario estibadores"], ["salarioLeo", "Salario Leo"], ["custodio", "Custodio"], ["internet", "Internet"], ["jardineria", "Jardinería"], ["corriente", "Corriente"], ["mediosBasicos", "Medios básicos"], ["otros", "Otros"]];
 
+function printReportHeader(title, subtitle) {
+  const business = store.state.settings.businessName || "Cuadre Pinar";
+  const generated = new Date().toLocaleString("es-CU", { dateStyle: "short", timeStyle: "short" });
+  return `<header class="print-report-header"><div><div class="print-brand">${esc(business)}</div><h1>${esc(title)}</h1></div>
+    <div class="print-period"><b>${esc(subtitle)}</b><small>Generado ${esc(generated)}</small></div></header>`;
+}
+
 function weeklyData(anyDate) {
   const w = weekRange(anyDate);
   const movs = store.activeMovements();
@@ -548,20 +559,98 @@ function weeklyData(anyDate) {
   return { w, days, ventas, costo, bruta, fijos, transp, dom, com, gastosDia, variables, neta: bruta - fijos - variables, saved, uds };
 }
 
+function weeklyExcelReferenceCard(reference) {
+  const importedAt = reference.importedAt
+    ? new Date(reference.importedAt).toLocaleString("es-CU", { dateStyle: "short", timeStyle: "short" })
+    : "—";
+  const expenses = [
+    ["Domicilio", "domicilio"], ["Limpieza", "limpieza"], ["Custodio", "custodio"],
+    ["Salario", "salario"], ["Comisiones", "comisiones"], ["Otros", "otros"],
+  ];
+  return `<div class="card weekly-excel-reference">
+    <div class="card-h"><span class="k">📊 Referencia importada · ${esc(reference.weekLabel || "Resumen semanal")}</span><span class="tag venta">Excel</span></div>
+    <div class="summary"><span>Fuente: <b>${esc(reference.sourceFile || "RESUMEN POR SEMANA PINAR.xlsx")}</b></span>
+      <span>Período <b>${formatDate(reference.from)} – ${formatDate(reference.to)}</b></span>
+      <span>Importado <b>${esc(importedAt)}</b></span>
+      <span>Tasa implícita <b>${qty(reference.cupUsd)} CUP/USD</b></span></div>
+    <div class="kpis mini">
+      ${kpi("Ventas (Excel)", usd(reference.salesUsd), "USD")}
+      ${kpi("Gastos (Excel)", usd(reference.totalExpensesUsd), `${cup(reference.totalExpensesCup)}`)}
+      ${kpi("Utilidad bruta", usd(reference.grossProfitUsd), "USD")}
+      ${kpi("Utilidad neta", usd(reference.netProfitUsd), `Inversión ${usd(reference.investedUsd)}`)}
+    </div>
+    <div class="table-wrap" style="margin-top:12px"><table>
+      <thead><tr><th>Gasto del libro</th><th class="r">CUP</th></tr></thead>
+      <tbody>${expenses.map(([label, key]) => `<tr><td>${label}</td><td class="mono r">${cup(reference.expensesCup?.[key] || 0)}</td></tr>`).join("")}
+        <tr><td><b>Total de gastos</b></td><td class="mono r"><b>${cup(reference.totalExpensesCup)}</b></td></tr>
+      </tbody>
+    </table></div>
+    <p class="hint">Referencia de ${esc(reference.month || "")} ${reference.year || ""}. No reemplaza los movimientos ni los cálculos actuales del informe.</p>
+  </div>`;
+}
+
+function weeklySummaryModal(summary, fileName) {
+  const weeks = summary.weeks;
+  const rows = weeks.map((week) => `<tr><td>${esc(week.weekLabel)}</td><td>${formatDate(week.from)} – ${formatDate(week.to)}</td>
+    <td class="mono r">${usd(week.salesUsd)}</td><td class="mono r">${cup(week.totalExpensesCup)}</td>
+    <td class="mono r">${usd(week.totalExpensesUsd)}</td><td class="mono r">${usd(week.netProfitUsd)}</td></tr>`).join("");
+  modal("📊 Importar resumen semanal", `
+    <p>Archivo: <b>${esc(fileName)}</b> · ${esc(summary.month)} ${summary.year}</p>
+    <p class="hint">Las cifras se guardarán como referencia del Excel para cada semana. No reemplazan movimientos, cuadres ni los resultados calculados por la aplicación.</p>
+    <div class="table-wrap"><table><thead><tr><th>Semana</th><th>Período aplicado</th><th class="r">Ventas USD</th><th class="r">Gastos CUP</th><th class="r">Gastos USD</th><th class="r">Utilidad neta</th></tr></thead>
+      <tbody>${rows}</tbody>
+      ${summary.totals ? `<tfoot><tr><td colspan="2">Total del libro</td><td class="mono r">${usd(summary.totals.salesUsd)}</td><td class="mono r">${cup(summary.totals.totalExpensesCup)}</td><td class="mono r">${usd(summary.totals.totalExpensesUsd)}</td><td class="mono r">${usd(summary.totals.netProfitUsd)}</td></tr></tfoot>` : ""}
+    </table></div>
+    <div class="row" style="margin-top:14px"><button type="button" class="btn" data-act="weekly-summary-apply">Guardar ${weeks.length} semanas</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "weeklySummaryPreview");
+  ui.weeklySummaryImport = { summary, fileName };
+}
+
+async function handleWeeklySummaryFile(file) {
+  try {
+    const XLSX = await loadXLSX();
+    const workbook = XLSX.read(await file.arrayBuffer(), { raw: true });
+    const sheetName = workbook.SheetNames.find((name) => normName(name) === "PINAR") || workbook.SheetNames[0];
+    const grid = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, raw: true, defval: "" });
+    const year = Number(lastDataDate().slice(0, 4)) || new Date().getFullYear();
+    const summary = parseWeeklySummaryGrid(grid, { year });
+    if (!summary) return toast("No se reconoció el formato del resumen. Revisa que incluya MES y columnas SEMANA.", "err");
+    weeklySummaryModal(summary, file.name);
+    render();
+  } catch (error) {
+    toast(`No se pudo leer el resumen: ${error.message}`, "err");
+  }
+}
+
+function applyWeeklySummaryImport() {
+  const pending = ui.weeklySummaryImport;
+  if (!pending) return toast("Vuelve a seleccionar el archivo de resumen.", "err");
+  const importedAt = Date.now();
+  const references = pending.summary.weeks.map((week) => ({ ...week, sourceFile: pending.fileName, importedAt }));
+  const result = store.saveWeeklyReferences(references);
+  if (result.error) return toast(result.error, "err");
+  ui.weekDate = references[0]?.from || ui.weekDate;
+  ui.modal = null;
+  ui.weeklySummaryImport = null;
+  toast(`Resumen de ${pending.summary.month} ${pending.summary.year} guardado · ${result.total} semanas`, "ok");
+  render();
+}
+
 function weeklyView() {
   const anchor = ui.weekDate || lastDataDate();
   const r = weeklyData(anchor);
   const canEdit = allowed("WEEKLY_EDIT");
+  const excelReference = r.saved.excelSummary ? weeklyExcelReferenceCard(r.saved.excelSummary) : "";
   const row = (l, v, cls = "") => `<tr class="${cls}"><td>${l}</td><td class="mono r">${usd(v)}</td></tr>`;
   const inp = (k, l) => `<tr><td class="ind">${l}</td><td class="r">${canEdit ? `<input class="cell" name="${k}" type="number" step="any" value="${r.saved[k] || ""}" placeholder="0">` : usd(r.saved[k] || 0)}</td></tr>`;
   return `
+    ${printReportHeader("Informe semanal", `${formatDate(r.w.from)} – ${formatDate(r.w.to)}`)}
     <div class="toolbar">
       <div class="row">
         <button class="btn ghost small" data-wdate="${addDays(r.w.from, -7)}">‹ Semana anterior</button>
         <input type="date" id="weekDate" class="sel" value="${anchor}">
         <button class="btn ghost small" data-wdate="${addDays(r.w.from, 7)}">Semana siguiente ›</button>
       </div>
-      <div class="row"><button class="btn ghost small" data-act="export-weekly">CSV</button><button class="btn gold small" data-act="print">Imprimir / PDF</button></div>
+      <div class="row"><button class="btn ghost small" data-act="export-weekly">CSV</button>${canEdit ? `<button class="btn ghost small" data-act="weekly-summary-browse">📥 Importar resumen Excel</button><input type="file" id="weeklySummaryFile" accept=".xlsx,.xls" hidden>` : ""}<button class="btn gold small" data-act="print">Imprimir / PDF</button></div>
     </div>
     <div class="kpis">
       ${kpi("Ventas", usd(r.ventas), `${formatDate(r.w.from)} – ${formatDate(r.w.to)}`, "teal")}
@@ -597,7 +686,8 @@ function weeklyView() {
           <tfoot><tr><td>Total</td><td class="mono r">${usd(r.ventas)}</td><td class="mono r">${usd(r.costo)}</td><td class="mono r">${usd(r.dom)}</td><td class="mono r">${usd(r.com)}</td><td></td></tr></tfoot>
         </table></div>
       </div>
-    </div>`;
+    </div>
+    ${excelReference}`;
 }
 
 /* ============================ COMPROBACIÓN ============================ */
@@ -618,6 +708,7 @@ function reportsView() {
   const rows = comprobacionRows(from, to);
   const sum = (k) => rows.reduce((a, r) => a + r[k], 0);
   return `
+    ${printReportHeader("Comprobación de inventario", `${formatDate(from)} – ${formatDate(to)}`)}
     <div class="toolbar">
       <div class="chips">${["diario", "semanal", "mensual"].map((p) => `<button class="chip ${ui.period === p ? "on" : ""}" data-period="${p}">${p}</button>`).join("")}</div>
       ${allowed("REPORTS_EXPORT") ? `<div class="row"><button class="btn small" data-act="export-csv">CSV comprobación</button><button class="btn ghost small" data-act="export-mov">CSV movimientos</button><button class="btn ghost small" data-act="export-inv">CSV inventario</button><button class="btn gold small" data-act="print">PDF</button></div>` : ""}
@@ -919,7 +1010,7 @@ function posView() {
             const sw = store.stockIn(p, wid);
             return `<button class="pcard ${inCart ? "in" : ""}" data-add-cart="${p.id}" data-tip="Clic para añadir 1 al carrito · ${qty(sw)} en ${esc(wname)}">
               ${inCart ? `<span class="badge">${inCart}</span>` : ""}
-              ${thumb(p, 999).replace('style="width:999px;height:999px"', "")}
+              ${thumb(p, null)}
               <div class="pname">${hl(p.name)}</div>
               <div class="pfoot"><b>${usd(p.precioVentaUsd)}</b><span class="stock ${sw <= p.minStock ? "low" : "ok"}">${qty(sw)}</span></div>
             </button>`;
@@ -1290,8 +1381,9 @@ function whDeleteFlow(id) {
 
 /* ============================ IMPORTAR VALORES ============================ */
 function ivState() {
-  if (!ui.iv) ui.iv = { warehouseId: store.activeWarehouseId(), src: "pegar", text: "", rows: [], q: "", note: "", fileName: "", sheets: [], sheetName: "", last: null };
+  if (!ui.iv) ui.iv = { warehouseId: store.activeWarehouseId(), src: "pegar", text: "", rows: [], q: "", note: "", fileName: "", sheets: [], sheetName: "", last: null, pchSections: [], pchSection: "" };
   if (!store.warehouseById(ui.iv.warehouseId)) ui.iv.warehouseId = store.activeWarehouseId();
+  if (!Array.isArray(ui.iv.pchSections)) ui.iv.pchSections = [];
   return ui.iv;
 }
 const ivBlankRows = (n = 8) => Array.from({ length: n }, () => ({ sel: true, name: "" }));
@@ -1315,6 +1407,7 @@ function importValuesView() {
   const sum = iv.rows.length ? summarizeRows(store.state.products, w.id, iv.rows) : null;
   const selected = sum ? sum.selected : 0;
   const conflicts = sum ? sum.conflicts : [];
+  const pchSection = iv.pchSections.find((section) => section.name === iv.pchSection) || iv.pchSections[0];
   const names = store.activeProducts().map((p) => p.name);
 
   const result = iv.last ? `
@@ -1380,6 +1473,8 @@ function importValuesView() {
           <input type="file" id="ivFile" accept=".xlsx,.xls,.csv,.tsv,.txt" hidden>
         </label>
         ${iv.sheets.length > 1 ? `<label>Hoja<select id="ivSheet">${iv.sheets.map((x) => `<option ${x === iv.sheetName ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></label>` : ""}
+        ${iv.pchSections.length > 1 ? `<label>Ubicación en PCH.xlsx<select id="ivPchSection">${iv.pchSections.map((x) => `<option value="${esc(x.name)}" ${x.name === iv.pchSection ? "selected" : ""}>${esc(x.name)} · ${x.rows.length} productos</option>`).join("")}</select></label>` : ""}
+        ${iv.pchSections.length ? `<div class="banner info" style="margin-top:12px"><b>Importación por ubicación</b><br>Se cargará solo la existencia de «${esc(pchSection?.name || "")}». PCH.xlsx tiene precios distintos según la ubicación; el catálogo maneja precios compartidos y no se modificarán.${pchSection?.duplicates ? `<br>Se consolidaron ${pchSection.duplicates} filas repetidas sumando sus existencias.` : ""}</div>` : ""}
         <div class="row" style="margin-top:10px"><button class="btn ghost small" data-act="iv-template">⬇ Descargar plantilla CSV</button></div>` : ""}
       ${iv.src === "manual" ? `
         <p class="hint" style="margin-top:12px">Escribe los productos y sus valores directamente en la tabla de abajo. Puedes empezar por el nombre (te sugiere los que ya existen) y seguir con existencia, precios y comisión.</p>
@@ -1473,8 +1568,10 @@ function ivApply(mode = null) {
     return toast(`Ojo: ${sum.conflicts.length} fila(s) ya tenían valores en «${store.warehouseName(iv.warehouseId)}». Elige sobrescribir o completar.`, "err");
   }
   const rep = store.applyWarehouseImport({
-    warehouseId: iv.warehouseId, rows: iv.rows, mode: mode || "sobrescribir", source: iv.src,
-    fileName: iv.src === "archivo" ? iv.fileName : "", note: iv.note,
+    warehouseId: iv.warehouseId, rows: iv.rows, mode: mode || "sobrescribir",
+    source: iv.pchSections.length ? `PCH · ${iv.pchSection}` : iv.src,
+    fileName: iv.src === "archivo" ? iv.fileName : "",
+    note: [iv.pchSections.length ? `Sección ${iv.pchSection}` : "", iv.note].filter(Boolean).join(" · "),
   });
   if (rep.error) return toast(rep.error, "err");
   if (rep.sinCambios) return toast("No había nada que cambiar: los valores ya coinciden.", "");
@@ -1497,9 +1594,24 @@ async function ivReadFile(file) {
       iv.sheets = wb.SheetNames;
       iv.sheetName = wb.SheetNames.includes(iv.sheetName) ? iv.sheetName : wb.SheetNames[0];
       const grid = XLSX.utils.sheet_to_json(wb.Sheets[iv.sheetName], { header: 1, raw: true, defval: "" });
-      const text = grid.map((r) => r.map((c) => (c === null || c === undefined ? "" : String(c))).join("\t")).join("\n");
-      iv.rows = parseValuesText(text).rows;
+      const parsedGrouped = parsePchInventoryGrid(grid);
+      const pch = parsedGrouped && (parsedGrouped.sections.length > 1 || name.includes("pch")) ? parsedGrouped : null;
+      if (pch) {
+        iv.pchSections = pch.sections;
+        iv.pchSection = pch.sections.some((x) => x.name === iv.pchSection) ? iv.pchSection : pch.sections[0].name;
+        iv.pchDuplicateRows = pch.duplicateRows;
+        iv.rows = (pch.sections.find((x) => x.name === iv.pchSection)?.rows || []).map((row) => ({ ...row }));
+      } else {
+        iv.pchSections = [];
+        iv.pchSection = "";
+        iv.pchDuplicateRows = 0;
+        const text = grid.map((r) => r.map((c) => (c === null || c === undefined ? "" : String(c))).join("\t")).join("\n");
+        iv.rows = parseValuesText(text).rows;
+      }
     } else {
+      iv.pchSections = [];
+      iv.pchSection = "";
+      iv.pchDuplicateRows = 0;
       iv.rows = parseValuesText(await file.text()).rows;
     }
     iv.src = "archivo";
@@ -1819,6 +1931,11 @@ function bindApp() {
   $("#movDate")?.addEventListener("change", (e) => { ui.movDate = e.target.value; render(); });
   $("#cuadreDate")?.addEventListener("change", (e) => { ui.cuadreDate = e.target.value; render(); });
   $("#weekDate")?.addEventListener("change", (e) => { ui.weekDate = e.target.value; render(); });
+  $("#weeklySummaryFile")?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) handleWeeklySummaryFile(file);
+  });
 
   $("#prodName")?.addEventListener("input", (e) => {
     const key = normName(e.target.value);
@@ -1968,6 +2085,14 @@ function bindApp() {
     $("#ivSearch")?.addEventListener("input", (e) => { iv.q = e.target.value; clearTimeout(bindApp._ivT); bindApp._ivT = setTimeout(render, 180); });
     $("#ivFile")?.addEventListener("change", (e) => { const f = e.target.files[0]; if (f) { iv.file = f; ivReadFile(f); } });
     $("#ivSheet")?.addEventListener("change", (e) => { iv.sheetName = e.target.value; if (iv.file) ivReadFile(iv.file); });
+    $("#ivPchSection")?.addEventListener("change", (e) => {
+      iv.pchSection = e.target.value;
+      iv.rows = (iv.pchSections.find((x) => x.name === iv.pchSection)?.rows || []).map((row) => ({ ...row }));
+      iv.last = null;
+      iv.warn = false;
+      summarizeRows(store.state.products, iv.warehouseId, iv.rows);
+      render();
+    });
     document.querySelectorAll("[data-iv-row][data-iv-field]").forEach((el) => el.addEventListener("input", () => {
       const row = iv.rows[+el.dataset.ivRow];
       if (row) row[el.dataset.ivField] = el.value;
@@ -2241,10 +2366,31 @@ function onClick(e) {
   else if (act === "export-mov") exportMovements();
   else if (act === "export-inv") exportInventory();
   else if (act === "export-weekly") exportWeekly();
-  else if (act === "print") window.print();
+  else if (act === "weekly-summary-browse") $("#weeklySummaryFile")?.click();
+  else if (act === "weekly-summary-apply") applyWeeklySummaryImport();
+  else if (act === "print") printCurrentView();
 }
 
 /* ============================ EXPORTS ============================ */
+function printCurrentView() {
+  const date = ui.cuadreDate || lastDataDate();
+  let label = "";
+  if (ui.route === "cuadre") label = `Cuadre diario · ${formatDate(date)}`;
+  else if (ui.route === "weekly") {
+    const range = weekRange(ui.weekDate || lastDataDate());
+    label = `Informe semanal · ${formatDate(range.from)}-${formatDate(range.to)}`;
+  } else if (ui.route === "reports") {
+    const range = ui.period === "semanal" ? weekRange(lastDataDate()) : periodRange(ui.period, lastDataDate());
+    label = `Comprobación · ${formatDate(range.from)}-${formatDate(range.to)}`;
+  } else label = routes[ui.route]?.title || "Informe";
+
+  const previousTitle = document.title;
+  document.title = `${store.state.settings.businessName || "Cuadre Pinar"} - ${label}`;
+  const cleanup = () => { document.title = previousTitle; };
+  window.addEventListener("afterprint", cleanup, { once: true });
+  window.print();
+}
+
 function exportComprobacion() {
   const { from, to } = ui.period === "semanal" ? weekRange(lastDataDate()) : periodRange(ui.period, lastDataDate());
   const lines = ["PRODUCTOS,STOCK INICIAL,VENTAS,ENTRADAS,SALIDAS,STOCK CALCULADO,STOCK ACTUAL,IMPORTE ORIGINAL,IMPORTE REAL,DIFERENCIA"];

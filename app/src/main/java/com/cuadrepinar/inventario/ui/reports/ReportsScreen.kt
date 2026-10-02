@@ -131,6 +131,16 @@ fun ReportsScreen(user: UserAccount, vm: ReportsViewModel = hiltViewModel()) {
                     }) { Text("Movimientos CSV") }
                 }
             }
+            item {
+                OutlinedButton(
+                    onClick = {
+                        val (from, to) = Dates.periodRange(vm.period)
+                        val file = vm.exporter.pdfComprobacion(vm.rows, vm.period, from, to)
+                        share(context, vm.exporter.uriFor(file), "application/pdf")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("📄 Exportar comprobación PDF") }
+            }
         }
         items(vm.rows.filter { it.ventas != 0.0 || it.entradas != 0.0 || it.salidas != 0.0 }, key = { it.productId }) { r ->
             Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
