@@ -95,6 +95,8 @@ La aplicación Android utiliza Kotlin, Jetpack Compose, Room, Hilt y Navigation 
 
 El servidor comprueba la licencia antes de permitir el acceso y crea una licencia de prueba al iniciar una instalación nueva. Incluye sesiones con expiración, contraseñas PBKDF2-SHA256, permisos validados en servidor, autenticación TOTP opcional, bloqueo tras intentos fallidos, cierre de días, auditoría y copias cifradas automáticas.
 
+En **Ajustes → Licencia de Uso** el listado de licencias se muestra numerado (Nº, Cliente, Tipo, Expira, Activa y Clave). El rol **Administrador** puede generar licencias (FULL, TRIAL, ENTERPRISE o LIFETIME) y eliminarlas, una por una o todas a la vez (`DELETE /api/license/:id` y `POST /api/license/delete-all`, ambos validados en el servidor); el resto de los roles solo pueden consultarlas. Si se elimina la licencia activa, el sistema queda bloqueado hasta activar otra (la activación de una clave firmada no depende del listado, así que una clave guardada siempre sirve para recuperar el acceso).
+
 En una base de datos nueva se crean estas cuentas de demostración:
 
 | Usuario | Contraseña inicial | Rol |

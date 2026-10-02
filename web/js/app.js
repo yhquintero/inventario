@@ -963,6 +963,8 @@ function backupView() {
 function licenseCard() {
   const lic = ui.license.status;
   const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
+  // Solo el rol ADMINISTRADOR puede eliminar licencias (el Jefe puede verlas, no borrarlas)
+  const canDelete = role() === "ADMINISTRADOR";
   const lastGen = ui.license.lastGenerated;
   if (!ui.license.infoLoaded && admin) {
     ui.license.infoLoaded = true;
@@ -972,6 +974,8 @@ function licenseCard() {
     });
   }
   const info = ui.license.info;
+  const list = info?.licenses || [];
+  const nowSec = Math.floor(Date.now() / 1000);
   const expText = lic?.valid ? (lic.daysLeft === -1 ? "Permanente" : `${lic.daysLeft} días · expira ${LicenseManager.fmtDate(lic.expiresAt)}`) : "No válida";
   return `
     <div class="card" style="margin-bottom:14px">
@@ -1014,8 +1018,22 @@ function licenseCard() {
             <p class="hint">Formateada: ${esc(lastGen.formattedKey)}</p>
             <div class="row"><button class="btn ghost small" data-act="license-copy">Copiar clave</button></div>
           </div>` : ""}
-          ${info?.licenses?.length ? `<div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Cliente</th><th>Tipo</th><th>Expira</th><th>Activa</th><th>Clave</th></tr></thead>
-            <tbody>${info.licenses.map((l) => `<tr><td>${esc(l.client_name)}</td><td><span class="tag ${l.active ? "entrada" : "salida"}">${esc(l.type)}</span></td><td>${l.expires_at ? LicenseManager.fmtDate(l.expires_at) : "Permanente"}${l.expires_at && l.expires_at < Math.floor(Date.now()/1000) ? " · expirada" : ""}</td><td>${l.active ? "✔" : "—"}</td><td class="mono hint" title="${esc(l.key)}">${esc(l.keyPreview || l.formattedKey || "")}</td></tr>`).join("")}</tbody></table></div>` : ""}
+        </div>
+        <div class="card" style="margin-top:12px">
+          <div class="card-h"><span class="k">Licencias creadas${list.length ? ` · ${list.length}` : ""}</span>
+            ${canDelete && list.length ? `<button type="button" class="btn danger small" data-act="license-del-all" title="Eliminar todas las licencias registradas">🗑 Eliminar todas las licencias</button>` : ""}</div>
+          ${list.length ? `<div class="table-wrap"><table><thead><tr><th>Nº</th><th>Cliente</th><th>Tipo</th><th>Expira</th><th>Activa</th><th>Clave</th>${canDelete ? "<th></th>" : ""}</tr></thead>
+            <tbody>${list.map((l, i) => `<tr>
+              <td class="hint">${i + 1}</td>
+              <td>${esc(l.client_name)}</td>
+              <td><span class="tag ${l.active ? "entrada" : "salida"}">${esc(l.type)}</span></td>
+              <td>${l.expires_at ? LicenseManager.fmtDate(l.expires_at) : "Permanente"}${l.expires_at && l.expires_at < nowSec ? " · expirada" : ""}</td>
+              <td>${l.active ? "✔" : "—"}</td>
+              <td class="mono hint" title="${esc(l.key)}">${esc(l.keyPreview || l.formattedKey || "")}</td>
+              ${canDelete ? `<td class="nowrap"><button type="button" class="btn ghost small danger-t" data-act="license-del" data-lic-del="${l.id}" title="Eliminar esta licencia definitivamente">🗑 Eliminar</button></td>` : ""}
+            </tr>`).join("")}</tbody></table></div>`
+            : `<p class="hint">Aún no hay licencias creadas.${canDelete ? " Use «Generar licencia» para crear la primera." : ""}</p>`}
+          <p class="hint">${canDelete ? "Solo el rol <b>ADMINISTRADOR</b> puede eliminar licencias. Si elimina la licencia activa, el sistema quedará bloqueado hasta activar otra." : "Solo el rol <b>ADMINISTRADOR</b> puede eliminar licencias."}</p>
         </div>
       ` : `<p class="hint">Solo administradores pueden generar licencias.</p>`}
     </div>`;
@@ -2007,6 +2025,21 @@ function confirmModal(text, onYes) {
   render();
 }
 
+/** Recarga estado + listado de licencias tras generar/eliminar en Ajustes. */
+async function reloadLicensePanel() {
+  const st = await LicenseManager.fetchStatus();
+  ui.license.status = st;
+  ui.license.loading = false;
+  if (st.valid && ["ADMINISTRADOR", "JEFE"].includes(role())) {
+    const r = await api("/license/info");
+    if (!r.error) { ui.license.info = r; ui.license.infoLoaded = true; }
+  } else {
+    ui.license.info = null;
+    ui.license.infoLoaded = false;
+  }
+  render();
+}
+
 /* ============================ RENDER ============================ */
 function page() {
   const views = { pos: posView, analytics: analyticsView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
@@ -2607,6 +2640,38 @@ function onClick(e) {
     if (key) {
       navigator.clipboard?.writeText(key).then(() => toast("Clave copiada al portapapeles", "ok")).catch(() => toast(key, ""));
     }
+  }
+  else if (act === "license-del") {
+    // Eliminar una licencia (solo ADMINISTRADOR; el servidor también lo verifica)
+    if (role() !== "ADMINISTRADOR") return toast("Solo el rol ADMINISTRADOR puede eliminar licencias.", "err");
+    const id = d.licDel || "";
+    const l = (ui.license.info?.licenses || []).find((x) => String(x.id) === String(id));
+    const label = l ? `<b>${esc(l.client_name)}</b> · ${esc(l.type)}` : `Nº ${esc(String(id))}`;
+    const extra = l?.active ? `<br><b>⚠ Es la licencia ACTIVA</b>: al eliminarla el sistema quedará bloqueado hasta activar otra licencia.` : "";
+    confirmModal(`¿Eliminar definitivamente la licencia ${label}?${extra}<br>Esta acción no se puede deshacer.`, () => {
+      api(`/license/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => {
+        if (r.error) return toast(r.error, "err");
+        ui.license.lastGenerated = null;
+        toast("Licencia eliminada", "ok");
+        reloadLicensePanel();
+      });
+    });
+  }
+  else if (act === "license-del-all") {
+    // Eliminar TODAS las licencias (solo ADMINISTRADOR; el servidor también lo verifica)
+    if (role() !== "ADMINISTRADOR") return toast("Solo el rol ADMINISTRADOR puede eliminar licencias.", "err");
+    const n = ui.license.info?.licenses?.length || 0;
+    if (!n) return toast("No hay licencias para eliminar.", "err");
+    confirmModal(`¿Eliminar <b>las ${n} licencias</b> registradas? Se borrarán también las activaciones de dispositivos.<br><b>⚠ El sistema quedará SIN licencia</b> hasta que active una nueva.`, () => {
+      confirmModal("Última confirmación: se eliminarán <b>todas las licencias</b> y no se puede deshacer. ¿Continuar?", () => {
+        api("/license/delete-all", { method: "POST", body: { confirm: "ELIMINAR" } }).then((r) => {
+          if (r.error) return toast(r.error, "err");
+          ui.license.lastGenerated = null;
+          toast(`${r.deleted ?? n} licencia(s) eliminada(s)`, "ok");
+          reloadLicensePanel();
+        });
+      });
+    });
   }
   else if (act === "license-activate-inline") {
     const form = document.getElementById("licenseFormInline");

@@ -915,20 +915,38 @@ def license_generate(h, u, _):
     })
 
 
-@route("DELETE", "/api/license/:id", roles=ADMINS)
-def license_revoke(h, u, ident):
-    row = q("SELECT * FROM licenses WHERE id=?", (ident,), one=True)
+@route("DELETE", "/api/license/:id", roles={"ADMINISTRADOR"})
+def license_delete(h, u, ident):
+    """Elimina DEFINITIVAMENTE una licencia y sus activaciones (solo ADMINISTRADOR)."""
+    try:
+        lic_id = int(ident)
+    except (TypeError, ValueError):
+        return h.err(400, "Identificador de licencia no válido.")
+    row = q("SELECT * FROM licenses WHERE id=?", (lic_id,), one=True)
     if not row:
         return h.err(404, "Licencia no encontrada.")
-    # No permitir dejar el sistema sin licencia válida
-    active_count = q("SELECT COUNT(*) as c FROM licenses WHERE active=1 AND id<>?", (ident,), one=True)
-    if row["active"] and (not active_count or active_count["c"] == 0):
-        # Permite revocar pero crea trial si no queda ninguna? Mejor bloquear y pedir generar otra primero
-        return h.err(400, "No puedes revocar la única licencia activa. Genera otra licencia primero.")
-    q("UPDATE licenses SET active=0 WHERE id=?", (ident,))
-    q("UPDATE license_activations SET active=0 WHERE license_id=?", (ident,))
-    audit(u["username"], "LICENSE_REVOKE", f"Licencia revocada · {row['client_name']} · {row['key'][:20]}...", h.ip())
-    h.send_json(200, {"ok": True})
+    q("DELETE FROM license_activations WHERE license_id=?", (lic_id,))
+    q("DELETE FROM licenses WHERE id=?", (lic_id,))
+    audit(u["username"], "LICENSE_DELETE",
+          f"Licencia eliminada · id {lic_id} · {row['client_name']} · {row['type']} · activa={'Sí' if row['active'] else 'No'}", h.ip())
+    h.send_json(200, {"ok": True, "deleted": 1, "id": lic_id, "clientName": row["client_name"], "active": bool(row["active"])})
+
+
+@route("POST", "/api/license/delete-all", roles={"ADMINISTRADOR"})
+def license_delete_all(h, u, _):
+    """Elimina TODAS las licencias creadas y sus activaciones (solo ADMINISTRADOR)."""
+    b = h.body()
+    if str(b.get("confirm") or "").strip().upper() not in ("ELIMINAR", "CONFIRMO", "DELETE", "SI", "SÍ"):
+        return h.err(400, "Confirme la eliminación de todas las licencias.")
+    total = q("SELECT COUNT(*) as c FROM licenses", one=True)
+    n_lic = int(total["c"]) if total else 0
+    acts = q("SELECT COUNT(*) as c FROM license_activations", one=True)
+    n_act = int(acts["c"]) if acts else 0
+    q("DELETE FROM license_activations")
+    q("DELETE FROM licenses")
+    audit(u["username"], "LICENSE_DELETE_ALL",
+          f"Eliminadas TODAS las licencias · {n_lic} licencia(s) · {n_act} activación(es)", h.ip())
+    h.send_json(200, {"ok": True, "deleted": n_lic, "activations": n_act})
 
 
 # ------------------------------------------------------------------ autenticación
