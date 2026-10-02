@@ -1,5 +1,6 @@
 package com.cuadrepinar.inventario.ui.cuadre
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,10 +22,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuadrepinar.inventario.data.export.ExportManager
 import com.cuadrepinar.inventario.data.repository.CuadreRepository
 import com.cuadrepinar.inventario.data.repository.MovementRepository
 import com.cuadrepinar.inventario.domain.model.DailyCuadre
@@ -46,7 +50,8 @@ import javax.inject.Inject
 class CuadreViewModel @Inject constructor(
     private val repo: CuadreRepository,
     movements: MovementRepository,
-    val sync: com.cuadrepinar.inventario.data.sync.SyncManager
+    val sync: com.cuadrepinar.inventario.data.sync.SyncManager,
+    val exporter: ExportManager
 ) : ViewModel() {
     var date by mutableStateOf(LocalDate.now())
 
@@ -81,6 +86,7 @@ class CuadreViewModel @Inject constructor(
 
 @Composable
 fun CuadreScreen(user: UserAccount, vm: CuadreViewModel = hiltViewModel()) {
+    val context = LocalContext.current
     val movs by vm.movements.collectAsState()
     LaunchedEffect(Unit) { vm.load() }
     val c = vm.cuadre ?: return
@@ -120,6 +126,18 @@ fun CuadreScreen(user: UserAccount, vm: CuadreViewModel = hiltViewModel()) {
             KpiCard("Diferencia USD", Money.usd(totals.diferenciaUsd), Money.cup(totals.diferenciaMn), Modifier.weight(1f))
             KpiCard("Fondo final", Money.cup(totals.fondoFinalCup), Money.usd(totals.fondoFinalUsd), Modifier.weight(1f))
         }
+        OutlinedButton(
+            onClick = {
+                val pdf = vm.exporter.pdfCuadre(form, CuadreCalculator.totals(form, dayMovs), dayMovs)
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/pdf"
+                    putExtra(Intent.EXTRA_STREAM, vm.exporter.uriFor(pdf))
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(intent, "Compartir cuadre PDF"))
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("📄 Exportar cuadre a PDF") }
 
         SectionTitle("Tipo de cambio")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

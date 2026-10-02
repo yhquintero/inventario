@@ -64,7 +64,13 @@ globalThis.history = { replaceState() {} };
 globalThis.sessionStorage = { store: new Map(), getItem(k) { return this.store.get(k) ?? null; }, setItem(k, v) { this.store.set(k, String(v)); }, removeItem(k) { this.store.delete(k); } };
 const mem = new Map();
 globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
-globalThis.fetch = async () => ({ status: 200, ok: true, json: async () => ({}) });
+globalThis.fetch = async (url) => ({
+  status: 200,
+  ok: true,
+  json: async () => String(url).includes("/api/license/status")
+    ? { valid: true, hasLicense: true, clientName: "Prueba", product: "Cuadre Pinar", type: "FULL", daysLeft: -1 }
+    : {},
+});
 globalThis.prompt = () => "motivo";
 globalThis.URL.createObjectURL = () => "blob:x";
 globalThis.URL.revokeObjectURL = () => {};
@@ -101,6 +107,7 @@ const test = (name, fn) => {
 
 /* ----------------------------- arranque de la app ----------------------------- */
 await import(pathToFileURL(join(tmp, "js/app.js")).href);
+await new Promise((resolve) => setImmediate(resolve)); // espera el control asíncrono de licencia
 const app = getEl("app");
 store.applyServer({ version: 1, state, closedDays: [] });
 store.state.session = state.session;
@@ -109,6 +116,19 @@ const go = (route) => { location.hash = "#" + route; if (store.emit) store.emit(
 console.log("\nWeb · Almacenes e Importar valores (DOM simulado)\n");
 
 
+
+test("los informes muestran encabezado y controles de impresión/PDF", () => {
+  const cuadre = go("cuadre");
+  assert.match(cuadre, /class="print-report-header"/);
+  assert.match(cuadre, /Imprimir \/ PDF/);
+  const weekly = go("weekly");
+  assert.match(weekly, /Informe semanal/);
+  assert.match(weekly, /Importar resumen Excel/);
+  assert.match(weekly, /Imprimir \/ PDF/);
+  const reports = go("reports");
+  assert.match(reports, /Comprobación de inventario/);
+  assert.match(reports, />PDF</);
+});
 
 test("el Panel dibuja las existencias por almacén", () => {
   const html = go("home");
@@ -216,8 +236,15 @@ test("Traspasos: el modal deja elegir origen, destino, producto y cantidad", () 
   assert.match(app.innerHTML, /ALMACÉN PRINCIPAL/);
 });
 
-test("Venta rápida apunta al almacén en uso", () => {
+test("Iluminación muestra el icono a tamaño contenido en Venta rápida", () => {
+  const product = store.state.products.find((item) => item.id === "p1");
+  const originalCategory = product.category;
+  product.category = "Iluminación";
   const html = go("pos");
+  product.category = originalCategory;
+  assert.match(html, /💡 Iluminación/);
+  assert.match(html, /style="--thumb-color:#eab308">💡<\/span>/);
+  assert.doesNotMatch(html, /999px/);
   assert.match(html, /Almacén/);
   assert.match(html, /posWh/);
 });

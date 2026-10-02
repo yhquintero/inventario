@@ -158,6 +158,7 @@ th.num, td.num { width: 44px; text-align: center; color: var(--muted); }
 .actions > * + * { margin-left: 4px; }
 tr.muted td { opacity: .55; }
 .thumb { border-radius: 9px; object-fit: cover; display: inline-grid; place-items: center; border: 1px solid var(--line); background: var(--surface-2); vertical-align: middle; font-size: 18px; }
+.thumb.ph { background: color-mix(in srgb, var(--thumb-color, var(--primary)) 14%, var(--surface-2)); color: var(--thumb-color, var(--primary)); }
 .inv td:nth-child(3) { min-width: 240px; }
 
 /* charts */
@@ -298,12 +299,13 @@ kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); 
 
 /* ===================== Venta rápida ===================== */
 .pos { display: grid; grid-template-columns: 1fr 360px; gap: 18px; align-items: start; }
-.pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-.pcard { position: relative; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow); transition: .15s; }
+.pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; align-items: start; }
+.pcard { position: relative; width: 100%; max-width: 220px; justify-self: start; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow); transition: .15s; }
 .pcard:hover { transform: translateY(-3px); border-color: var(--primary-2); box-shadow: 0 12px 28px rgba(15,118,110,.18); }
 .pcard:active { transform: scale(.97); }
 .pcard.in { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
-.pcard .thumb { width: 100%; aspect-ratio: 1; height: auto; border-radius: 10px; font-size: 38px; }
+.pcard .thumb { display: grid; flex: 0 0 auto; width: 100%; max-width: 100%; max-height: 204px; aspect-ratio: 1; height: auto; border-radius: 10px; font-size: 40px; }
+.pcard .thumb.ph { font-size: 42px; }
 .pname { font-size: 12px; font-weight: 600; line-height: 1.25; min-height: 30px; }
 .pfoot { display: flex; justify-content: space-between; align-items: center; }
 .pfoot b { color: var(--primary); }
@@ -408,4 +410,81 @@ textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 
 @media (max-width: 640px) {
   .wh-stats { grid-template-columns: repeat(2, 1fr); }
   .wh-pick { display: none; }
+}
+
+/* ===================== Exportación PDF / impresión ===================== */
+.print-report-header { display: none; }
+@page { size: A4 landscape; margin: 13mm 11mm 16mm; }
+@page {
+  @bottom-right {
+    content: "Cuadre Pinar · Página " counter(page) " / " counter(pages);
+    color: #64748b;
+    font: 8pt Arial, sans-serif;
+  }
+}
+@media print {
+  html, body, #app, .app { min-height: 0 !important; height: auto !important; overflow: visible !important; }
+  html, body { background: #fff !important; color: #17212b !important; font-size: 9pt !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body::before, body::after { display: none !important; }
+  .rail, .topbar, .bottom-nav, .toolbar, .fab, .btn, .modal-back, .tooltip, .toast,
+  .scrim, .palette-back, .tour, .confetti, .celebrate { display: none !important; }
+  .shell { display: block !important; min-height: 0 !important; }
+  .main { display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
+  .content { padding: 0 !important; margin: 0 !important; overflow: visible !important; }
+  .content.enter > * { animation: none !important; transform: none !important; }
+  .print-report-header {
+    display: flex !important;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    margin: 0 0 12px;
+    padding: 0 0 10px;
+    border-bottom: 2px solid #0f766e;
+    color: #0b1f33 !important;
+    break-after: avoid-page;
+  }
+  .print-report-header .print-brand { color: #0f766e !important; font-size: 8pt; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+  .print-report-header h1 { margin: 2px 0 0; font: 600 21pt Georgia, serif; color: #0b1f33 !important; }
+  .print-period { text-align: right; color: #334155 !important; font-size: 9pt; }
+  .print-period small { display: block; margin-top: 4px; color: #64748b !important; font-size: 8pt; }
+  .card, .summary { background: #fff !important; color: #17212b !important; border: 1px solid #d9e1e8 !important; box-shadow: none !important; }
+  .card { padding: 10px !important; border-radius: 4px !important; break-inside: avoid; }
+  .grid-2 { grid-template-columns: 1fr 1fr !important; gap: 10px !important; align-items: start; }
+  .cuadre-grid { grid-template-columns: 1fr !important; }
+  .cuadre-grid > form { display: none !important; }
+  .cuadre-grid #printArea { width: 100% !important; }
+  .cuadre-grid #printArea .chips { display: none !important; }
+  #printArea { width: 100% !important; max-width: none !important; }
+  .kpis { gap: 8px !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .kpis .kpi { min-width: 0; padding: 8px !important; break-inside: avoid; }
+  .kpi .v { font-size: 15pt !important; }
+  .k, .hint, .summary, .cline, .weekly-excel-reference p { color: #334155 !important; }
+  .table-wrap { overflow: visible !important; }
+  table { width: 100% !important; border-collapse: collapse !important; page-break-inside: auto; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  th { position: static !important; z-index: auto !important; background: #edf3f5 !important; color: #334155 !important; border-bottom: 1px solid #aebcc7 !important; }
+  th, td { padding: 4px 5px !important; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
+  #printArea table { font-size: 7.5pt !important; }
+  #weeklyForm input, #weeklyForm select {
+    width: auto !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    color: #17212b !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    text-align: right;
+    font: inherit !important;
+  }
+  #weeklyForm label { color: #334155 !important; }
+  .cline.final.ok, .cline.final.bad { background: #edf3f5 !important; color: #17212b !important; }
+  .tag, mark { background: #fff !important; color: #17212b !important; border: 1px solid #cbd5e1 !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+  img, svg { max-width: 100% !important; }
+  #printArea, #printArea .card, .table-wrap.card, .card.table-wrap, .weekly-excel-reference { break-inside: auto !important; page-break-inside: auto !important; }
+  .weekly-excel-reference { margin-top: 12px; }
+  .weekly-excel-reference .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .empty { padding: 8px !important; }
 }

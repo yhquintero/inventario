@@ -626,6 +626,20 @@ class Store {
     this.emit();
   }
 
+  saveWeeklyReferences(references) {
+    if (!can(this.state.session?.role, "WEEKLY_EDIT")) return { error: "Tu rol no puede importar resúmenes semanales." };
+    if (!Array.isArray(references) || !references.length) return { error: "El archivo no contiene semanas para guardar." };
+    if (!this.state.weekly || typeof this.state.weekly !== "object") this.state.weekly = {};
+    for (const reference of references) {
+      if (!reference?.from) continue;
+      const current = this.state.weekly[reference.from] || {};
+      this.state.weekly[reference.from] = { ...current, excelSummary: reference };
+    }
+    this.audit("IMPORT", "weekly", `Resumen semanal Excel · ${references.length} semanas`);
+    this.emit();
+    return { ok: true, total: references.length };
+  }
+
   /* ================= PUNTO DE VENTA ================= */
   posCheckout(cart, { date, center, domicilioCup = 0, notes = "", warehouseId = null }) {
     if (!cart.length) return { error: "El carrito está vacío." };
