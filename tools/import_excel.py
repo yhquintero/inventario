@@ -9,7 +9,7 @@ Uso: python3 tools/import_excel.py
 import json, re, os, datetime, openpyxl
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "CUADRE PINAR SEPT.xlsx")
+SRC = os.path.join(ROOT, "xlsx", "CUADRE PINAR SEPT.xlsx")
 MAIN = "25 9 26"
 
 def clean(s):
@@ -92,36 +92,126 @@ def cuadre_panel(name):
     out["cupUsd"] = rate or 0
     return out
 
-# ---------- main inventory ----------
+# ---------- inventory and movements across every dated sheet ----------
+daily = sorted([s for s in wb.sheetnames if sheet_date(s)], key=sheet_date)
+if not daily:
+    raise SystemExit("No se encontraron hojas diarias con fecha en el nombre.")
 ws = wb[MAIN]
 date = sheet_date(MAIN)
-products, movements, seen = [], [], set()
+opening_by_name, latest_rows = {}, {}
+for sheet_name in daily:
+    source_ws = wb[sheet_name]
+    for row_number, name in product_rows(source_ws):
+        opening_by_name.setdefault(name, num(source_ws.cell(row_number, 2).value))
+        latest_rows[name] = (source_ws, row_number)
+
+products, product_by_name = [], {}
 for r, name in product_rows(ws):
-    if name in seen: continue
-    seen.add(name)
+    if name in product_by_name: continue
     g = lambda c: ws.cell(r, c).value
-    ex, ent, sal, v1, v2 = num(g(2)), num(g(3)), num(g(4)), num(g(5)), num(g(6))
     obs = g(16)
-    obs = "" if obs is None or (isinstance(obs, (int, float))) or not str(obs).strip() else str(obs).strip()
-    diff = num(g(16)) if isinstance(g(16), (int, float)) else 0
-    p = {
+    obs = "" if obs is None or isinstance(obs, (int, float)) or not str(obs).strip() else str(obs).strip()
+    product = {
         "name": name, "category": categorize(name),
-        "stockInicial": ex, "precioVentaUsd": num(g(12)), "precioVenta2Usd": num(g(13)),
+        # La base corresponde a la apertura de la primera fecha importada; todos los
+        # movimientos diarios posteriores reconstruyen el saldo hasta la hoja más nueva.
+        "stockInicial": opening_by_name.get(name, num(g(2))),
+        "precioVentaUsd": num(g(12)), "precioVenta2Usd": num(g(13)),
         "precioCostoUsd": num(g(10)), "comisionCup": num(g(7)),
-        "observaciones": obs, "diferencia": diff,
+        "observaciones": obs, "diferencia": num(g(16)) if isinstance(g(16), (int, float)) else 0,
+        "stockFinal": num(g(14)),
     }
-    products.append(p)
-    for t, q, price in (("ENTRADA", ent, 0), ("SALIDA", sal, 0), ("VENTA", v1, p["precioVentaUsd"]), ("VENTA", v2, p["precioVenta2Usd"] or p["precioVentaUsd"])):
-        if q:
-            movements.append({"date": date, "product": name, "type": t, "quantity": q, "unitPriceUsd": price,
-                              "center": "TIENDA" if t == "VENTA" else "MOV",
-                              "domicilioCup": num(g(9)) if t == "VENTA" else 0,
-                              "notes": ("VENTA 2" if price == p["precioVenta2Usd"] and v2 and t == "VENTA" and price else "") or (obs if t != "VENTA" else "")})
-            if t == "VENTA": pass
-    p["stockFinal"] = num(g(14))
+    products.append(product)
+    product_by_name[name] = product
+
+# Si se incorporó un producto después de la primera hoja, no estaba en MAIN pero
+# igualmente debe quedar en el catálogo y en su historial.
+for name, (source_ws, r) in latest_rows.items():
+    if name in product_by_name: continue
+    g = lambda c: source_ws.cell(r, c).value
+    obs = g(16)
+    product = {
+        "name": name, "category": categorize(name), "stockInicial": opening_by_name.get(name, num(g(2))),
+        "precioVentaUsd": num(g(12)), "precioVenta2Usd": num(g(13)),
+        "precioCostoUsd": num(g(10)), "comisionCup": num(g(7)),
+        "observaciones": "" if obs is None or isinstance(obs, (int, float)) else str(obs).strip(),
+        "diferencia": 0, "stockFinal": num(g(14)),
+    }
+    products.append(product)
+    product_by_name[name] = product
+
+movements = []
+running_stock = dict(opening_by_name)
+for sheet_name in daily:
+    source_ws = wb[sheet_name]
+    day = sheet_date(sheet_name)
+    import_key = f"CUADRE PINAR SEPT.xlsx#{sheet_name}"
+    seen_day = set()
+    for r, name in product_rows(source_ws):
+        if name in seen_day: continue
+        seen_day.add(name)
+        g = lambda c: source_ws.cell(r, c).value
+        entry, exit_qty, v1, v2 = num(g(3)), num(g(4)), num(g(5)), num(g(6))
+        product = product_by_name.get(name)
+        if not product: continue
+        source_opening = num(g(2))
+        opening_delta = round(source_opening - running_stock.get(name, source_opening), 2)
+        if opening_delta > 0.01:
+            movements.append({"date": day, "product": name, "type": "ENTRADA", "quantity": opening_delta,
+                              "unitPriceUsd": 0, "center": "MOV", "domicilioCup": 0, "notes": "Ajuste de apertura según el Excel",
+                              "importKey": import_key, "sourceSheet": sheet_name, "sourceFormat": "pinar"})
+        elif opening_delta < -0.01:
+            movements.append({"date": day, "product": name, "type": "SALIDA", "quantity": -opening_delta,
+                              "unitPriceUsd": 0, "center": "MOV", "domicilioCup": 0, "notes": "Ajuste de apertura según el Excel",
+                              "importKey": import_key, "sourceSheet": sheet_name, "sourceFormat": "pinar"})
+        if entry:
+            movements.append({"date": day, "product": name, "type": "ENTRADA", "quantity": entry,
+                              "unitPriceUsd": 0, "center": "MOV", "domicilioCup": 0,
+                              "importKey": import_key, "sourceSheet": sheet_name, "sourceFormat": "pinar"})
+        if exit_qty:
+            movements.append({"date": day, "product": name, "type": "SALIDA", "quantity": exit_qty,
+                              "unitPriceUsd": 0, "center": "MOV", "domicilioCup": 0,
+                              "importKey": import_key, "sourceSheet": sheet_name, "sourceFormat": "pinar"})
+        total_qty = v1 + v2
+        price1 = num(g(12))
+        price2 = num(g(13)) or price1
+        listed1, listed2 = v1 * price1, v2 * price2
+        listed_total = listed1 + listed2
+        excel_total = num(g(15))
+        sale_total = listed_total if excel_total == 0 and listed_total > 0 else excel_total
+        split1 = round(sale_total * listed1 / listed_total, 2) if listed_total else (round(sale_total * v1 / total_qty, 2) if total_qty else 0)
+        commission_total = num(g(8))
+        if commission_total == 0 and total_qty and num(g(7)):
+            commission_total = total_qty * num(g(7))
+        commission1 = round(commission_total * v1 / total_qty, 2) if total_qty else 0
+        sale_rows = (
+            (v1, price1, split1, commission1, ""),
+            (v2, price2, round(sale_total - split1, 2), round(commission_total - commission1, 2), "VENTA 2"),
+        )
+        domicile_added = False
+        for quantity, price, amount, commission, label in sale_rows:
+            if not quantity: continue
+            movements.append({
+                "date": day, "product": name, "type": "VENTA", "quantity": quantity,
+                "unitPriceUsd": price, "unitCostUsd": num(g(10)), "importeUsd": amount,
+                "comisionCup": commission, "center": "TIENDA",
+                "domicilioCup": num(g(9)) if not domicile_added else 0,
+                "notes": label, "importKey": import_key, "sourceSheet": sheet_name, "sourceFormat": "pinar",
+            })
+            domicile_added = True
+        expected_final = source_opening + entry - exit_qty - v1 - v2
+        final_delta = round(num(g(14)) - expected_final, 2)
+        if final_delta > 0.01:
+            movements.append({"date": day, "product": name, "type": "ENTRADA", "quantity": final_delta,
+                              "unitPriceUsd": 0, "center": "MOV", "domicilioCup": 0, "notes": "Ajuste de cierre según el Excel",
+                              "importKey": import_key, "sourceSheet": sheet_name, "sourceFormat": "pinar"})
+        elif final_delta < -0.01:
+            movements.append({"date": day, "product": name, "type": "SALIDA", "quantity": -final_delta,
+                              "unitPriceUsd": 0, "center": "MOV", "domicilioCup": 0, "notes": "Ajuste de cierre según el Excel",
+                              "importKey": import_key, "sourceSheet": sheet_name, "sourceFormat": "pinar"})
+        running_stock[name] = num(g(14))
 
 # ---------- history across all daily sheets ----------
-daily = sorted([s for s in wb.sheetnames if sheet_date(s)], key=sheet_date)
 price_hist, last = [], {}
 rates, last_rate = [], None
 cuadres = []
@@ -133,7 +223,8 @@ for s in daily:
             val = num(w.cell(r, col).value)
             k = (name, field)
             if k in last and last[k] != val:
-                price_hist.append({"date": d, "product": name, "field": field, "old": last[k], "new": val})
+                price_hist.append({"date": d, "product": name, "field": field, "old": last[k], "new": val,
+                                   "importKey": f"CUADRE PINAR SEPT.xlsx#{s}", "sourceSheet": s, "sourceFormat": "pinar"})
             last[k] = val
     c = cuadre_panel(s)
     c["date"] = d

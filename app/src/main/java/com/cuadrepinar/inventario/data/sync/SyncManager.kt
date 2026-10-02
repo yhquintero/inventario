@@ -282,11 +282,23 @@ class SyncManager @Inject constructor(
                     val fin = StockCalculator.stockFinal(ini, type, qty)
                     running[prod.remoteId] = fin
                     val d = LocalDate.parse(m.str("date"))
+                    val unitPrice = m.num("unitPriceUsd")
+                    val amount = when {
+                        m.has("importedAmountUsd") && !m.isNull("importedAmountUsd") -> m.num("importedAmountUsd")
+                        m.has("importeUsd") && !m.isNull("importeUsd") -> m.num("importeUsd")
+                        else -> StockCalculator.importeUsd(type, qty, unitPrice)
+                    }
+                    val commission = when {
+                        m.has("importedCommissionCup") && !m.isNull("importedCommissionCup") -> m.num("importedCommissionCup")
+                        m.has("comisionCup") && !m.isNull("comisionCup") -> m.num("comisionCup")
+                        else -> StockCalculator.comisionVenta(type, qty, prod.comisionCup)
+                    }
+                    val unitCost = if (m.has("unitCostUsd") && !m.isNull("unitCostUsd")) m.num("unitCostUsd") else prod.precioCostoUsd
                     out += MovementEntity(
                         dateEpoch = Dates.startOfDay(d), weekday = Dates.weekday(d), productId = prod.id, type = type.name, quantity = qty,
-                        unitPriceUsd = m.num("unitPriceUsd"), importeUsd = StockCalculator.importeUsd(type, qty, m.num("unitPriceUsd")),
-                        center = SaleCenter.from(m.str("center")).name, comisionCup = StockCalculator.comisionVenta(type, qty, prod.comisionCup),
-                        stockInicial = ini, stockFinal = fin, userId = me, notes = m.str("notes"), remoteId = m.str("id")
+                        unitPriceUsd = unitPrice, importeUsd = amount, center = SaleCenter.from(m.str("center")).name,
+                        comisionCup = commission, stockInicial = ini, stockFinal = fin, userId = me, notes = m.str("notes"),
+                        remoteId = m.str("id"), unitCostUsd = if (type == MovementType.VENTA) unitCost else 0.0
                     )
                 }
                 db.movements().insertAll(out)
@@ -317,7 +329,7 @@ class SyncManager @Inject constructor(
     private suspend fun localSig(): String {
         val sb = StringBuilder()
         db.products().all().sortedBy { it.id }.forEach { sb.append(listOf(it.remoteId, it.name, it.category, it.stockInicial, it.precioVentaUsd, it.precioVenta2Usd, it.precioCostoUsd, it.comisionCup, it.minStock, it.observaciones, it.active).joinToString("|")).append('\n') }
-        db.movements().all().forEach { sb.append(listOf(it.remoteId, it.productId, it.dateEpoch, it.type, it.quantity, it.unitPriceUsd, it.center, it.notes).joinToString("|")).append('\n') }
+        db.movements().all().forEach { sb.append(listOf(it.remoteId, it.productId, it.dateEpoch, it.type, it.quantity, it.unitPriceUsd, it.unitCostUsd, it.importeUsd, it.comisionCup, it.center, it.notes).joinToString("|")).append('\n') }
         db.cuadre().all().sortedBy { it.dateEpoch }.forEach { sb.append(it.copy(id = 0, userId = 0, closed = false).toString()).append('\n') }
         db.exchange().all().forEach { sb.append(listOf(it.remoteId, it.pair, it.rate, it.dateEpoch).joinToString("|")).append('\n') }
         return sb.toString().hashCode().toString() + ":" + sb.length
@@ -413,18 +425,22 @@ class SyncManager @Inject constructor(
             if (o == null) {
                 val id = newId("m")
                 jMovs.put(JSONObject().put("id", id).put("date", date).put("productId", pid).put("productName", nameOf[m.productId])
-                    .put("type", m.type).put("quantity", m.quantity).put("unitPriceUsd", m.unitPriceUsd).put("center", m.center)
+                    .put("type", m.type).put("quantity", m.quantity).put("unitPriceUsd", m.unitPriceUsd).put("unitCostUsd", m.unitCostUsd)
+                    .put("importedAmountUsd", m.importeUsd).put("importedCommissionCup", m.comisionCup).put("center", m.center)
                     .put("domicilioCup", 0).put("notes", m.notes).put("userName", "$who (App)").put("createdAt", now).put("deletedAt", JSONObject.NULL))
                 db.movements().setRemoteId(m.id, id); liveMovs += id; changes += "movimiento ${m.type} ${m.quantity} × ${nameOf[m.productId]}"
                 continue
             }
             liveMovs += m.remoteId!!
             val same = o.str("date") == date && o.str("productId") == pid && MovementType.from(o.str("type")).name == m.type &&
-                o.num("quantity") == m.quantity && o.num("unitPriceUsd") == m.unitPriceUsd &&
+                o.num("quantity") == m.quantity && o.num("unitPriceUsd") == m.unitPriceUsd && o.num("unitCostUsd") == m.unitCostUsd &&
+                o.num("importedAmountUsd") == m.importeUsd && o.num("importedCommissionCup") == m.comisionCup &&
                 SaleCenter.from(o.str("center")).name == m.center && o.str("notes") == m.notes
             if (!same) {
                 o.put("date", date).put("productId", pid).put("productName", nameOf[m.productId]).put("type", m.type).put("quantity", m.quantity)
-                    .put("unitPriceUsd", m.unitPriceUsd).put("notes", m.notes).put("updatedAt", now).put("updatedBy", "$who (App)")
+                    .put("unitPriceUsd", m.unitPriceUsd).put("unitCostUsd", m.unitCostUsd)
+                    .put("importedAmountUsd", m.importeUsd).put("importedCommissionCup", m.comisionCup)
+                    .put("notes", m.notes).put("updatedAt", now).put("updatedBy", "$who (App)")
                 if (SaleCenter.from(o.str("center")).name != m.center) o.put("center", m.center)
                 changes += "movimiento modificado"
             }

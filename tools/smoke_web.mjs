@@ -127,14 +127,36 @@ test("los informes muestran encabezado y controles de impresión/PDF", () => {
   assert.match(weekly, /Imprimir \/ PDF/);
   const reports = go("reports");
   assert.match(reports, /Comprobación de inventario/);
+  assert.match(reports, /data-period="anual"/);
+  assert.match(reports, /data-period="período"/);
+  assert.match(reports, /id="reportDate"/);
   assert.match(reports, />PDF</);
+  assert.match(reports, /sticky-data-wrap reports-table-scroll/);
 });
 
-test("el Panel dibuja las existencias por almacén", () => {
+test("el Panel muestra totales por categoría y por almacén", () => {
   const html = go("home");
   assert.match(html, /Cuadre Pinar/);
+  assert.match(html, /Valor por categoría/);
+  assert.match(html, /Total por categoría/);
   assert.match(html, /Existencias por almacén/);
+  assert.match(html, /Total general/);
   assert.match(html, /TIENDA PINAR/);
+  assert.doesNotMatch(html, /inventory-value-alert/);
+});
+
+test("el Panel alerta si los valores por categoría y almacén difieren", () => {
+  const product = store.state.products[0];
+  const originalStock = product.stockActual;
+  try {
+    product.stockActual = originalStock - 1;
+    const html = go("home");
+    assert.match(html, /role="alert"/);
+    assert.match(html, /Los totales de valoración no coinciden/);
+  } finally {
+    product.stockActual = originalStock;
+    go("home");
+  }
 });
 
 test("Inventario muestra el almacén en uso y el botón de importar", () => {
@@ -143,12 +165,16 @@ test("Inventario muestra el almacén en uso y el botón de importar", () => {
   assert.match(html, /Importar valores/);
   assert.match(html, /En PRI/);           // chip de filtro por almacén
   assert.match(html, /PANEL SOLAR 500W/);
+  assert.match(html, /sticky-data-wrap inventory-table-scroll/);
+  assert.match(html, /data-act="print"/);
 });
 
-test("Movimientos muestra la columna ALMACÉN", () => {
+test("Movimientos ofrece CSV y PDF para el filtro visible", () => {
   const html = go("movements");
   assert.match(html, /ALMACÉN/);
   assert.match(html, /Venta rápida|VENTA/);
+  assert.match(html, /data-act="export-movements-view"/);
+  assert.match(html, /data-act="print"/);
 });
 
 test("Almacenes: tarjetas, KPIs, entradas y sus filtros", () => {
@@ -157,6 +183,7 @@ test("Almacenes: tarjetas, KPIs, entradas y sus filtros", () => {
   assert.match(html, /ALMACÉN PRINCIPAL/);
   assert.match(html, /TIENDA PINAR/);
   assert.match(html, /Ver existencias/);
+  assert.match(html, /data-wh-pdf=/);
   assert.match(html, /Importar valores/);
   // pestaña Entradas
   app.dispatch("click", { target: { closest: () => ({ dataset: { whTab: "entradas" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });

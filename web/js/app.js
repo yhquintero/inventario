@@ -1,12 +1,12 @@
 import { store } from "./store.js";
 import { api, setLicenseErrorHandler } from "./api.js";
-import { parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
+import { parseCuadrePinarGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
 import { LicenseManager } from "./license.js";
 import qrcode from "../vendor/qrcode.mjs";
 import { applyTips, initTooltips, startTour, tourSeen, openPalette, animateCounters } from "./ux.js";
 import {
-  addDays, can, CATEGORIES, cup, CURRENCIES, cuadreCalc, formatDate, inRange, normName, periodRange,
-  qty, round2, stockCalculado, todayISO, usd, validatePassword, validateProduct, weekday, weekRange,
+  addDays, can, CATEGORIES, cup, CURRENCIES, cuadreCalc, formatDate, inRange, normName, reportPeriodRange, stockAtStart,
+  qty, round2, todayISO, usd, validatePassword, validateProduct, weekday, weekRange,
   parseValuesText, summarizeRows, STATUS_LABEL, VALUE_FIELDS,
 } from "./calc.js";
 
@@ -34,10 +34,10 @@ const routes = {
 };
 
 let ui = {
-  route: "home", q: "", filter: "TODOS", cat: "TODAS", period: "semanal", modal: null, toast: null,
+  route: "home", q: "", filter: "TODOS", cat: "TODAS", period: "semanal", reportDate: "", reportFrom: "", reportTo: "", reportWarehouse: null, modal: null, toast: null,
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
   histTab: "precios",
-  whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, iv: null,
+  whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, pdfWarehouseId: null, iv: null,
   license: { status: null, loading: true, error: null, key: "", activating: false, info: null },
 };
 
@@ -265,6 +265,12 @@ function homeView() {
   const byCat = {};
   prods.forEach((p) => { byCat[p.category] = (byCat[p.category] || 0) + Math.max(0, p.stockActual) * p.precioVentaUsd; });
   const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  const categoryValue = round2(cats.reduce((sum, [, value]) => sum + value, 0));
+  const warehouseRows = store.warehousesActive().map((warehouse) => ({ warehouse, stats: store.warehouseStats(warehouse) }));
+  const warehouseValue = round2(warehouseRows.reduce((sum, row) => sum + row.stats.valor, 0));
+  const warehouseUnits = round2(warehouseRows.reduce((sum, row) => sum + row.stats.unidades, 0));
+  const valuationMismatch = Math.round(categoryValue * 100) !== Math.round(warehouseValue * 100);
+  const valuationDifference = round2(categoryValue - warehouseValue);
   const h = new Date().getHours();
   const saludo = h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches";
   const top = [...movs].filter((m) => m.type === "VENTA").reduce((a, m) => ((a[m.productName] = (a[m.productName] || 0) + m.importeUsd), a), {});
@@ -295,6 +301,7 @@ function homeView() {
       ${kpi("Ítems en inventario", prods.length, `${qty(unidades)} unidades en stock`, "blue")}
       ${kpi("Valor a precio venta", usd(valorVenta), `Costo registrado ${usd(valorCosto)}`, "gold")}
     </div>
+    ${valuationMismatch ? `<div class="banner inventory-value-alert" role="alert">⚠ <strong>Los totales de valoración no coinciden.</strong> Por categoría: <b>${usd(categoryValue)}</b>; por almacén: <b>${usd(warehouseValue)}</b>; diferencia: <b>${usd(valuationDifference)}</b>. Revisa las existencias y sus almacenes.</div>` : ""}
     <div class="grid-2" style="margin-top:16px">
       <div class="card">
         <div class="card-h"><span class="k">Ventas semana ${formatDate(w.from)} – ${formatDate(w.to)}</span></div>
@@ -302,11 +309,13 @@ function homeView() {
       </div>
       <div class="card">
         <div class="card-h"><span class="k">Valor por categoría</span></div>
-        ${cats.map(([k, v]) => `<div class="hbar"><span>${catBadge(k)}</span><div><i style="width:${(v / (cats[0][1] || 1)) * 100}%;background:${(CATEGORIES[k] || CATEGORIES.General).color}"></i></div><b class="mono">${usd(v)}</b></div>`).join("")}
+        ${cats.map(([k, v]) => `<div class="hbar"><span>${catBadge(k)}</span><div><i style="width:${(v / (cats[0][1] || 1)) * 100}%;background:${(CATEGORIES[k] || CATEGORIES.General).color}"></i></div><b class="mono">${usd(v)}</b></div>`).join("") || `<p class="hint">Sin productos en inventario.</p>`}
+        <div class="hline dashboard-total"><span>Total por categoría</span><b class="mono">${usd(categoryValue)}</b></div>
       </div>
-      ${store.warehousesActive().length > 1 ? `<div class="card">
+      ${warehouseRows.length > 0 ? `<div class="card">
         <div class="card-h"><span class="k">Existencias por almacén</span><button class="btn ghost small" data-nav="warehouses">Gestionar</button></div>
-        ${store.warehousesActive().map((w) => { const st = store.warehouseStats(w); return `<div class="hline"><span>🏬 ${esc(w.name)}${store.activeWarehouseId() === w.id ? " <span class='tag entrada'>en uso</span>" : ""}</span><b class="mono">${qty(st.unidades)} uds · ${usd(st.valor)}</b></div>`; }).join("")}
+        ${warehouseRows.map(({ warehouse, stats }) => `<div class="hline"><span>🏬 ${esc(warehouse.name)}${store.activeWarehouseId() === warehouse.id ? " <span class='tag entrada'>en uso</span>" : ""}</span><b class="mono">${qty(stats.unidades)} uds · ${usd(stats.valor)}</b></div>`).join("")}
+        <div class="hline dashboard-total"><span>Total general</span><b class="mono">${qty(warehouseUnits)} uds · ${usd(warehouseValue)}</b></div>
       </div>` : ""}
     </div>
     <div class="grid-2" style="margin-top:16px">
@@ -351,7 +360,9 @@ function inventoryView() {
   };
   const cols = 10 + (canEdit ? 1 : 0) + (multi ? 1 : 0);
   const cats = [...new Set(all.map((p) => p.category))].sort();
+  const inventorySubtitle = `${list.length} productos · ${wh?.name || "Almacén"}${ui.filter !== "TODOS" ? ` · ${ui.filter}` : ""}${ui.cat !== "TODAS" ? ` · ${ui.cat}` : ""}`;
   return `
+    ${printReportHeader("Inventario", inventorySubtitle)}
     <div class="toolbar">
       <div class="chips">
         ${[["TODOS", "Todos"], ["STOCK", "Con stock"], ["BAJO", "Stock bajo"], ["AGOTADOS", "Agotados"], ...(multi ? [["AQUI", `En ${wh?.code || wh?.name || ""}`]] : [])].map(([k, l]) => `<button class="chip ${ui.filter === k ? "on" : ""}" data-filter="${k}">${l}</button>`).join("")}
@@ -361,6 +372,7 @@ function inventoryView() {
         <select id="sortSel" class="sel">${[["name", "Orden: nombre"], ["cat", "Orden: categoría"], ["stock", "Orden: stock"], ["price", "Orden: precio"]].map(([k, l]) => `<option value="${k}" ${ui.sort === k ? "selected" : ""}>${l}</option>`).join("")}</select>
         ${canEdit ? `<button class="btn" data-act="new-product">＋ Nuevo producto</button>` : ""}
         ${canImp ? `<button class="btn ghost" data-act="iv-go" data-tip="Pegar del Excel, subir un archivo o escribir los valores de este almacén">📥 Importar valores</button>` : ""}
+        <button class="btn gold" data-act="print" data-tip="Imprimir este inventario o guardarlo como PDF">PDF</button>
         <button class="btn ghost" data-nav="warehouses" data-tip="Crear almacenes y ver sus entradas">🏬 Almacenes</button>
       </div>
     </div>
@@ -370,7 +382,7 @@ function inventoryView() {
       ${multi ? `<span>En «${esc(wh?.name || "")}» <b>${qty(tot.wh)}</b> uds</span>` : ""}
       <span class="hint">Fuente: hoja 25 9 26</span>
     </div>
-    <div class="card table-wrap flush">
+    <div class="card table-wrap flush sticky-data-wrap inventory-table-scroll" id="printArea">
       <table class="inv">
         <thead><tr>
           <th class="num">Nº</th><th></th><th>PRODUCTOS</th><th class="r">STOCK INICIAL</th><th class="r">STOCK ACTUAL</th>
@@ -409,19 +421,26 @@ function hl(text) {
 }
 
 /* ============================ MOVIMIENTOS ============================ */
-function movementsView() {
-  const list = store.activeMovements().filter((m) =>
+function movementViewRows() {
+  return store.activeMovements().filter((m) =>
     (ui.filter === "TODOS" || m.type === ui.filter) && (!ui.movDate || m.date === ui.movDate) &&
     (!ui.q || has(m.productName, ui.q) || has(m.center, ui.q) || has(m.notes || "", ui.q) || has(m.type, ui.q)))
     .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+function movementsView() {
+  const list = movementViewRows();
+  const movementSubtitle = `${list.length} movimientos · ${ui.movDate ? formatDate(ui.movDate) : "todas las fechas"}${ui.filter !== "TODOS" ? ` · ${ui.filter}` : ""}`;
   const canC = allowed("MOVEMENT_CREATE"), canE = allowed("MOVEMENT_EDIT");
   const ventas = list.filter((m) => m.type === "VENTA");
   return `
+    ${printReportHeader("Movimientos", movementSubtitle)}
     <div class="toolbar">
       <div class="chips">${["TODOS", "VENTA", "ENTRADA", "SALIDA"].map((t) => `<button class="chip ${ui.filter === t ? "on" : ""}" data-filter="${t}">${t}</button>`).join("")}</div>
       <div class="row">
         <input type="date" id="movDate" class="sel" value="${ui.movDate}">${ui.movDate ? `<button class="btn ghost small" data-act="clear-date">Todas las fechas</button>` : ""}
         ${canC ? `<button class="btn" data-act="new-movement">＋ Nuevo movimiento</button>` : ""}
+        <button class="btn ghost small" data-act="export-movements-view">CSV</button><button class="btn gold small" data-act="print">PDF</button>
       </div>
     </div>
     <div class="summary"><span><b>${list.length}</b> movimientos</span><span>Ventas <b>${usd(ventas.reduce((a, m) => a + m.importeUsd, 0))}</b></span><span>Comisiones <b>${cup(ventas.reduce((a, m) => a + m.comisionCup, 0))}</b></span><span>Domicilios <b>${cup(ventas.reduce((a, m) => a + (m.domicilioCup || 0), 0))}</b></span></div>
@@ -691,39 +710,120 @@ function weeklyView() {
 }
 
 /* ============================ COMPROBACIÓN ============================ */
-function comprobacionRows(from, to) {
-  const movs = store.activeMovements().filter((m) => inRange(m.date, from, to));
-  return store.activeProducts().map((p) => {
-    const mine = movs.filter((m) => m.productId === p.id);
-    const sum = (t) => mine.filter((m) => m.type === t).reduce((a, m) => a + m.quantity, 0);
-    const v = sum("VENTA"), e = sum("ENTRADA"), s = sum("SALIDA");
-    const orig = v * p.precioVentaUsd;
-    const real = mine.filter((m) => m.type === "VENTA").reduce((a, m) => a + m.importeUsd, 0);
-    return { p, v, e, s, calc: stockCalculado(p.stockInicial, v, e, s), orig, real, diff: orig - real };
-  }).filter((r) => (r.v || r.e || r.s) && (!ui.q || has(r.p.name, ui.q)));
+function reportContext() {
+  const anchor = ui.reportDate || lastDataDate();
+  if (!ui.reportDate) ui.reportDate = anchor;
+  if (!ui.reportFrom) ui.reportFrom = anchor;
+  if (!ui.reportTo) ui.reportTo = anchor;
+  const range = reportPeriodRange(ui.period, anchor, ui.reportFrom, ui.reportTo);
+  const warehouseId = ui.reportWarehouse === "all"
+    ? null
+    : (ui.reportWarehouse || store.activeWarehouseId());
+  return { ...range, anchor, warehouseId, valid: range.valid !== false };
+}
+
+function comprobacionRows(from, to, warehouseId = null) {
+  const allMovements = store.activeMovements();
+  const warehouseMovements = allMovements.filter((movement) => !warehouseId || store.warehouseOf(movement) === warehouseId);
+  return store.activeProducts().map((product) => {
+    const mine = warehouseMovements.filter((movement) => movement.productId === product.id);
+    const periodMovements = mine.filter((movement) => inRange(movement.date, from, to));
+    const sumQty = (type) => periodMovements.filter((movement) => movement.type === type).reduce((sum, movement) => sum + (Number(movement.quantity) || 0), 0);
+    const v = sumQty("VENTA"), e = sumQty("ENTRADA"), s = sumQty("SALIDA");
+    const stockOpening = stockAtStart(product, mine, from, warehouseId);
+    const stockCalc = round2(stockOpening + e - v - s);
+    const stockClosing = stockAtStart(product, mine, addDays(to, 1), warehouseId);
+    const sales = periodMovements.filter((movement) => movement.type === "VENTA");
+    const orig = round2(sales.reduce((sum, movement) => sum + (Number(movement.unitPriceUsd) || 0) * (Number(movement.quantity) || 0), 0));
+    const real = round2(sales.reduce((sum, movement) => sum + (Number(movement.importeUsd) || 0), 0));
+    const cost = round2(sales.reduce((sum, movement) => sum + (Number(movement.costoUsd) || 0), 0));
+    const commissionCup = round2(sales.reduce((sum, movement) => sum + (Number(movement.comisionCup) || 0), 0));
+    return {
+      p: product, v, e, s, opening: stockOpening, calc: stockCalc, closing: stockClosing,
+      orig, real, cost, profit: round2(real - cost), commissionCup, diff: round2(orig - real),
+      stockDiff: round2(stockCalc - stockClosing),
+    };
+  }).filter((row) => (row.v || row.e || row.s || row.opening || row.closing) && (!ui.q || has(row.p.name, ui.q)));
 }
 
 function reportsView() {
-  const { from, to } = ui.period === "semanal" ? weekRange(lastDataDate()) : periodRange(ui.period, lastDataDate());
-  const rows = comprobacionRows(from, to);
-  const sum = (k) => rows.reduce((a, r) => a + r[k], 0);
+  const { from, to, anchor, warehouseId, valid } = reportContext();
+  const rows = valid ? comprobacionRows(from, to, warehouseId) : [];
+  const sum = (key) => round2(rows.reduce((total, row) => total + (Number(row[key]) || 0), 0));
+  const warehouses = store.warehousesActive();
+  const warehouseName = warehouseId ? store.warehouseName(warehouseId) : "Todos los almacenes";
+  const novaReports = (store.state.excelDailyReports || []).filter((report) =>
+    inRange(report.date, from, to) && (!warehouseId || report.warehouseId === warehouseId)
+  ).sort((a, b) => a.date.localeCompare(b.date) || String(a.sheet).localeCompare(String(b.sheet)));
+  const novaSum = (key) => round2(novaReports.reduce((total, report) => total + (Number(report.finance?.[key]) || 0), 0));
+  const savedCuadres = (store.state.cuadres || []).filter((cuadre) => inRange(cuadre.date, from, to)).sort((a, b) => a.date.localeCompare(b.date));
+  const periodLabel = valid ? `${formatDate(from)} – ${formatDate(to)}` : "Revisa las fechas del período";
+  const stockMismatch = novaReports.reduce((count, report) => count + (Number(report.summary?.stockDifferenceRows) || 0), 0);
+  const stockStatus = novaReports.length
+    ? (stockMismatch ? `<span class="tag salida">NOVA: ${stockMismatch} productos con diferencia</span>` : `<span class="tag entrada">NOVA: existencias cuadradas</span>`)
+    : `<span class="tag mov">Sin cierre físico importado</span>`;
+  const dateControls = ui.period === "período"
+    ? `<label>Desde<input type="date" id="reportFrom" value="${esc(ui.reportFrom)}"></label><label>Hasta<input type="date" id="reportTo" value="${esc(ui.reportTo)}"></label>`
+    : `<label>Fecha de referencia<input type="date" id="reportDate" value="${esc(anchor)}"></label>`;
+  const novaSection = novaReports.length ? `
+    <div class="card table-wrap flush" style="margin-top:14px" id="novaDailyReports">
+      <div class="card-h pad"><span class="k">Informes diarios NOVA · ${novaReports.length} hojas</span><span class="hint">Valores transcritos del Excel, sin sustituir el cálculo operacional</span></div>
+      <div class="kpis mini" style="padding:12px">
+        ${kpi("Venta del detalle", usd(novaSum("productSalesUsd")), `${qty(novaSum("productSalesUnits"))} unidades`)}
+        ${kpi("Venta declarada", usd(novaSum("declaredSalesUsd")), "panel financiero")}
+        ${kpi("Diferencia detalle / venta", usd(novaSum("productSalesDifferenceUsd")), "detalle menos declarada", Math.abs(novaSum("productSalesDifferenceUsd")) < 0.01 ? "green" : "gold")}
+        ${kpi("Diferencia de caja", usd(novaSum("cashDifferenceUsd")), "venta declarada menos total general", Math.abs(novaSum("cashDifferenceUsd")) < 0.01 ? "green" : "gold")}
+        ${kpi("Diferencia de stock", qty(novaReports.reduce((sum, report) => sum + (Number(report.summary?.stockDifferenceUnits) || 0), 0)), "cálculo del detalle menos existencia final Excel", stockMismatch === 0 ? "green" : "gold")}
+      </div>
+      <table><thead><tr><th>Fecha</th><th>Hoja / archivo</th><th class="r">Unidades</th><th class="r">Detalle USD</th><th class="r">Venta declarada</th><th class="r">Detalle − venta</th><th class="r">Venta − total caja</th><th class="r">Stock calc. − Excel</th><th class="r">Tasa CUP/USD</th></tr></thead>
+        <tbody>${novaReports.map((report) => {
+          const finance = report.finance || {};
+          const balance = Math.abs(Number(finance.productSalesDifferenceUsd) || 0) < 0.01 && Math.abs(Number(finance.cashDifferenceUsd) || 0) < 0.01;
+          return `<tr><td>${formatDate(report.date)}</td><td><b>${esc(report.sheet || "")}</b><div class="hint">${esc(report.sourceFile || "NOVA")}</div></td>
+            <td class="mono r">${qty(finance.productSalesUnits || 0)}</td><td class="mono r">${usd(finance.productSalesUsd || 0)}</td><td class="mono r">${usd(finance.declaredSalesUsd || 0)}</td>
+            <td class="mono r">${usd(finance.productSalesDifferenceUsd || 0)}</td><td class="mono r">${usd(finance.cashDifferenceUsd || 0)}</td><td class="mono r">${qty(report.summary?.stockDifferenceUnits || 0)}</td><td class="mono r">${qty(finance.cupUsd || 0)}</td>
+          </tr>`;
+        }).join("")}</tbody></table>
+      <p class="hint pad">Cada renglón conserva el importe, el costo por unidad y la comisión CUP de las ventas originales, aunque después cambie el catálogo. Las diferencias de stock comparan el cálculo de la hoja con su existencia final.</p>
+    </div>` : "";
+  const cuadreSection = savedCuadres.length ? `
+    <div class="card table-wrap flush" style="margin-top:14px">
+      <div class="card-h pad"><span class="k">Cuadres diarios guardados · ${savedCuadres.length}</span><span class="hint">Diferencia final en USD</span></div>
+      <table><thead><tr><th>Fecha</th><th class="r">Ventas</th><th class="r">Gastos</th><th class="r">Salidas</th><th class="r">Capital y cobros</th><th class="r">Diferencia</th><th>Estado</th></tr></thead>
+        <tbody>${savedCuadres.map((cuadre) => {
+          const dayMovements = store.activeMovements().filter((movement) => movement.date === cuadre.date && (!warehouseId || store.warehouseOf(movement) === warehouseId));
+          const total = cuadreCalc(cuadre, dayMovements);
+          return `<tr><td><a href="#" data-goto-cuadre="${cuadre.date}">${formatDate(cuadre.date)}</a></td><td class="mono r">${usd(total.venta)}</td><td class="mono r">${usd(total.totalGastos)}</td><td class="mono r">${usd(total.salidas)}</td><td class="mono r">${usd(total.capital + (Number(cuadre.xCobrar) || 0))}</td>
+            <td class="mono r">${usd(total.cuadre)}</td><td>${total.cuadre === 0 ? `<span class="tag entrada">OK</span>` : `<span class="tag salida">Revisar</span>`}</td></tr>`;
+        }).join("")}</tbody></table>
+    </div>` : "";
   return `
-    ${printReportHeader("Comprobación de inventario", `${formatDate(from)} – ${formatDate(to)}`)}
+    ${printReportHeader("Comprobación de inventario y cuadre", periodLabel)}
     <div class="toolbar">
-      <div class="chips">${["diario", "semanal", "mensual"].map((p) => `<button class="chip ${ui.period === p ? "on" : ""}" data-period="${p}">${p}</button>`).join("")}</div>
-      ${allowed("REPORTS_EXPORT") ? `<div class="row"><button class="btn small" data-act="export-csv">CSV comprobación</button><button class="btn ghost small" data-act="export-mov">CSV movimientos</button><button class="btn ghost small" data-act="export-inv">CSV inventario</button><button class="btn gold small" data-act="print">PDF</button></div>` : ""}
+      <div class="chips">${[["diario", "Diario"], ["semanal", "Semanal"], ["mensual", "Mensual"], ["anual", "Anual"], ["período", "Período" ]].map(([period, label]) => `<button class="chip ${ui.period === period ? "on" : ""}" data-period="${period}">${label}</button>`).join("")}</div>
+      <div class="row">
+        ${dateControls}
+        <label>Almacén<select id="reportWh"><option value="all" ${!warehouseId ? "selected" : ""}>Todos los almacenes</option>${warehouses.map((warehouse) => `<option value="${warehouse.id}" ${warehouseId === warehouse.id ? "selected" : ""}>${esc(warehouse.name)}</option>`).join("")}</select></label>
+        ${allowed("REPORTS_EXPORT") ? `<button class="btn small" data-act="export-csv">CSV comprobación</button><button class="btn ghost small" data-act="export-mov">CSV movimientos</button><button class="btn ghost small" data-act="export-inv">CSV inventario</button><button class="btn gold small" data-act="print">PDF</button>` : ""}
+      </div>
     </div>
+    ${!valid ? `<div class="banner">El período personalizado requiere dos fechas válidas y «Desde» no puede ser posterior a «Hasta».</div>` : ""}
+    <div class="summary"><span>Período <b>${periodLabel}</b></span><span>Almacén <b>${esc(warehouseName)}</b></span><span>Comprobación <b>${stockStatus}</b></span></div>
     <div class="kpis">
-      ${kpi("Ventas", usd(sum("real")), `${qty(sum("v"))} unidades`, "teal")}
-      ${kpi("Entradas", qty(sum("e")), "unidades", "blue")}
-      ${kpi("Salidas", qty(sum("s")), "unidades", "gold")}
-      ${kpi("Δ importe", usd(sum("diff")), "precio lista − real", sum("diff") ? "red" : "green")}
+      ${kpi("Ventas reales", usd(sum("real")), `${qty(sum("v"))} unidades`, "teal")}
+      ${kpi("Utilidad bruta", usd(sum("profit")), `Costo histórico ${usd(sum("cost"))}`, "blue")}
+      ${kpi("Entradas / salidas", `${qty(sum("e"))} / ${qty(sum("s"))}`, "unidades del período", "gold")}
+      ${kpi("Δ precio / venta", usd(sum("diff")), "precio registrado − importe real", sum("diff") ? "gold" : "green")}
     </div>
-    <div class="card table-wrap flush" id="printArea" style="margin-top:14px">
-      <div class="card-h pad"><span class="k">COMPROBACIÓN ${formatDate(from)} → ${formatDate(to)}</span></div>
-      <table><thead><tr><th class="num">Nº</th><th>PRODUCTOS</th><th class="r">STOCK INICIAL</th><th class="r">VENTAS</th><th class="r">ENTRADAS</th><th class="r">SALIDAS</th><th class="r">STOCK CALC.</th><th class="r">STOCK ACTUAL</th><th class="r">IMP. ORIGINAL</th><th class="r">IMP. REAL</th><th class="r">Δ</th></tr></thead>
-      <tbody>${rows.map((r, i) => `<tr><td class="num mono">${i + 1}</td><td>${hl(r.p.name)}</td><td class="mono r">${qty(r.p.stockInicial)}</td><td class="mono r">${qty(r.v)}</td><td class="mono r">${qty(r.e)}</td><td class="mono r">${qty(r.s)}</td><td class="mono r">${qty(r.calc)}</td><td class="mono r">${qty(r.p.stockActual)}</td><td class="mono r">${usd(r.orig)}</td><td class="mono r">${usd(r.real)}</td><td class="mono r">${usd(r.diff)}</td></tr>`).join("") || `<tr><td colspan="11" class="empty">Sin movimientos en el período.</td></tr>`}</tbody></table>
-    </div>`;
+    <div class="card table-wrap flush sticky-data-wrap reports-table-scroll" id="printArea" style="margin-top:14px">
+      <div class="card-h pad"><span class="k">INVENTARIO · ${periodLabel}</span><span class="hint">Existencia de apertura, movimientos y cierre calculados para el período</span></div>
+      <table><thead><tr><th class="num">Nº</th><th>PRODUCTOS</th><th class="r">STOCK APERTURA</th><th class="r">VENTAS</th><th class="r">ENTRADAS</th><th class="r">SALIDAS</th><th class="r">STOCK CALCULADO</th><th class="r">STOCK CIERRE</th><th class="r">IMP. LISTA</th><th class="r">IMP. REAL</th><th class="r">COSTO</th><th class="r">UTILIDAD BRUTA</th></tr></thead>
+        <tbody>${rows.map((row, index) => `<tr class="${row.stockDiff ? "warn-row" : ""}"><td class="num mono">${index + 1}</td><td>${hl(row.p.name)}</td><td class="mono r">${qty(row.opening)}</td><td class="mono r">${qty(row.v)}</td><td class="mono r">${qty(row.e)}</td><td class="mono r">${qty(row.s)}</td><td class="mono r">${qty(row.calc)}</td><td class="mono r">${qty(row.closing)}</td><td class="mono r">${usd(row.orig)}</td><td class="mono r">${usd(row.real)}</td><td class="mono r">${usd(row.cost)}</td><td class="mono r">${usd(row.profit)}</td></tr>`).join("") || `<tr><td colspan="12" class="empty">Sin existencias ni movimientos en el período.</td></tr>`}</tbody>
+        <tfoot><tr><td></td><td><b>Totales</b></td><td class="mono r">${qty(sum("opening"))}</td><td class="mono r">${qty(sum("v"))}</td><td class="mono r">${qty(sum("e"))}</td><td class="mono r">${qty(sum("s"))}</td><td class="mono r">${qty(sum("calc"))}</td><td class="mono r">${qty(sum("closing"))}</td><td class="mono r">${usd(sum("orig"))}</td><td class="mono r">${usd(sum("real"))}</td><td class="mono r">${usd(sum("cost"))}</td><td class="mono r">${usd(sum("profit"))}</td></tr></tfoot>
+      </table>
+      <p class="hint pad">Los informes usan movimientos del período. Los importes, costos y comisiones de ventas importadas quedan fijos según el valor que tenía el Excel; la variación de existencias compara el libro con el cierre.</p>
+    </div>
+    ${novaSection}${cuadreSection}`;
 }
 
 /* ============================ HISTORIAL ============================ */
@@ -1126,57 +1226,199 @@ function loadXLSX() {
   if (window.XLSX) return Promise.resolve(window.XLSX);
   return new Promise((res, rej) => { const s = document.createElement("script"); s.src = "./vendor/xlsx.full.min.js"; s.onload = () => res(window.XLSX); s.onerror = rej; document.head.appendChild(s); });
 }
-const CUADRE_LABELS = { "VENTA": "venta", "FONDO CUP": "fondoCup", "FONDO USD": "fondoUsd", "AUMENTO DE FONDO CUP": "aumentoFondoCup", "AUMENTO DE FONDO USD \\ZELLE": "aumentoFondoUsd",
-  "COMISIONES": "comisionesCup", "DOMICILIOS": "domiciliosCup", "GASTOS": "gastosCup", "GASTOS COMBOS Y REBAJAS USD": "gastosCombosUsd", "SALIDA JESUS MN": "salidaJesusMn",
-  "SALIDA JESUS USD": "salidaJesusUsd", "SALIDA MLC": "salidaMlc", "USD EFECTIVO": "usdEfectivo", "ZELLE": "zelle", "MLC": "mlc", "MN EFECTIVO": "mnEfectivoCup", "MN TARJETA": "mnTarjetaCup", "X COBRAR": "xCobrar" };
-const CUP_IN_C = new Set(["fondoCup", "aumentoFondoCup", "comisionesCup", "domiciliosCup", "gastosCup", "salidaJesusMn", "mnEfectivoCup", "mnTarjetaCup"]);
 function parseSheet(XLSX, wb, name) {
   const ws = wb.Sheets[name];
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
-  const n = (v) => (typeof v === "number" ? v : 0);
-  const products = [], seen = new Set();
-  let i = 1;
-  for (; i < rows.length; i++) {
-    const r = rows[i] || [];
-    const nm = String(r[0] ?? "").replace(/\s+/g, " ").trim().toUpperCase();
-    if (!nm) continue;
-    if (nm === "TOTAL") break;
-    if (seen.has(normName(nm))) continue;
-    seen.add(normName(nm));
-    const obs = typeof r[15] === "string" ? r[15].trim() : "";
-    products.push({ name: nm, existencia: n(r[1]), entrada: n(r[2]), salida: n(r[3]), v1: n(r[4]), v2: n(r[5]), comision: n(r[6]), domicilio: n(r[8]), costo: n(r[9]), p1: n(r[11]), p2: n(r[12]), obs });
-  }
-  let rate = 0; const cuadre = {};
-  for (let j = i + 1; j < rows.length; j++) {
-    const r = rows[j] || [];
-    const lab = String(r[0] ?? "").replace(/\s+/g, " ").trim().toUpperCase();
-    if (lab.startsWith("INFORME SEMANAL")) break;
-    const key = CUADRE_LABELS[lab];
-    if (!key) continue;
-    const f = ws[XLSX.utils.encode_cell({ r: j, c: 1 })]?.f || "";
-    const m = f.match(/\/\s*(\d+(?:\.\d+)?)/);
-    if (m && !rate) rate = Number(m[1]);
-    if (key === "fondoCup") { cuadre.fondoCupEfectivo = n(r[2]); cuadre.fondoCupTarjeta = n(r[3]); continue; }
-    cuadre[key] = CUP_IN_C.has(key) ? n(r[2]) + n(r[3]) || (m ? 0 : n(r[1])) : n(r[1]);
-  }
-  const md = name.trim().match(/^(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})$/);
-  const date = md ? `${md[3].length === 2 ? "20" + md[3] : md[3]}-${md[2].padStart(2, "0")}-${md[1].padStart(2, "0")}` : todayISO();
-  return { sheet: name, date, rate, products, cuadre: Object.keys(cuadre).length ? cuadre : null };
+  if (!ws) return null;
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+  return parseCuadrePinarGrid(rows, {
+    sheetName: name,
+    formulaAt: (row, column) => ws[XLSX.utils.encode_cell({ r: row, c: column })]?.f || "",
+  });
 }
+
+function sheetGrid(XLSX, wb, name) {
+  return XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: "" });
+}
+
+function handleNovaWorkbook(XLSX, wb, fileName) {
+  const candidates = wb.SheetNames.filter((name) => /^\d{1,2}$/.test(String(name).trim()));
+  const records = [];
+  for (const sheet of candidates) {
+    const parsed = parseNovaDailyGrid(sheetGrid(XLSX, wb, sheet), { sheetName: sheet });
+    if (!parsed) continue;
+    records.push({
+      ...parsed,
+      sourceDate: parsed.date,
+      date: parsed.date,
+      selected: true,
+      importKey: `${fileName}#${sheet}`,
+      sourceFile: fileName,
+    });
+  }
+  return records;
+}
+
 async function handleExcel(file) {
   try {
     const XLSX = await loadXLSX();
-    const wb = XLSX.read(await file.arrayBuffer(), { cellFormula: true });
+    const wb = XLSX.read(await file.arrayBuffer(), { cellFormula: true, cellDates: false });
+    const novaRecords = handleNovaWorkbook(XLSX, wb, file.name);
+    if (novaRecords.length || /^NOVA\b/i.test(file.name)) {
+      if (!novaRecords.length) return toast("No se reconocieron hojas diarias NOVA en este libro.", "err");
+      ui.novaImport = { fileName: file.name, records: novaRecords, warehouseId: store.activeWarehouseId() };
+      novaImportModal();
+      render();
+      return;
+    }
+
     ui.xlsx = { XLSX, wb, fileName: file.name };
-    const sheets = wb.SheetNames.filter((s) => /^\d{1,2}\s+\d{1,2}\s+\d{2,4}$/.test(s.trim()));
-    ui.importSheet = sheets[sheets.length - 1] || wb.SheetNames[0];
-    importModal();
+    const sheets = wb.SheetNames.filter((sheet) => !!parseSheet(XLSX, wb, sheet));
+    if (!sheets.length) return toast("No se reconocieron hojas diarias de CUADRE PINAR en este libro.", "err");
+    ui.xlsx.validSheets = sheets;
+    if (/CUADRE PINAR/i.test(file.name) && sheets.length > 1) {
+      const records = sheets.map((sheet) => ({
+        ...parseSheet(XLSX, wb, sheet), selected: true,
+        importKey: `${normName(file.name)}#${sheet}`, sourceFile: file.name, sourceFormat: "pinar",
+      })).sort((a, b) => a.date.localeCompare(b.date));
+      ui.pinarImport = { fileName: file.name, records, warehouseId: store.activeWarehouseId() };
+      pinarImportModal();
+    } else {
+      ui.importSheet = sheets[sheets.length - 1];
+      importModal();
+    }
     render();
   } catch (e) { toast("No se pudo leer el archivo: " + e.message, "err"); }
 }
+
+function novaImportModal() {
+  const pending = ui.novaImport;
+  if (!pending) return;
+  const records = pending.records;
+  const chosen = records.filter((record) => record.selected);
+  const dates = new Map();
+  for (const record of chosen) if (record.date) dates.set(record.date, [...(dates.get(record.date) || []), record]);
+  const duplicateDates = [...dates.entries()].filter(([, list]) => list.length > 1);
+  const missingDates = chosen.filter((record) => !record.date);
+  const conflicts = new Set(duplicateDates.flatMap(([, list]) => list.map((record) => record.sheet)));
+  const warehouses = store.warehousesActive();
+  const warehouseId = warehouses.some((warehouse) => warehouse.id === pending.warehouseId)
+    ? pending.warehouseId : store.activeWarehouseId();
+  pending.warehouseId = warehouseId;
+  const warning = duplicateDates.length || missingDates.length ? `<div class="banner">
+    <b>⚠ Revisa las fechas antes de importar.</b>
+    ${duplicateDates.map(([date, list]) => `<div>${formatDate(date)} aparece en las hojas ${list.map((record) => `«${esc(record.sheet)}»`).join(" y ")}. Corrige una fecha o excluye una hoja.</div>`).join("")}
+    ${missingDates.length ? `<div>${missingDates.map((record) => `«${esc(record.sheet)}»`).join(", ")} no tiene fecha válida en el libro. Asigna una fecha o desmarca la hoja.</div>` : ""}
+  </div>` : `<div class="banner info">Las fechas de las hojas son únicas y válidas. Comprueba los días antes de guardar.</div>`;
+  const rows = records.map((record, index) => `<tr class="${conflicts.has(record.sheet) ? "warn-row" : ""}">
+    <td><input type="checkbox" data-nova-selected="${index}" ${record.selected ? "checked" : ""} aria-label="Incluir hoja ${esc(record.sheet)}"></td>
+    <td><b>${esc(record.sheet)}</b>${conflicts.has(record.sheet) ? `<div class="hint danger-t">Fecha duplicada</div>` : ""}</td>
+    <td><input type="date" class="cell" data-nova-date="${index}" value="${esc(record.date || "")}" aria-label="Fecha de la hoja ${esc(record.sheet)}"></td>
+    <td class="mono r">${qty(record.summary.productSalesUnits)}</td>
+    <td class="mono r">${usd(record.finance.productSalesUsd)}</td>
+    <td class="mono r">${usd(record.finance.declaredSalesUsd)}</td>
+    <td class="hint">${record.sourceDate ? `Excel: ${formatDate(record.sourceDate)}` : "Sin fecha en Excel"}</td>
+  </tr>`).join("");
+  modal("📥 Importación masiva NOVA", `
+    <p><b>${esc(pending.fileName)}</b> · ${records.length} hojas diarias reconocidas.</p>
+    <p class="hint">Revisa la fecha de cada pestaña antes de importar. NOVA tiene fechas incompletas y duplicadas; se guardará un reporte financiero por hoja. Las ventas conservarán el importe, el costo y la comisión calculados en el Excel.</p>
+    ${warning}
+    <label>Almacén destino<select id="novaImportWh">${warehouses.map((warehouse) => `<option value="${warehouse.id}" ${warehouse.id === warehouseId ? "selected" : ""}>${esc(warehouse.name)}</option>`).join("")}</select></label>
+    <div class="row" style="margin:10px 0"><button type="button" class="btn ghost small" data-act="nova-select-all">Seleccionar todas</button><button type="button" class="btn ghost small" data-act="nova-select-none">Excluir todas</button><span class="hint">${chosen.length} de ${records.length} hojas seleccionadas</span></div>
+    <div class="table-wrap"><table><thead><tr><th></th><th>Hoja</th><th>Fecha a importar</th><th class="r">Unidades vendidas</th><th class="r">Venta en detalle</th><th class="r">Venta declarada</th><th>Fecha original</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <div class="row" style="margin-top:14px"><button class="btn" type="button" data-act="nova-import-selected">Importar ${chosen.length} hojas seleccionadas</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "novaImportForm");
+}
+
+function importNovaSelected() {
+  const pending = ui.novaImport;
+  if (!pending) return;
+  const selected = pending.records.filter((record) => record.selected);
+  if (!selected.length) return toast("Selecciona al menos una hoja para importar.", "err");
+  const closed = selected.find((record) => store.isClosed(record.date));
+  if (closed) return toast(`El día ${closed.date} está cerrado. Excluye esa hoja o pide que lo reabran.`, "err");
+  const missing = selected.filter((record) => !record.date);
+  if (missing.length) return toast(`Asigna una fecha o excluye: ${missing.map((record) => record.sheet).join(", ")}.`, "err");
+  const seen = new Map();
+  for (const record of selected) seen.set(record.date, [...(seen.get(record.date) || []), record.sheet]);
+  const duplicate = [...seen.entries()].find(([, sheets]) => sheets.length > 1);
+  if (duplicate) return toast(`${formatDate(duplicate[0])} está repetida en ${duplicate[1].join(" y ")}. Corrige una fecha o excluye una hoja.`, "err");
+  const imported = [];
+  const warnings = [];
+  for (const record of selected) {
+    const result = store.importSheet({ ...record, warehouseId: pending.warehouseId });
+    imported.push(record.sheet);
+    if (result.errores?.length) warnings.push(`${record.sheet}: ${result.errores.join("; ")}`);
+  }
+  ui.modal = null;
+  ui.novaImport = null;
+  toast(`${imported.length} hojas NOVA importadas · ${pending.fileName}${warnings.length ? ` · Avisos: ${warnings.slice(0, 2).join(" | ")}` : ""}`, warnings.length ? "err" : "ok");
+  render();
+}
+
+function pinarImportModal() {
+  const pending = ui.pinarImport;
+  if (!pending) return;
+  const records = pending.records;
+  const selected = records.filter((record) => record.selected);
+  const closed = selected.filter((record) => store.isClosed(record.date));
+  const warehouses = store.warehousesActive();
+  const warehouseId = warehouses.some((warehouse) => warehouse.id === pending.warehouseId) ? pending.warehouseId : store.activeWarehouseId();
+  pending.warehouseId = warehouseId;
+  const rows = records.map((record, index) => {
+    const sales = record.products.flatMap((product) => product.sales || []);
+    const units = sales.reduce((sum, sale) => sum + (Number(sale.quantity) || 0), 0);
+    const amount = sales.reduce((sum, sale) => sum + (Number(sale.importeUsd) || 0), 0);
+    return `<tr class="${store.isClosed(record.date) ? "warn-row" : ""}">
+      <td><input type="checkbox" data-pinar-selected="${index}" ${record.selected ? "checked" : ""} aria-label="Incluir hoja ${esc(record.sheet)}"></td>
+      <td><b>${esc(record.sheet)}</b></td><td>${formatDate(record.date)}${store.isClosed(record.date) ? `<div class="hint danger-t">Día cerrado</div>` : ""}</td>
+      <td class="mono r">${record.products.length}</td><td class="mono r">${qty(units)}</td><td class="mono r">${usd(amount)}</td><td class="mono r">${qty(record.rate || 0)}</td>
+    </tr>`;
+  }).join("");
+  modal("📥 Importación histórica CUADRE PINAR", `
+    <p><b>${esc(pending.fileName)}</b> · ${records.length} hojas con fecha reconocida.</p>
+    <p class="hint">Se importarán en orden cronológico. Los cambios de existencia que el libro registra sin entrada/salida explícita se conservarán como ajustes visibles en los movimientos.</p>
+    ${closed.length ? `<div class="banner">⚠ No se puede modificar: ${closed.map((record) => `${esc(record.sheet)} (${formatDate(record.date)})`).join(", ")}. Excluye las hojas cerradas o pide que un administrador las reabra.</div>` : `<div class="banner info">Confirma el almacén y las fechas antes de aplicar todas las hojas seleccionadas.</div>`}
+    <label>Almacén destino<select id="pinarImportWh">${warehouses.map((warehouse) => `<option value="${warehouse.id}" ${warehouse.id === warehouseId ? "selected" : ""}>${esc(warehouse.name)}</option>`).join("")}</select></label>
+    <div class="row" style="margin:10px 0"><button type="button" class="btn ghost small" data-act="pinar-select-all">Seleccionar todas</button><button type="button" class="btn ghost small" data-act="pinar-select-none">Excluir todas</button><span class="hint">${selected.length} de ${records.length} hojas seleccionadas</span></div>
+    <div class="table-wrap"><table><thead><tr><th></th><th>Hoja</th><th>Fecha</th><th class="r">Productos</th><th class="r">Unidades vendidas</th><th class="r">Ventas USD</th><th class="r">Tasa CUP/USD</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="row" style="margin-top:14px"><button class="btn" type="button" data-act="pinar-import-selected" ${closed.length ? "disabled" : ""}>Importar ${selected.length} hojas seleccionadas</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "pinarImportForm");
+}
+
+function importPinarSelected() {
+  const pending = ui.pinarImport;
+  if (!pending) return;
+  const selected = pending.records.filter((record) => record.selected).sort((a, b) => a.date.localeCompare(b.date));
+  if (!selected.length) return toast("Selecciona al menos una hoja para importar.", "err");
+  const closed = selected.find((record) => store.isClosed(record.date));
+  if (closed) return toast(`El día ${closed.date} está cerrado. Excluye esa hoja o pide que lo reabran.`, "err");
+  const cleared = store.removeLegacyExcelImports(selected.map((record) => record.date), pending.warehouseId);
+  if (cleared.error) return toast(cleared.error, "err");
+  const errors = [];
+  const seenProducts = new Set();
+  for (const record of selected) {
+    const products = record.products.map((product) => {
+      const key = normName(product.name);
+      const skipPriceHistory = !seenProducts.has(key);
+      seenProducts.add(key);
+      return { ...product, skipPriceHistory };
+    });
+    const result = store.importSheet({ ...record, products, warehouseId: pending.warehouseId });
+    if (result.errores?.length) errors.push(`${record.sheet}: ${result.errores.join("; ")}`);
+  }
+  ui.modal = null;
+  ui.pinarImport = null;
+  ui.cuadreDate = selected.at(-1).date;
+  toast(`${selected.length} hojas CUADRE PINAR importadas${errors.length ? ` · Avisos: ${errors.slice(0, 2).join(" | ")}` : ""}`, errors.length ? "err" : "ok");
+  render();
+}
+
 function importModal() {
   const { XLSX, wb, fileName } = ui.xlsx;
   const data = parseSheet(XLSX, wb, ui.importSheet);
+  if (!data) return toast(`No se reconoció la hoja «${ui.importSheet}».`, "err");
+  data.importKey = `${normName(fileName)}#${ui.importSheet}`;
+  data.sourceFile = fileName;
+  data.sourceFormat = "pinar";
   const whs = store.warehousesActive();
   const importWh = whs.some((w) => w.id === ui.importWarehouseId) ? ui.importWarehouseId : store.activeWarehouseId();
   ui.importWarehouseId = importWh;
@@ -1189,7 +1431,7 @@ function importModal() {
   modal("📥 Importar hoja del Excel", `
     <p class="hint">${esc(fileName)}</p>
     <div class="form-grid">
-      <label>Hoja<select id="importSheet">${wb.SheetNames.map((s) => `<option ${s === ui.importSheet ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
+      <label>Hoja<select id="importSheet">${(ui.xlsx.validSheets || wb.SheetNames).map((s) => `<option ${s === ui.importSheet ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
       <label>Almacén destino<select id="importWh" data-tip="Las entradas, salidas y ventas de esta hoja entran en ese almacén">${whs.map((w) => `<option value="${w.id}" ${w.id === importWh ? "selected" : ""}>${esc(w.name)}</option>`).join("")}</select></label>
     </div>
     <div class="kpis mini">
@@ -1199,7 +1441,7 @@ function importModal() {
       ${kpi("Cuadre", data.cuadre ? "Sí" : "No", "panel inferior")}
     </div>
     ${trash ? `<div class="banner">⚠ ${trash} productos están en la papelera y se omitirán (no se duplican).</div>` : ""}
-    <p class="hint">Se actualizan precios, costos y comisiones (quedan en el historial), se ajusta la existencia al inicio del día <b>en «${esc(store.warehouseName(importWh))}»</b>, se crean las entradas/salidas/ventas de esa fecha y se guarda el cuadre. Reimportar la misma hoja reemplaza lo importado antes para ese día y almacén.</p>
+    <p class="hint">Se actualizan precios, costos y comisiones (quedan en el historial), se ajusta la existencia al inicio del día <b>en «${esc(store.warehouseName(importWh))}»</b>, se crean las entradas/salidas/ventas de esa fecha y se guarda el cuadre. Reimportar la misma hoja reemplaza ese lote, aunque se corrija su fecha.</p>
     <div class="row" style="margin-top:14px"><button class="btn" type="button" data-act="do-import">Importar ahora</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "importForm");
 }
 
@@ -1244,6 +1486,7 @@ function warehouseCard(w, s, active) {
       ${canEdit ? `<button class="btn ghost small" data-wh-edit="${w.id}">✎ Editar</button>` : ""}
       ${canEdit ? `<button class="btn ghost small" data-wh-tr="${w.id}">⇄ Traspaso</button>` : ""}
       <button class="btn ghost small" data-wh-export="${w.id}">CSV</button>
+      <button class="btn gold small" data-wh-pdf="${w.id}">PDF</button>
       ${canEdit ? `<button class="btn ghost small danger-t" data-wh-del="${w.id}">Eliminar</button>` : ""}
     </div>
   </div>`;
@@ -1287,7 +1530,24 @@ function warehouseEntriesPanel() {
     </table></div>`;
 }
 
+function warehousePdfView(warehouse) {
+  const rows = store.warehouseInventory(warehouse.id);
+  const units = round2(rows.reduce((sum, row) => sum + (Number(row.qty) || 0), 0));
+  const value = round2(rows.reduce((sum, row) => sum + Math.max(0, Number(row.qty) || 0) * (Number(row.p.precioVentaUsd) || 0), 0));
+  return `${printReportHeader(`Inventario · ${warehouse.name}`, `${rows.length} productos · ${qty(units)} unidades`)}
+    <div class="summary"><span>Almacén <b>${esc(warehouse.name)}</b></span><span>Unidades <b>${qty(units)}</b></span><span>Valor de venta <b>${usd(value)}</b></span><span>Generado <b>${formatDate(todayISO())}</b></span></div>
+    <div class="card table-wrap flush" id="printArea"><table><thead><tr><th class="num">Nº</th><th>PRODUCTO</th><th class="r">EXIST. INICIAL</th><th class="r">EXISTENCIA</th><th class="r">PRECIO VENTA</th><th class="r">P. COSTO</th><th class="r">VALOR</th><th>CATEGORÍA</th><th>OBSERVACIONES</th></tr></thead>
+      <tbody>${rows.map((row, index) => `<tr><td class="num mono">${index + 1}</td><td><b>${esc(row.p.name)}</b></td><td class="mono r">${qty(row.inicial)}</td><td class="mono r">${qty(row.qty)}</td><td class="mono r">${usd(row.p.precioVentaUsd)}</td><td class="mono r">${row.p.precioCostoUsd ? usd(row.p.precioCostoUsd) : "—"}</td><td class="mono r">${usd(Math.max(0, row.qty) * row.p.precioVentaUsd)}</td><td>${catBadge(row.p.category)}</td><td>${esc(row.p.observaciones || "")}</td></tr>`).join("") || `<tr><td colspan="9" class="empty">Este almacén no tiene productos con existencia.</td></tr>`}</tbody>
+      <tfoot><tr><td></td><td>Total · ${rows.length} productos</td><td></td><td class="mono r">${qty(units)}</td><td colspan="2"></td><td class="mono r">${usd(value)}</td><td colspan="2"></td></tr></tfoot>
+    </table></div>`;
+}
+
 function warehousesView() {
+  if (ui.pdfWarehouseId) {
+    const warehouse = store.warehouseById(ui.pdfWarehouseId);
+    if (warehouse) return warehousePdfView(warehouse);
+    ui.pdfWarehouseId = null;
+  }
   const whs = store.warehousesActive();
   if (ui.whFilter && !whs.some((w) => w.id === ui.whFilter)) ui.whFilter = "";
   const canEdit = allowed("WAREHOUSE_EDIT");
@@ -1917,6 +2177,23 @@ function bindApp() {
   document.querySelectorAll("[data-cart-price]").forEach((el) => el.addEventListener("change", () => { ui.cart[+el.dataset.cartPrice].price = Number(el.value) || 0; render(); }));
   $("#importSheet")?.addEventListener("change", (e) => { ui.importSheet = e.target.value; importModal(); render(); });
   $("#importWh")?.addEventListener("change", (e) => { ui.importWarehouseId = e.target.value; importModal(); render(); });
+  $("#novaImportWh")?.addEventListener("change", (e) => { if (ui.novaImport) ui.novaImport.warehouseId = e.target.value; novaImportModal(); render(); });
+  $("#pinarImportWh")?.addEventListener("change", (e) => { if (ui.pinarImport) ui.pinarImport.warehouseId = e.target.value; pinarImportModal(); render(); });
+  document.querySelectorAll("[data-pinar-selected]").forEach((el) => el.addEventListener("change", (e) => {
+    const record = ui.pinarImport?.records[Number(e.target.dataset.pinarSelected)];
+    if (record) record.selected = e.target.checked;
+    pinarImportModal(); render();
+  }));
+  document.querySelectorAll("[data-nova-date]").forEach((el) => el.addEventListener("change", (e) => {
+    const record = ui.novaImport?.records[Number(e.target.dataset.novaDate)];
+    if (record) record.date = e.target.value;
+    novaImportModal(); render();
+  }));
+  document.querySelectorAll("[data-nova-selected]").forEach((el) => el.addEventListener("change", (e) => {
+    const record = ui.novaImport?.records[Number(e.target.dataset.novaSelected)];
+    if (record) record.selected = e.target.checked;
+    novaImportModal(); render();
+  }));
   $("#whSel")?.addEventListener("change", (e) => { store.setActiveWarehouse(e.target.value); ui.cart = []; render(); });
   $("#whFilterSel")?.addEventListener("change", (e) => { ui.whFilter = e.target.value; render(); });
   $("#xlsxFile")?.addEventListener("change", (e) => e.target.files[0] && handleExcel(e.target.files[0]));
@@ -1931,6 +2208,10 @@ function bindApp() {
   $("#movDate")?.addEventListener("change", (e) => { ui.movDate = e.target.value; render(); });
   $("#cuadreDate")?.addEventListener("change", (e) => { ui.cuadreDate = e.target.value; render(); });
   $("#weekDate")?.addEventListener("change", (e) => { ui.weekDate = e.target.value; render(); });
+  $("#reportDate")?.addEventListener("change", (e) => { ui.reportDate = e.target.value; render(); });
+  $("#reportFrom")?.addEventListener("change", (e) => { ui.reportFrom = e.target.value; render(); });
+  $("#reportTo")?.addEventListener("change", (e) => { ui.reportTo = e.target.value; render(); });
+  $("#reportWh")?.addEventListener("change", (e) => { ui.reportWarehouse = e.target.value; render(); });
   $("#weeklySummaryFile")?.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -2157,7 +2438,7 @@ function ensureClicks() {
 function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"); }
 
 function onClick(e) {
-  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh]");
+  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
@@ -2190,6 +2471,7 @@ function onClick(e) {
     render();
   });
   else if (d.whExport) exportWarehouse(d.whExport);
+  else if (d.whPdf) { ui.pdfWarehouseId = d.whPdf; render(); requestAnimationFrame(() => setTimeout(() => printCurrentView(), 30)); }
   else if (d.sendWh) { transferModal({ fromId: store.activeWarehouseId(), productId: d.sendWh }); render(); }
   else if (d.ivWh) { const st = ivState(); st.warehouseId = d.ivWh; st.last = null; summarizeRows(store.state.products, st.warehouseId, st.rows); render(); }
   else if (d.ivSrc) { const st = ivState(); st.src = d.ivSrc; if (d.ivSrc === "manual" && !st.rows.length) st.rows = ivBlankRows(); render(); }
@@ -2243,12 +2525,19 @@ function onClick(e) {
   }
   else if (act === "do-import") {
     const rep = store.importSheet(ui.importData);
+    if (rep.errores.length && !rep.movimientos && !rep.creados && !rep.actualizados) return toast(rep.errores.join(" · "), "err");
     ui.modal = null;
     confetti(`<b>Hoja ${esc(ui.importData.sheet)} importada</b><span>${esc(rep.almacen || "")} · ${rep.creados} nuevos · ${rep.actualizados} actualizados · ${rep.movimientos} movimientos</span>`);
     if (rep.omitidos.length || rep.errores.length) toast(`Omitidos: ${rep.omitidos.length}. Avisos: ${rep.errores.join(" | ").slice(0, 200)}`, rep.errores.length ? "err" : "");
     ui.cuadreDate = ui.importData.date;
     render();
   }
+  else if (act === "nova-select-all") { if (ui.novaImport) ui.novaImport.records.forEach((record) => { record.selected = true; }); novaImportModal(); render(); }
+  else if (act === "nova-select-none") { if (ui.novaImport) ui.novaImport.records.forEach((record) => { record.selected = false; }); novaImportModal(); render(); }
+  else if (act === "nova-import-selected") importNovaSelected();
+  else if (act === "pinar-select-all") { if (ui.pinarImport) ui.pinarImport.records.forEach((record) => { record.selected = true; }); pinarImportModal(); render(); }
+  else if (act === "pinar-select-none") { if (ui.pinarImport) ui.pinarImport.records.forEach((record) => { record.selected = false; }); pinarImportModal(); render(); }
+  else if (act === "pinar-import-selected") importPinarSelected();
   else if (act === "wh-new") { warehouseModal(); render(); }
   else if (act === "iv-go") { const st = ivState(); st.warehouseId = store.activeWarehouseId(); navTo("importValues"); }
   else if (act === "iv-analyze") {
@@ -2365,6 +2654,7 @@ function onClick(e) {
   else if (act === "export-csv") exportComprobacion();
   else if (act === "export-mov") exportMovements();
   else if (act === "export-inv") exportInventory();
+  else if (act === "export-movements-view") exportMovementsView();
   else if (act === "export-weekly") exportWeekly();
   else if (act === "weekly-summary-browse") $("#weeklySummaryFile")?.click();
   else if (act === "weekly-summary-apply") applyWeeklySummaryImport();
@@ -2380,28 +2670,54 @@ function printCurrentView() {
     const range = weekRange(ui.weekDate || lastDataDate());
     label = `Informe semanal · ${formatDate(range.from)}-${formatDate(range.to)}`;
   } else if (ui.route === "reports") {
-    const range = ui.period === "semanal" ? weekRange(lastDataDate()) : periodRange(ui.period, lastDataDate());
-    label = `Comprobación · ${formatDate(range.from)}-${formatDate(range.to)}`;
-  } else label = routes[ui.route]?.title || "Informe";
+    const range = reportContext();
+    label = `Informe · ${formatDate(range.from)}-${formatDate(range.to)}`;
+  } else if (ui.route === "inventory") label = "Inventario";
+  else if (ui.route === "movements") label = `Movimientos${ui.movDate ? ` · ${formatDate(ui.movDate)}` : ""}`;
+  else if (ui.route === "warehouses" && ui.pdfWarehouseId) label = `Inventario · ${store.warehouseName(ui.pdfWarehouseId)}`;
+  else label = routes[ui.route]?.title || "Informe";
 
   const previousTitle = document.title;
+  const printedWarehouse = ui.pdfWarehouseId;
   document.title = `${store.state.settings.businessName || "Cuadre Pinar"} - ${label}`;
-  const cleanup = () => { document.title = previousTitle; };
+  const cleanup = () => {
+    document.title = previousTitle;
+    if (printedWarehouse && ui.pdfWarehouseId === printedWarehouse) { ui.pdfWarehouseId = null; render(); }
+  };
   window.addEventListener("afterprint", cleanup, { once: true });
   window.print();
 }
 
 function exportComprobacion() {
-  const { from, to } = ui.period === "semanal" ? weekRange(lastDataDate()) : periodRange(ui.period, lastDataDate());
-  const lines = ["PRODUCTOS,STOCK INICIAL,VENTAS,ENTRADAS,SALIDAS,STOCK CALCULADO,STOCK ACTUAL,IMPORTE ORIGINAL,IMPORTE REAL,DIFERENCIA"];
-  for (const r of comprobacionRows(from, to)) lines.push([r.p.name, r.p.stockInicial, r.v, r.e, r.s, r.calc, r.p.stockActual, r.orig, r.real, r.diff].map(csv).join(","));
-  download(`comprobacion_${from}_${to}.csv`, "\uFEFF" + lines.join("\n"), "text/csv");
+  const { from, to, warehouseId, valid } = reportContext();
+  if (!valid) return toast("Revisa las fechas del período personalizado.", "err");
+  const rows = comprobacionRows(from, to, warehouseId);
+  const lines = ["PRODUCTO,ALMACEN,STOCK APERTURA,VENTAS,ENTRADAS,SALIDAS,STOCK CALCULADO,STOCK CIERRE,IMPORTE LISTA USD,IMPORTE REAL USD,COSTO HISTORICO USD,UTILIDAD BRUTA USD,COMISION CUP,DIFERENCIA USD"];
+  for (const r of rows) lines.push([r.p.name, warehouseId ? store.warehouseName(warehouseId) : "Todos", r.opening, r.v, r.e, r.s, r.calc, r.closing, r.orig, r.real, r.cost, r.profit, r.commissionCup, r.diff].map(csv).join(","));
+  download(`informe_${from}_${to}.csv`, "\uFEFF" + lines.join("\n"), "text/csv");
 }
 function exportMovements() {
-  const lines = ["FECHA,PRODUCTO,MOVIMIENTO,CANTIDAD,PRECIO USD,IMPORTE,TIPO,COMISION CUP,DOMICILIO CUP,STOCK INICIAL,STOCK FINAL,OBS"];
-  for (const m of store.activeMovements()) lines.push([m.date, m.productName, m.type, m.quantity, m.unitPriceUsd, m.importeUsd, m.center, m.comisionCup, m.domicilioCup, m.stockInicial, m.stockFinal, m.notes].map(csv).join(","));
-  download("movimientos.csv", "\uFEFF" + lines.join("\n"), "text/csv");
+  const { from, to, warehouseId, valid } = reportContext();
+  if (!valid) return toast("Revisa las fechas del período personalizado.", "err");
+  const lines = ["FECHA,PRODUCTO,ALMACEN,MOVIMIENTO,CANTIDAD,PRECIO USD,IMPORTE USD,COSTO UNITARIO USD,COSTO USD,COMISION CUP,TIPO,DOMICILIO CUP,STOCK INICIAL,STOCK FINAL,OBS"];
+  for (const m of store.activeMovements().filter((movement) => inRange(movement.date, from, to) && (!warehouseId || store.warehouseOf(movement) === warehouseId))) {
+    lines.push([m.date, m.productName, store.warehouseName(store.warehouseOf(m)), m.type, m.quantity, m.unitPriceUsd, m.importeUsd, m.unitCostUsd, m.costoUsd, m.comisionCup, m.center, m.domicilioCup, m.stockInicial, m.stockFinal, m.notes].map(csv).join(","));
+  }
+  download(`movimientos_${from}_${to}.csv`, "\uFEFF" + lines.join("\n"), "text/csv");
 }
+function exportMovementsView() {
+  const rows = movementViewRows();
+  const lines = ["FECHA,PRODUCTO,ALMACEN,MOVIMIENTO,CANTIDAD,PRECIO USD,IMPORTE USD,COSTO UNITARIO USD,COSTO USD,COMISION CUP,TIPO,DOMICILIO CUP,STOCK INICIAL,STOCK FINAL,OBS"];
+  for (const movement of rows) {
+    lines.push([movement.date, movement.productName, store.warehouseName(store.warehouseOf(movement)), movement.type, movement.quantity,
+      movement.unitPriceUsd, movement.importeUsd, movement.unitCostUsd, movement.costoUsd, movement.comisionCup,
+      movement.center, movement.domicilioCup, movement.stockInicial, movement.stockFinal, movement.notes].map(csv).join(","));
+  }
+  const suffix = ui.movDate || todayISO();
+  download(`movimientos_${ui.movDate ? suffix : "todos"}.csv`, "\uFEFF" + lines.join("\n"), "text/csv");
+  toast(`${rows.length} movimientos exportados`, "ok");
+}
+
 function exportInventory() {
   const whs = store.warehousesActive();
   const head = ["Nº", "PRODUCTOS", "STOCK INICIAL", "STOCK ACTUAL", ...whs.map((w) => `EXIST. ${w.name}`), "PRECIO VENTA", "P. COSTO", "COMISION", "CATEGORIA", "OBSERVACIONES"];

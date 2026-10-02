@@ -148,6 +148,9 @@ input[readonly] { background: var(--surface-2); }
 
 /* tables */
 .table-wrap { overflow: auto; }
+/* En inventario y comprobación, las filas se desplazan dentro de la tabla y los encabezados permanecen a la vista. */
+.sticky-data-wrap { max-height: min(70vh, 760px); min-height: 220px; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.sticky-data-wrap thead th { position: sticky; top: 0; z-index: 3; }
 table { width: 100%; border-collapse: collapse; }
 th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; padding: 11px 12px; background: var(--surface-2); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 1; white-space: nowrap; }
 td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
@@ -382,6 +385,7 @@ td.nowrap, .row.nowrap { white-space: nowrap; flex-wrap: nowrap; }
 tr.off, tr.off td { opacity: .5; }
 .hline { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
 .hline:last-child { border-bottom: 0; }
+.dashboard-total { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); border-bottom: 0; color: var(--ink); font-weight: 800; }
 
 .iv-steps { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 14px; font-size: 12px; font-weight: 700; color: var(--muted); }
 .iv-steps span { background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; }
@@ -460,6 +464,7 @@ textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 
   .kpi .v { font-size: 15pt !important; }
   .k, .hint, .summary, .cline, .weekly-excel-reference p { color: #334155 !important; }
   .table-wrap { overflow: visible !important; }
+  .sticky-data-wrap { max-height: none !important; min-height: 0 !important; overflow: visible !important; scrollbar-gutter: auto !important; }
   table { width: 100% !important; border-collapse: collapse !important; page-break-inside: auto; }
   thead { display: table-header-group; }
   tfoot { display: table-footer-group; }

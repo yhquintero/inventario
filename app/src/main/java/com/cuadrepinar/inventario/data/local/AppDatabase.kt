@@ -2,6 +2,8 @@ package com.cuadrepinar.inventario.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.cuadrepinar.inventario.data.local.dao.AuditDao
 import com.cuadrepinar.inventario.data.local.dao.BackupDao
 import com.cuadrepinar.inventario.data.local.dao.CuadreDao
@@ -33,7 +35,7 @@ import com.cuadrepinar.inventario.data.local.entity.UserEntity
         SettingsEntity::class,
         ReportCacheEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -46,4 +48,14 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun backups(): BackupDao
     abstract fun settings(): SettingsDao
     abstract fun reportCache(): ReportCacheDao
+}
+
+/** Add historical per-sale cost without discarding the existing Room database. */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE movements ADD COLUMN unitCostUsd REAL NOT NULL DEFAULT 0.0")
+        database.execSQL(
+            "UPDATE movements SET unitCostUsd = COALESCE((SELECT precioCostoUsd FROM products WHERE products.id = movements.productId), 0) WHERE type = 'VENTA'"
+        )
+    }
 }

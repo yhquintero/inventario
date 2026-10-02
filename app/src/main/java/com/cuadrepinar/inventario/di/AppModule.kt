@@ -26,6 +26,7 @@ object AppModule {
     fun database(@ApplicationContext context: Context): AppDatabase {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         return Room.databaseBuilder(context, AppDatabase::class.java, "cuadre_pinar.db")
+            .addMigrations(com.cuadrepinar.inventario.data.local.MIGRATION_3_4)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)

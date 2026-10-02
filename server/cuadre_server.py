@@ -45,13 +45,14 @@ WRITE = {
     "cuadres": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
     "rates": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
     "weekly": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
+    "excelDailyReports": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
     "settings": {"ADMINISTRADOR", "JEFE"},
     "warehouses": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
     "warehouseEntries": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
     "audit": set(ROLES),
 }
 CLOSE_DAY = {"ADMINISTRADOR", "JEFE", "ECONOMICO"}
-MOV_CORE = ("date", "productId", "type", "quantity", "unitPriceUsd", "center", "domicilioCup", "deletedAt", "notes", "warehouseId")
+MOV_CORE = ("date", "productId", "type", "quantity", "unitPriceUsd", "unitCostUsd", "importedAmountUsd", "importedCommissionCup", "importBatchKey", "sourceSheet", "sourceRow", "sourceFormat", "sourceFile", "center", "domicilioCup", "deletedAt", "notes", "warehouseId")
 WAREHOUSE_DEFAULT_ID = "w_principal"
 
 os.makedirs(BACKUPS, exist_ok=True)
@@ -505,6 +506,9 @@ def ensure_warehouses(st):
     if not isinstance(st.get("warehouseEntries"), list):
         st["warehouseEntries"] = []
         changed = True
+    if not isinstance(st.get("excelDailyReports"), list):
+        st["excelDailyReports"] = []
+        changed = True
     ws = st["warehouses"]
     active = [w for w in ws if isinstance(w, dict) and not w.get("deletedAt")]
     if not active:
@@ -551,7 +555,17 @@ def migrate_state():
 
 
 def core(m):
-    return {k: m.get(k) for k in MOV_CORE}
+    # Omit fields absent in legacy records so a safe metadata migration does not
+    # make an otherwise unchanged closed-day movement look edited.
+    return {k: m[k] for k in MOV_CORE if k in m}
+
+
+def core_changed(old, new):
+    previous = core(old)
+    current = core(new)
+    # Compare fields that were already persisted. Newly introduced fields can be
+    # backfilled once; subsequent changes are checked like every other core field.
+    return any(previous[key] != current.get(key) for key in previous)
 
 
 def validate_change(old, new, role, closed):
@@ -567,7 +581,7 @@ def validate_change(old, new, role, closed):
     for i in set(om) | set(nm):
         a, b = om.get(i), nm.get(i)
         dates = {x.get("date") for x in (a, b) if x}
-        if dates & closed and (a is None or b is None or core(a) != core(b)):
+        if dates & closed and (a is None or b is None or core_changed(a, b)):
             d = sorted(dates & closed)[0]
             return 423, f"El día {d} está cerrado. Pide a un administrador que lo reabra."
     oc = {c.get("date"): c for c in old.get("cuadres") or []}
@@ -1163,7 +1177,7 @@ def state_put(h, u, _):
             # Un cliente con la interfaz antigua (caché del navegador) no manda estas
             # secciones: se conservan las que ya hay en el servidor.
             old = json.loads(r["data"]) or {}
-            for k in ("warehouses", "warehouseEntries"):
+            for k in ("warehouses", "warehouseEntries", "excelDailyReports"):
                 if k not in new:
                     new[k] = old.get(k)
         if r["data"] is None:

@@ -36,6 +36,8 @@ const TIPS = {
   "[data-wh-imp]": "Importar valores a este almacén",
   "[data-wh-tr]": "Traspasar existencia a otro almacén",
   "[data-wh-undo]": "Deshacer esta entrada: los valores vuelven a como estaban",
+  "[data-wh-pdf]": "Imprimir o guardar el inventario de este almacén como PDF",
+  "[data-act=export-movements-view]": "Descargar los movimientos visibles en CSV",
   "#whSel": "Almacén en uso: la existencia, la venta rápida y las importaciones apuntan aquí",
   "[data-filter=AQUI]": "Productos con existencia en el almacén en uso",
   "[data-act=print]": "Imprimir o guardar como PDF",

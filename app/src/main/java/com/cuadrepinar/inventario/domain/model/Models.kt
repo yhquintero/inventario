@@ -122,7 +122,8 @@ data class Movement(
     val stockFinal: Double,
     val userId: Long,
     val userName: String = "",
-    val notes: String = ""
+    val notes: String = "",
+    val unitCostUsd: Double = 0.0
 )
 
 data class DailyCuadre(
@@ -214,7 +215,10 @@ data class ComprobacionRow(
     val precioVenta: Double,
     val importeOriginal: Double,
     val importeReal: Double,
-    val diferenciaImporte: Double
+    val diferenciaImporte: Double,
+    val costoVentas: Double = 0.0,
+    val utilidadBruta: Double = 0.0,
+    val comisionesCup: Double = 0.0
 )
 
 data class ReportFilter(

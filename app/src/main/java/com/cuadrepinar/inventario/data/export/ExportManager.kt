@@ -31,20 +31,22 @@ class ExportManager @Inject constructor(
     private fun dir(): File = File(context.filesDir, "exports").apply { mkdirs() }
 
     fun csvProducts(products: List<Product>): File {
-        val sb = StringBuilder("PRODUCTOS,STOCK INICIAL,STOCK ACTUAL,PRECIO VENTA (USD),COMISION (CUP),CATEGORIA\n")
+        val sb = StringBuilder("PRODUCTOS,STOCK INICIAL,STOCK ACTUAL,PRECIO VENTA (USD),P. COSTO (USD),COMISION (CUP),CATEGORIA\n")
         products.forEach {
-            sb.append(listOf(it.name, it.stockInicial, it.stockActual, it.precioVentaUsd, it.comisionCup, it.category).joinToString(",") { v -> csv(v) }).append('\n')
+            sb.append(listOf(it.name, it.stockInicial, it.stockActual, it.precioVentaUsd, it.precioCostoUsd, it.comisionCup, it.category).joinToString(",") { v -> csv(v) }).append('\n')
         }
         return write("inventario_${ts()}.csv", sb.toString().toByteArray(Charsets.UTF_8))
     }
 
     fun csvMovements(movs: List<Movement>): File {
-        val sb = StringBuilder("FECHA,PRODUCTO,MOVIMIENTO,CANTIDAD,PRECIO VENTA USD,IMPORTE,TIPO,COMISION CUP,STOCK INICIAL,STOCK FINAL,USUARIO\n")
+        val sb = StringBuilder("FECHA,PRODUCTO,MOVIMIENTO,CANTIDAD,PRECIO VENTA USD,IMPORTE USD,COSTO UNITARIO USD,COSTO VENTA USD,UTILIDAD BRUTA USD,TIPO,COMISION CUP,STOCK INICIAL,STOCK FINAL,USUARIO\n")
         movs.forEach {
+            val cost = if (it.type == com.cuadrepinar.inventario.domain.model.MovementType.VENTA) it.quantity * it.unitCostUsd else 0.0
             sb.append(
                 listOf(
                     Dates.format(it.dateEpoch), it.productName, it.type.name, it.quantity, it.unitPriceUsd,
-                    it.importeUsd, it.center.name, it.comisionCup, it.stockInicial, it.stockFinal, it.userName
+                    it.importeUsd, it.unitCostUsd, cost, it.importeUsd - cost, it.center.name, it.comisionCup,
+                    it.stockInicial, it.stockFinal, it.userName
                 ).joinToString(",") { v -> csv(v) }
             ).append('\n')
         }
@@ -52,12 +54,13 @@ class ExportManager @Inject constructor(
     }
 
     fun csvComprobacion(rows: List<ComprobacionRow>): File {
-        val sb = StringBuilder("PRODUCTOS,STOCK INICIAL,VENTAS,ENTRADAS,SALIDAS,STOCK CALCULADO,STOCK FINAL,PRECIO VENTA,IMPORTE PRECIO ORIGINAL,IMPORTE REAL,DIFERENCIA DE IMPORTE\n")
+        val sb = StringBuilder("PRODUCTOS,STOCK INICIAL,VENTAS,ENTRADAS,SALIDAS,STOCK CALCULADO,STOCK FINAL,PRECIO VENTA,IMPORTE PRECIO ORIGINAL,IMPORTE REAL,COSTO HISTORICO,UTILIDAD BRUTA,COMISION CUP,DIFERENCIA DE IMPORTE\n")
         rows.forEach {
             sb.append(
                 listOf(
                     it.product, it.stockInicial, it.ventas, it.entradas, it.salidas, it.stockCalculado,
-                    it.stockFinal, it.precioVenta, it.importeOriginal, it.importeReal, it.diferenciaImporte
+                    it.stockFinal, it.precioVenta, it.importeOriginal, it.importeReal, it.costoVentas,
+                    it.utilidadBruta, it.comisionesCup, it.diferenciaImporte
                 ).joinToString(",") { v -> csv(v) }
             ).append('\n')
         }
@@ -67,12 +70,14 @@ class ExportManager @Inject constructor(
     fun xlsxComprobacion(rows: List<ComprobacionRow>): File {
         val headers = listOf(
             "PRODUCTOS", "STOCK INICIAL", "VENTAS", "ENTRADAS", "SALIDAS", "STOCK CALCULADO",
-            "STOCK FINAL", "PRECIO VENTA", "IMPORTE PRECIO ORIGINAL", "IMPORTE REAL", "DIFERENCIA DE IMPORTE"
+            "STOCK FINAL", "PRECIO VENTA", "IMPORTE PRECIO ORIGINAL", "IMPORTE REAL", "COSTO HISTORICO",
+            "UTILIDAD BRUTA", "COMISION CUP", "DIFERENCIA DE IMPORTE"
         )
         val data = rows.map {
             listOf(
                 it.product, it.stockInicial, it.ventas, it.entradas, it.salidas, it.stockCalculado,
-                it.stockFinal, it.precioVenta, it.importeOriginal, it.importeReal, it.diferenciaImporte
+                it.stockFinal, it.precioVenta, it.importeOriginal, it.importeReal, it.costoVentas,
+                it.utilidadBruta, it.comisionesCup, it.diferenciaImporte
             )
         }
         return writeXlsx("comprobacion_${ts()}.xlsx", "COMPROBACION", headers, data)
@@ -206,8 +211,8 @@ class ExportManager @Inject constructor(
         val height = 595
         val left = 29f
         val right = width - left
-        val widths = listOf(190f, 55f, 55f, 55f, 55f, 55f, 55f, 66f, 66f, 66f, 66f)
-        val headers = listOf("PRODUCTO", "STOCK INI.", "VENTAS", "ENTRADAS", "SALIDAS", "STOCK CALC.", "STOCK FIN.", "P. VENTA", "IMP. ORIGINAL", "IMP. REAL", "DIF.")
+        val widths = listOf(170f, 42f, 38f, 38f, 38f, 43f, 43f, 48f, 52f, 52f, 48f, 50f, 51f, 50f)
+        val headers = listOf("PRODUCTO", "STOCK INI.", "VENTAS", "ENTRADAS", "SALIDAS", "STOCK CALC.", "STOCK FIN.", "P. VENTA", "IMP. ORIG.", "IMP. REAL", "COSTO", "UTILIDAD", "COMISIÓN CUP", "DIF.")
         val periodLabel = period.replaceFirstChar { it.uppercase() }
         val fromDate = Dates.format(fromEpoch)
         val toDate = Dates.format(toEpoch)
@@ -255,12 +260,19 @@ class ExportManager @Inject constructor(
                         "ENTRADAS" to Money.qty(rows.sumOf { it.entradas }),
                         "SALIDAS" to Money.qty(rows.sumOf { it.salidas }),
                         "IMPORTE REAL" to Money.usd(rows.sumOf { it.importeReal }),
+                        "COSTO" to Money.usd(rows.sumOf { it.costoVentas }),
+                        "UTILIDAD" to Money.usd(rows.sumOf { it.utilidadBruta }),
                         "DIFERENCIA" to Money.usd(rows.sumOf { it.diferenciaImporte }),
                     )
                     val gap = 8f
                     val cardWidth = (right - left - gap * (metrics.size - 1)) / metrics.size
                     metrics.forEachIndexed { index, (label, value) ->
-                        drawPdfKpi(canvas, left + index * (cardWidth + gap), 100f, cardWidth, 43f, label, value, if (index == 4) pdfGold else pdfTeal)
+                        val accent = when (index) {
+                            5 -> pdfGreen
+                            6 -> pdfGold
+                            else -> pdfTeal
+                        }
+                        drawPdfKpi(canvas, left + index * (cardWidth + gap), 100f, cardWidth, 43f, label, value, accent)
                     }
                     y = drawPdfSectionTitle(canvas, "DETALLE POR PRODUCTO · ${rows.size} FILAS", left, 159f, right - left)
                 } else {
@@ -285,7 +297,8 @@ class ExportManager @Inject constructor(
                         row.product,
                         Money.qty(row.stockInicial), Money.qty(row.ventas), Money.qty(row.entradas), Money.qty(row.salidas),
                         Money.qty(row.stockCalculado), Money.qty(row.stockFinal), Money.usd(row.precioVenta),
-                        Money.usd(row.importeOriginal), Money.usd(row.importeReal), Money.usd(row.diferenciaImporte)
+                        Money.usd(row.importeOriginal), Money.usd(row.importeReal), Money.usd(row.costoVentas),
+                        Money.usd(row.utilidadBruta), Money.cup(row.comisionesCup), Money.usd(row.diferenciaImporte)
                     )
                     var x = left + 4f
                     values.forEachIndexed { column, value ->
@@ -306,7 +319,8 @@ class ExportManager @Inject constructor(
                     Money.qty(rows.sumOf { it.entradas }), Money.qty(rows.sumOf { it.salidas }),
                     Money.qty(rows.sumOf { it.stockCalculado }), Money.qty(rows.sumOf { it.stockFinal }), "—",
                     Money.usd(rows.sumOf { it.importeOriginal }), Money.usd(rows.sumOf { it.importeReal }),
-                    Money.usd(rows.sumOf { it.diferenciaImporte })
+                    Money.usd(rows.sumOf { it.costoVentas }), Money.usd(rows.sumOf { it.utilidadBruta }),
+                    Money.cup(rows.sumOf { it.comisionesCup }), Money.usd(rows.sumOf { it.diferenciaImporte })
                 )
                 val canvas = page!!.canvas
                 canvas.drawRect(left, y, right, y + 21f, pdfFill(pdfLight))

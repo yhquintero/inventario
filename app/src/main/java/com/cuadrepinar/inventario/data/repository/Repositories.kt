@@ -278,7 +278,8 @@ class MovementRepository @Inject constructor(private val db: AppDatabase, privat
                 stockInicial = stockIni,
                 stockFinal = stockFin,
                 userId = actor.id,
-                notes = notes
+                notes = notes,
+                unitCostUsd = if (type == MovementType.VENTA) product.precioCostoUsd else 0.0
             )
         )
         db.products().updateStock(product.id, stockFin)
@@ -325,6 +326,14 @@ class MovementRepository @Inject constructor(private val db: AppDatabase, privat
             it.toModel(products[it.productId]?.name ?: "—", users[it.userId]?.displayName ?: "")
         }
     }
+
+    suspend fun all(): List<Movement> {
+        val products = db.products().all().associateBy { it.id }
+        val users = db.users().all().associateBy { it.id }
+        return db.movements().all().map {
+            it.toModel(products[it.productId]?.name ?: "—", users[it.userId]?.displayName ?: "")
+        }
+    }
 }
 
 @Singleton
@@ -358,28 +367,39 @@ class ReportRepository @Inject constructor(
 ) {
     suspend fun comprobacion(from: Long, to: Long): List<ComprobacionRow> {
         val products = db.products().all().filter { it.active }
-        val movs = movements.inRange(from, to)
-        return products.map { p ->
-            val mine = movs.filter { it.productId == p.id }
-            val ventas = mine.filter { it.type == MovementType.VENTA }.sumOf { it.quantity }
-            val entradas = mine.filter { it.type == MovementType.ENTRADA }.sumOf { it.quantity }
-            val salidas = mine.filter { it.type == MovementType.SALIDA }.sumOf { it.quantity }
-            val stockCalc = StockCalculator.stockCalculado(p.stockInicial, ventas, entradas, salidas)
-            val importeOriginal = StockCalculator.round2(ventas * p.precioVentaUsd)
-            val importeReal = StockCalculator.round2(mine.filter { it.type == MovementType.VENTA }.sumOf { it.importeUsd })
+        val allMovements = movements.all()
+        return products.map { product ->
+            val productHistory = allMovements.filter { it.productId == product.id }
+            val periodMovements = productHistory.filter { it.dateEpoch in from..to }
+            val previous = productHistory.filter { it.dateEpoch < from }
+            val openingStock = product.stockInicial + previous.sumOf { movement ->
+                if (movement.type == MovementType.ENTRADA) movement.quantity else -movement.quantity
+            }
+            val sales = periodMovements.filter { it.type == MovementType.VENTA }
+            val salesQuantity = sales.sumOf { it.quantity }
+            val entries = periodMovements.filter { it.type == MovementType.ENTRADA }.sumOf { it.quantity }
+            val exits = periodMovements.filter { it.type == MovementType.SALIDA }.sumOf { it.quantity }
+            val closingStock = StockCalculator.stockCalculado(openingStock, salesQuantity, entries, exits)
+            val originalAmount = StockCalculator.round2(sales.sumOf { it.quantity * it.unitPriceUsd })
+            val actualAmount = StockCalculator.round2(sales.sumOf { it.importeUsd })
+            val salesCost = StockCalculator.round2(sales.sumOf { it.quantity * it.unitCostUsd })
+            val commissions = StockCalculator.round2(sales.sumOf { it.comisionCup })
             ComprobacionRow(
-                productId = p.id,
-                product = p.name,
-                stockInicial = p.stockInicial,
-                ventas = ventas,
-                entradas = entradas,
-                salidas = salidas,
-                stockCalculado = stockCalc,
-                stockFinal = p.stockActual,
-                precioVenta = p.precioVentaUsd,
-                importeOriginal = importeOriginal,
-                importeReal = importeReal,
-                diferenciaImporte = StockCalculator.round2(importeOriginal - importeReal)
+                productId = product.id,
+                product = product.name,
+                stockInicial = openingStock,
+                ventas = salesQuantity,
+                entradas = entries,
+                salidas = exits,
+                stockCalculado = closingStock,
+                stockFinal = closingStock,
+                precioVenta = product.precioVentaUsd,
+                importeOriginal = originalAmount,
+                importeReal = actualAmount,
+                diferenciaImporte = StockCalculator.round2(originalAmount - actualAmount),
+                costoVentas = salesCost,
+                utilidadBruta = StockCalculator.round2(actualAmount - salesCost),
+                comisionesCup = commissions
             )
         }
     }
