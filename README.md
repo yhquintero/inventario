@@ -97,6 +97,17 @@ El servidor comprueba la licencia antes de permitir el acceso y crea una licenci
 
 En **Ajustes → Licencia de Uso** el listado de licencias se muestra numerado (Nº, Cliente, Tipo, Expira, Activa y Clave). El rol **Administrador** puede generar licencias (FULL, TRIAL, ENTERPRISE o LIFETIME) y eliminarlas, una por una o todas a la vez (`DELETE /api/license/:id` y `POST /api/license/delete-all`, ambos validados en el servidor); el resto de los roles solo pueden consultarlas. Si se elimina la licencia activa, el sistema queda bloqueado hasta activar otra (la activación de una clave firmada no depende del listado, así que una clave guardada siempre sirve para recuperar el acceso).
 
+### Generar una licencia desde la terminal
+
+Para crear una clave sin entrar en la aplicación (por ejemplo, para dejar una instalación nueva lista para usar):
+
+```bash
+python3 tools/generate_license.py --client "Cuadre Pinar" --type LIFETIME --days 0 --users 20 --devices 10
+python3 tools/generate_license.py --client "Tienda" --type FULL --days 365   # alternativa con vencimiento
+```
+
+La clave se activa pegándola completa (incluido el punto del medio) en la pantalla **Licencia de Uso** de la Web o de la app Android, o con `POST /api/license/activate`. Cada instalación firma con su propio secreto (`data/license.key` o la variable `LICENSE_SECRET`), por lo que una clave generada en un servidor **no** verifica en otro: para reutilizarla copia el mismo `LICENSE_SECRET` o genera una clave nueva en ese servidor.
+
 En una base de datos nueva se crean estas cuentas de demostración:
 
 | Usuario | Contraseña inicial | Rol |
