@@ -8,7 +8,7 @@
  * Inventario, Movimientos, Panel) y sus acciones principales, para comprobar que
  * ninguna vista falla al dibujarse y que el HTML sale como se espera.
  */
-import { cpSync, mkdtempSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -184,6 +184,35 @@ test("Inventario muestra el almacén en uso y el botón de importar", () => {
   assert.match(html, /data-act="print"/);
 });
 
+test("Inventario: el filtro «En almacén» filtra por existencia real (regresión)", () => {
+  go("inventory");
+  const wid = "w2";
+  const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  try {
+    store.setActiveWarehouse(wid);
+    app.dispatch("click", { target: { closest: () => ({ dataset: { filter: "AQUI" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+    const html = app.innerHTML;
+    assert.match(html, /data-filter="AQUI"/);
+    for (const p of store.activeProducts()) {
+      const re = new RegExp(escRe(p.name));
+      if (store.stockIn(p, wid) !== 0) assert.match(html, re, `${p.name} debe listarse (tiene existencia en ${wid})`);
+      else assert.doesNotMatch(html, re, `${p.name} no debe listarse (sin existencia en ${wid})`);
+    }
+  } finally {
+    app.dispatch("click", { target: { closest: () => ({ dataset: { filter: "TODOS" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+    store.setActiveWarehouse("w1");
+  }
+});
+
+test("La barra superior expone etiquetas accesibles en los botones de icono", () => {
+  const html = go("home");
+  assert.match(html, /aria-label="Abrir o cerrar el menú"/);
+  assert.match(html, /aria-label="Cambiar tema: claro, oscuro o automático"/);
+  assert.match(html, /aria-label="Cerrar sesión"/);
+  assert.match(html, /aria-label="Búsqueda rápida \(Ctrl\+K\)"/);
+  assert.match(html, /aria-label="Licencia de uso"/);
+});
+
 test("Movimientos ofrece CSV y PDF para el filtro visible", () => {
   const html = go("movements");
   assert.match(html, /ALMACÉN/);
@@ -311,6 +340,13 @@ go("settings");
 await new Promise((resolve) => setImmediate(resolve));
 await new Promise((resolve) => setImmediate(resolve));
 
+test("Ajustes muestra la versión de la Web en la tarjeta Acerca de", () => {
+  const html = go("settings");
+  assert.match(html, /Acerca de/);
+  assert.match(html, /Web v\d+\.\d+\.\d+/);
+  assert.match(html, /funciona sin conexión/i);
+});
+
 test("Ajustes lista las licencias con Nº y las columnas Cliente/Tipo/Expira/Activa/Clave", () => {
   const html = go("settings");
   assert.match(html, /Licencias creadas · 2/);
@@ -374,6 +410,40 @@ test("El rol JEFE puede ver las licencias pero no eliminarlas", () => {
     store.state.session = original;
     go("settings");
   }
+});
+
+/* ----------------------------- PWA sin conexión y metadatos ----------------------------- */
+console.log("\nWeb · PWA sin conexión y metadatos\n");
+
+test("El service worker cachea todos los módulos JS para el modo sin conexión", () => {
+  const sw = readFileSync(join(root, "web/sw.js"), "utf8");
+  assert.match(sw, /const CACHE = "cuadre-pinar-v\d+"/);
+  for (const f of readdirSync(join(root, "web/js")).filter((x) => x.endsWith(".js"))) {
+    assert.match(sw, new RegExp("\\./js/" + f.replace(/\./g, "\\.")), `falta ./js/${f} en el SHELL del service worker`);
+  }
+  assert.match(sw, /\.\/vendor\/xlsx\.full\.min\.js/, "el lector de Excel debe cachease para importar sin conexión");
+  assert.match(sw, /destination === "image"/, "las imágenes se cachean la primera vez que se usan");
+});
+
+test("El manifest declara una PWA instalable completa", () => {
+  const m = JSON.parse(readFileSync(join(root, "web/manifest.webmanifest"), "utf8"));
+  assert.ok(m.id, "id de la aplicación");
+  assert.ok(Array.isArray(m.categories) && m.categories.length, "categorías");
+  assert.ok(Array.isArray(m.shortcuts) && m.shortcuts.length, "atajos");
+  assert.ok(m.icons.some((i) => i.sizes === "512x512"), "icono 512");
+});
+
+test("index.html incluye descripción, noscript y esquema de color", () => {
+  const html = readFileSync(join(root, "web/index.html"), "utf8");
+  assert.match(html, /<meta name="description"/);
+  assert.match(html, /<noscript>/);
+  assert.match(html, /name="color-scheme"/);
+});
+
+test("El cliente de la API corta las peticiones que tardan demasiado", () => {
+  const apiSrc = readFileSync(join(root, "web/js/api.js"), "utf8");
+  assert.match(apiSrc, /AbortController/);
+  assert.match(apiSrc, /tardó demasiado/);
 });
 
 console.log(`\n${ok} comprobaciones correctas, ${fail} fallidas\n`);

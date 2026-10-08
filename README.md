@@ -14,6 +14,7 @@
 - [Seguridad y cuentas iniciales](#-seguridad-y-cuentas-iniciales)
 - [Pruebas](#-pruebas)
 - [Estructura del proyecto](#-estructura-del-proyecto)
+- [Registro de cambios](#-registro-de-cambios)
 
 ## 🧩 Qué incluye
 
@@ -146,3 +147,7 @@ tools/     Pruebas y utilidades de importación
 ```
 
 📚 Referencia del modelo: [docs/MAPEO_EXCEL.md](docs/MAPEO_EXCEL.md). Los seis libros de referencia están en [`xlsx/`](xlsx/); la base de datos operativa, las copias y las claves generadas deben mantenerse fuera del control de versiones.
+
+## 🗒 Registro de cambios
+
+Las mejoras y correcciones de cada versión (Web y Android) quedan anotadas en [CHANGELOG.md](CHANGELOG.md).
