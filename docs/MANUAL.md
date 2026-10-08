@@ -4,7 +4,10 @@
 
 1. Entra con `admin` / `Admin123!`.
 2. En **Ajustes** activa biometría si el dispositivo lo permite.
-3. Cambia el tema con el botón del encabezado (claro / oscuro / sistema).
+3. Cambia el tema con el botón del encabezado (claro / oscuro / sistema). En la Web y en
+   Android la elección queda guardada y sobrevive al reinicio de la app.
+4. En un navegador compatible, **Ajustes → Instalar aplicación** instala la Web como app
+   (PWA): abre sin barra del navegador y funciona sin conexión.
 
 ## Inventario
 

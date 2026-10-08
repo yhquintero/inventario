@@ -12,6 +12,8 @@ import {
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
+/** Versión de la interfaz Web (visible en Ajustes → Acerca de). */
+export const APP_VERSION = "5.2.0";
 
 const routes = {
   home: { title: "Panel", icon: "⌂", perm: null, group: "General" },
@@ -106,21 +108,21 @@ function shell(body) {
         <div class="who">
           <div class="avatar">${esc(u.displayName[0])}</div>
           <div><strong>${esc(u.displayName)}</strong><div class="hint">${u.role}</div></div>
-          <button class="btn ghost small" data-act="logout" title="Cerrar sesión">⏻</button>
+          <button class="btn ghost small" data-act="logout" title="Cerrar sesión" aria-label="Cerrar sesión">⏻</button>
         </div>
       </aside>
       ${ui.drawer ? `<div class="scrim" data-act="drawer"></div>` : ""}
       <section class="main">
         <div class="topbar">
-          <button class="btn ghost small menu-btn" data-act="drawer">☰</button>
+          <button class="btn ghost small menu-btn" data-act="drawer" aria-label="Abrir o cerrar el menú">☰</button>
           <div class="tb-title"><h2>${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP ${ui.license.status?.valid ? `· 🔐 ${esc(ui.license.status.type)} ${ui.license.status.daysLeft === -1 ? "· Permanente" : `· ${ui.license.status.daysLeft}d`}` : ""}</span></div>
-          ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" />${ui.q ? `<button class="x" data-act="clear-q">✕</button>` : ""}</div>` : `<div style="flex:1"></div>`}
+          ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" aria-label="Buscar en ${r.title.toLowerCase()}" />${ui.q ? `<button class="x" data-act="clear-q" aria-label="Borrar búsqueda">✕</button>` : ""}</div>` : `<div style="flex:1"></div>`}
           ${whPicker()}
           <span class="sync-dot ${store.sync}" id="syncDot" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
-          <button class="btn ghost small" data-act="license-manage" title="Licencia de uso" data-tip="Licencia ${ui.license.status?.valid ? `${ui.license.status.type} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}` : "no válida"}">🔐</button>
-          <button class="btn ghost small kbd-btn" data-act="palette">⌘K</button>
-          <button class="btn ghost small" data-act="tour">?</button>
-          <button class="btn ghost small" data-act="theme" title="Tema">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
+          <button class="btn ghost small" data-act="license-manage" title="Licencia de uso" aria-label="Licencia de uso" data-tip="Licencia ${ui.license.status?.valid ? `${ui.license.status.type} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}` : "no válida"}">🔐</button>
+          <button class="btn ghost small kbd-btn" data-act="palette" aria-label="Búsqueda rápida (Ctrl+K)">⌘K</button>
+          <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
+          <button class="btn ghost small" data-act="theme" title="Tema" aria-label="Cambiar tema: claro, oscuro o automático">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
         </div>
         <div class="content">${body}</div>
       </section>
@@ -130,7 +132,7 @@ function shell(body) {
         .map((k) => `<a href="#${k}" class="${ui.route === k ? "active" : ""}" data-nav="${k}">${routes[k].icon}<div>${routes[k].title.split(" ")[0]}</div></a>`).join("")}
     </nav>
     ${ui.modal || ""}
-    ${ui.toast ? `<div class="toast ${ui.toast.kind}">${esc(ui.toast.msg)}</div>` : ""}
+    ${ui.toast ? `<div class="toast ${ui.toast.kind}" role="status" aria-live="polite">${esc(ui.toast.msg)}</div>` : ""}
   `;
 }
 
@@ -336,6 +338,7 @@ const kpi = (k, v, s, tone = "") => `<div class="card kpi ${tone}"><div class="k
 /* ============================ INVENTARIO ============================ */
 function inventoryView() {
   const all = store.activeProducts();
+  const wh = store.activeWarehouse();
   let list = all.filter((p) => (ui.cat === "TODAS" || p.category === ui.cat) &&
     (!ui.q || has(p.name, ui.q) || has(p.category, ui.q) || has(p.observaciones || "", ui.q)));
   if (ui.filter === "STOCK") list = list.filter((p) => p.stockActual > 0);
@@ -351,7 +354,6 @@ function inventoryView() {
   list = [...list].sort(sorters[ui.sort] || sorters.name);
   const canEdit = allowed("INVENTORY_EDIT");
   const canImp = allowed("VALUES_IMPORT");
-  const wh = store.activeWarehouse();
   const multi = store.warehousesActive().length > 1;
   const tot = {
     ini: list.reduce((a, p) => a + p.stockInicial, 0), act: list.reduce((a, p) => a + p.stockActual, 0),
@@ -464,7 +466,7 @@ function movementsView() {
               <td class="mono r">${qty(m.stockInicial)} → ${qty(m.stockFinal)}</td>
               <td class="hint">${esc(m.notes || "")}</td>
               ${canE ? `<td class="actions"><button class="icon-btn" data-edit-mov="${m.id}" title="Modificar">✎</button><button class="icon-btn danger" data-del-mov="${m.id}" title="Enviar a papelera">🗑</button></td>` : ""}
-            </tr>`).join("") || `<tr><td colspan="14" class="empty">Sin movimientos.</td></tr>`}
+            </tr>`).join("") || `<tr><td colspan="${13 + (canE ? 1 : 0)}" class="empty">Sin movimientos.</td></tr>`}
         </tbody>
       </table>
     </div>
@@ -1100,7 +1102,16 @@ function settingsView() {
       <label>Meta semanal <small>USD</small><input name="goalWeekly" ${dis} type="number" step="any" value="${s.goalWeekly}"></label>
       <label>Cerrar sesión por inactividad <small>minutos</small><input name="sessionMinutes" ${dis} type="number" min="1" value="${s.sessionMinutes}"></label>
       <div class="span-2 row"><button class="btn">Guardar ajustes</button></div>
-    </form>`;
+    </form>
+    ${deferredInstall ? `<div class="card" style="margin-top:14px">
+      <div class="card-h"><span class="k">📲 Instalar aplicación</span><span class="tag entrada">Disponible</span></div>
+      <p class="hint">Instala Cuadre Pinar en este dispositivo para abrirlo como app independiente: icono propio, pantalla completa y arranque más rápido. También funciona sin conexión.</p>
+      <button class="btn" data-act="install-app">Instalar ahora</button>
+    </div>` : ""}
+    <div class="card" style="margin-top:14px">
+      <div class="card-h"><span class="k">Acerca de</span><span class="tag mov">Web v${APP_VERSION}</span></div>
+      <p class="hint">Cuadre Pinar · inventario, ventas, cuadre diario e informes. La Web es una PWA: funciona sin conexión, se instala como aplicación y sincroniza los datos con el servidor y con la app Android. Los libros de <code>xlsx/</code> se importan siempre con vista previa y confirmación.</p>
+    </div>`;
 }
 
 /* ============================ PUNTO DE VENTA ============================ */
@@ -1142,7 +1153,7 @@ function posView() {
             <div class="cl">
               <div class="cl-n">${esc(p?.name)}</div>
               <div class="cl-c">
-                <button class="icon-btn" data-cart-dec="${i}">−</button><b>${qty(it.qty)}</b><button class="icon-btn" data-cart-inc="${i}">+</button>
+                <button class="icon-btn" data-cart-dec="${i}" aria-label="Quitar una unidad de ${esc(p?.name || "")}">−</button><b>${qty(it.qty)}</b><button class="icon-btn" data-cart-inc="${i}" aria-label="Añadir una unidad de ${esc(p?.name || "")}">+</button>
                 <input class="cell" type="number" step="any" data-cart-price="${i}" value="${it.price}" data-tip="Precio unitario USD (puedes rebajarlo)">
                 <b class="mono">${usd(it.qty * it.price)}</b>
               </div>
@@ -1938,7 +1949,7 @@ function confetti(msg) {
 
 /* ============================ MODALES ============================ */
 function modal(title, body, id, extra = "") {
-  ui.modal = `<div class="modal-back" data-act="close-modal"><form class="modal" id="${id}" ${extra}><div class="modal-h"><div class="h2">${title}</div><button type="button" class="icon-btn" data-act="close-modal">✕</button></div>${body}</form></div>`;
+  ui.modal = `<div class="modal-back" data-act="close-modal"><form class="modal" id="${id}" role="dialog" aria-modal="true" ${extra}><div class="modal-h"><div class="h2">${title}</div><button type="button" class="icon-btn" data-act="close-modal" aria-label="Cerrar">✕</button></div>${body}</form></div>`;
 }
 
 function productModal(p = null) {
@@ -2094,6 +2105,15 @@ function render() {
   applyTips(app);
   if (ui._lastRoute !== ui.route) { ui._lastRoute = ui.route; animateCounters(app); $(".content")?.classList.add("enter"); }
   bindApp();
+  // Accesibilidad: al abrir un modal, el foco pasa a su primer campo editable.
+  if (ui.modal) {
+    const m = $(".modal");
+    const ae = document.activeElement;
+    if (m && m.contains && (!ae || !m.contains(ae))) {
+      const first = m.querySelector?.("input:not([type=hidden]):not([readonly]):not([type=file]), select, textarea");
+      if (first && first !== ae) first.focus?.();
+    }
+  }
   if (!tourSeen() && !ui.modal && !document.querySelector(".tour") && innerWidth > 860) setTimeout(startTour, 400);
 }
 
@@ -2723,6 +2743,11 @@ function onClick(e) {
   else if (act === "export-weekly") exportWeekly();
   else if (act === "weekly-summary-browse") $("#weeklySummaryFile")?.click();
   else if (act === "weekly-summary-apply") applyWeeklySummaryImport();
+  else if (act === "install-app") {
+    const evt = deferredInstall;
+    deferredInstall = null;
+    if (evt) { evt.prompt(); evt.userChoice?.then?.(() => render()); }
+  }
   else if (act === "print") printCurrentView();
 }
 
@@ -2818,6 +2843,35 @@ function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&
 
 window.addEventListener("hashchange", () => { const r = location.hash.slice(1); if (routes[r] && r !== ui.route) navTo(r); });
 initTooltips();
+
+/* ---------------- Instalación como app (PWA) ---------------- */
+let deferredInstall = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstall = e;
+  if (ui.route === "settings") render();
+});
+window.addEventListener("appinstalled", () => {
+  deferredInstall = null;
+  toast("Cuadre Pinar se instaló en este dispositivo", "ok");
+});
+
+/* ---------------- Errores inesperados: aviso visible en vez de fallo silencioso ---------------- */
+let lastErrorNotice = 0;
+function noticeUnexpected(msg) {
+  const t = Date.now();
+  if (t - lastErrorNotice < 6000) return;
+  lastErrorNotice = t;
+  toast(msg, "err");
+}
+window.addEventListener("error", (e) => {
+  console.error("[CuadrePinar]", e.error || e.message);
+  noticeUnexpected("Ocurrió un error inesperado. Si se repite, recarga la página.");
+});
+window.addEventListener("unhandledrejection", (e) => {
+  console.error("[CuadrePinar]", e.reason);
+  noticeUnexpected("Una operación no pudo completarse.");
+});
 let lastActivity = Date.now();
 ["click", "keydown", "mousemove", "touchstart"].forEach((ev) => document.addEventListener(ev, () => (lastActivity = Date.now()), { passive: true }));
 setInterval(() => {

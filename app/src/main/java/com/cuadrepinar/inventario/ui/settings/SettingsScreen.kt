@@ -79,7 +79,7 @@ fun SettingsScreen(user: UserAccount, themeMode: String, vm: SettingsViewModel =
             Text("Copia automática diaria")
             Switch(e.autoBackupEnabled, { e = e.copy(autoBackupEnabled = it) })
         }
-        Text("Tema actual: $themeMode (el interruptor del encabezado recorre claro / oscuro / sistema)")
+        Text("Tema actual: $themeMode. El botón del encabezado recorre claro / oscuro / sistema y la elección queda guardada: se aplica al instante y sobrevive al reinicio de la app.")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("light", "dark", "system").forEach { t ->
                 FilterChip(selected = e.theme == t, onClick = { e = e.copy(theme = t) }, label = { Text(t) })
