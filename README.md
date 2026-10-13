@@ -128,7 +128,7 @@ El rol **Administrador** puede generar licencias (FULL, TRIAL, ENTERPRISE o LIFE
 ### Dónde se generan las licencias
 
 1. **Panel de la Web** — 🔐 **Gestionar licencia → 🆕 Generar clave** (o **Solicitudes** → «Crear clave»); requiere sesión de administrador.
-2. **Herramienta independiente** — `tools/license_studio.py`, el generador **aparte de la Web** con interfaz propia y botón «Enviar por WhatsApp».
+2. **Herramienta independiente** — `tools/license_studio.py`, el generador **aparte de la Web** con interfaz propia, **HTTPS en su propio puerto**, control de todas las licencias emitidas (activar, renovar, revocar, eliminar, CSV) y botón «Enviar por WhatsApp».
 3. **Terminal** — `tools/generate_license.py`, para dejar instalaciones listas desde la línea de comandos.
 4. **API** — `POST /api/license/generate`, para integraciones con sesión de administrador.
 
@@ -147,7 +147,42 @@ python3 tools/license_studio.py --whatsapp 5351234567  # WhatsApp destino por de
 
 En Windows puede lanzarse con `powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador.ps1`. La interfaz ofrece: formulario con los **8 plazos** (día … permanente), tipo y límites; la clave generada con **Copiar**, **Descargar `.txt`** y **💬 Enviar por WhatsApp** (enlace `wa.me` con el mensaje listo); y, si encuentra `data/novagest.db`, la lista de **solicitudes recibidas por WhatsApp** (Web y Android) con «Crear clave y enviar por WhatsApp» en un clic, que las deja marcadas como atendidas. Usa el **mismo formato de clave** (HMAC-SHA256) y el mismo mensaje que el panel de la Web, así que las claves activan sin cambios.
 
-> ⚠️ La clave solo verifica en la instalación que comparte el secreto (`LICENSE_SECRET` o `data/license.key`): si generas desde otra máquina, exporta el mismo `LICENSE_SECRET` o apunta `--data` a la carpeta `data` del servidor del cliente. La herramienta es privada del administrador: no la expongas en Internet.
+#### 🔒 Por HTTPS en su propio puerto (Windows)
+
+`tools\iniciar-generador-https.ps1` arranca la herramienta **por HTTPS en un puerto propio (8444 por defecto)**, aparte del servidor de NovaGest (8443) y de la Web, con el mismo esquema que `server\iniciar-https.ps1`: reutiliza el certificado del servidor si ya cubre las IPs de la laptop (`certs\cuadre.crt`) o crea el suyo con mkcert (`certs\licencias.crt`), abre la regla de Firewall del puerto (UAC la primera vez) e imprime las URLs de cada red — `https://localhost:8444`, la IP del router y la del hotspot `192.168.137.1` — además de la clave de acceso. Los móviles solo necesitan la autoridad raíz de mkcert, la misma que ya usan para el servidor.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador-https.ps1
+powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador-https.ps1 -Puerto 9443 -WhatsApp 5351234567
+powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador-https.ps1 -SoloLocal      # solo esta PC, sin firewall
+powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador.ps1 -Https               # el lanzador HTTP delega en el HTTPS
+```
+
+En Linux/macOS (o con un certificado ya emitido) es lo mismo desde la terminal:
+
+```bash
+python3 tools/license_studio.py --ssl-cert certs/cuadre.crt --ssl-key certs/cuadre.key --port 8444
+```
+
+#### 🔑 Clave de acceso
+
+La interfaz pide una **clave de acceso** (sesión de 12 h que se renueva con el uso y bloqueo temporal tras 8 intentos fallidos). Se toma de `--clave`, de la variable `LICENSE_ADMIN_KEY` o de `data/licencia-acceso.txt`, que se crea sola la primera vez y se muestra en la consola al arrancar; se puede cambiar en la pestaña **🔑 Acceso y datos**. Sin HTTPS esa clave viaja sin cifrar en la red, así que use el lanzador HTTPS cuando abra la herramienta desde el móvil o desde otra PC.
+
+#### 🗂 Control de las licencias emitidas
+
+La pestaña **🗂 Licencias y equipos** lista **todas** las claves emitidas en esa instalación (las del panel de la Web, la app Android, la terminal y el generador) con su estado — **✔ Vigente · en uso**, **🔑 Emitida · sin activar**, **⌛ Vencida**, **⛔ Revocada** o **⚠ Firma no coincide** —, los días restantes, el ID de licencia, quién la creó y los **equipos que la activaron** (ID de dispositivo, IP, cuándo se activó y cuándo se vio por última vez). Desde cada tarjeta:
+
+- **✅ Usar como activa** — deja esa licencia como la del producto (las demás del mismo producto se desactivan).
+- **♻ Renovar con este plazo** — emite una clave **nueva** con el plazo elegido (día … permanente), deja la anterior revocada, la registra, la activa y prepara el mensaje de WhatsApp con la clave nueva.
+- **⛔ Revocar** / **↩ Reactivar** — el servidor deja de aceptarla o vuelve a aceptarla (se distingue de una licencia simplemente emitida y aún sin activar).
+- **⛔ Quitar equipo** — desactiva una instalación concreta que había activado esa licencia.
+- **💬 Enviar por WhatsApp**, **📋 Copiar clave**, **⬇ `.txt`** — reenvía la clave guardada con el mensaje ya redactado (solo si su firma coincide con el secreto de este servidor).
+- **🗑 Eliminar** — borra la licencia y sus equipos de la base de datos (no se puede deshacer).
+- **⬇ Exportar CSV** — descarga la hoja de control completa (`Nº;Cliente;Producto;Tipo;Emitida;Expira;Días restantes;Estado;Activa;…;Clave`), lista para Excel.
+
+Las solicitudes también se pueden **descartar**, volver a **pendiente** o **eliminar** desde su pestaña, y cada acción (generar, atender, renovar, revocar, reactivar, quitar equipo, eliminar) queda anotada en la **auditoría** del servidor con el usuario `license_studio`.
+
+> ⚠️ La clave solo verifica en la instalación que comparte el secreto (`LICENSE_SECRET` o `data/license.key`): si generas desde otra máquina, exporta el mismo `LICENSE_SECRET` o apunta `--data` a la carpeta `data` del servidor del cliente. La herramienta es privada del administrador: protégela con la clave de acceso y no la expongas en Internet.
 
 ### Generar una licencia desde la terminal
 
@@ -185,7 +220,7 @@ node tools/test_almacenes.mjs        # lógica de almacenes e importación
 node tools/test_customers_credits.mjs # clientes, fiados, abonos y códigos de barras
 node tools/smoke_web.mjs             # recorrido de pantallas Web con DOM simulado
 python3 tools/test_licencia.py       # solicitudes de licencia, plazos y texto del mensaje
-python3 tools/test_generador.py      # generador independiente: claves firmadas y envío por WhatsApp
+python3 tools/test_generador.py      # generador independiente: clave de acceso, HTTPS, claves firmadas, envío por WhatsApp y control de licencias
 ```
 
 Para ejecutar las pruebas unitarias Android, usa Android Studio o Gradle 8.9 desde la raíz:
@@ -201,7 +236,7 @@ app/       Aplicación Android (Kotlin + Jetpack Compose)
 web/       Interfaz Web, lógica y recursos (PWA sin build)
 server/    API, autenticación, SQLite y copias (Python)
 docs/      Manuales y documentación del mapeo Excel
-tools/     Pruebas y utilidades de importación
+tools/     Pruebas, utilidades de importación y el generador/control de licencias
 ```
 
 📚 Referencia del modelo: [docs/MAPEO_EXCEL.md](docs/MAPEO_EXCEL.md). Los seis libros de referencia están en [`xlsx/`](xlsx/); la base de datos operativa, las copias y las claves generadas deben mantenerse fuera del control de versiones.
