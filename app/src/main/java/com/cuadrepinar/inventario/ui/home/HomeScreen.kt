@@ -57,22 +57,28 @@ fun HomeScreen(user: UserAccount, vm: HomeViewModel = hiltViewModel()) {
     val ventas = todayMovs.filter { it.type == MovementType.VENTA }.sumOf { it.importeUsd }
     val unidades = todayMovs.filter { it.type == MovementType.VENTA }.sumOf { it.quantity }
     val valorInventario = products.sumOf { it.stockActual * it.precioVentaUsd }
+    val saludo = when (java.time.LocalTime.now().hour) {
+        in 5..11 -> "Buenos días"
+        in 12..18 -> "Buenas tardes"
+        else -> "Buenas noches"
+    }
 
     LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Text("Buenas, ${user.displayName.split(" ").first()}", style = MaterialTheme.typography.headlineMedium)
+            Text("$saludo, ${user.displayName.split(" ").first()}", style = MaterialTheme.typography.headlineMedium)
             Text("Hoy es ${Dates.formatLong(today)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Inventario · Venta · Caja · Análisis", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelLarge)
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                KpiCard("Ventas de hoy", Money.usd(ventas), "${Money.qty(unidades)} uds.", Modifier.weight(1f))
-                KpiCard("Inventario", Money.usd(valorInventario), "${products.size} productos", Modifier.weight(1f))
+                KpiCard("Ventas de hoy", Money.usd(ventas), "${Money.qty(unidades)} uds.", Modifier.weight(1f), MaterialTheme.colorScheme.tertiary)
+                KpiCard("Inventario", Money.usd(valorInventario), "${products.size} productos", Modifier.weight(1f), MaterialTheme.colorScheme.primary)
             }
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                KpiCard("Movimientos hoy", todayMovs.size.toString(), "VENTA / ENTRADA / SALIDA", Modifier.weight(1f))
-                KpiCard("Stock bajo", low.size.toString(), "Requieren reposición", Modifier.weight(1f))
+                KpiCard("Movimientos hoy", todayMovs.size.toString(), "VENTA / ENTRADA / SALIDA", Modifier.weight(1f), MaterialTheme.colorScheme.secondary)
+                KpiCard("Stock bajo", low.size.toString(), if (low.isEmpty()) "Todo cubierto" else "Requieren reposición", Modifier.weight(1f), if (low.isEmpty()) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error)
             }
         }
         item { SectionTitle("Alertas de stock") }
@@ -82,13 +88,22 @@ fun HomeScreen(user: UserAccount, vm: HomeViewModel = hiltViewModel()) {
                 Text(p.name, style = MaterialTheme.typography.titleMedium)
                 Text("Stock ${Money.qty(p.stockActual)} · mínimo ${Money.qty(p.minStock)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val frac = if (p.minStock <= 0) 1f else (p.stockActual / (p.minStock * 3)).toFloat().coerceIn(0f, 1f)
-                LinearProgressIndicator(progress = { frac }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+                LinearProgressIndicator(
+                    progress = { frac },
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                    color = if (p.stockActual <= 0) MaterialTheme.colorScheme.error else if (frac < 0.5f) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.tertiary
+                )
             }
         }
         item { SectionTitle("Últimos movimientos") }
         items(movs.take(10), key = { it.id }) { m ->
+            val typeColor = when (m.type) {
+                MovementType.VENTA -> MaterialTheme.colorScheme.primary
+                MovementType.ENTRADA -> MaterialTheme.colorScheme.tertiary
+                else -> MaterialTheme.colorScheme.error
+            }
             Column(Modifier.padding(vertical = 4.dp)) {
-                Text("${m.type.name} · ${m.productName}", style = MaterialTheme.typography.titleMedium)
+                Text("${m.type.name} · ${m.productName}", style = MaterialTheme.typography.titleMedium, color = typeColor)
                 Text("${Money.qty(m.quantity)} · ${Money.usd(m.importeUsd)} · ${m.center.name} · ${Dates.format(m.dateEpoch)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

@@ -4,13 +4,12 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Monograma N: barras blancas -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M34,46 L54,34 L74,46 L74,70 L54,82 L34,70 Z" />
+        android:pathData="M40,74 L40,38 L48,38 L60,62 L60,38 L68,38 L68,74 L60,74 L48,50 L48,74 Z" />
+    <!-- Diagonal esmeralda: el acento de marca NovaGest -->
     <path
-        android:fillColor="#E8F5F3"
-        android:pathData="M54,34 L74,46 L74,70 L54,58 Z" />
-    <path
-        android:fillColor="#C4A35A"
-        android:pathData="M48,58 L54,64 L68,48 L64,44 L54,56 L52,54 Z" />
+        android:fillColor="#34D399"
+        android:pathData="M48,38 L60,62 L60,74 L48,50 Z" />
 </vector>

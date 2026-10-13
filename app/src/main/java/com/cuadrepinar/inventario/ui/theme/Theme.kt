@@ -12,47 +12,60 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Typography
 
-val Teal = Color(0xFF0F766E)
-val TealDark = Color(0xFF5EEAD4)
-val Gold = Color(0xFFB7791F)
-val Paper = Color(0xFFF4F6F8)
-val Ink = Color(0xFF0F172A)
-val Forest = Color(0xFF0B1220)
+/* Paleta NovaGest: índigo profundo + esmeralda eléctrico + ámbar. */
+val Indigo = Color(0xFF4F46E5)
+val IndigoLight = Color(0xFF8B8BF5)
+val Emerald = Color(0xFF059669)
+val EmeraldLight = Color(0xFF34D399)
+val Amber = Color(0xFFB45309)
+val Paper = Color(0xFFF5F6FB)
+val Ink = Color(0xFF101331)
+val Night = Color(0xFF0A0E21)
 
 private val LightColors = lightColorScheme(
-    primary = Teal,
+    primary = Indigo,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFCCFBF1),
-    onPrimaryContainer = Color(0xFF062E2B),
-    secondary = Gold,
-    onSecondary = Color(0xFF2A2108),
+    primaryContainer = Color(0xFFE4E4FD),
+    onPrimaryContainer = Color(0xFF1E1B4B),
+    secondary = Amber,
+    onSecondary = Color.White,
     secondaryContainer = Color(0xFFFEF3C7),
-    tertiary = Color(0xFF2563EB),
+    onSecondaryContainer = Color(0xFF451A03),
+    tertiary = Emerald,
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFD1FAE5),
+    onTertiaryContainer = Color(0xFF064E3B),
     background = Paper,
     onBackground = Ink,
     surface = Color(0xFFFFFFFF),
     onSurface = Ink,
-    surfaceVariant = Color(0xFFE2E8F0),
-    onSurfaceVariant = Color(0xFF64748B),
+    surfaceVariant = Color(0xFFE4E7F2),
+    onSurfaceVariant = Color(0xFF5D6B8A),
     error = Color(0xFFB3261E),
-    outline = Color(0xFFCBD5E1)
+    outline = Color(0xFFC7CBE3)
 )
 
 private val DarkColors = darkColorScheme(
-    primary = TealDark,
-    onPrimary = Color(0xFF003731),
-    primaryContainer = Color(0xFF0F6E66),
-    onPrimaryContainer = Color(0xFFCFF7F0),
-    secondary = Color(0xFFE7C27A),
-    onSecondary = Color(0xFF2A2108),
-    background = Forest,
-    onBackground = Color(0xFFECFDF8),
-    surface = Color(0xFF111A2B),
-    onSurface = Color(0xFFECFDF8),
-    surfaceVariant = Color(0xFF243330),
-    onSurfaceVariant = Color(0xFFC5D5D1),
+    primary = IndigoLight,
+    onPrimary = Color(0xFF1E1B4B),
+    primaryContainer = Color(0xFF312E81),
+    onPrimaryContainer = Color(0xFFE4E4FD),
+    secondary = Color(0xFFFCD34D),
+    onSecondary = Color(0xFF451A03),
+    secondaryContainer = Color(0xFF3A2E12),
+    onSecondaryContainer = Color(0xFFFEF3C7),
+    tertiary = EmeraldLight,
+    onTertiary = Color(0xFF064E3B),
+    tertiaryContainer = Color(0xFF065F46),
+    onTertiaryContainer = Color(0xFFD1FAE5),
+    background = Night,
+    onBackground = Color(0xFFE7EAF9),
+    surface = Color(0xFF121732),
+    onSurface = Color(0xFFE7EAF9),
+    surfaceVariant = Color(0xFF262F56),
+    onSurfaceVariant = Color(0xFF97A2C7),
     error = Color(0xFFFFB4AB),
-    outline = Color(0xFF8A9A96)
+    outline = Color(0xFF5A6493)
 )
 
 private val AppTypography = Typography(

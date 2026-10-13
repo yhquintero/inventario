@@ -1,5 +1,5 @@
 /**
- * Licencia de Uso - Cuadre Pinar
+ * Licencia de Uso - NovaGest
  * Verificación obligatoria siempre primero antes de cualquier acceso a la App.
  * - Almacenamiento local en localStorage
  * - Verificación remota contra /api/license/status y /api/license/verify

@@ -43,7 +43,7 @@ class BiometricHelper(private val context: Context) {
             }
         )
         val info = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Cuadre Pinar")
+            .setTitle("NovaGest")
             .setSubtitle("Confirma tu identidad para entrar")
             .setNegativeButtonText("Usar contraseña")
             .build()

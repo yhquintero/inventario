@@ -143,10 +143,10 @@ fun LoginScreen(vm: AuthViewModel = hiltViewModel(), onLogged: (UserAccount) -> 
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Image(painterResource(R.drawable.ic_launcher), "Cuadre Pinar", Modifier.size(88.dp))
+        Image(painterResource(R.drawable.ic_launcher), "NovaGest", Modifier.size(88.dp))
         Spacer(Modifier.height(12.dp))
-        Text("Cuadre Pinar", style = MaterialTheme.typography.headlineMedium)
-        Text("Control de inventario y cuadre diario", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("NovaGest", style = MaterialTheme.typography.headlineMedium)
+        Text("Gestiona. Crece. Avanza. · Inventario, venta y caja en una sola app", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(28.dp))
         if (state.recovering) {
             OutlinedTextField(user, { user = it }, label = { Text("Usuario") }, modifier = Modifier.fillMaxWidth())

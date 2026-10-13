@@ -122,7 +122,7 @@ export function initTooltips() {
 
 /* ---------------- Tour guiado ---------------- */
 const STEPS = [
-  { sel: ".logo", title: "Bienvenido a Cuadre Pinar ✨", text: "Te mostramos en 1 minuto cómo moverte. Puedes repetir esta guía con el botón ? arriba." },
+  { sel: ".logo", title: "Bienvenido a NovaGest ✨", text: "Tu negocio, todo en uno: inventario, venta, caja e informes. Te mostramos en 1 minuto cómo moverte; puedes repetir la guía con el botón ? de arriba." },
   { sel: ".rail nav", title: "Menú principal", text: "Todas las secciones agrupadas: Operación, Análisis y Sistema. Pasa el ratón por encima para ver qué hace cada una." },
   { sel: "[data-act=palette]", title: "Búsqueda rápida", text: "Pulsa Ctrl + K para buscar productos, ir a una sección o ejecutar acciones sin usar el ratón." },
   { sel: ".kpis", title: "Indicadores", text: "Venta del día, estado del cuadre, ítems y valor del inventario. Se actualizan solos." },

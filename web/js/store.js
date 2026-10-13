@@ -29,7 +29,7 @@ function emptyState() {
     warehouseEntries: [],
     settings: {
       theme: "system",
-      businessName: "Cuadre Pinar",
+      businessName: "NovaGest",
       defaultCupUsd: 750,
       defaultMxnUsd: 20,
       comisionSoloGestor: false,

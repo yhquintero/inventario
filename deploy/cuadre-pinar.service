@@ -1,6 +1,6 @@
 # Sin Docker: sudo cp deploy/cuadre-pinar.service /etc/systemd/system/ && sudo systemctl enable --now cuadre-pinar
 [Unit]
-Description=Cuadre Pinar (inventario)
+Description=NovaGest (gestión de negocio: inventario, venta y caja)
 After=network.target
 
 [Service]

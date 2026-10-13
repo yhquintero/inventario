@@ -1,4 +1,4 @@
-/** Cliente de la API del servidor Cuadre Pinar. Sesión por cookie HttpOnly + token Bearer (para vista embebida). */
+/** Cliente de la API del servidor NovaGest. Sesión por cookie HttpOnly + token Bearer (para vista embebida). */
 const TOKEN = "cuadrepinar.token";
 let onUnauthorized = () => {};
 let onLicenseError = () => {};

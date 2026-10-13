@@ -340,13 +340,13 @@ class ExportManager @Inject constructor(
         }
     }
 
-    private val pdfNavy = Color.rgb(16, 35, 52)
-    private val pdfTeal = Color.rgb(16, 123, 116)
-    private val pdfBlue = Color.rgb(54, 101, 139)
-    private val pdfGold = Color.rgb(188, 132, 33)
-    private val pdfGreen = Color.rgb(35, 126, 88)
+    private val pdfNavy = Color.rgb(30, 27, 75)
+    private val pdfTeal = Color.rgb(79, 70, 229)
+    private val pdfBlue = Color.rgb(2, 132, 199)
+    private val pdfGold = Color.rgb(180, 83, 9)
+    private val pdfGreen = Color.rgb(5, 150, 105)
     private val pdfRed = Color.rgb(176, 60, 55)
-    private val pdfInk = Color.rgb(31, 43, 52)
+    private val pdfInk = Color.rgb(16, 19, 49)
     private val pdfMuted = Color.rgb(100, 113, 122)
     private val pdfLine = Color.rgb(220, 227, 231)
     private val pdfLight = Color.rgb(239, 244, 246)
@@ -414,7 +414,7 @@ class ExportManager @Inject constructor(
 
     private fun drawPdfFooter(canvas: Canvas, pageNumber: Int, width: Float, height: Float) {
         canvas.drawLine(30f, height - 29f, width - 30f, height - 29f, pdfStroke(pdfLine, 0.8f))
-        drawPdfText(canvas, "Cuadre Pinar · Informe generado desde la aplicación", 30f, height - 14f, pdfText(7f, pdfMuted))
+        drawPdfText(canvas, "NovaGest · Informe generado desde la aplicación", 30f, height - 14f, pdfText(7f, pdfMuted))
         drawPdfRightText(canvas, "PÁGINA $pageNumber", width - 30f, height - 14f, 75f, pdfText(7f, pdfMuted, bold = true))
     }
 

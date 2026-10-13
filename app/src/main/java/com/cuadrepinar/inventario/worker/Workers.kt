@@ -53,7 +53,7 @@ class LowStockWorker @AssistedInject constructor(
         }
         val n = NotificationCompat.Builder(applicationContext, "alerts")
             .setSmallIcon(android.R.drawable.stat_notify_error)
-            .setContentTitle("Stock bajo · Cuadre Pinar")
+            .setContentTitle("Stock bajo · NovaGest")
             .setContentText("${low.size} producto(s) en o por debajo del mínimo.")
             .setStyle(NotificationCompat.BigTextStyle().bigText(low.take(8).joinToString("\n") { "• ${it.name}: ${it.stockActual}" }))
             .setAutoCancel(true)

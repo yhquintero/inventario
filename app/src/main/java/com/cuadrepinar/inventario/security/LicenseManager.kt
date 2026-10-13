@@ -14,7 +14,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Licencia de Uso - Cuadre Pinar Android
+ * Licencia de Uso - NovaGest Android
  * Verifica SIEMPRE PRIMERO la licencia antes de permitir acceso a cualquier App.
  * - Almacenamiento cifrado con EncryptedSharedPreferences
  * - Verificación remota contra /api/license/status y /api/license/activate

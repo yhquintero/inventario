@@ -111,9 +111,15 @@ fun AppShell(
         drawerContent = {
             ModalDrawerSheet {
                 Text(
-                    "Cuadre Pinar",
+                    "NovaGest",
                     modifier = Modifier.padding(24.dp),
                     style = androidx.compose.material3.MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    "Gestiona. Crece. Avanza.",
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.tertiary,
+                    style = androidx.compose.material3.MaterialTheme.typography.labelLarge
                 )
                 Text(
                     "${user.displayName} · ${user.role.label}",
@@ -149,7 +155,7 @@ fun AppShell(
             snackbarHost = { androidx.compose.material3.SnackbarHost(snackbar) },
             topBar = {
                 TopAppBar(
-                    title = { Text("Cuadre Pinar") },
+                    title = { Text("NovaGest") },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Outlined.Menu, "Menú")

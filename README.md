@@ -1,6 +1,6 @@
-# Cuadre Pinar
+# NovaGest
 
-**Control de inventario, movimientos y cuadre diario** para la operación de Pinar del Río. El proyecto incluye una aplicación Web y una aplicación Android; ambas pueden trabajar conectadas al servidor compartido.
+**Gestiona. Crece. Avanza.** — La plataforma **todo-en-uno** para tu negocio: inventario multi-almacén, punto de venta, caja diaria, informes y análisis. Incluye una aplicación Web (instalable como PWA) y una aplicación Android; ambas funcionan conectadas al servidor compartido y sincronizan el mismo estado en tiempo real.
 
 > 📊 Los libros de Excel sirven como fuentes de importación y referencia. La Web no los vuelve a importar ni sustituye los datos operativos sin una acción explícita; una instalación nueva puede iniciar con la semilla incluida en el proyecto.
 
@@ -103,7 +103,7 @@ En **Ajustes → Licencia de Uso** el listado de licencias se muestra numerado (
 Para crear una clave sin entrar en la aplicación (por ejemplo, para dejar una instalación nueva lista para usar):
 
 ```bash
-python3 tools/generate_license.py --client "Cuadre Pinar" --type LIFETIME --days 0 --users 20 --devices 10
+python3 tools/generate_license.py --client "NovaGest" --type LIFETIME --days 0 --users 20 --devices 10
 python3 tools/generate_license.py --client "Tienda" --type FULL --days 365   # alternativa con vencimiento
 ```
 

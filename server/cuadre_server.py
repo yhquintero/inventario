@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Servidor de Cuadre Pinar: API + archivos estáticos.
+Servidor de NovaGest: API + archivos estáticos.
 
 - SQLite (data/cuadre.db): usuarios, sesiones, estado compartido (Web + App), días cerrados, auditoría.
 - Contraseñas PBKDF2-SHA256 (210 000 iteraciones) · bloqueo tras 5 fallos · sesiones con caducidad.
@@ -27,12 +27,12 @@ IDLE = int(os.environ.get("SESSION_IDLE_MIN", "20")) * 60
 MAXAGE = int(os.environ.get("SESSION_MAX_HOURS", "12")) * 3600
 BACKUP_HOUR = int(os.environ.get("BACKUP_HOUR", "2"))
 BACKUP_KEEP = int(os.environ.get("BACKUP_KEEP", "30"))
-ISSUER = "Cuadre Pinar"
+ISSUER = "NovaGest"
 ROLES = ("ADMINISTRADOR", "JEFE", "ECONOMICO", "ALMACENERO")
 ADMINS = {"ADMINISTRADOR", "JEFE"}
 
 # ------------------------------------------------------------------ licencia de uso
-LICENSE_PRODUCT = os.environ.get("LICENSE_PRODUCT", "Cuadre Pinar")
+LICENSE_PRODUCT = os.environ.get("LICENSE_PRODUCT", "NovaGest")
 LICENSE_FILE = os.path.join(DATA, "license.key")
 LICENSE_TRIAL_DAYS = int(os.environ.get("LICENSE_TRIAL_DAYS", "15"))
 LICENSE_EXEMPT = {"/api/health", "/api/license/status", "/api/license/activate", "/api/license/verify"}
@@ -214,7 +214,7 @@ def format_license_pretty(token: str) -> str:
         return token
 
 
-def generate_license_payload(client_name="Cuadre Pinar", product=None, license_type="FULL", days=365, max_users=20, max_devices=10, features=None, license_id=None):
+def generate_license_payload(client_name="NovaGest", product=None, license_type="FULL", days=365, max_users=20, max_devices=10, features=None, license_id=None):
     product = product or LICENSE_PRODUCT
     issued = now()
     expires = 0 if str(days).upper() in ("0", "NEVER", "LIFETIME", "PERMANENTE") else issued + int(days) * 86400
@@ -291,7 +291,7 @@ def ensure_trial_license():
         return
     # Crea licencia de prueba
     payload = generate_license_payload(
-        client_name="Cuadre Pinar (Prueba)",
+        client_name="NovaGest (Prueba)",
         product=LICENSE_PRODUCT,
         license_type="TRIAL",
         days=LICENSE_TRIAL_DAYS,
@@ -878,7 +878,7 @@ def license_info(h, u, _):
 @route("POST", "/api/license/generate", roles=ADMINS)
 def license_generate(h, u, _):
     b = h.body()
-    client = str(b.get("client_name") or b.get("clientName") or "Cuadre Pinar").strip()[:120]
+    client = str(b.get("client_name") or b.get("clientName") or "NovaGest").strip()[:120]
     ltype = str(b.get("type") or "FULL").upper()
     if ltype not in ("TRIAL", "FULL", "ENTERPRISE", "LIFETIME"):
         ltype = "FULL"
@@ -1311,7 +1311,7 @@ def main():
         ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         ctx.load_cert_chain(CERT, KEY)
         httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
-    print(f"Cuadre Pinar en {'https' if HTTPS else 'http'}://0.0.0.0:{port} · datos en {DATA}", flush=True)
+    print(f"NovaGest en {'https' if HTTPS else 'http'}://0.0.0.0:{port} · datos en {DATA}", flush=True)
     httpd.serve_forever()
 
 

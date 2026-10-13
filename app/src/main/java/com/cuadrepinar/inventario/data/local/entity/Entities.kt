@@ -138,7 +138,7 @@ data class SettingsEntity(
     val autoBackupEnabled: Boolean = true,
     val autoBackupHour: Int = 2,
     val lowStockAlerts: Boolean = true,
-    val businessName: String = "Cuadre Pinar",
+    val businessName: String = "NovaGest",
     val defaultCupUsd: Double = 540.0,
     val defaultMxnUsd: Double = 20.0
 )

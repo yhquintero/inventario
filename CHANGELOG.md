@@ -1,5 +1,43 @@
 # Registro de cambios
 
+## Web v6.0.0 · Android 1.2.0 — 2026-10-12 · NovaGest
+
+### Nueva marca: de «Cuadre Pinar» a **NovaGest**
+- **Posicionamiento nuevo**: la app deja de presentarse como «cuadre diario de Pinar del Río»
+  y pasa a ser una **plataforma todo-en-uno de gestión de negocio**: inventario multi-almacén,
+  punto de venta, caja e informes — Web y Android sincronizadas.
+- **Identidad visual renovada**: paleta premium **índigo profundo + esmeralda eléctrico + ámbar**
+  (antes teal/dorado), nuevo logotipo y icono de app, iconos adaptativos Android (monograma N
+  con fondo en degradado) e iconos PWA regenerados en todas las densidades.
+- La marca se actualizó en toda la interfaz (título, menú, acceso, licencia, PDF impresos,
+  notificaciones) y en la documentación. Los identificadores técnicos se mantienen para no
+  romper instalaciones ni licencias actuales: paquete Android `com.cuadrepinar.inventario`,
+  prefijo de claves `CP-`, nombre del servicio systemd y claves de localStorage. Las claves de
+  licencia existentes siguen verificando exactamente igual (cada clave firma su propio payload).
+
+### Mejoras Web
+- **Panel**: nuevos **accesos rápidos** (Venta rápida, Importar valores, Cuadre del día,
+  Análisis y metas) con tarjetas elevadas por tono de color y permiso; chip de plataforma en el
+  hero (Inventario · Venta · Caja · Análisis).
+- **Sistema de diseño v6**: KPIs con baño de color radial por tono, tablas con cebrado refinado
+  y filas con transición, modales y toasts con animación de entrada (toasts con borde de acento
+  por tipo), scrollbars discretas, anillos de foco accesibles (`:focus-visible`), estados vacíos
+  más expresivos, imágenes con aparición suave y skeleton shimmer disponible.
+- **Accesibilidad y confort**: respeto de `prefers-reduced-motion`, selección de texto con color
+  de marca y navegación inferior móvil con indicador animado.
+- **Impresión/PDF**: encabezados y pie con la nueva marca y colores.
+
+### Mejoras Android
+- **Tema Material 3** completamente renovado con la paleta NovaGest (índigo/esmeralda/ámbar,
+  claro y oscuro).
+- **Inicio**: saludo según la hora del día, línea de posicionamiento «Inventario · Venta · Caja ·
+  Análisis», KPIs con tono de color (ventas esmeralda, inventario índigo, stock bajo rojo/verde
+  según estado), barras de progreso de reposición coloreadas por gravedad y últimos movimientos
+  etiquetados por color según su tipo.
+- **Componentes**: `KpiCard` con barra de acento superior y cifra coloreada por tono.
+- Acceso, drawer y barra superior con la nueva marca; notificaciones de stock bajo, diálogo
+  biométrico, valores por defecto de «Nombre del negocio» y PDF exportados actualizados.
+
 ## Web v5.2.0 · Android 1.1.0 — 2026-10-08
 
 ### Correcciones
