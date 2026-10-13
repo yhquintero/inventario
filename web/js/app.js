@@ -1117,7 +1117,12 @@ function settingsView() {
     </div>` : ""}
     <div class="card" style="margin-top:14px">
       <div class="card-h"><span class="k">Acerca de</span><span class="tag mov">Web v${APP_VERSION}</span></div>
-      <p class="hint">NovaGest · inventario, punto de venta, caja e informes para tu negocio. La Web es una PWA: funciona sin conexión, se instala como aplicación y sincroniza los datos con el servidor y con la app Android. Los libros de <code>xlsx/</code> se importan siempre con vista previa y confirmación.</p>
+      <p><b>NovaGest</b> — Gestiona. Crece. Avanza.<br>
+      <span class="hint">La plataforma todo-en-uno de tu negocio: inventario multi-almacén, punto de venta, caja diaria e informes con análisis. Funciona sin conexión, se instala como aplicación y sincroniza en tiempo real con el servidor y la app Android.</span></p>
+      <div class="hline"><span>🌐 Plataformas</span><b>Web · Android · Servidor</b></div>
+      <div class="hline"><span>🔐 Acceso</span><b>Licencia firmada · roles y permisos</b></div>
+      <div class="hline"><span>📊 Datos</span><b>Importación Excel con vista previa</b></div>
+      <div class="hline"><span>🔄 Sincronización</span><b>${store.sync === "ok" ? "En línea con el servidor" : "Diferida — se retoma al reconectar"}</b></div>
     </div>`;
 }
 
