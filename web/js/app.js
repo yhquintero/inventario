@@ -46,7 +46,7 @@ let ui = {
   whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, pdfWarehouseId: null, iv: null,
   license: {
     status: null, loading: true, error: null, key: "", activating: false, info: null, infoLoaded: false,
-    lastGenerated: null, tab: "estado", expand: false,
+    lastGenerated: null, tab: "estado", expand: false, infoTried: false,
     requests: null, counts: null, reqFilter: "TODAS", reqName: "", reqPhone: "", reqTerm: "MES",
     genClient: "", genPhone: "", genTerm: "ANIO", genRequest: null,
   },
@@ -1325,7 +1325,7 @@ function licenseCard() {
         ${admin && pend ? `<div class="banner">📨 <b>${pend} solicitud(es) de licencia</b> pendiente(s) de atender en <b>Gestionar → Solicitudes</b>.</div>` : ""}
         <div class="row" style="margin-top:8px">
           <button class="btn small" data-act="license-manage">🔐 Gestionar licencia</button>
-          <button class="btn ghost small" data-act="license-manage" data-lic-tab-go="solicitudes">📨 Solicitudes${admin && pend ? ` · ${pend}` : ""}</button>
+          ${admin ? `<button class="btn ghost small" data-act="license-manage" data-lic-tab-go="solicitudes">📨 Solicitudes${pend ? ` · ${pend}` : ""}</button>` : ""}
           <button class="btn ghost small" data-act="license-refresh">↻ Verificar</button>
         </div>
       ` : `
@@ -2593,6 +2593,8 @@ function render() {
   }
   if (!store.state.session) { app.innerHTML = loginView(); bindLogin(); return; }
   if (!allowed(routes[ui.route]?.perm)) ui.route = "home";
+  // Administradores: una consulta por sesión para avisar de las solicitudes pendientes en el botón 🔐
+  if (!ui.license.infoTried && adminLicense()) { ui.license.infoTried = true; loadLicenseInfo(); }
   const formVals = {};
   document.querySelectorAll(".modal input, .modal select").forEach((el) => { if (el.name && el.type !== "file") formVals[el.name] = el.value; });
   const hadModal = !!$(".modal");
@@ -3117,7 +3119,7 @@ function onClick(e) {
   else if (act === "close-day") confirmModal(`¿Cerrar el día <b>${formatDate(d.date)}</b>? Nadie podrá modificar sus movimientos ni el cuadre (solo un administrador puede reabrirlo).`, () => store.closeDay(d.date).then((r) => (r.error ? toast(r.error, "err") : confetti(`<b>🔒 Día cerrado</b><span>${formatDate(d.date)}</span>`))));
   else if (act === "reopen-day") { const reason = prompt("Motivo de la reapertura (queda en la auditoría):"); if (reason) store.reopenDay(d.date, reason).then((r) => result(r, "Día reabierto")); }
   else if (act === "confirm-yes") { const fn = ui.confirm; ui.confirm = null; ui.modal = null; fn?.(); render(); }
-  else if (act === "logout") { ui.sec = null; ui.usersLoaded = false; ui.backups = null; store.logout(); }
+  else if (act === "logout") { ui.sec = null; ui.usersLoaded = false; ui.backups = null; ui.license.infoTried = false; ui.license.infoLoaded = false; store.logout(); }
   else if (act === "palette") openPalette(paletteCtx());
   else if (act === "cart-clear") { ui.cart = []; render(); }
   else if (act === "checkout") {
