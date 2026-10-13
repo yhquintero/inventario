@@ -1,6 +1,6 @@
 import { store } from "./store.js";
 import { api, setLicenseErrorHandler } from "./api.js";
-import { parseCuadrePinarGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
+import { parseLegacyCuadreGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
 import { LicenseManager } from "./license.js";
 import qrcode from "../vendor/qrcode.mjs";
 import { applyTips, initTooltips, startTour, tourSeen, openPalette, animateCounters } from "./ux.js";
@@ -13,7 +13,7 @@ import {
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
 /** Versión de la interfaz Web (visible en Ajustes → Acerca de). */
-export const APP_VERSION = "5.2.0";
+export const APP_VERSION = "6.1.0";
 
 const routes = {
   home: { title: "Panel", icon: "⌂", perm: null, group: "General" },
@@ -99,7 +99,7 @@ function shell(body) {
       <aside class="rail ${ui.drawer ? "open" : ""}">
         <div class="logo">
           <img src="./public/icon-app.png" alt="" />
-          <div><strong>Cuadre Pinar</strong><span class="hint">${esc(store.state.settings.businessName)}</span></div>
+          <div><strong>NovaGest</strong><span class="hint">${esc(store.state.settings.businessName)}</span></div>
         </div>
         <nav>
           ${groups.map((g) => `<div class="nav-group">${g}</div>` + items.filter(([, x]) => x.group === g).map(([k, x]) =>
@@ -148,7 +148,7 @@ function licenseView() {
       <div class="login-hero">
         <div class="eyebrow">🔐 Licencia de Uso · Acceso controlado</div>
         <h1>Acceso protegido<br>por licencia</h1>
-        <p>Para garantizar el uso legítimo de <strong>Cuadre Pinar</strong>, el acceso a todas las Apps se verifica <b>siempre primero</b> por la licencia de uso. Sin una licencia válida no se puede entrar al sistema.</p>
+        <p>Para garantizar el uso legítimo de <strong>NovaGest</strong>, el acceso a todas las Apps se verifica <b>siempre primero</b> por la licencia de uso. Sin una licencia válida no se puede entrar al sistema.</p>
         <div class="license-features">
           <div>✔ Verificación criptográfica HMAC-SHA256</div>
           <div>✔ Control de expiración y dispositivos</div>
@@ -169,8 +169,8 @@ function licenseView() {
               ${hasExpired ? `<div class="banner">${isExpired ? `⛔ La licencia expiró el ${LicenseManager.fmtDate(st.lastLicense.expiresAt)}. Debe activar una nueva.` : `⚠ ${esc(st.reason || "No hay licencia activa")}`}</div>` : `<div class="banner">${esc(st?.reason || "No hay licencia activa. Active una licencia para continuar.")}</div>`}
             `}
             <div class="h2">${st?.valid ? "Cambiar / Renovar licencia" : "Activar licencia de uso"}</div>
-            <p class="hint">Pegue la clave de licencia completa (incluye el punto). Formato: <code>CP-XXXX-...XXXX.YYYY</code>. La clave es verificada criptográficamente en el servidor antes de permitir cualquier acceso.</p>
-            <label>Clave de licencia<textarea name="license_key" id="licenseKey" rows="4" placeholder="CP-...." required style="font-family:monospace;word-break:break-all">${esc(lic.key || "")}</textarea></label>
+            <p class="hint">Pegue la clave de licencia completa (incluye el punto). Formato: <code>NG-XXXX-...XXXX.YYYY</code>. Las claves heredadas <code>CP-…</code> también son válidas. La clave es verificada criptográficamente en el servidor antes de permitir cualquier acceso.</p>
+            <label>Clave de licencia<textarea name="license_key" id="licenseKey" rows="4" placeholder="NG-...." required style="font-family:monospace;word-break:break-all">${esc(lic.key || "")}</textarea></label>
             <div class="row" style="margin-top:12px">
               <button class="btn full" ${lic.activating ? "disabled" : ""}>${lic.activating ? "Verificando…" : st?.valid ? "Actualizar licencia" : "Activar licencia"}</button>
             </div>
@@ -199,9 +199,9 @@ function loginView() {
   return `
     <div class="login-wrap">
       <div class="login-hero">
-        <div class="eyebrow">Pinar del Río · Inventario profesional</div>
-        <h1>El cuadre,<br>sin errores.</h1>
-        <p>Existencias, ventas, comisiones, domicilios, cuadre diario e informe semanal — sincronizado con <strong>CUADRE PINAR SEPT.xlsx</strong>.</p>
+        <div class="eyebrow">Plataforma todo-en-uno para negocios</div>
+        <h1>Gestiona. Crece.<br>Avanza.</h1>
+        <p><strong>Inventario, punto de venta, caja e informes</strong> de tu negocio en una sola plataforma: multi-almacén, multi-dispositivo y siempre sincronizada — Web y Android.</p>
         <div class="hero-cats">${Object.values(CATEGORIES).filter((c) => c.img).slice(0, 6).map((c) => `<img src="./public/cat/${c.img}.jpg" alt="">`).join("")}</div>
         ${expiring ? `<div class="banner" style="margin-top:16px">⚠ Licencia vence en ${ui.license.status.daysLeft} días (${LicenseManager.fmtDate(ui.license.status.expiresAt)}). Renueve pronto.</div>` : ""}
         <div class="card" style="margin-top:12px"><div class="card-h"><span class="k">Licencia</span><span class="tag entrada">${esc(ui.license.status.type)}</span></div>
@@ -211,7 +211,7 @@ function loginView() {
       </div>
       <div class="login-panel">
         <form class="login-card" id="loginForm">
-          <div class="brand-row"><img src="./public/icon-app.png" alt="" /><div><div class="eyebrow">Acceso</div><div>Cuadre Pinar</div></div></div>
+          <div class="brand-row"><img src="./public/icon-app.png" alt="" /><div><div class="eyebrow">Acceso</div><div>NovaGest</div></div></div>
           ${ui.recover ? `
             <div class="h2">Recuperar contraseña</div>
             <label>Usuario<input name="username" required autocomplete="username" /></label>
@@ -283,6 +283,7 @@ function homeView() {
         <div class="eyebrow">${formatDate(todayISO())} · ${esc(store.state.settings.businessName)}</div>
         <h1>${saludo}, ${esc(store.state.session.displayName.split(" ")[0])} ✨</h1>
         <p>${t.cuadre === 0 ? "El último cuadre está perfecto. ¡Sigue así!" : "El último cuadre tiene diferencia: revísalo."} Tienes <b>${prods.length}</b> productos y <b>${low.length}</b> alertas de stock.</p>
+        <div class="row" style="margin-bottom:14px"><span class="plat-chip"><i></i> Inventario · Venta · Caja · Análisis</span></div>
         <div class="row">
           ${allowed("MOVEMENT_CREATE") ? `<button class="btn glow" data-act="new-movement">⇄ Registrar venta</button>` : ""}
           <button class="btn glass" data-nav="cuadre">☰ Ver cuadre</button>
@@ -293,7 +294,7 @@ function homeView() {
         <div class="ring" style="--p:${Math.min(100, Math.round((t.venta / Math.max(1, maxV)) * 100))}" data-tip="Venta del día comparada con el mejor día de la semana">
           <div><b>${usd(t.venta).replace(".00", "")}</b><span>venta ${formatDate(d).slice(0, 5)}</span></div>
         </div>
-        ${topList.length ? `<div class="toplist"><div class="k" style="color:#bfe9e3">Más vendidos</div>${topList.map(([n, v], i) => `<div><span>${["🥇", "🥈", "🥉"][i]} ${esc(n)}</span><b>${usd(v)}</b></div>`).join("")}</div>` : ""}
+        ${topList.length ? `<div class="toplist"><div class="k" style="color:#bfc9f8">Más vendidos</div>${topList.map(([n, v], i) => `<div><span>${["🥇", "🥈", "🥉"][i]} ${esc(n)}</span><b>${usd(v)}</b></div>`).join("")}</div>` : ""}
       </div>
     </section>
     ${low.length && store.state.settings.lowStockAlerts ? `<div class="banner">⚠ <strong>${low.length} productos</strong> con stock en el mínimo o agotados.</div>` : ""}
@@ -302,6 +303,12 @@ function homeView() {
       ${kpi("Cuadre", t.cuadre === 0 ? "✔ 0.00" : usd(t.cuadre), t.cuadre === 0 ? "Cuadrado" : "Revisar diferencia", t.cuadre === 0 ? "green" : "red")}
       ${kpi("Ítems en inventario", prods.length, `${qty(unidades)} unidades en stock`, "blue")}
       ${kpi("Valor a precio venta", usd(valorVenta), `Costo registrado ${usd(valorCosto)}`, "gold")}
+    </div>
+    <div class="quick">
+      ${allowed("MOVEMENT_CREATE") ? `<a href="#pos" data-nav="pos"><span class="q-ico" style="--qc:var(--blue)">🛒</span><strong>Venta rápida</strong><span class="hint">Registra ventas y descuenta stock</span><span class="q-go">→</span></a>` : ""}
+      ${allowed("VALUES_IMPORT") ? `<a href="#importValues" data-nav="importValues"><span class="q-ico" style="--qc:var(--gold)">📥</span><strong>Importar valores</strong><span class="hint">Pega o sube desde Excel</span><span class="q-go">→</span></a>` : ""}
+      ${allowed("CUADRE_VIEW") ? `<a href="#cuadre" data-nav="cuadre"><span class="q-ico" style="--qc:var(--ok)">☰</span><strong>Cuadre del día</strong><span class="hint">Caja, tasas y gastos</span><span class="q-go">→</span></a>` : ""}
+      ${allowed("REPORTS_VIEW") ? `<a href="#analytics" data-nav="analytics"><span class="q-ico">📈</span><strong>Análisis y metas</strong><span class="hint">Ventas, utilidades y metas</span><span class="q-go">→</span></a>` : ""}
     </div>
     ${valuationMismatch ? `<div class="banner inventory-value-alert" role="alert">⚠ <strong>Los totales de valoración no coinciden.</strong> Por categoría: <b>${usd(categoryValue)}</b>; por almacén: <b>${usd(warehouseValue)}</b>; diferencia: <b>${usd(valuationDifference)}</b>. Revisa las existencias y sus almacenes.</div>` : ""}
     <div class="grid-2" style="margin-top:16px">
@@ -550,7 +557,7 @@ function cuadreView() {
 const FIJOS = [["salarioEstibadores", "Salario estibadores"], ["salarioLeo", "Salario Leo"], ["custodio", "Custodio"], ["internet", "Internet"], ["jardineria", "Jardinería"], ["corriente", "Corriente"], ["mediosBasicos", "Medios básicos"], ["otros", "Otros"]];
 
 function printReportHeader(title, subtitle) {
-  const business = store.state.settings.businessName || "Cuadre Pinar";
+  const business = store.state.settings.businessName || "NovaGest";
   const generated = new Date().toLocaleString("es-CU", { dateStyle: "short", timeStyle: "short" });
   return `<header class="print-report-header"><div><div class="print-brand">${esc(business)}</div><h1>${esc(title)}</h1></div>
     <div class="print-period"><b>${esc(subtitle)}</b><small>Generado ${esc(generated)}</small></div></header>`;
@@ -999,7 +1006,7 @@ function licenseCard() {
         <div class="banner">⛔ No hay licencia activa. Active una licencia para usar la App.</div>
         <p class="hint">Pegue la clave completa con punto. La verificación es criptográfica y se hace en el servidor antes de cualquier acceso.</p>
         <form id="licenseFormInline" class="form-grid">
-          <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="CP-..." style="font-family:monospace"></textarea></label>
+          <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="NG-..." style="font-family:monospace"></textarea></label>
           <div class="span-2 row"><button class="btn small" data-act="license-activate-inline">Activar</button><button type="button" class="btn ghost small" data-act="license-refresh">Verificar estado</button></div>
         </form>
       `}
@@ -1007,7 +1014,7 @@ function licenseCard() {
         <div class="card" style="margin-top:14px">
           <div class="card-h"><span class="k">Generar nueva licencia (Admin)</span></div>
           <form id="licenseGenForm" class="form-grid">
-            <label>Cliente<input name="client_name" value="${esc(lic?.clientName || "Cuadre Pinar")}" required></label>
+            <label>Cliente<input name="client_name" value="${esc(lic?.clientName || "NovaGest")}" required></label>
             <label>Tipo<select name="type"><option>FULL</option><option>TRIAL</option><option>ENTERPRISE</option><option>LIFETIME</option></select></label>
             <label>Días (0 = permanente)<input name="days" type="number" value="365"></label>
             <label>Max usuarios<input name="max_users" type="number" value="20"></label>
@@ -1080,7 +1087,7 @@ function securityCard() {
 }
 function uaName(ua = "") {
   const os = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "";
-  const br = /CuadrePinarApp/.test(ua) ? "App" : /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : ua.slice(0, 30) || "Desconocido";
+  const br = /NovaGestApp/.test(ua) ? "App" : /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : ua.slice(0, 30) || "Desconocido";
   return `${br}${os ? " · " + os : ""}`;
 }
 
@@ -1105,12 +1112,17 @@ function settingsView() {
     </form>
     ${deferredInstall ? `<div class="card" style="margin-top:14px">
       <div class="card-h"><span class="k">📲 Instalar aplicación</span><span class="tag entrada">Disponible</span></div>
-      <p class="hint">Instala Cuadre Pinar en este dispositivo para abrirlo como app independiente: icono propio, pantalla completa y arranque más rápido. También funciona sin conexión.</p>
+      <p class="hint">Instala NovaGest en este dispositivo para abrirlo como app independiente: icono propio, pantalla completa y arranque más rápido. También funciona sin conexión.</p>
       <button class="btn" data-act="install-app">Instalar ahora</button>
     </div>` : ""}
     <div class="card" style="margin-top:14px">
       <div class="card-h"><span class="k">Acerca de</span><span class="tag mov">Web v${APP_VERSION}</span></div>
-      <p class="hint">Cuadre Pinar · inventario, ventas, cuadre diario e informes. La Web es una PWA: funciona sin conexión, se instala como aplicación y sincroniza los datos con el servidor y con la app Android. Los libros de <code>xlsx/</code> se importan siempre con vista previa y confirmación.</p>
+      <p><b>NovaGest</b> — Gestiona. Crece. Avanza.<br>
+      <span class="hint">La plataforma todo-en-uno de tu negocio: inventario multi-almacén, punto de venta, caja diaria e informes con análisis. Funciona sin conexión, se instala como aplicación y sincroniza en tiempo real con el servidor y la app Android.</span></p>
+      <div class="hline"><span>🌐 Plataformas</span><b>Web · Android · Servidor</b></div>
+      <div class="hline"><span>🔐 Acceso</span><b>Licencia firmada · roles y permisos</b></div>
+      <div class="hline"><span>📊 Datos</span><b>Importación Excel con vista previa</b></div>
+      <div class="hline"><span>🔄 Sincronización</span><b>${store.sync === "ok" ? "En línea con el servidor" : "Diferida — se retoma al reconectar"}</b></div>
     </div>`;
 }
 
@@ -1259,7 +1271,7 @@ function parseSheet(XLSX, wb, name) {
   const ws = wb.Sheets[name];
   if (!ws) return null;
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
-  return parseCuadrePinarGrid(rows, {
+  return parseLegacyCuadreGrid(rows, {
     sheetName: name,
     formulaAt: (row, column) => ws[XLSX.utils.encode_cell({ r: row, c: column })]?.f || "",
   });
@@ -2075,7 +2087,7 @@ function render() {
   const scroll = $(".content")?.scrollTop;
   // LICENCIA DE USO: verificación obligatoria siempre primero
   if (ui.license.loading) {
-    app.innerHTML = `<div class="login-wrap"><div class="login-hero"><div class="eyebrow">Verificando licencia…</div><h1>Cuadre Pinar</h1><p>Comprobando licencia de uso antes de permitir el acceso.</p></div><div class="login-panel"><div class="login-card"><div class="loader"></div><p class="hint">Conectando con el servidor…</p></div></div></div>`;
+    app.innerHTML = `<div class="login-wrap"><div class="login-hero"><div class="eyebrow">Verificando licencia…</div><h1>NovaGest</h1><p>Comprobando licencia de uso antes de permitir el acceso.</p></div><div class="login-panel"><div class="login-card"><div class="loader"></div><p class="hint">Conectando con el servidor…</p></div></div></div>`;
     // Lanza verificación async
     LicenseManager.fetchStatus().then((st) => {
       ui.license.status = st;
@@ -2557,7 +2569,7 @@ function onClick(e) {
   else if (act === "tfa-setup") api("/2fa/setup", { method: "POST" }).then((r) => { if (r.error) return toast(r.error, "err"); ui.sec.setup = r; render(); });
   else if (act === "tfa-cancel") { ui.sec.setup = null; render(); }
   else if (act === "codes-done") { ui.sec.codes = null; render(); }
-  else if (act === "dl-codes") download("cuadre-pinar-codigos-2fa.txt", `Códigos de recuperación de ${store.state.session.username}\n\n${ui.sec.codes.join("\n")}\n`, "text/plain");
+  else if (act === "dl-codes") download("novagest-codigos-2fa.txt", `Códigos de recuperación de ${store.state.session.username}\n\n${ui.sec.codes.join("\n")}\n`, "text/plain");
   else if (act === "logout-all") api("/logout-all", { method: "POST" }).then(() => { ui.sec.sessions = null; toast("Otras sesiones cerradas", "ok"); });
   else if (act === "close-day") confirmModal(`¿Cerrar el día <b>${formatDate(d.date)}</b>? Nadie podrá modificar sus movimientos ni el cuadre (solo un administrador puede reabrirlo).`, () => store.closeDay(d.date).then((r) => (r.error ? toast(r.error, "err") : confetti(`<b>🔒 Día cerrado</b><span>${formatDate(d.date)}</span>`))));
   else if (act === "reopen-day") { const reason = prompt("Motivo de la reapertura (queda en la auditoría):"); if (reason) store.reopenDay(d.date, reason).then((r) => result(r, "Día reabierto")); }
@@ -2734,7 +2746,7 @@ function onClick(e) {
   else if (act === "close-modal") {
     if (t.tagName !== "DIV" || e.target === t) { ui.modal = null; render(); }
   }
-  else if (act === "do-backup") { download("cuadre-pinar-backup.json", store.exportBackup(), "application/json"); toast("Copia descargada", "ok"); }
+  else if (act === "do-backup") { download("novagest-backup.json", store.exportBackup(), "application/json"); toast("Copia descargada", "ok"); }
   else if (act === "reset") confirmModal("Esto reemplaza los datos del servidor (para todos) por CUADRE PINAR SEPT.xlsx (hoja 25 9 26). Crea antes una copia.", () => { store.resetDemo(); toast("Datos recargados desde el Excel", "ok"); });
   else if (act === "export-csv") exportComprobacion();
   else if (act === "export-mov") exportMovements();
@@ -2769,7 +2781,7 @@ function printCurrentView() {
 
   const previousTitle = document.title;
   const printedWarehouse = ui.pdfWarehouseId;
-  document.title = `${store.state.settings.businessName || "Cuadre Pinar"} - ${label}`;
+  document.title = `${store.state.settings.businessName || "NovaGest"} - ${label}`;
   const cleanup = () => {
     document.title = previousTitle;
     if (printedWarehouse && ui.pdfWarehouseId === printedWarehouse) { ui.pdfWarehouseId = null; render(); }
@@ -2853,7 +2865,7 @@ window.addEventListener("beforeinstallprompt", (e) => {
 });
 window.addEventListener("appinstalled", () => {
   deferredInstall = null;
-  toast("Cuadre Pinar se instaló en este dispositivo", "ok");
+  toast("NovaGest se instaló en este dispositivo", "ok");
 });
 
 /* ---------------- Errores inesperados: aviso visible en vez de fallo silencioso ---------------- */
@@ -2865,11 +2877,11 @@ function noticeUnexpected(msg) {
   toast(msg, "err");
 }
 window.addEventListener("error", (e) => {
-  console.error("[CuadrePinar]", e.error || e.message);
+  console.error("[NovaGest]", e.error || e.message);
   noticeUnexpected("Ocurrió un error inesperado. Si se repite, recarga la página.");
 });
 window.addEventListener("unhandledrejection", (e) => {
-  console.error("[CuadrePinar]", e.reason);
+  console.error("[NovaGest]", e.reason);
   noticeUnexpected("Una operación no pudo completarse.");
 });
 let lastActivity = Date.now();

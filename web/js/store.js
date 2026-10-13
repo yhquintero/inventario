@@ -7,8 +7,15 @@ import {
 
 const PRICE_FIELDS = ["precioVentaUsd", "precioVenta2Usd", "precioCostoUsd", "comisionCup"];
 export const WAREHOUSE_KINDS = { CREACION: "Almacén creado", VALORES: "Valores importados", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Almacén eliminado", DESHACER: "Deshacer" };
-const THEME = "cuadrepinar.theme";
-const WAREHOUSE = "cuadrepinar.warehouse";
+const THEME = "novagest.theme";
+const WAREHOUSE = "novagest.warehouse";
+// Migra las preferencias heredadas de Cuadre Pinar (tema y almacén en uso)
+try {
+  for (const [oldK, newK] of [["cuadrepinar.theme", THEME], ["cuadrepinar.warehouse", WAREHOUSE]]) {
+    const v = localStorage.getItem(oldK);
+    if (v && !localStorage.getItem(newK)) { localStorage.setItem(newK, v); localStorage.removeItem(oldK); }
+  }
+} catch {}
 
 function uid(prefix = "id") {
   return prefix + "_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -29,7 +36,7 @@ function emptyState() {
     warehouseEntries: [],
     settings: {
       theme: "system",
-      businessName: "Cuadre Pinar",
+      businessName: "NovaGest",
       defaultCupUsd: 750,
       defaultMxnUsd: 20,
       comisionSoloGestor: false,

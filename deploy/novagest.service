@@ -1,0 +1,17 @@
+# Sin Docker: sudo cp deploy/novagest.service /etc/systemd/system/ && sudo systemctl enable --now novagest
+[Unit]
+Description=NovaGest (gestión de negocio: inventario, venta y caja)
+After=network.target
+
+[Service]
+User=novagest
+WorkingDirectory=/opt/novagest
+Environment=PORT=8080 DATA_DIR=/var/lib/novagest TRUST_PROXY=1
+ExecStart=/usr/bin/python3 server/novagest_server.py
+Restart=always
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/novagest
+
+[Install]
+WantedBy=multi-user.target

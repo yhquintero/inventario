@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generador de licencias de uso para Cuadre Pinar.
+Generador de licencias de uso para NovaGest.
 Uso:
   python3 tools/generate_license.py --client "Tienda Pinar" --type FULL --days 365 --users 20 --devices 10
   python3 tools/generate_license.py --client "Demo" --type TRIAL --days 15
@@ -58,9 +58,9 @@ def create_token(payload: dict) -> str:
     return f"{b64}.{sig}"
 
 def main():
-    p = argparse.ArgumentParser(description="Generador de licencias Cuadre Pinar")
-    p.add_argument("--client", default="Cuadre Pinar", help="Nombre del cliente")
-    p.add_argument("--product", default="Cuadre Pinar", help="Producto")
+    p = argparse.ArgumentParser(description="Generador de licencias NovaGest")
+    p.add_argument("--client", default="NovaGest", help="Nombre del cliente")
+    p.add_argument("--product", default="NovaGest", help="Producto")
     p.add_argument("--type", default="FULL", choices=["TRIAL","FULL","ENTERPRISE","LIFETIME"], help="Tipo de licencia")
     p.add_argument("--days", type=int, default=365, help="Días de validez (0=permanente)")
     p.add_argument("--users", type=int, default=20, help="Máx usuarios")
@@ -83,7 +83,7 @@ def main():
         "version": 1,
     }
     token = create_token(payload)
-    pretty = f"CP-{token}"
+    pretty = f"NG-{token}"
     print("\n=== Licencia de Uso Generada ===")
     print(f"Cliente: {payload['client_name']}")
     print(f"Producto: {payload['product']}")
@@ -94,7 +94,7 @@ def main():
     print(f"Usuarios: {args.users}  Dispositivos: {args.devices}")
     print("\n--- Clave (copiar completa) ---")
     print(token)
-    print("\n--- Con prefijo CP- ---")
+    print("\n--- Con prefijo NG- ---")
     print(pretty)
     print("\n--- Payload ---")
     print(json.dumps(payload, indent=2, ensure_ascii=False))

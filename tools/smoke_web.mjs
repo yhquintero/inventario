@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
-const tmp = mkdtempSync(join(tmpdir(), "cuadre-pinar-web-"));
+const tmp = mkdtempSync(join(tmpdir(), "novagest-web-"));
 cpSync(join(root, "web/js"), join(tmp, "js"), { recursive: true });
 cpSync(join(root, "web/vendor"), join(tmp, "vendor"), { recursive: true });
 writeFileSync(join(tmp, "package.json"), JSON.stringify({ type: "module" }));
@@ -109,7 +109,7 @@ const state = {
     { id: "e1", ts: 2, date: "2026-09-01", warehouseId: "w1", warehouseName: "ALMACÉN PRINCIPAL", kind: "CREACION", source: "manual", summary: "Almacén «ALMACÉN PRINCIPAL» creado", items: [], counts: {}, userName: "admin", undoneAt: null },
     { id: "e2", ts: 3, date: "2026-09-02", warehouseId: "w2", warehouseName: "TIENDA PINAR", kind: "VALORES", source: "pegado", summary: "Entrada de valores en «TIENDA PINAR»: 2 cambios", items: [{ productId: "p1", productName: "PANEL SOLAR 500W", warehouseId: "w2", warehouseName: "TIENDA PINAR", field: "stock", old: 0, new: 3 }], counts: { cambios: 1 }, userName: "almacenero", undoneAt: null },
   ],
-  settings: { theme: "light", businessName: "Cuadre Pinar", comisionSoloGestor: false, lowStockAlerts: true, goalDaily: 1000, goalWeekly: 6000, sessionMinutes: 20, defaultCupUsd: 750 },
+  settings: { theme: "light", businessName: "NovaGest", comisionSoloGestor: false, lowStockAlerts: true, goalDaily: 1000, goalWeekly: 6000, sessionMinutes: 20, defaultCupUsd: 750 },
   session: { id: 1, username: "admin", displayName: "Yosvany", role: "ADMINISTRADOR", totpEnabled: false },
   users: [],
 };
@@ -151,7 +151,7 @@ test("los informes muestran encabezado y controles de impresión/PDF", () => {
 
 test("el Panel muestra totales por categoría y por almacén", () => {
   const html = go("home");
-  assert.match(html, /Cuadre Pinar/);
+  assert.match(html, /NovaGest/);
   assert.match(html, /Valor por categoría/);
   assert.match(html, /Total por categoría/);
   assert.match(html, /Existencias por almacén/);
@@ -417,7 +417,7 @@ console.log("\nWeb · PWA sin conexión y metadatos\n");
 
 test("El service worker cachea todos los módulos JS para el modo sin conexión", () => {
   const sw = readFileSync(join(root, "web/sw.js"), "utf8");
-  assert.match(sw, /const CACHE = "cuadre-pinar-v\d+"/);
+  assert.match(sw, /const CACHE = "novagest-v\d+"/);
   for (const f of readdirSync(join(root, "web/js")).filter((x) => x.endsWith(".js"))) {
     assert.match(sw, new RegExp("\\./js/" + f.replace(/\./g, "\\.")), `falta ./js/${f} en el SHELL del service worker`);
   }

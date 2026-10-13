@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Cuadre Pinar · Inventario",
-  "short_name": "Cuadre Pinar",
-  "description": "Inventario, ventas, cuadre diario e informe semanal",
+  "name": "NovaGest · Gestión de negocio",
+  "short_name": "NovaGest",
+  "description": "Inventario multi-almacén, punto de venta, caja e informes: todo tu negocio en una plataforma",
   "lang": "es",
   "start_url": "./#home",
   "scope": "./",
@@ -10,8 +10,8 @@
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
   "categories": ["business", "productivity", "finance"],
-  "background_color": "#0d5c55",
-  "theme_color": "#0d5c55",
+  "background_color": "#1e1b4b",
+  "theme_color": "#1e1b4b",
   "icons": [
     { "src": "public/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "public/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }

@@ -1,8 +1,25 @@
-# Cuadre Pinar
+<div align="center">
 
-**Control de inventario, movimientos y cuadre diario** para la operación de Pinar del Río. El proyecto incluye una aplicación Web y una aplicación Android; ambas pueden trabajar conectadas al servidor compartido.
+<img src="brand/novagest-icon.png" width="92" alt="NovaGest" />
 
-> 📊 Los libros de Excel sirven como fuentes de importación y referencia. La Web no los vuelve a importar ni sustituye los datos operativos sin una acción explícita; una instalación nueva puede iniciar con la semilla incluida en el proyecto.
+# NovaGest
+
+**Gestiona. Crece. Avanza.**
+
+Inventario · Punto de venta · Caja · Informes — **todo tu negocio en una sola plataforma.**
+
+![Plataforma](https://img.shields.io/badge/plataforma-Web_%C2%B7_Android_%C2%B7_Servidor-4f46e5)
+![Versión](https://img.shields.io/badge/versi%C3%B3n-Web_6.1.0_%C2%B7_Android_1.3.0-059669)
+![Pruebas](https://img.shields.io/badge/pruebas-54_en_verde-brightgreen)
+![Web](https://img.shields.io/badge/web-PWA_instalable_%C2%B7_sin_build-2563eb)
+
+</div>
+
+---
+
+**NovaGest** reúne en un solo lugar lo que tu negocio necesita todos los días: **inventario multi-almacén**, **punto de venta**, **caja diaria** e **informes con análisis**. Nada de hojas sueltas ni cuadernos: la aplicación Web se instala como app y funciona sin conexión, la app Android lleva la operación al bolsillo, y el servidor compartido mantiene a todos trabajando sobre el mismo estado en tiempo real — con licencia de uso, roles, auditoría y copias de seguridad.
+
+> 📊 **Tus datos mandan.** Los libros de Excel son solo fuentes de importación y referencia: la aplicación nunca importa ni sustituye datos operativos sin mostrarte una **vista previa** y recibir tu confirmación. Una instalación nueva puede arrancar con la semilla incluida en el proyecto.
 
 ## 🧭 Contenido
 
@@ -18,21 +35,23 @@
 
 ## 🧩 Qué incluye
 
-| Aplicación | Uso |
+| Aplicación | Qué haces con ella |
 |---|---|
-| 🌐 **Web** | Inventario, almacenes, importaciones, movimientos, venta rápida, cuadre diario, informe semanal, comprobación y administración. |
-| 📱 **Android** | Operación móvil con Jetpack Compose y almacenamiento local; se puede vincular al servidor para compartir datos con la Web. |
-| 🗄️ **Servidor** | API y sitio Web, datos compartidos en SQLite, control de acceso, auditoría y copias de seguridad. |
+| 🌐 **Web (PWA)** | El centro de mando: inventario, almacenes, importación de valores, movimientos, venta rápida, cuadre diario, informe semanal, comprobación y administración — con búsqueda global (`Ctrl+K`), guía integrada, atajos de teclado y modo claro/oscuro. Se instala como aplicación y abre sin conexión. |
+| 📱 **Android** | La operación en movimiento: la misma gestión con Kotlin + Jetpack Compose, almacenamiento local, desbloqueo biométrico y sincronización con el servidor cuando hay conexión. |
+| 🗄️ **Servidor** | El corazón que une todo: API y sitio Web en un solo proceso de Python, datos compartidos en SQLite, sesiones y permisos validados en servidor, licencias firmadas, auditoría y copias cifradas automáticas. |
 
 ## ✨ Funciones principales
 
-- 📦 **Inventario por almacén:** cada almacén conserva sus existencias; el inventario general suma los almacenes. Se registran importaciones, traspasos y ajustes.
-- 🔄 **Movimientos:** ventas, entradas y salidas, con almacén, centro de venta, cantidades, importes y observaciones.
-- 🛒 **Venta rápida:** registra ventas y descuenta del almacén seleccionado.
-- 🧮 **Cuadre diario:** tasas CUP/USD y MXN/USD, cobros, entradas, extracciones, fondos y gastos.
-- 📊 **Informes:** cuadres diarios, resumen semanal y comprobación de inventario diaria, semanal, mensual, anual o en un período personalizado; exportación CSV/PDF.
-- 🕵️ **Historial y auditoría:** cambios relevantes y movimientos quedan registrados según la operación y el rol.
-- ☁️ **Sincronización:** al conectarse al servidor, los usuarios Web y Android trabajan sobre el mismo estado.
+- 📦 **Inventario multi-almacén** — cada almacén conserva sus propias existencias y el inventario general suma todos; importa valores, traspasa mercancía entre almacenes y ajusta diferencias con historial completo.
+- 🛒 **Punto de venta** — venta rápida que descuenta el stock del almacén en uso al instante, con comisiones y domicilios calculados automáticamente.
+- 🧮 **Caja diaria (cuadre)** — tasas CUP/USD y MXN/USD, cobros, entradas, extracciones, fondos y gastos: el día está «cuadrado» cuando el resultado da 0, y la aplicación te avisa si no lo está.
+- 🔄 **Movimientos** — ventas, entradas y salidas con almacén, centro de venta, cantidades, importes y observaciones; cada movimiento recalcula el stock y queda registrado.
+- 📊 **Informes y comprobación** — cuadres diarios, resumen semanal y comprobación de inventario por día, semana, mes, año o rango personalizado, con exportación CSV/PDF lista para imprimir o enviar al contador.
+- 📈 **Análisis y metas** — ventas por período, utilidad bruta y neta, valor del inventario a precio de venta y a costo, progreso frente a metas diarias y semanales.
+- 🕵️ **Historial y auditoría** — precios, costos y tasas por día; registro de quién hizo qué y cuándo, según el rol de cada usuario.
+- ☁️ **Sincronización multiplataforma** — Web y Android trabajan sobre el mismo estado en tiempo real; sin conexión, la Web sigue operando y sincroniza al reconectar.
+- 🔐 **Seguridad de nivel empresarial** — licencia de uso firmada criptográficamente, verificación en dos pasos (TOTP) opcional, bloqueo tras intentos fallidos, cierre de días y copias de seguridad cifradas.
 
 ## 📥 Importar los libros Excel
 
@@ -67,12 +86,12 @@ Requisitos: Python 3.10 o posterior y los paquetes `cryptography` (servidor) y `
 
 ```bash
 python3 -m pip install cryptography openpyxl
-python3 server/cuadre_server.py
+python3 server/novagest_server.py
 ```
 
 Para reconstruir `web/js/seed-data.js` y `app/src/main/assets/seed.json` desde todas las hojas fechadas de `xlsx/CUADRE PINAR SEPT.xlsx`, ejecuta `python3 tools/import_excel.py`. El generador conserva ventas, costos y comisiones por movimiento y anota los ajustes de apertura/cierre.
 
-El servidor escucha en `http://localhost:8080` por defecto y sirve la interfaz Web junto con la API. Para cambiar el puerto: `PORT=9090 python3 server/cuadre_server.py`.
+El servidor escucha en `http://localhost:8080` por defecto y sirve la interfaz Web junto con la API. Para cambiar el puerto: `PORT=9090 python3 server/novagest_server.py`.
 
 ### Despliegue con HTTPS
 
@@ -90,6 +109,11 @@ El despliegue usa Caddy para HTTPS y conserva los datos en el volumen Docker. Re
 2. Usa JDK 17 y Gradle 8.9; sincroniza el proyecto y ejecuta la configuración `app` en un emulador o dispositivo.
 3. Para sincronizar Web y Android, configura en el acceso de la aplicación la dirección HTTPS del servidor.
 
+> 📱 El identificador de la app es `com.novagest.inventario`. Si vienes de la versión anterior
+> (`com.cuadrepinar.inventario`), Android la instalará como **aplicación nueva**: pasa tus datos
+> con una copia de seguridad (Copias → restaurar) o con la sincronización al servidor, y luego
+> desinstala la antigua.
+
 La aplicación Android utiliza Kotlin, Jetpack Compose, Room, Hilt y Navigation Compose. La Web no requiere un proceso de compilación de frontend: el servidor sirve los archivos de `web/` directamente.
 
 ## 🔐 Seguridad y cuentas iniciales
@@ -103,11 +127,11 @@ En **Ajustes → Licencia de Uso** el listado de licencias se muestra numerado (
 Para crear una clave sin entrar en la aplicación (por ejemplo, para dejar una instalación nueva lista para usar):
 
 ```bash
-python3 tools/generate_license.py --client "Cuadre Pinar" --type LIFETIME --days 0 --users 20 --devices 10
+python3 tools/generate_license.py --client "NovaGest" --type LIFETIME --days 0 --users 20 --devices 10
 python3 tools/generate_license.py --client "Tienda" --type FULL --days 365   # alternativa con vencimiento
 ```
 
-La clave se activa pegándola completa (incluido el punto del medio) en la pantalla **Licencia de Uso** de la Web o de la app Android, o con `POST /api/license/activate`. Cada instalación firma con su propio secreto (`data/license.key` o la variable `LICENSE_SECRET`), por lo que una clave generada en un servidor **no** verifica en otro: para reutilizarla copia el mismo `LICENSE_SECRET` o genera una clave nueva en ese servidor.
+La clave se activa pegándola completa (incluido el punto del medio) en la pantalla **Licencia de Uso** de la Web o de la app Android, o con `POST /api/license/activate`. Las claves nuevas usan el prefijo `NG-`; las heredadas `CP-` también son válidas. Cada instalación firma con su propio secreto (`data/license.key` o la variable `LICENSE_SECRET`), por lo que una clave generada en un servidor **no** verifica en otro: para reutilizarla copia el mismo `LICENSE_SECRET` o genera una clave nueva en ese servidor.
 
 En una base de datos nueva se crean estas cuentas de demostración:
 
@@ -139,9 +163,9 @@ gradle testDebugUnitTest
 ## 🗂️ Estructura del proyecto
 
 ```text
-app/       Aplicación Android (Kotlin)
-web/       Interfaz Web, lógica y recursos
-server/    API, autenticación, SQLite y copias
+app/       Aplicación Android (Kotlin + Jetpack Compose)
+web/       Interfaz Web, lógica y recursos (PWA sin build)
+server/    API, autenticación, SQLite y copias (Python)
 docs/      Manuales y documentación del mapeo Excel
 tools/     Pruebas y utilidades de importación
 ```
@@ -151,3 +175,7 @@ tools/     Pruebas y utilidades de importación
 ## 🗒 Registro de cambios
 
 Las mejoras y correcciones de cada versión (Web y Android) quedan anotadas en [CHANGELOG.md](CHANGELOG.md).
+
+## 🗺️ Hoja de ruta
+
+Las próximas mejoras priorizadas — escáner de códigos, fiados, alertas predictivas, offline total en Android y más — están en [docs/ROADMAP.md](docs/ROADMAP.md).

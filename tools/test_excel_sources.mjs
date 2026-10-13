@@ -14,10 +14,10 @@ const require = createRequire(import.meta.url);
 const XLSX = require("../web/vendor/xlsx.full.min.js");
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
-const temp = mkdtempSync(join(tmpdir(), "cuadre-pinar-excel-"));
+const temp = mkdtempSync(join(tmpdir(), "novagest-excel-"));
 cpSync(join(root, "web/js"), temp, { recursive: true });
 writeFileSync(join(temp, "package.json"), JSON.stringify({ type: "module" }));
-const { parseCuadrePinarGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } = await import(pathToFileURL(join(temp, "excel-import.js")).href);
+const { parseLegacyCuadreGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } = await import(pathToFileURL(join(temp, "excel-import.js")).href);
 const { normName, periodRange, reportPeriodRange, rowFieldKeys, stockAtStart } = await import(pathToFileURL(join(temp, "calc.js")).href);
 const memoryStorage = new Map();
 globalThis.localStorage = {
@@ -142,7 +142,7 @@ test("CUADRE PINAR SEPT.xlsx reconoce las 21 hojas diarias y sus cierres", () =>
   assert.ok(workbook.SheetNames.includes("INVENTARIO"), "la hoja sin fecha no se cuenta como día");
   const parsedDays = dailyNames.map((sheetName) => {
     const sheet = workbook.Sheets[sheetName];
-    return parseCuadrePinarGrid(XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }), {
+    return parseLegacyCuadreGrid(XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }), {
       sheetName, formulaAt: (row, column) => sheet[XLSX.utils.encode_cell({ r: row, c: column })]?.f || "",
     });
   }).filter(Boolean).sort((a, b) => a.date.localeCompare(b.date));
@@ -152,7 +152,7 @@ test("CUADRE PINAR SEPT.xlsx reconoce las 21 hojas diarias y sus cierres", () =>
   const sheetName = "25 9 26";
   const sheet = workbook.Sheets[sheetName];
   const grid = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
-  const parsed = parseCuadrePinarGrid(grid, {
+  const parsed = parseLegacyCuadreGrid(grid, {
     sheetName,
     formulaAt: (row, column) => sheet[XLSX.utils.encode_cell({ r: row, c: column })]?.f || "",
   });
@@ -172,7 +172,7 @@ test("importar en bloque las 21 hojas Pinar conserva snapshots, ajustes y saldo 
   const workbook = workbookFrom("CUADRE PINAR SEPT.xlsx");
   const rawDays = workbook.SheetNames.filter((name) => /^\d{1,2}\s+\d{1,2}\s+\d{2,4}$/.test(name)).map((sheetName) => {
     const sheet = workbook.Sheets[sheetName];
-    const parsed = parseCuadrePinarGrid(XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }), {
+    const parsed = parseLegacyCuadreGrid(XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }), {
       sheetName, formulaAt: (row, column) => sheet[XLSX.utils.encode_cell({ r: row, c: column })]?.f || "",
     });
     return { ...parsed, importKey: `CUADRE PINAR SEPT.xlsx#${sheetName}`, sourceFile: "CUADRE PINAR SEPT.xlsx", warehouseId: "w_principal" };

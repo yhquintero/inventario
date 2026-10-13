@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
-const tmp = mkdtempSync(join(tmpdir(), "cuadre-pinar-"));
+const tmp = mkdtempSync(join(tmpdir(), "novagest-"));
 cpSync(join(root, "web/js"), tmp, { recursive: true });
 writeFileSync(join(tmp, "package.json"), JSON.stringify({ type: "module" }));
 

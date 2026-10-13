@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Cuadre Pinar - arranque HTTPS en Windows (mkcert + firewall + URLs por red).
+  NovaGest - arranque HTTPS en Windows (mkcert + firewall + URLs por red).
 
 .DESCRIPTION
   1) Detecta todas las IPs IPv4 de la laptop (incluida 192.168.137.1 si esta
@@ -35,8 +35,8 @@ $ErrorActionPreference = 'Continue'
 $raiz      = Split-Path -Parent $PSScriptRoot
 $certs     = Join-Path $raiz 'certs'
 $logDir    = Join-Path $raiz 'data\logs'
-$servidor  = Join-Path $PSScriptRoot 'cuadre_server.py'
-$nomRegla  = "Cuadre Pinar HTTPS $Puerto"
+$servidor  = Join-Path $PSScriptRoot 'novagest_server.py'
+$nomRegla  = "NovaGest HTTPS $Puerto"
 
 function Ok($m)    { Write-Host "  [OK] $m" -ForegroundColor Green }
 function Aviso($m) { Write-Host "  [AVISO] $m" -ForegroundColor Yellow }
@@ -59,7 +59,7 @@ if ($CrearReglaFirewall) {
 }
 
 Write-Host ''
-Write-Host '  ===  Cuadre Pinar - inicio seguro (HTTPS)  ==='
+Write-Host '  ===  NovaGest - inicio seguro (HTTPS)  ==='
 Write-Host ''
 
 # --------------------------------- Python ---------------------------------

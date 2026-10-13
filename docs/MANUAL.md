@@ -1,4 +1,4 @@
-# Manual rápido — Cuadre Pinar
+# Manual rápido — NovaGest
 
 ## Arranque
 

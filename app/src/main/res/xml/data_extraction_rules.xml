@@ -2,7 +2,7 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="session.xml" />
-        <exclude domain="database" path="cuadre_pinar.db" />
+        <exclude domain="database" path="novagest.db" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="session.xml" />

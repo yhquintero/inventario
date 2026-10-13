@@ -11,7 +11,11 @@ import openpyxl
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 XLSX_PATH = os.path.join(ROOT, "xlsx", "RESUMEN POR SEMANA PINAR.xlsx")
-DB_PATH = os.path.join(ROOT, "data", "cuadre.db")
+DB_PATH = os.path.join(ROOT, "data", "novagest.db")
+if not os.path.exists(DB_PATH):
+    _legacy = os.path.join(ROOT, "data", "cuadre.db")  # instalaciones previas a NovaGest
+    if os.path.exists(_legacy):
+        DB_PATH = _legacy
 
 MONTHS = {
     "ENERO": 1, "FEBRERO": 2, "MARZO": 3, "ABRIL": 4, "MAYO": 5, "JUNIO": 6,
