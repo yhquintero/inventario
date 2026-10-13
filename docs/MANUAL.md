@@ -89,4 +89,6 @@ En **Clientes y fiados** das de alta clientes (nombre, teléfono, correo, direcc
 
 ## 🔐 Licencia por término (WhatsApp)
 
-Si la licencia vence o aún no tienes una: escribe tu **nombre o empresa**, elige el **plazo** (día, semana, mes, trimestre, semestre, año, 2 años o permanente), pulsa **Solicitar por WhatsApp** y envía el mensaje (ya trae tu ID de dispositivo). Cuando recibas la clave `NG-…`, pégala en «Activar Licencia» y pulsa **Activar ahora**.
+Si la licencia vence o aún no tienes una: escribe tu **nombre o empresa** (y tu teléfono, si quieres que te respondan a él), elige el **plazo** (día, semana, mes, trimestre, semestre, año, 2 años o permanente), pulsa **Solicitar por WhatsApp** y envía el mensaje (ya trae tu ID de dispositivo). Cuando recibas la clave `NG-…`, pégala en «Activar Licencia» y pulsa **Activar ahora**.
+
+La solicitud queda registrada en el servidor: el administrador la ve en **🔐 Gestionar licencia → Solicitudes** (Web: botón 🔐 de la barra superior o Ajustes → Licencia de Uso → Gestionar) con tu plan, tu teléfono y tu ID de dispositivo, y crea la clave en un clic para enviártela. Si la pides desde la app Android también aparece en el mismo panel.

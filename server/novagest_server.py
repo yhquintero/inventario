@@ -37,7 +37,7 @@ APP_VERSION = "1.0.0"
 LICENSE_PRODUCT = os.environ.get("LICENSE_PRODUCT", "NovaGest")
 LICENSE_FILE = os.path.join(DATA, "license.key")
 LICENSE_TRIAL_DAYS = int(os.environ.get("LICENSE_TRIAL_DAYS", "15"))
-LICENSE_EXEMPT = {"/api/health", "/api/license/status", "/api/license/activate", "/api/license/verify"}
+LICENSE_EXEMPT = {"/api/health", "/api/license/status", "/api/license/activate", "/api/license/verify", "/api/license/request"}
 # Licencia por término (solicitud por WhatsApp, como en DrywallMaterialsCalculator):
 # el cliente elige un plazo, envía sus datos por WhatsApp y recibe la clave firmada.
 # Número destino configurable: LICENSE_WHATSAPP / NOVAGEST_WHATSAPP / WHATSAPP_NUMBER
@@ -54,6 +54,35 @@ LICENSE_TERMS = [
     {"id": "DOS_ANIOS", "label": "2 años", "days": 730, "type": "FULL"},
     {"id": "PERMANENTE", "label": "Permanente", "days": 0, "type": "LIFETIME"},
 ]
+
+
+def license_term(term_id):
+    """Devuelve el plazo pedido (o 1 mes por defecto)."""
+    return next((t for t in LICENSE_TERMS if t["id"] == str(term_id or "").upper()), None) or LICENSE_TERMS[2]
+
+
+def license_fmt_date(when=None):
+    """Fecha en el mismo formato que «es-CU» de la Web: 12/10/2026, 9:27:10 p.m."""
+    d = dt.datetime.fromtimestamp(int(when or now()))
+    h12 = d.hour % 12 or 12
+    ampm = "a.m." if d.hour < 12 else "p.m."
+    return f"{d.day:02d}/{d.month:02d}/{d.year}, {h12}:{d.minute:02d}:{d.second:02d} {ampm}"
+
+
+def license_request_message(client_name, device_id, term, product=None, version=None, when=None):
+    """Texto de la solicitud de licencia (idéntico al que se envía por WhatsApp)."""
+    t = term if isinstance(term, dict) else license_term(term)
+    product, version = product or LICENSE_PRODUCT, version or APP_VERSION
+    plazo = f"{t['label']} ({t['days']} días) · {t['type']}" if t["days"] else f"{t['label']} · {t['type']}"
+    return "\n".join([
+        f"Hola, solicito activar mi Licencia de {product}.",
+        "",
+        f"👤 Usuario: {str(client_name or '').strip()}",
+        f"🆔 ID Dispositivo: {device_id}",
+        f"📦 Producto: {product} v{version}",
+        f"📅 Plan: {plazo}",
+        f"🕒 Fecha Actual: {license_fmt_date(when)}",
+    ])
 
 
 def license_public_config():
@@ -320,6 +349,86 @@ def check_license_active():
     return {"valid": False, "reason": info.get("reason", "Licencia no válida"), "db_row": None, "payload": None}
 
 
+# ------------------------------------------------------------------ solicitudes de licencia
+LICENSE_REQUEST_STATUS = ("pendiente", "atendida", "descartada")
+
+
+def license_request_public(row, with_message=True):
+    """Solicitud lista para el panel de gestión (Web/Android)."""
+    if not row:
+        return None
+    r = dict(row)
+    data = {
+        "id": r["id"],
+        "clientName": r["client_name"],
+        "deviceId": r["device_id"],
+        "deviceInfo": r["device_info"],
+        "product": r["product"],
+        "version": r["version"],
+        "term": r["term"],
+        "termLabel": r["term_label"],
+        "type": r["license_type"],
+        "days": r["days"],
+        "phone": r["phone"] or "",
+        "channel": r["channel"] or "web",
+        "status": r["status"] or "pendiente",
+        "createdAt": r["created_at"],
+        "handledAt": r["handled_at"],
+        "handledBy": r["handled_by"],
+        "licenseId": r["license_id"],
+        "licensePreview": r["license_preview"],
+        "ip": r["ip"],
+        "createdText": license_fmt_date(r["created_at"]),
+    }
+    if with_message:
+        data["message"] = r["message"] or license_request_message(r["client_name"], r["device_id"], r["term"] or "MES", r["product"], r["version"], r["created_at"])
+    return data
+
+
+def license_request_counts():
+    rows = q("SELECT status, COUNT(*) as c FROM license_requests GROUP BY status")
+    counts = {s: 0 for s in LICENSE_REQUEST_STATUS}
+    for r in rows:
+        counts[r["status"] if r["status"] in counts else "pendiente"] += int(r["c"] or 0)
+    counts["total"] = sum(counts.values())
+    return counts
+
+
+def license_requests_list(status=None, limit=100):
+    limit = max(1, min(int(limit or 100), 500))
+    if status and status in LICENSE_REQUEST_STATUS:
+        rows = q("SELECT * FROM license_requests WHERE status=? ORDER BY created_at DESC, id DESC LIMIT ?", (status, limit))
+    else:
+        rows = q("SELECT * FROM license_requests ORDER BY CASE status WHEN 'pendiente' THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT ?", (limit,))
+    return [license_request_public(r) for r in rows]
+
+
+def register_license_request(b, ip="", user_agent=""):
+    """Guarda una solicitud de licencia (Web o Android). Devuelve la fila creada."""
+    name = str(b.get("client_name") or b.get("clientName") or b.get("name") or b.get("usuario") or "").strip()[:120]
+    if not name:
+        raise ValueError("Indique el nombre o la empresa que solicita la licencia.")
+    term = license_term(b.get("term") or b.get("term_id") or b.get("plan"))
+    device_id = str(b.get("device_id") or b.get("deviceId") or "").strip()[:120] or ip
+    device_info = str(b.get("device_info") or b.get("deviceInfo") or user_agent or "")[:300]
+    phone = re.sub(r"[^\d+]", "", str(b.get("phone") or b.get("telefono") or ""))[:24]
+    channel = str(b.get("channel") or ("android" if "Android" in device_info else "web")).strip().lower()[:20] or "web"
+    product = str(b.get("product") or LICENSE_PRODUCT).strip()[:60]
+    version = str(b.get("version") or APP_VERSION).strip()[:20]
+    ts = now()
+    message = str(b.get("message") or "").strip()[:2000] or license_request_message(name, device_id, term, product, version, ts)
+    # Evita duplicados si el usuario pulsa dos veces «Solicitar por WhatsApp» con los mismos datos.
+    dup = q("SELECT * FROM license_requests WHERE device_id=? AND client_name=? AND term=? AND status='pendiente' ORDER BY id DESC LIMIT 1",
+            (device_id, name, term["id"]), one=True)
+    if dup and ts - int(dup["created_at"] or 0) < 180:
+        return dup, True
+    q("INSERT INTO license_requests(client_name, device_id, device_info, product, version, term, term_label, license_type, days, phone, message, channel, ip, status, created_at) "
+      "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'pendiente',?)",
+      (name, device_id, device_info, product, version, term["id"], term["label"], term["type"], term["days"], phone, message, channel, ip, ts))
+    row = q("SELECT * FROM license_requests WHERE device_id=? AND client_name=? AND term=? ORDER BY id DESC LIMIT 1", (device_id, name, term["id"]), one=True)
+    return row, False
+
+
 def ensure_trial_license():
     try:
         cnt = q("SELECT COUNT(*) as c FROM licenses", one=True)
@@ -445,6 +554,28 @@ def init_db():
       activated_at INTEGER,
       last_seen INTEGER,
       active INTEGER DEFAULT 1);
+    CREATE TABLE IF NOT EXISTS license_requests(
+      id INTEGER PRIMARY KEY,
+      client_name TEXT,
+      device_id TEXT,
+      device_info TEXT,
+      product TEXT,
+      version TEXT,
+      term TEXT,
+      term_label TEXT,
+      license_type TEXT,
+      days INTEGER,
+      phone TEXT,
+      message TEXT,
+      channel TEXT,
+      ip TEXT,
+      status TEXT DEFAULT 'pendiente',
+      handled_at INTEGER,
+      handled_by TEXT,
+      license_id INTEGER,
+      license_preview TEXT,
+      created_at INTEGER);
+    CREATE INDEX IF NOT EXISTS license_requests_status ON license_requests(status, created_at DESC);
     """)
     CON.commit()
     # Licencia de uso: si no hay ninguna, crea una de prueba automáticamente
@@ -829,6 +960,104 @@ def license_verify(h, _, __):
     h.send_json(200, {"valid": True, "payload": payload, "formattedKey": format_license_key(key)})
 
 
+@route("POST", "/api/license/request", need=False)
+def license_request_create(h, _, __):
+    """Registra la solicitud de licencia (paso 1 del flujo WhatsApp) para que el administrador la vea en «Gestionar»."""
+    b = h.body()
+    try:
+        row, duplicate = register_license_request(b, h.ip(), h.headers.get("User-Agent", ""))
+    except ValueError as e:
+        return h.err(400, str(e))
+    req = license_request_public(row)
+    if not duplicate:
+        audit(req["clientName"], "LICENSE_REQUEST",
+              f"Solicitud de licencia · {req['termLabel']} ({req['type']}) · {req['channel']} · {req['deviceId']} · {h.ip()}", h.ip())
+    h.send_json(200, {
+        "ok": True,
+        "id": req["id"],
+        "duplicate": duplicate,
+        "status": req["status"],
+        "request": req,
+        "whatsapp": LICENSE_WHATSAPP,
+    })
+
+
+@route("GET", "/api/license/requests", roles=ADMINS)
+def license_requests_get(h, u, _):
+    """Listado de solicitudes de licencia (panel de gestión)."""
+    qs = parse_qs(urlparse(h.path).query)
+    status = (qs.get("status") or [None])[0]
+    try:
+        limit = int((qs.get("limit") or ["100"])[0])
+    except (TypeError, ValueError):
+        limit = 100
+    h.send_json(200, {
+        "ok": True,
+        "requests": license_requests_list(status, limit),
+        "counts": license_request_counts(),
+        **license_public_config(),
+    })
+
+
+@route("POST", "/api/license/requests/purge", roles=ADMINS)
+def license_requests_purge(h, u, _):
+    """Borra las solicitudes ya atendidas o descartadas (deja las pendientes)."""
+    b = h.body()
+    if str(b.get("confirm") or "").strip().upper() not in ("ELIMINAR", "CONFIRMO", "DELETE", "SI", "SÍ"):
+        return h.err(400, "Confirme la eliminación de las solicitudes atendidas.")
+    status = str(b.get("status") or "").strip().lower()
+    if status in ("pendiente", "atendida", "descartada"):
+        q("DELETE FROM license_requests WHERE status=?", (status,))
+    else:
+        q("DELETE FROM license_requests WHERE status<>'pendiente'")
+    audit(u["username"], "LICENSE_REQUEST_PURGE", f"Solicitudes de licencia eliminadas ({status or 'atendidas y descartadas'})", h.ip())
+    h.send_json(200, {"ok": True, "counts": license_request_counts(), "requests": license_requests_list()})
+
+
+@route("POST", "/api/license/requests/:id", roles=ADMINS)
+def license_request_update(h, u, ident):
+    """Marca una solicitud como pendiente, atendida o descartada (y guarda notas)."""
+    try:
+        req_id = int(ident)
+    except (TypeError, ValueError):
+        return h.err(400, "Identificador de solicitud no válido.")
+    row = q("SELECT * FROM license_requests WHERE id=?", (req_id,), one=True)
+    if not row:
+        return h.err(404, "Solicitud no encontrada.")
+    b = h.body()
+    status = str(b.get("status") or "").strip().lower()
+    if status and status not in LICENSE_REQUEST_STATUS:
+        return h.err(400, "Estado no válido (pendiente, atendida o descartada).")
+    values, args = [], []
+    if status:
+        values.append("status=?")
+        args.append(status)
+        values.append("handled_at=?")
+        args.append(now())
+        values.append("handled_by=?")
+        args.append(u["username"])
+    args.append(req_id)
+    q(f"UPDATE license_requests SET {', '.join(values)} WHERE id=?", tuple(args))
+    audit(u["username"], "LICENSE_REQUEST_STATUS", f"Solicitud #{req_id} · {row['client_name']} · {status or 'sin cambios'}", h.ip())
+    h.send_json(200, {"ok": True, "request": license_request_public(q("SELECT * FROM license_requests WHERE id=?", (req_id,), one=True)),
+                      "counts": license_request_counts()})
+
+
+@route("DELETE", "/api/license/requests/:id", roles=ADMINS)
+def license_request_delete(h, u, ident):
+    """Elimina una solicitud de licencia del historial."""
+    try:
+        req_id = int(ident)
+    except (TypeError, ValueError):
+        return h.err(400, "Identificador de solicitud no válido.")
+    row = q("SELECT * FROM license_requests WHERE id=?", (req_id,), one=True)
+    if not row:
+        return h.err(404, "Solicitud no encontrada.")
+    q("DELETE FROM license_requests WHERE id=?", (req_id,))
+    audit(u["username"], "LICENSE_REQUEST_DELETE", f"Solicitud eliminada · #{req_id} · {row['client_name']} · {row['term_label']}", h.ip())
+    h.send_json(200, {"ok": True, "deleted": 1, "id": req_id, "counts": license_request_counts(), "requests": license_requests_list()})
+
+
 @route("POST", "/api/license/activate", need=False)
 def license_activate(h, _, __):
     b = h.body()
@@ -872,6 +1101,12 @@ def license_activate(h, _, __):
     q("INSERT INTO license_activations(license_key, license_id, device_id, device_info, ip, activated_at, last_seen, active) VALUES(?,?,?,?,?,?,?,?)",
       (key, lic_id, device_id, device_info, h.ip(), now(), now(), 1))
     audit("sistema", "LICENSE_ACTIVATE", f"Licencia activada · {payload.get('license_id')} · {payload.get('client_name')} · tipo {payload.get('type')} · {h.ip()}", h.ip())
+    # La solicitud pendiente de este equipo queda atendida al activar su clave
+    try:
+        q("UPDATE license_requests SET status='atendida', handled_at=?, handled_by='activación' WHERE device_id=? AND status='pendiente'",
+          (now(), device_id))
+    except Exception as e:
+        print(f"[LICENCIA] No se pudo cerrar la solicitud del equipo {device_id}: {e}", flush=True)
     # Respuesta con info completa
     info = get_active_license_info()
     p = info["payload"] if info["valid"] else payload
@@ -905,6 +1140,8 @@ def license_info(h, u, _):
     h.send_json(200, {
         "licenses": licenses,
         "activations": activations,
+        "requests": license_requests_list(limit=100),
+        "requestCounts": license_request_counts(),
         "active": {
             "valid": active["valid"],
             "payload": active.get("payload"),
@@ -917,9 +1154,20 @@ def license_info(h, u, _):
 @route("POST", "/api/license/generate", roles=ADMINS)
 def license_generate(h, u, _):
     b = h.body()
-    client = str(b.get("client_name") or b.get("clientName") or "NovaGest").strip()[:120]
+    # Generar a partir de una solicitud recibida (panel «Gestionar → Solicitudes»):
+    # el cliente y el plazo salen de la propia solicitud.
+    req_row = None
+    req_id = b.get("request_id") or b.get("requestId") or b.get("solicitud")
+    if req_id not in (None, "", 0, "0"):
+        try:
+            req_row = q("SELECT * FROM license_requests WHERE id=?", (int(req_id),), one=True)
+        except (TypeError, ValueError):
+            req_row = None
+        if not req_row:
+            return h.err(404, "La solicitud de licencia indicada no existe.")
+    client = str(b.get("client_name") or b.get("clientName") or (req_row["client_name"] if req_row else "") or "NovaGest").strip()[:120]
     # Licencia por término: si viene `term` (DIA/SEMANA/MES/…/PERMANENTE) manda sobre type/days.
-    term = next((t for t in LICENSE_TERMS if t["id"] == str(b.get("term") or "").upper()), None)
+    term = next((t for t in LICENSE_TERMS if t["id"] == str(b.get("term") or (req_row["term"] if req_row else "") or "").upper()), None)
     ltype = str(b.get("type") or (term["type"] if term else "FULL")).upper()
     if ltype not in ("TRIAL", "FULL", "ENTERPRISE", "LIFETIME"):
         ltype = "FULL"
@@ -950,11 +1198,20 @@ def license_generate(h, u, _):
     if auto_activate:
         q("UPDATE licenses SET active=0 WHERE id<>? AND product=?", (q("SELECT id FROM licenses WHERE key=?", (token,), one=True)["id"], LICENSE_PRODUCT))
     audit(u["username"], "LICENSE_GENERATE", f"Licencia generada · {payload['license_id']} · {client} · {ltype} · {days_int}d", h.ip())
+    # La solicitud que originó la clave queda marcada como atendida
+    if req_row:
+        preview = f"{token[:18]}…{token[-8:]}" if len(token) > 30 else token
+        q("UPDATE license_requests SET status='atendida', handled_at=?, handled_by=?, license_id=?, license_preview=? WHERE id=?",
+          (now(), u["username"], q("SELECT id FROM licenses WHERE key=?", (token,), one=True)["id"], preview, req_row["id"]))
+        audit(u["username"], "LICENSE_REQUEST_DONE", f"Solicitud #{req_row['id']} atendida con la licencia {payload['license_id']}", h.ip())
     h.send_json(200, {
         "ok": True,
         "license_key": token,
         "formattedKey": format_license_key(token),
         "payload": payload,
+        "requestId": req_row["id"] if req_row else None,
+        "request": license_request_public(q("SELECT * FROM license_requests WHERE id=?", (req_row["id"],), one=True)) if req_row else None,
+        "counts": license_request_counts(),
     })
 
 

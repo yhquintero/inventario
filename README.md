@@ -121,7 +121,9 @@ La aplicación Android utiliza Kotlin, Jetpack Compose, Room, Hilt y Navigation 
 
 El servidor comprueba la licencia antes de permitir el acceso y crea una licencia de prueba al iniciar una instalación nueva. Incluye sesiones con expiración, contraseñas PBKDF2-SHA256, permisos validados en servidor, autenticación TOTP opcional, bloqueo tras intentos fallidos, cierre de días, auditoría y copias cifradas automáticas.
 
-En **Ajustes → Licencia de Uso** el listado de licencias se muestra numerado (Nº, Cliente, Tipo, Expira, Activa y Clave). El rol **Administrador** puede generar licencias (FULL, TRIAL, ENTERPRISE o LIFETIME) y eliminarlas, una por una o todas a la vez (`DELETE /api/license/:id` y `POST /api/license/delete-all`, ambos validados en el servidor); el resto de los roles solo pueden consultarlas. Si se elimina la licencia activa, el sistema queda bloqueado hasta activar otra (la activación de una clave firmada no depende del listado, así que una clave guardada siempre sirve para recuperar el acceso).
+En **Ajustes → Licencia de Uso** la tarjeta resume el estado y abre el panel **🔐 Gestionar licencia** (también con el botón 🔐 de la barra superior), con cuatro pestañas: **Estado** (cliente, plan, vencimiento, días restantes, ID de licencia y de dispositivo, activar/renovar una clave), **Solicitudes** (las peticiones recibidas por WhatsApp desde la Web y la app Android, con el mensaje tal cual, el plan pedido, el teléfono y el ID de dispositivo; «Crear clave» genera la licencia con ese nombre y ese plazo en un clic y deja la solicitud atendida), **Generar clave** (los 8 plazos, tipo, días y límites; la clave se copia, se descarga en `.txt` o se envía por WhatsApp al cliente) y **Licencias y equipos** (listado numerado Nº, Cliente, Tipo, Expira, Activa y Clave, más los dispositivos que han activado una licencia).
+
+El rol **Administrador** puede generar licencias (FULL, TRIAL, ENTERPRISE o LIFETIME) y eliminarlas, una por una o todas a la vez (`DELETE /api/license/:id` y `POST /api/license/delete-all`, ambos validados en el servidor); el resto de los roles solo pueden consultarlas. Si se elimina la licencia activa, el sistema queda bloqueado hasta activar otra (la activación de una clave firmada no depende del listado, así que una clave guardada siempre sirve para recuperar el acceso).
 
 ### Generar una licencia desde la terminal
 
@@ -130,9 +132,11 @@ Para crear una clave sin entrar en la aplicación (por ejemplo, para dejar una i
 ```bash
 python3 tools/generate_license.py --client "NovaGest" --term PERMANENTE --users 20 --devices 10
 python3 tools/generate_license.py --client "Tienda" --term ANIO   # 1 año; plazos: DIA, SEMANA, MES, TRIMESTRE, SEMESTRE, ANIO, DOS_ANIOS, PERMANENTE
+python3 tools/generate_license.py --requests        # solicitudes recibidas por WhatsApp (Web y Android)
+python3 tools/generate_license.py --request 3       # clave de la solicitud #3, la marca atendida y da el enlace de WhatsApp
 ```
 
-**Licencia por término por WhatsApp:** en la pantalla **Licencia de Uso** (Web y Android) el cliente escribe su nombre o empresa, elige el plazo, copia su ID de dispositivo si hace falta y pulsa **Solicitar por WhatsApp**; recibe la clave firmada y la pega para activar. El número destino es configurable en el servidor con `LICENSE_WHATSAPP` (solo dígitos, con código de país); si no se define, WhatsApp se abre sin número fijo para elegir el contacto.
+**Licencia por término por WhatsApp:** en la pantalla **Licencia de Uso** (Web y Android) el cliente escribe su nombre o empresa, su teléfono (opcional) y elige el plazo; al pulsar **Solicitar por WhatsApp** se abre el chat con el mensaje ya redactado y la solicitud queda **registrada en el servidor** (`POST /api/license/request`), de modo que el administrador la ve en **Gestionar licencia → Solicitudes** con su plan, su ID de dispositivo y su teléfono, y responde con la clave firmada (`POST /api/license/generate` con `request_id`, `tools/generate_license.py --request`). Al activarse la clave, las solicitudes pendientes de ese equipo pasan a **atendidas** automáticamente. El número destino es configurable en el servidor con `LICENSE_WHATSAPP` (solo dígitos, con código de país); si no se define, WhatsApp se abre sin número fijo para elegir el contacto.
 
 La clave se activa pegándola completa (incluido el punto del medio) en la pantalla **Licencia de Uso** de la Web o de la app Android, o con `POST /api/license/activate`. Las claves nuevas usan el prefijo `NG-`; las heredadas `CP-` también son válidas. Cada instalación firma con su propio secreto (`data/license.key` o la variable `LICENSE_SECRET`), por lo que una clave generada en un servidor **no** verifica en otro: para reutilizarla copia el mismo `LICENSE_SECRET` o genera una clave nueva en ese servidor.
 
@@ -156,6 +160,7 @@ node tools/test_excel_sources.mjs    # PCH, resumen semanal, NovaGest y los tres
 node tools/test_almacenes.mjs        # lógica de almacenes e importación
 node tools/test_customers_credits.mjs # clientes, fiados, abonos y códigos de barras
 node tools/smoke_web.mjs             # recorrido de pantallas Web con DOM simulado
+python3 tools/test_licencia.py       # solicitudes de licencia, plazos y texto del mensaje
 ```
 
 Para ejecutar las pruebas unitarias Android, usa Android Studio o Gradle 8.9 desde la raíz:

@@ -67,7 +67,9 @@ globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), se
 const fetchCalls = [];
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
-  fetchCalls.push({ url: u, method: (opts.method || "GET").toUpperCase() });
+  let sent = undefined;
+  try { if (opts.body) sent = JSON.parse(opts.body); } catch { sent = opts.body; }
+  fetchCalls.push({ url: u, method: (opts.method || "GET").toUpperCase(), body: sent });
   let data = {};
   if (u.includes("/api/license/status")) {
     data = { valid: true, hasLicense: true, clientName: "Prueba", product: "NovaGest", type: "FULL", daysLeft: -1, whatsapp: "5355551234", terms: [{ id: "MES", label: "1 mes", days: 30, type: "FULL" }, { id: "ANIO", label: "1 año", days: 365, type: "FULL" }, { id: "PERMANENTE", label: "Permanente", days: 0, type: "LIFETIME" }] };
@@ -77,8 +79,26 @@ globalThis.fetch = async (url, opts = {}) => {
         { id: 1, key: "CP-AAAA.BBBB", keyPreview: "CP-AAAA...BBBB", client_name: "Cliente Uno", product: "NovaGest", type: "ENTERPRISE", issued_at: 1700000000, expires_at: 0, active: 1, max_users: 20, max_devices: 10 },
         { id: 2, key: "CP-CCCC.DDDD", keyPreview: "CP-CCCC...DDDD", client_name: "Cliente Dos", product: "NovaGest", type: "TRIAL", issued_at: 1700000000, expires_at: 4102444800, active: 0, max_users: 5, max_devices: 3 },
       ],
-      activations: [], active: { valid: true }, product: "NovaGest",
+      activations: [
+        { id: 1, license_id: 1, device_id: "web-hhsp9rqlmv5zhygs", device_info: "Mozilla/5.0 Chrome", ip: "10.0.0.5", activated_at: 1791855857, last_seen: 1791855999, active: 1 },
+      ],
+      requests: [
+        { id: 7, clientName: "Tienda Nova", deviceId: "web-hhsp9rqlmv5zhygs", deviceInfo: "Mozilla/5.0 Chrome", product: "NovaGest", version: "1.0.0", term: "MES", termLabel: "1 mes", type: "FULL", days: 30, phone: "5351234567", channel: "web", status: "pendiente", createdAt: 1791855900, createdText: "12/10/2026, 9:31:58 p.m.", message: "Hola, solicito activar mi Licencia de NovaGest.\n\n👤 Usuario: Tienda Nova" },
+        { id: 8, clientName: "Bodega Sol", deviceId: "android-4f2a91cc", deviceInfo: "Android App", product: "NovaGest", version: "1.0.0", term: "PERMANENTE", termLabel: "Permanente", type: "LIFETIME", days: 0, phone: "", channel: "android", status: "atendida", createdAt: 1791855000, createdText: "12/10/2026, 9:10:00 p.m.", licensePreview: "eyJjbGllbnRfbmFtZSI...", message: "Hola, solicito activar mi Licencia de NovaGest." },
+      ],
+      requestCounts: { pendiente: 1, atendida: 1, descartada: 0, total: 2 },
+      active: { valid: true, db_row: { key: "CP-AAAA.BBBB", client_name: "Cliente Uno" } }, product: "NovaGest",
     };
+  } else if (u.endsWith("/api/license/request")) {
+    data = { ok: true, id: 9, duplicate: false, status: "pendiente", request: { id: 9, clientName: sent?.client_name || "" } };
+  } else if (u.includes("/api/license/requests/purge")) {
+    data = { ok: true, counts: { pendiente: 1, atendida: 0, descartada: 0, total: 1 }, requests: [] };
+  } else if (/\/api\/license\/requests\/\d+$/.test(u)) {
+    data = { ok: true, deleted: 1, counts: { pendiente: 0, atendida: 1, descartada: 0, total: 1 }, requests: [] };
+  } else if (/\/api\/license\/generate$/.test(u)) {
+    data = { ok: true, license_key: "eyJjbGllbnQifQ.firma", formattedKey: "NG-eyJjbGllbnQifQ.firma", requestId: sent?.request_id || null,
+      payload: { license_id: "ABCD1234EFGH5678", client_name: sent?.client_name || "Tienda Nova", product: "NovaGest", type: sent?.type || "FULL", issued_at: 1791855900, expires_at: 1794447900, max_users: 20, max_devices: 10 },
+      request: { id: 7, clientName: "Tienda Nova", termLabel: "1 mes", term: "MES", phone: "5351234567", status: "atendida" } };
   } else if (u.includes("/api/license/delete-all")) {
     data = { ok: true, deleted: 2, activations: 0 };
   } else if (/\/api\/license\/\d+$/.test(u)) {
@@ -87,11 +107,15 @@ globalThis.fetch = async (url, opts = {}) => {
   return { status: 200, ok: true, json: async () => data };
 };
 globalThis.prompt = () => "motivo";
+const openedUrls = [];
+globalThis.open = (url) => { openedUrls.push(String(url)); return null; };
+Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: async () => {} }, userAgent: "Mozilla/5.0 (Test)" }, configurable: true, writable: true });
 globalThis.URL.createObjectURL = () => "blob:x";
 globalThis.URL.revokeObjectURL = () => {};
 
 /* ----------------------------- estado de prueba ----------------------------- */
 const { store } = await import(pathToFileURL(join(tmp, "js/store.js")).href);
+const { LicenseManager } = await import(pathToFileURL(join(tmp, "js/license.js")).href);
 const state = {
   products: [
     { id: "p1", name: "PANEL SOLAR 500W", category: "Solar / Energía", stockInicial: 15, stockActual: 15, stocks: { w1: 12, w2: 3 }, stocksInicial: { w1: 15, w2: 0 }, precioVentaUsd: 100, precioVenta2Usd: 0, precioCostoUsd: 60, comisionCup: 5, minStock: 1, observaciones: "", barcode: "7501234567890", deletedAt: null, createdAt: 1 },
@@ -125,6 +149,11 @@ const test = (name, fn) => {
   try { fn(); ok++; console.log(`  ✔ ${name}`); }
   catch (e) { fail++; console.log(`  ✖ ${name}\n     ${e.message}`); }
 };
+/** Igual que test(), pero para comprobaciones que esperan respuestas del servidor simulado. */
+const atest = async (name, fn) => {
+  try { await fn(); ok++; console.log(`  ✔ ${name}`); }
+  catch (e) { fail++; console.log(`  ✖ ${name}\n     ${e.message}`); }
+};
 
 /* ----------------------------- arranque de la app ----------------------------- */
 await import(pathToFileURL(join(tmp, "js/app.js")).href);
@@ -133,6 +162,10 @@ const app = getEl("app");
 store.applyServer({ version: 1, state, closedDays: [] });
 store.state.session = state.session;
 const go = (route) => { location.hash = "#" + route; if (store.emit) store.emit(false); return app.innerHTML; };
+/** Espera a que terminen las promesas pendientes (cargas asíncronas de la vista). */
+const flush = async (n = 3) => { for (let i = 0; i < n; i++) await new Promise((resolve) => setImmediate(resolve)); };
+/** Pulsa un botón del panel como si el usuario hiciera clic. */
+const click = (dataset) => app.dispatch("click", { target: { closest: () => ({ dataset, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
 
 console.log("\nWeb · Almacenes e Importar valores (DOM simulado)\n");
 
@@ -338,31 +371,59 @@ test("El servidor recibe las secciones nuevas al guardar", () => {
   assert.ok(Array.isArray(shared.warehouseEntries));
 });
 
-/* ----------------------------- licencias (Ajustes) ----------------------------- */
-console.log("\nWeb · Licencias en Ajustes\n");
+/* ----------------------------- licencia: gestión, solicitudes y claves ----------------------------- */
+console.log("\nWeb · Licencia de uso: Gestionar, solicitudes y claves\n");
 
-// Deja llegar /api/license/info (el listado se pide al dibujar la vista)
+// Deja llegar /api/license/info (el panel lo pide al abrirse)
+await flush();
 go("settings");
-await new Promise((resolve) => setImmediate(resolve));
-await new Promise((resolve) => setImmediate(resolve));
+await flush();
 
-test("Ajustes muestra la versión de la Web en la tarjeta Acerca de", () => {
+test("La tarjeta de Ajustes explica la verificación previa y ofrece Gestionar/Verificar", () => {
   const html = go("settings");
-  assert.match(html, /Acerca de/);
-  assert.match(html, /Web v\d+\.\d+\.\d+/);
-  assert.match(html, /funciona sin conexión/i);
+  assert.match(html, /El acceso a todas las Apps \(Web y Móvil\) se verifica siempre primero por la licencia/);
+  assert.match(html, /data-act="license-manage"/);
+  assert.match(html, /data-act="license-refresh"/);
+  assert.match(html, /data-act="license-whatsapp"/);
 });
 
-test("Ajustes lista las licencias con Nº y las columnas Cliente/Tipo/Expira/Activa/Clave", () => {
-  const html = go("settings");
+test("«Gestionar» abre el panel de la licencia con sus pestañas (no se queda en «Verificar»)", () => {
+  go("settings");
+  click({ act: "license-manage" });
+  const html = app.innerHTML;
+  assert.match(html, /Gestión de la licencia de uso/);
+  assert.match(html, /data-lic-tab="estado"/);
+  assert.match(html, /data-lic-tab="solicitudes"/);
+  assert.match(html, /data-lic-tab="generar"/);
+  assert.match(html, /data-lic-tab="licencias"/);
+  assert.match(html, /id="licenseFormInline"/);
+});
+
+await atest("El panel muestra las solicitudes recibidas con su plan, dispositivo y acciones", async () => {
+  click({ licTab: "solicitudes" });
+  await flush();
+  const html = app.innerHTML;
+  assert.match(html, /data-lic-tab="solicitudes">📨 Solicitudes · 1/);
+  assert.match(html, /Tienda Nova/);
+  assert.match(html, /web-hhsp9rqlmv5zhygs/);
+  assert.match(html, /1 mes/);
+  assert.match(html, /data-lic-key="7"/);
+  assert.match(html, /data-lic-msg="7"/);
+  assert.match(html, /data-lic-status="7" data-lic-status-value="descartada"/);
+  assert.match(html, /atendida/);
+  assert.match(html, /data-lic-req-del="7"/);
+});
+
+await atest("El panel lista las licencias con Nº y las columnas Cliente/Tipo/Expira/Activa/Clave", async () => {
+  click({ licTab: "licencias" });
+  await flush();
+  const html = app.innerHTML;
   assert.match(html, /Licencias creadas · 2/);
   assert.match(html, /<th>Nº<\/th><th>Cliente<\/th><th>Tipo<\/th><th>Expira<\/th><th>Activa<\/th><th>Clave<\/th>/);
   assert.match(html, />1<\/td>\s*<td>Cliente Uno</);
   assert.match(html, />2<\/td>\s*<td>Cliente Dos</);
-});
-
-test("Solo ADMINISTRADOR ve el botón de eliminar por licencia y el de eliminar todas", () => {
-  const html = go("settings");
+  assert.match(html, /Equipos activados · 1/);
+  assert.match(html, /10\.0\.0\.5/);
   assert.match(html, /data-act="license-del" data-lic-del="1"/);
   assert.match(html, /data-act="license-del" data-lic-del="2"/);
   assert.match(html, /data-act="license-del-all"/);
@@ -370,51 +431,130 @@ test("Solo ADMINISTRADOR ve el botón de eliminar por licencia y el de eliminar 
 });
 
 test("Eliminar una licencia pide confirmación antes de llamar al servidor", () => {
-  go("settings");
-  app.dispatch("click", { target: { closest: () => ({ dataset: { act: "license-del", licDel: "1" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+  click({ act: "license-del", licDel: "1" });
   assert.match(app.innerHTML, /Eliminar definitivamente la licencia/);
   assert.match(app.innerHTML, /Cliente Uno/);
   assert.match(app.innerHTML, /no se puede deshacer/);
 });
 
 fetchCalls.length = 0;
-app.dispatch("click", { target: { closest: () => ({ dataset: { act: "confirm-yes" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
-await new Promise((resolve) => setImmediate(resolve));
-await new Promise((resolve) => setImmediate(resolve));
+click({ act: "confirm-yes" });
+await flush();
 
 test("Confirmar la eliminación llama a DELETE /api/license/:id", () => {
   assert.ok(fetchCalls.some((c) => c.method === "DELETE" && /\/api\/license\/1$/.test(c.url)), `llamadas: ${JSON.stringify(fetchCalls)}`);
 });
 
-test("Eliminar todas exige doble confirmación y llama a la API", () => {
-  go("settings");
-  app.dispatch("click", { target: { closest: () => ({ dataset: { act: "license-del-all" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+await atest("Eliminar todas exige doble confirmación y llama a la API", async () => {
+  click({ licTab: "licencias" });
+  await flush();
+  click({ act: "license-del-all" });
   assert.match(app.innerHTML, /Eliminar <b>las 2 licencias<\/b>/);
-  app.dispatch("click", { target: { closest: () => ({ dataset: { act: "confirm-yes" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+  click({ act: "confirm-yes" });
   assert.match(app.innerHTML, /Última confirmación/);
   fetchCalls.length = 0;
-  app.dispatch("click", { target: { closest: () => ({ dataset: { act: "confirm-yes" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
-});
-
-await new Promise((resolve) => setImmediate(resolve));
-await new Promise((resolve) => setImmediate(resolve));
-
-test("La eliminación total se envía a POST /api/license/delete-all", () => {
+  click({ act: "confirm-yes" });
+  await flush();
   assert.ok(fetchCalls.some((c) => c.method === "POST" && /\/api\/license\/delete-all$/.test(c.url)), `llamadas: ${JSON.stringify(fetchCalls)}`);
 });
 
-test("El rol JEFE puede ver las licencias pero no eliminarlas", () => {
+await atest("El rol JEFE puede ver las licencias pero no eliminarlas", async () => {
   const original = store.state.session;
   try {
     store.state.session = { ...original, role: "JEFE" };
-    const html = go("settings");
+    click({ licTab: "licencias" });
+    await flush();
+    const html = app.innerHTML;
     assert.match(html, /Cliente Uno/);
     assert.doesNotMatch(html, /data-act="license-del"/);
     assert.doesNotMatch(html, /data-act="license-del-all"/);
     assert.match(html, /Solo el rol <b>ADMINISTRADOR<\/b> puede eliminar licencias/);
   } finally {
     store.state.session = original;
-    go("settings");
+    click({ licTab: "licencias" });
+    await flush();
+  }
+});
+
+await atest("Solicitar por WhatsApp registra la solicitud en el servidor y abre WhatsApp", async () => {
+  click({ licTab: "estado" });
+  await flush();
+  getEl("licReqName").value = "Tienda Nova";
+  getEl("licReqPhone").value = "5351234567";
+  fetchCalls.length = 0;
+  openedUrls.length = 0;
+  click({ act: "license-whatsapp" });
+  await flush();
+  const call = fetchCalls.find((c) => c.method === "POST" && c.url.endsWith("/api/license/request"));
+  assert.ok(call, `llamadas: ${JSON.stringify(fetchCalls)}`);
+  assert.equal(call.body.client_name, "Tienda Nova");
+  assert.equal(call.body.phone, "5351234567");
+  assert.equal(call.body.term, "MES");
+  assert.match(call.body.message, /Hola, solicito activar mi Licencia de NovaGest\./);
+  assert.ok(openedUrls.some((u) => u.startsWith("https://wa.me/5355551234")), `se abrió: ${JSON.stringify(openedUrls)}`);
+});
+
+await atest("Crear clave desde una solicitud usa su plan y su nombre", async () => {
+  click({ licTab: "solicitudes" });
+  await flush();
+  fetchCalls.length = 0;
+  click({ licKey: "7" });
+  await flush();
+  const call = fetchCalls.find((c) => c.method === "POST" && /\/api\/license\/generate$/.test(c.url));
+  assert.ok(call, `llamadas: ${JSON.stringify(fetchCalls)}`);
+  assert.equal(call.body.request_id, "7");
+  assert.equal(call.body.client_name, "Tienda Nova");
+  const html = app.innerHTML;
+  assert.match(html, /Clave generada · Tienda Nova/);
+  assert.match(html, /data-act="license-send-key"/);
+  assert.match(html, /data-act="license-dl"/);
+});
+
+test("Enviar la clave por WhatsApp usa el teléfono del cliente", () => {
+  openedUrls.length = 0;
+  click({ act: "license-send-key" });
+  assert.ok(openedUrls.some((u) => u.startsWith("https://wa.me/5351234567")), `se abrió: ${JSON.stringify(openedUrls)}`);
+});
+
+await atest("El generador de claves ofrece los plazos que publica el servidor y los 8 del flujo WhatsApp", async () => {
+  const defaults = LicenseManager.terms.map((t) => t.id);
+  assert.deepEqual(defaults, ["DIA", "SEMANA", "MES", "TRIMESTRE", "SEMESTRE", "ANIO", "DOS_ANIOS", "PERMANENTE"]);
+  click({ licTab: "generar" });
+  await flush();
+  const html = app.innerHTML;
+  assert.match(html, /id="licenseGenForm"/);
+  for (const t of ["MES", "ANIO", "PERMANENTE"]) {  // plazos que publica el servidor simulado
+    assert.match(html, new RegExp(`<option value="${t}"`), `falta el plazo ${t}`);
+  }
+});
+
+await atest("Las solicitudes se pueden descartar y eliminar del historial", async () => {
+  click({ licTab: "solicitudes" });
+  await flush();
+  fetchCalls.length = 0;
+  click({ licStatus: "7", licStatusValue: "descartada" });
+  await flush();
+  assert.ok(fetchCalls.some((c) => c.method === "POST" && /\/api\/license\/requests\/7$/.test(c.url) && c.body.status === "descartada"), `llamadas: ${JSON.stringify(fetchCalls)}`);
+  fetchCalls.length = 0;
+  click({ licReqDel: "8" });
+  click({ act: "confirm-yes" });
+  await flush();
+  assert.ok(fetchCalls.some((c) => c.method === "DELETE" && /\/api\/license\/requests\/8$/.test(c.url)), `llamadas: ${JSON.stringify(fetchCalls)}`);
+});
+
+await atest("Sin solicitudes (rol sin permisos) el panel las oculta y mantiene el estado", async () => {
+  const saved = store.state.session;
+  try {
+    store.state.session = { ...saved, role: "ALMACENERO" };
+    click({ licTab: "solicitudes" });
+    await flush();
+    const html = app.innerHTML;
+    assert.doesNotMatch(html, /data-lic-tab="solicitudes"/);
+    assert.match(html, /Gestión de la licencia de uso/);
+  } finally {
+    store.state.session = saved;
+    click({ licTab: "estado" });
+    await flush();
   }
 });
 
