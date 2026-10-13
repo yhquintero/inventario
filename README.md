@@ -9,8 +9,8 @@
 Inventario · Punto de venta · Caja · Informes — **todo tu negocio en una sola plataforma.**
 
 ![Plataforma](https://img.shields.io/badge/plataforma-Web_%C2%B7_Android_%C2%B7_Servidor-4f46e5)
-![Versión](https://img.shields.io/badge/versi%C3%B3n-Web_6.1.0_%C2%B7_Android_1.3.0-059669)
-![Pruebas](https://img.shields.io/badge/pruebas-54_en_verde-brightgreen)
+![Versión](https://img.shields.io/badge/versi%C3%B3n-NovaGest_1.0.0-059669)
+![Pruebas](https://img.shields.io/badge/pruebas-65_en_verde-brightgreen)
 ![Web](https://img.shields.io/badge/web-PWA_instalable_%C2%B7_sin_build-2563eb)
 
 </div>
@@ -44,7 +44,8 @@ Inventario · Punto de venta · Caja · Informes — **todo tu negocio en una so
 ## ✨ Funciones principales
 
 - 📦 **Inventario multi-almacén** — cada almacén conserva sus propias existencias y el inventario general suma todos; importa valores, traspasa mercancía entre almacenes y ajusta diferencias con historial completo.
-- 🛒 **Punto de venta** — venta rápida que descuenta el stock del almacén en uso al instante, con comisiones y domicilios calculados automáticamente.
+- 🛒 **Punto de venta** — venta rápida que descuenta el stock del almacén en uso al instante, con **escáner de códigos de barras** (cámara o lector USB/Bluetooth), cobro **contado o a fiado** a un cliente, comisiones y domicilios calculados automáticamente.
+- 🤝 **Clientes y fiados** — libro de clientes con límite de crédito, cuentas por cobrar con vencimiento, estados (pendiente/parcial/vencido/pagado) y **abonos** con historial; el total por cobrar se ve en el Panel.
 - 🧮 **Caja diaria (cuadre)** — tasas CUP/USD y MXN/USD, cobros, entradas, extracciones, fondos y gastos: el día está «cuadrado» cuando el resultado da 0, y la aplicación te avisa si no lo está.
 - 🔄 **Movimientos** — ventas, entradas y salidas con almacén, centro de venta, cantidades, importes y observaciones; cada movimiento recalcula el stock y queda registrado.
 - 📊 **Informes y comprobación** — cuadres diarios, resumen semanal y comprobación de inventario por día, semana, mes, año o rango personalizado, con exportación CSV/PDF lista para imprimir o enviar al contador.
@@ -59,7 +60,7 @@ Las importaciones se inician desde la interfaz y muestran una **vista previa** a
 
 | Libro en `xlsx/` | Dónde se aplica | Qué conserva |
 |---|---|---|
-| `CUADRE PINAR SEPT.xlsx` | Web → **Copias** → importar libro | Detecta y permite importar en orden cronológico todas las hojas diarias seleccionadas: existencias, entradas, salidas, ventas, tasa y cuadre. La fecha proviene del nombre de la hoja. Las diferencias de apertura/cierre se anotan como ajustes explícitos; reimportar sustituye cada lote. También alimenta las semillas del proyecto. |
+| `NovaGest SEPT.xlsx` | Web → **Copias** → importar libro | Detecta y permite importar en orden cronológico todas las hojas diarias seleccionadas: existencias, entradas, salidas, ventas, tasa y cuadre. La fecha proviene del nombre de la hoja. Las diferencias de apertura/cierre se anotan como ajustes explícitos; reimportar sustituye cada lote. También alimenta las semillas del proyecto. |
 | `NOVA PINAR.xlsx`, `NOVA CONSOLACION.xlsx`, `NOVA HERRADURA.xlsx` | Web → **Copias** → importar libro | Importación masiva de sus hojas diarias con fecha, almacén y selección corregibles. Advierte fechas vacías y duplicadas antes de guardar. Conserva importe real, costo unitario y comisión CUP por venta y crea referencias financieras diarias para revisar diferencias de caja y existencias. |
 | `PCH.xlsx` | Web → **Importar valores** → subir archivo | Se elige una de las ubicaciones **Pinar del Río**, **Consolación** o **Herradura** y se importan sus existencias al almacén de destino. Los nombres repetidos se consolidan sumando stock. No modifica precios globales, pues varían por ubicación. |
 | `RESUMEN POR SEMANA PINAR.xlsx` | Web → **Informe semanal** → **Importar resumen Excel** | Lee la hoja `PINAR`, muestra semanas, fechas y totales antes de guardar y conserva cada semana como referencia del Excel, sin reemplazar movimientos, cuadres ni cálculos de la aplicación. |
@@ -89,7 +90,7 @@ python3 -m pip install cryptography openpyxl
 python3 server/novagest_server.py
 ```
 
-Para reconstruir `web/js/seed-data.js` y `app/src/main/assets/seed.json` desde todas las hojas fechadas de `xlsx/CUADRE PINAR SEPT.xlsx`, ejecuta `python3 tools/import_excel.py`. El generador conserva ventas, costos y comisiones por movimiento y anota los ajustes de apertura/cierre.
+Para reconstruir `web/js/seed-data.js` y `app/src/main/assets/seed.json` desde todas las hojas fechadas de `xlsx/NovaGest SEPT.xlsx`, ejecuta `python3 tools/import_excel.py`. El generador conserva ventas, costos y comisiones por movimiento y anota los ajustes de apertura/cierre.
 
 El servidor escucha en `http://localhost:8080` por defecto y sirve la interfaz Web junto con la API. Para cambiar el puerto: `PORT=9090 python3 server/novagest_server.py`.
 
@@ -127,9 +128,11 @@ En **Ajustes → Licencia de Uso** el listado de licencias se muestra numerado (
 Para crear una clave sin entrar en la aplicación (por ejemplo, para dejar una instalación nueva lista para usar):
 
 ```bash
-python3 tools/generate_license.py --client "NovaGest" --type LIFETIME --days 0 --users 20 --devices 10
-python3 tools/generate_license.py --client "Tienda" --type FULL --days 365   # alternativa con vencimiento
+python3 tools/generate_license.py --client "NovaGest" --term PERMANENTE --users 20 --devices 10
+python3 tools/generate_license.py --client "Tienda" --term ANIO   # 1 año; plazos: DIA, SEMANA, MES, TRIMESTRE, SEMESTRE, ANIO, DOS_ANIOS, PERMANENTE
 ```
+
+**Licencia por término por WhatsApp:** en la pantalla **Licencia de Uso** (Web y Android) el cliente escribe su nombre o empresa, elige el plazo, copia su ID de dispositivo si hace falta y pulsa **Solicitar por WhatsApp**; recibe la clave firmada y la pega para activar. El número destino es configurable en el servidor con `LICENSE_WHATSAPP` (solo dígitos, con código de país); si no se define, WhatsApp se abre sin número fijo para elegir el contacto.
 
 La clave se activa pegándola completa (incluido el punto del medio) en la pantalla **Licencia de Uso** de la Web o de la app Android, o con `POST /api/license/activate`. Las claves nuevas usan el prefijo `NG-`; las heredadas `CP-` también son válidas. Cada instalación firma con su propio secreto (`data/license.key` o la variable `LICENSE_SECRET`), por lo que una clave generada en un servidor **no** verifica en otro: para reutilizarla copia el mismo `LICENSE_SECRET` o genera una clave nueva en ese servidor.
 
@@ -149,9 +152,10 @@ En una base de datos nueva se crean estas cuentas de demostración:
 Desde la raíz del repositorio:
 
 ```bash
-node tools/test_excel_sources.mjs  # PCH, resumen semanal, CUADRE PINAR y los tres libros NOVA
-node tools/test_almacenes.mjs      # lógica de almacenes e importación
-node tools/smoke_web.mjs           # recorrido de pantallas Web con DOM simulado
+node tools/test_excel_sources.mjs    # PCH, resumen semanal, NovaGest y los tres libros NOVA
+node tools/test_almacenes.mjs        # lógica de almacenes e importación
+node tools/test_customers_credits.mjs # clientes, fiados, abonos y códigos de barras
+node tools/smoke_web.mjs             # recorrido de pantallas Web con DOM simulado
 ```
 
 Para ejecutar las pruebas unitarias Android, usa Android Studio o Gradle 8.9 desde la raíz:

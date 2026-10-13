@@ -254,7 +254,7 @@ const PINAR_CUADRE_LABELS = {
 const PINAR_CUP_FIELDS = new Set(["fondoCup", "aumentoFondoCup", "comisionesCup", "domiciliosCup", "gastosCup", "salidaJesusMn", "mnEfectivoCup", "mnTarjetaCup"]);
 
 /**
- * Interpreta una hoja diaria del libro histórico CUADRE PINAR SEPT.xlsx (formato heredado).
+ * Interpreta una hoja diaria del libro histórico NovaGest SEPT.xlsx.
  * formulaAt recibe índices base cero de fila y columna y permite leer la tasa
  * que el libro guarda en las fórmulas del panel financiero.
  */

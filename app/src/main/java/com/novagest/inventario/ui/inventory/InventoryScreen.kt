@@ -88,7 +88,7 @@ fun InventoryScreen(user: UserAccount, vm: InventoryViewModel = hiltViewModel())
     var creating by remember { mutableStateOf(false) }
     val canEdit = RolePermissions.can(user.role, Permission.INVENTORY_EDIT)
     val needle = normalize(q)
-    val filtered = products.filter { needle.isBlank() || normalize(it.name).contains(needle) || normalize(it.category).contains(needle) }
+    val filtered = products.filter { needle.isBlank() || normalize(it.name).contains(needle) || normalize(it.category).contains(needle) || it.barcode.contains(q.trim(), true) }
     val unidades = filtered.sumOf { maxOf(0.0, it.stockActual) }
     val valor = filtered.sumOf { maxOf(0.0, it.stockActual) * it.precioVentaUsd }
 
@@ -121,7 +121,7 @@ fun InventoryScreen(user: UserAccount, vm: InventoryViewModel = hiltViewModel())
                                     "Inicial ${Money.qty(p.stockInicial)} · Actual ${Money.qty(p.stockActual)} · ${Money.usd(p.precioVentaUsd)} · Com. ${Money.cup(p.comisionCup)}",
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Text(p.category + if (p.observaciones.isNotBlank()) " · ${p.observaciones}" else "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                Text(p.category + (if (p.barcode.isNotBlank()) " · ▦ ${p.barcode}" else "") + if (p.observaciones.isNotBlank()) " · ${p.observaciones}" else "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                             }
                             val stockColor = when {
                                 p.stockActual <= 0 -> Color(0xFFDC2626)
@@ -165,6 +165,7 @@ private fun ProductDialog(
     var costo by remember { mutableStateOf(product.precioCostoUsd.toString()) }
     var min by remember { mutableStateOf(product.minStock.toString()) }
     var cat by remember { mutableStateOf(product.category) }
+    var barcode by remember { mutableStateOf(product.barcode) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (product.id == 0L) "Nuevo producto" else "Editar producto") },
@@ -177,6 +178,7 @@ private fun ProductDialog(
                 OutlinedTextField(comm, { comm = it }, label = { Text("COMISION (CUP)") }, singleLine = true)
                 OutlinedTextField(min, { min = it }, label = { Text("Stock mínimo") }, singleLine = true)
                 OutlinedTextField(cat, { cat = it }, label = { Text("Categoría") }, singleLine = true)
+                OutlinedTextField(barcode, { barcode = it }, label = { Text("Código de barras") }, singleLine = true)
             }
         },
         confirmButton = {
@@ -190,7 +192,8 @@ private fun ProductDialog(
                         comisionCup = comm.toDoubleOrNull() ?: 0.0,
                         precioCostoUsd = costo.toDoubleOrNull() ?: 0.0,
                         minStock = min.toDoubleOrNull() ?: 1.0,
-                        category = cat
+                        category = cat,
+                        barcode = barcode.trim()
                     )
                 )
             }) { Text("Guardar") }

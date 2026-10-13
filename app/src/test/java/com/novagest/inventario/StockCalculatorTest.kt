@@ -81,7 +81,7 @@ class CuadreCalculatorTest {
 
     @Test
     fun replicaPanelFinancieroExcelLunes() {
-        // Datos de lunes en Nuevo Cuadre Pinar.xlsx
+        // Datos de lunes en el libro diario NovaGest
         val cuadre = DailyCuadre(
             dateEpoch = 0,
             weekday = "lunes",

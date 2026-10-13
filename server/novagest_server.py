@@ -33,10 +33,38 @@ ROLES = ("ADMINISTRADOR", "JEFE", "ECONOMICO", "ALMACENERO")
 ADMINS = {"ADMINISTRADOR", "JEFE"}
 
 # ------------------------------------------------------------------ licencia de uso
+APP_VERSION = "1.0.0"
 LICENSE_PRODUCT = os.environ.get("LICENSE_PRODUCT", "NovaGest")
 LICENSE_FILE = os.path.join(DATA, "license.key")
 LICENSE_TRIAL_DAYS = int(os.environ.get("LICENSE_TRIAL_DAYS", "15"))
 LICENSE_EXEMPT = {"/api/health", "/api/license/status", "/api/license/activate", "/api/license/verify"}
+# Licencia por término (solicitud por WhatsApp, como en DrywallMaterialsCalculator):
+# el cliente elige un plazo, envía sus datos por WhatsApp y recibe la clave firmada.
+# Número destino configurable: LICENSE_WHATSAPP / NOVAGEST_WHATSAPP / WHATSAPP_NUMBER
+# (solo dígitos, con código de país, ej. 5351234567). Si está vacío, las apps abren
+# WhatsApp sin número fijo (el usuario elige el contacto), igual que la referencia.
+LICENSE_WHATSAPP = re.sub(r"\D", "", os.environ.get("LICENSE_WHATSAPP") or os.environ.get("NOVAGEST_WHATSAPP") or os.environ.get("WHATSAPP_NUMBER") or "")
+LICENSE_TERMS = [
+    {"id": "DIA", "label": "1 día", "days": 1, "type": "FULL"},
+    {"id": "SEMANA", "label": "1 semana", "days": 7, "type": "FULL"},
+    {"id": "MES", "label": "1 mes", "days": 30, "type": "FULL"},
+    {"id": "TRIMESTRE", "label": "3 meses", "days": 90, "type": "FULL"},
+    {"id": "SEMESTRE", "label": "6 meses", "days": 180, "type": "FULL"},
+    {"id": "ANIO", "label": "1 año", "days": 365, "type": "FULL"},
+    {"id": "DOS_ANIOS", "label": "2 años", "days": 730, "type": "FULL"},
+    {"id": "PERMANENTE", "label": "Permanente", "days": 0, "type": "LIFETIME"},
+]
+
+
+def license_public_config():
+    """Datos públicos para solicitar la licencia por WhatsApp (sin secretos)."""
+    return {
+        "product": LICENSE_PRODUCT,
+        "version": APP_VERSION,
+        "whatsapp": LICENSE_WHATSAPP,
+        "terms": LICENSE_TERMS,
+        "trialDays": LICENSE_TRIAL_DAYS,
+    }
 
 # Quién puede modificar cada sección del estado compartido
 WRITE = {
@@ -50,6 +78,8 @@ WRITE = {
     "settings": {"ADMINISTRADOR", "JEFE"},
     "warehouses": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
     "warehouseEntries": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
+    "customers": {"ADMINISTRADOR", "JEFE", "ECONOMICO", "ALMACENERO"},
+    "credits": {"ADMINISTRADOR", "JEFE", "ECONOMICO", "ALMACENERO"},
     "audit": set(ROLES),
 }
 CLOSE_DAY = {"ADMINISTRADOR", "JEFE", "ECONOMICO"}
@@ -191,7 +221,7 @@ def verify_license_token(token: str):
 
 
 def format_license_key(token: str) -> str:
-    # Formato legible: CP-<token> con el token original intacto (no inserta guiones que rompan base64url)
+    # Formato legible: NG-<token> con el token original intacto (no inserta guiones que rompan base64url)
     # Para mostrar bonito, agrupa con espacios cada 4 chars solo visualmente, pero devuelve original con prefijo
     try:
         raw = token.strip()
@@ -764,6 +794,7 @@ def license_status(h, _, __):
             "features": p.get("features", json.loads(db_row["features"] or '["*"]')) if p else json.loads(db_row["features"] or '["*"]'),
             "licenseId": p.get("license_id", "") if p else db_row["key"][:12],
             "formattedKey": format_license_key(db_row["key"]) if db_row else "",
+            **license_public_config(),
         })
     else:
         # Verifica si hay licencias expiradas para dar más contexto
@@ -779,7 +810,7 @@ def license_status(h, _, __):
                 "expiresAt": last["expires_at"],
                 "expired": last["expires_at"] != 0 and last["expires_at"] < now(),
             } if last else None,
-            "trialDays": LICENSE_TRIAL_DAYS,
+            **license_public_config(),
         })
 
 
@@ -879,7 +910,7 @@ def license_info(h, u, _):
             "payload": active.get("payload"),
             "db_row": {k: v for k, v in (active["db_row"] or {}).items() if k != "key"} if active.get("db_row") else None,
         },
-        "product": LICENSE_PRODUCT,
+        **license_public_config(),
     })
 
 
@@ -887,10 +918,14 @@ def license_info(h, u, _):
 def license_generate(h, u, _):
     b = h.body()
     client = str(b.get("client_name") or b.get("clientName") or "NovaGest").strip()[:120]
-    ltype = str(b.get("type") or "FULL").upper()
+    # Licencia por término: si viene `term` (DIA/SEMANA/MES/…/PERMANENTE) manda sobre type/days.
+    term = next((t for t in LICENSE_TERMS if t["id"] == str(b.get("term") or "").upper()), None)
+    ltype = str(b.get("type") or (term["type"] if term else "FULL")).upper()
     if ltype not in ("TRIAL", "FULL", "ENTERPRISE", "LIFETIME"):
         ltype = "FULL"
     days = b.get("days")
+    if days is None and term:
+        days = term["days"]
     if days is None:
         days = 365 if ltype != "LIFETIME" else 0
     try:
@@ -961,7 +996,7 @@ def license_delete_all(h, u, _):
 @route("GET", "/api/health", need=False)
 def health(h, u, _):
     lic = get_active_license_info()
-    h.send_json(200, {"ok": True, "https": h.secure(), "time": now(), "licenseValid": lic["valid"], "licenseType": (lic["payload"] or {}).get("type") if lic["valid"] else None})
+    h.send_json(200, {"ok": True, "app": "NovaGest", "version": APP_VERSION, "https": h.secure(), "time": now(), "licenseValid": lic["valid"], "licenseType": (lic["payload"] or {}).get("type") if lic["valid"] else None})
 
 
 def new_session(h, user):
@@ -1203,7 +1238,7 @@ def state_put(h, u, _):
             # Un cliente con la interfaz antigua (caché del navegador) no manda estas
             # secciones: se conservan las que ya hay en el servidor.
             old = json.loads(r["data"]) or {}
-            for k in ("warehouses", "warehouseEntries", "excelDailyReports"):
+            for k in ("warehouses", "warehouseEntries", "excelDailyReports", "customers", "credits"):
                 if k not in new:
                     new[k] = old.get(k)
         if r["data"] is None:

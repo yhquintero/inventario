@@ -1,17 +1,17 @@
 # Mapeo de los libros de `xlsx/`
 
-Los seis libros se importan según su estructura; no se tratan como si fueran una sola plantilla. En Web, las importaciones se hacen desde **Copias** o **Importar valores**. La semilla de la aplicación se regenera con `python3 tools/import_excel.py` y solo usa las hojas diarias de `CUADRE PINAR SEPT.xlsx`.
+Los seis libros se importan según su estructura; no se tratan como si fueran una sola plantilla. En Web, las importaciones se hacen desde **Copias** o **Importar valores**. La semilla de la aplicación se regenera con `python3 tools/import_excel.py` y solo usa las hojas diarias de `NovaGest SEPT.xlsx`.
 
 | Libro | Estructura | Uso en la aplicación |
 |---|---|---|
-| `CUADRE PINAR SEPT.xlsx` | 21 hojas fechadas y `INVENTARIO` | Movimientos diarios, cuadres, tasas, precios/costos/comisiones históricos y semilla inicial. En Web se pueden seleccionar e importar varias hojas cronológicamente. |
+| `NovaGest SEPT.xlsx` | 21 hojas fechadas y `INVENTARIO` | Movimientos diarios, cuadres, tasas, precios/costos/comisiones históricos y semilla inicial. En Web se pueden seleccionar e importar varias hojas cronológicamente. |
 | `NOVA PINAR.xlsx` | Hojas diarias numeradas | Importar ventas, entradas, transferencias, costo, comisiones y panel financiero diario. |
 | `NOVA CONSOLACION.xlsx` | Hojas diarias numeradas | Mismo mapeo NOVA, conservando el archivo y la hoja de origen. |
 | `NOVA HERRADURA.xlsx` | Hojas diarias numeradas | Mismo mapeo NOVA, conservando el archivo y la hoja de origen. |
 | `PCH.xlsx` | Inventario dividido por ubicaciones | Importar existencia por ubicación. No sobrescribe precios compartidos del catálogo. |
 | `RESUMEN POR SEMANA PINAR.xlsx` | Gastos y resultados por semana del mes | Guardar el resumen semanal de referencia y compararlo con el cálculo operativo. |
 
-## `CUADRE PINAR SEPT.xlsx`
+## `NovaGest SEPT.xlsx`
 
 Las hojas `1 9 26`…`25 9 26` se interpretan como fechas `2026-09-01`…`2026-09-25`. La hoja `INVENTARIO` no tiene fecha y no se cuenta como hoja diaria. En la tabla de productos se mapean estos encabezados:
 

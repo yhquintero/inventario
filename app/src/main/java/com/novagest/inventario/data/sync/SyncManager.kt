@@ -58,7 +58,7 @@ data class SyncStatus(
 )
 
 /**
- * Sincroniza la App con el mismo servidor que usa la Web (server/cuadre_server.py).
+ * Sincroniza la App con el mismo servidor que usa la Web (server/novagest_server.py).
  *
  * - El servidor es la fuente de verdad: guarda un único estado JSON versionado.
  * - pull(): descarga el estado y reemplaza productos, movimientos, cuadres y tasas en Room.
@@ -221,6 +221,94 @@ class SyncManager @Inject constructor(
         }.getOrDefault(emptyList())
     }
 
+    /** Clientes del estado compartido (solo lectura en la App; alta/edición completa en la Web). */
+    fun customers(): List<com.novagest.inventario.domain.model.Customer> {
+        if (!stateFile.exists()) return emptyList()
+        return runCatching {
+            JSONObject(stateFile.readText()).optJSONArray("customers").objects()
+                .filter { !isDeleted(it) }
+                .map {
+                    com.novagest.inventario.domain.model.Customer(
+                        id = it.str("id"), name = it.str("name"), phone = it.str("phone"), email = it.str("email"),
+                        address = it.str("address"), notes = it.str("notes"), creditLimitUsd = it.num("creditLimitUsd")
+                    )
+                }.sortedBy { it.name }
+        }.getOrDefault(emptyList())
+    }
+
+    /** Fiados del estado compartido, con saldo pendiente derivado (total − abonado). */
+    fun credits(): List<com.novagest.inventario.domain.model.Credit> {
+        if (!stateFile.exists()) return emptyList()
+        return runCatching {
+            JSONObject(stateFile.readText()).optJSONArray("credits").objects()
+                .filter { !isDeleted(it) }
+                .map {
+                    com.novagest.inventario.domain.model.Credit(
+                        id = it.str("id"), customerId = it.str("customerId"), customerName = it.str("customerName"),
+                        date = it.str("date"), dueDate = it.str("dueDate"), totalUsd = it.num("totalUsd"),
+                        paidUsd = it.num("paidUsd"), origin = it.str("origin").ifBlank { "MANUAL" },
+                        concept = it.str("concept"), payments = it.optJSONArray("payments")?.length() ?: 0
+                    )
+                }.sortedWith(compareBy({ it.pending <= 0.0 }, { it.dueDate.ifBlank { it.date } }))
+        }.getOrDefault(emptyList())
+    }
+
+    /** Crea el fiado de una venta rápida Android dentro del JSON compartido y lo sube. */
+    suspend fun createPosCredit(customerId: String, totalUsd: Double, dueDate: String = ""): String? = mutex.withLock {
+        if (!isConnected() || !stateFile.exists()) return@withLock "Fiado no registrado: sin conexión con el servidor."
+        val customer = customers().firstOrNull { it.id == customerId } ?: return@withLock "Fiado no registrado: elige un cliente válido."
+        if (customer.creditLimitUsd > 0 && customerBalance(customerId) + totalUsd > customer.creditLimitUsd + 1e-9) {
+            return@withLock "Fiado no registrado: supera el límite de crédito de ${customer.name}."
+        }
+        val state = JSONObject(stateFile.readText())
+        val arr = state.optJSONArray("credits") ?: JSONArray().also { state.put("credits", it) }
+        arr.put(JSONObject()
+            .put("id", newId("cred")).put("customerId", customerId).put("customerName", customer.name)
+            .put("date", LocalDate.now().toString()).put("dueDate", dueDate).put("totalUsd", Math.round(totalUsd * 100.0) / 100.0)
+            .put("paidUsd", 0).put("origin", "POS").put("concept", "Venta rápida (App)")
+            .put("movementIds", JSONArray()).put("payments", JSONArray())
+            .put("createdAt", System.currentTimeMillis()).put("createdBy", (prefs.getString("user", "App") ?: "App") + " (App)")
+            .put("deletedAt", JSONObject.NULL))
+        stateFile.writeText(state.toString())
+        val r = call("/state", "PUT", JSONObject().put("version", version()).put("state", state))
+        when {
+            r.ok -> { prefs.edit().putInt("version", r.body.optInt("version")).apply(); lastLocalSig = localSig(); null }
+            r.code == 401 -> { expired("La sesión del servidor caducó. Vuelve a entrar."); "Sesión caducada." }
+            else -> "Fiado no registrado: ${r.error}"
+        }
+    }
+
+    fun customerBalance(customerId: String): Double =
+        credits().filter { it.customerId == customerId }.sumOf { it.pending }
+
+    /**
+     * Registra un abono sobre un fiado editando el JSON compartido y forzando la subida.
+     * No crea tablas nuevas: `customers`/`credits` viajan dentro del estado del servidor.
+     */
+    suspend fun addCreditPayment(creditId: String, amountUsd: Double, method: String = "EFECTIVO"): String? = mutex.withLock {
+        if (!isConnected() || !stateFile.exists()) return@withLock "Sin conexión con el servidor."
+        if (amountUsd <= 0) return@withLock "El abono debe ser mayor que cero."
+        val state = JSONObject(stateFile.readText())
+        val arr = state.optJSONArray("credits") ?: return@withLock "No hay fiados en el servidor."
+        val credit = arr.objects().firstOrNull { it.str("id") == creditId } ?: return@withLock "Fiado no encontrado."
+        val pending = credit.num("totalUsd") - credit.num("paidUsd")
+        if (amountUsd > pending + 1e-9) return@withLock "El abono supera lo pendiente."
+        val payments = credit.optJSONArray("payments") ?: JSONArray().also { credit.put("payments", it) }
+        payments.put(JSONObject()
+            .put("id", newId("pay")).put("date", LocalDate.now().toString()).put("amountUsd", amountUsd)
+            .put("method", method).put("notes", "Abono desde la App")
+            .put("userName", (prefs.getString("user", "App") ?: "App") + " (App)").put("createdAt", System.currentTimeMillis()))
+        credit.put("paidUsd", Math.round((credit.num("paidUsd") + amountUsd) * 100.0) / 100.0)
+        credit.put("updatedAt", System.currentTimeMillis())
+        stateFile.writeText(state.toString())
+        val r = call("/state", "PUT", JSONObject().put("version", version()).put("state", state))
+        when {
+            r.ok -> { prefs.edit().putInt("version", r.body.optInt("version")).apply(); lastLocalSig = localSig(); null }
+            r.code == 401 -> { expired("La sesión del servidor caducó. Vuelve a entrar."); "Sesión caducada." }
+            else -> r.error
+        }
+    }
+
     // ------------------------------------------------------------------ pull
     suspend fun pull(force: Boolean = false): Unit = mutex.withLock {
         if (!isConnected()) return@withLock
@@ -264,7 +352,8 @@ class SyncManager @Inject constructor(
                         name = p.str("name"), stockInicial = p.num("stockInicial"), stockActual = p.num("stockActual"),
                         precioVentaUsd = p.num("precioVentaUsd"), comisionCup = p.num("comisionCup"), minStock = p.num("minStock"),
                         category = p.str("category").ifBlank { "General" }, precioCostoUsd = p.num("precioCostoUsd"),
-                        precioVenta2Usd = p.num("precioVenta2Usd"), observaciones = p.str("observaciones"), remoteId = p.str("id")
+                        precioVenta2Usd = p.num("precioVenta2Usd"), observaciones = p.str("observaciones"), remoteId = p.str("id"),
+                        barcode = p.str("barcode")
                     )
                     val id = db.products().insert(e)
                     byRemote[e.remoteId!!] = e.copy(id = id)
@@ -328,7 +417,7 @@ class SyncManager @Inject constructor(
     /** Firma del contenido sincronizable de Room, para detectar cambios hechos en la App. */
     private suspend fun localSig(): String {
         val sb = StringBuilder()
-        db.products().all().sortedBy { it.id }.forEach { sb.append(listOf(it.remoteId, it.name, it.category, it.stockInicial, it.precioVentaUsd, it.precioVenta2Usd, it.precioCostoUsd, it.comisionCup, it.minStock, it.observaciones, it.active).joinToString("|")).append('\n') }
+        db.products().all().sortedBy { it.id }.forEach { sb.append(listOf(it.remoteId, it.name, it.category, it.stockInicial, it.precioVentaUsd, it.precioVenta2Usd, it.precioCostoUsd, it.comisionCup, it.minStock, it.observaciones, it.barcode, it.active).joinToString("|")).append('\n') }
         db.movements().all().forEach { sb.append(listOf(it.remoteId, it.productId, it.dateEpoch, it.type, it.quantity, it.unitPriceUsd, it.unitCostUsd, it.importeUsd, it.comisionCup, it.center, it.notes).joinToString("|")).append('\n') }
         db.cuadre().all().sortedBy { it.dateEpoch }.forEach { sb.append(it.copy(id = 0, userId = 0, closed = false).toString()).append('\n') }
         db.exchange().all().forEach { sb.append(listOf(it.remoteId, it.pair, it.rate, it.dateEpoch).joinToString("|")).append('\n') }
@@ -368,7 +457,7 @@ class SyncManager @Inject constructor(
                 jProducts.put(JSONObject().put("id", id).put("name", p.name).put("category", p.category).put("stockInicial", p.stockInicial)
                     .put("stockActual", p.stockActual).put("precioVentaUsd", p.precioVentaUsd).put("precioVenta2Usd", p.precioVenta2Usd)
                     .put("precioCostoUsd", p.precioCostoUsd).put("comisionCup", p.comisionCup).put("minStock", p.minStock)
-                    .put("observaciones", p.observaciones).put("image", JSONObject.NULL).put("deletedAt", JSONObject.NULL).put("createdAt", now).put("updatedAt", now))
+                    .put("observaciones", p.observaciones).put("barcode", p.barcode).put("image", JSONObject.NULL).put("deletedAt", JSONObject.NULL).put("createdAt", now).put("updatedAt", now))
                 db.products().setRemoteId(p.id, id); remoteOfLocal[p.id] = id; changes += "nuevo producto ${p.name}"
                 continue
             }
@@ -399,7 +488,7 @@ class SyncManager @Inject constructor(
             // El stock actual solo lo sube quien puede mover inventario (el Económico no puede tocar productos en el servidor)
             if (prefs.getString("role", "") != "ECONOMICO" && kotlin.math.abs(o.num("stockActual") - p.stockActual) > 1e-6) { o.put("stockActual", p.stockActual); changed = true }
             set("precioVentaUsd", p.precioVentaUsd); set("precioVenta2Usd", p.precioVenta2Usd); set("precioCostoUsd", p.precioCostoUsd)
-            set("comisionCup", p.comisionCup); set("minStock", p.minStock); set("observaciones", p.observaciones)
+            set("comisionCup", p.comisionCup); set("minStock", p.minStock); set("observaciones", p.observaciones); set("barcode", p.barcode)
             if (changed) { o.put("updatedAt", now); changes += "producto ${p.name}" }
         }
         // Productos que ya no existen en el teléfono = eliminados definitivamente (con sus movimientos)

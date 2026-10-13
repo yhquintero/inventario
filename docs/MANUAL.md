@@ -11,7 +11,9 @@
 
 ## Inventario
 
-El catálogo inicial procede de `CUADRE PINAR SEPT.xlsx` (hoja `25 9 26`). Los libros NOVA agregan o actualizan productos al importar sus hojas diarias. Pulsa un producto para editar nombre, stock inicial, precio USD y comisión CUP. El stock actual lo mueven las operaciones, no el formulario.
+El catálogo inicial procede de `NovaGest SEPT.xlsx` (hoja `25 9 26`).
+
+Cada producto puede llevar un **código de barras** único: escríbelo al crear/editar el producto y luego véndelo escaneándolo en Venta rápida (lector USB/Bluetooth o cámara). Los libros NOVA agregan o actualizan productos al importar sus hojas diarias. Pulsa un producto para editar nombre, stock inicial, precio USD y comisión CUP. El stock actual lo mueven las operaciones, no el formulario.
 
 ## Almacenes
 
@@ -45,7 +47,7 @@ Guía completa: `docs/ALMACENES.md`. Pruebas de la lógica: `node tools/test_alm
 
 - **PCH.xlsx**: en Importar valores, sube el libro, selecciona Pinar del Río, Consolación o Herradura y revisa la existencia antes de aplicar. Los nombres repetidos dentro de una ubicación suman stock; no se importan precios.
 - **RESUMEN POR SEMANA PINAR.xlsx**: desde Informe semanal, selecciona Importar resumen Excel. El año se muestra en la vista previa; las cifras se guardan como referencia y no sustituyen el cálculo de la aplicación.
-- **CUADRE PINAR SEPT.xlsx**: desde Copias, sube el libro, revisa las hojas con fecha y selecciona las que quieras importar al almacén. Se aplican cronológicamente; se importan existencias, movimientos, tasa y panel diario. Las diferencias de apertura/cierre se anotan como ajustes explícitos.
+- **NovaGest SEPT.xlsx**: desde Copias, sube el libro, revisa las hojas con fecha y selecciona las que quieras importar al almacén. Se aplican cronológicamente; se importan existencias, movimientos, tasa y panel diario. Las diferencias de apertura/cierre se anotan como ajustes explícitos.
 - **NOVA PINAR / CONSOLACION / HERRADURA.xlsx**: desde Copias, sube el libro para analizar todas sus hojas diarias. Revisa el almacén, corrige fechas incompletas y cambia o excluye una de las hojas que repita fecha. La aplicación bloquea la importación si queda una fecha vacía o duplicada. Las ventas conservan el importe USD, costo unitario y comisión CUP del Excel; el informe muestra las diferencias entre el detalle, el panel financiero y el saldo de existencias.
 
 Reimportar el mismo archivo y hoja reemplaza ese lote incluso si se corrigió su fecha. No se debe asignar la fecha únicamente a partir del número de pestaña.
@@ -72,4 +74,19 @@ El resumen semanal conserva gastos fijos introducidos manualmente y admite impor
 
 ## Copias
 
-En Android las copias se cifran (AES-GCM) y WorkManager programa una automática cada 24 h. En Web, Copias permite exportar/restaurar JSON y cargar los libros diarios CUADRE PINAR y NOVA desde `xlsx/` (seleccionados explícitamente por quien importa).
+En Android las copias se cifran (AES-GCM) y WorkManager programa una automática cada 24 h. En Web, Copias permite exportar/restaurar JSON y cargar los libros diarios NovaGest y NOVA desde `xlsx/` (seleccionados explícitamente por quien importa).
+
+
+## 🤝 Clientes y fiados
+
+En **Clientes y fiados** das de alta clientes (nombre, teléfono, correo, dirección y **límite de crédito** en USD). Un cliente puede deber en varios fiados; el saldo de cada uno es *total − abonado* y su estado se calcula solo: **pendiente**, **parcial**, **vencido** (pasó su fecha de vencimiento) o **pagado**.
+
+- **Fiado manual**: botón «＋ Fiado» sobre un cliente, con importe, fecha, vencimiento y concepto.
+- **Fiado desde Venta rápida**: elige **Fiado**, el cliente y el vencimiento; al cobrar se valida el límite, se descuenta el stock y el fiado queda enlazado a la venta.
+- **Abonos**: botón «Abonar» en cada fiado; cada cobro queda en el historial con fecha, método y quién lo registró. No se puede abonar más de lo pendiente ni borrar un fiado con abonos.
+- En el **Cuadre** anota el pendiente en **«Por cobrar»** como ayuda de caja: no se suma dos veces a la venta.
+- Exporta clientes y fiados a CSV desde la misma pantalla.
+
+## 🔐 Licencia por término (WhatsApp)
+
+Si la licencia vence o aún no tienes una: escribe tu **nombre o empresa**, elige el **plazo** (día, semana, mes, trimestre, semestre, año, 2 años o permanente), pulsa **Solicitar por WhatsApp** y envía el mensaje (ya trae tu ID de dispositivo). Cuando recibas la clave `NG-…`, pégala en «Activar Licencia» y pulsa **Activar ahora**.

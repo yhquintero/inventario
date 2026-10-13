@@ -6,6 +6,8 @@ export const NAV_TIPS = {
   warehouses: "Crea almacenes por su nombre, mira cada entrada que se ha hecho y pasa mercancía de uno a otro con un traspaso.",
   importValues: "Entra valores (existencia, precios, costos y comisión) al almacén que elijas: pega del Excel, sube un archivo o escribe en la tabla.",
   movements: "Ventas, entradas y salidas. Cada movimiento actualiza el stock automáticamente. Atajo: M.",
+  pos: "Venta rápida con escáner de códigos de barras (cámara o lector USB) y cobro contado o a fiado.",
+  customers: "Clientes, fiados (por cobrar), límites de crédito y abonos con historial.",
   cuadre: "Cuadre del día igual que el Excel. Debe quedar en 0 para estar cuadrado.",
   weekly: "Informe semanal: ventas, costo, utilidad bruta, gastos y utilidad neta.",
   reports: "Comprobación de stock por período: inicial − ventas + entradas − salidas.",
@@ -174,7 +176,7 @@ function showStep() {
   document.body.appendChild(wrap);
 }
 export const tourSeen = () => {
-  try { // migra la marca heredada de Cuadre Pinar
+  try { // migra la marca heredada
     if (localStorage.getItem("cuadrepinar.tour")) { localStorage.setItem("novagest.tour", "1"); localStorage.removeItem("cuadrepinar.tour"); }
   } catch {}
   return !!localStorage.getItem("novagest.tour");

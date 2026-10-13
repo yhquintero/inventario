@@ -70,14 +70,14 @@ globalThis.fetch = async (url, opts = {}) => {
   fetchCalls.push({ url: u, method: (opts.method || "GET").toUpperCase() });
   let data = {};
   if (u.includes("/api/license/status")) {
-    data = { valid: true, hasLicense: true, clientName: "Prueba", product: "Cuadre Pinar", type: "FULL", daysLeft: -1 };
+    data = { valid: true, hasLicense: true, clientName: "Prueba", product: "NovaGest", type: "FULL", daysLeft: -1, whatsapp: "5355551234", terms: [{ id: "MES", label: "1 mes", days: 30, type: "FULL" }, { id: "ANIO", label: "1 año", days: 365, type: "FULL" }, { id: "PERMANENTE", label: "Permanente", days: 0, type: "LIFETIME" }] };
   } else if (u.includes("/api/license/info")) {
     data = {
       licenses: [
-        { id: 1, key: "CP-AAAA.BBBB", keyPreview: "CP-AAAA...BBBB", client_name: "Cliente Uno", product: "Cuadre Pinar", type: "ENTERPRISE", issued_at: 1700000000, expires_at: 0, active: 1, max_users: 20, max_devices: 10 },
-        { id: 2, key: "CP-CCCC.DDDD", keyPreview: "CP-CCCC...DDDD", client_name: "Cliente Dos", product: "Cuadre Pinar", type: "TRIAL", issued_at: 1700000000, expires_at: 4102444800, active: 0, max_users: 5, max_devices: 3 },
+        { id: 1, key: "CP-AAAA.BBBB", keyPreview: "CP-AAAA...BBBB", client_name: "Cliente Uno", product: "NovaGest", type: "ENTERPRISE", issued_at: 1700000000, expires_at: 0, active: 1, max_users: 20, max_devices: 10 },
+        { id: 2, key: "CP-CCCC.DDDD", keyPreview: "CP-CCCC...DDDD", client_name: "Cliente Dos", product: "NovaGest", type: "TRIAL", issued_at: 1700000000, expires_at: 4102444800, active: 0, max_users: 5, max_devices: 3 },
       ],
-      activations: [], active: { valid: true }, product: "Cuadre Pinar",
+      activations: [], active: { valid: true }, product: "NovaGest",
     };
   } else if (u.includes("/api/license/delete-all")) {
     data = { ok: true, deleted: 2, activations: 0 };
@@ -94,7 +94,7 @@ globalThis.URL.revokeObjectURL = () => {};
 const { store } = await import(pathToFileURL(join(tmp, "js/store.js")).href);
 const state = {
   products: [
-    { id: "p1", name: "PANEL SOLAR 500W", category: "Solar / Energía", stockInicial: 15, stockActual: 15, stocks: { w1: 12, w2: 3 }, stocksInicial: { w1: 15, w2: 0 }, precioVentaUsd: 100, precioVenta2Usd: 0, precioCostoUsd: 60, comisionCup: 5, minStock: 1, observaciones: "", deletedAt: null, createdAt: 1 },
+    { id: "p1", name: "PANEL SOLAR 500W", category: "Solar / Energía", stockInicial: 15, stockActual: 15, stocks: { w1: 12, w2: 3 }, stocksInicial: { w1: 15, w2: 0 }, precioVentaUsd: 100, precioVenta2Usd: 0, precioCostoUsd: 60, comisionCup: 5, minStock: 1, observaciones: "", barcode: "7501234567890", deletedAt: null, createdAt: 1 },
     { id: "p2", name: "NEVERA 11 PIES", category: "Refrigeración", stockInicial: 4, stockActual: 3, stocks: { w1: 3, w2: 0 }, stocksInicial: { w1: 4, w2: 0 }, precioVentaUsd: 900, precioVenta2Usd: 0, precioCostoUsd: 700, comisionCup: 20, minStock: 1, observaciones: "", deletedAt: null, createdAt: 2 },
   ],
   movements: [
@@ -108,6 +108,12 @@ const state = {
   warehouseEntries: [
     { id: "e1", ts: 2, date: "2026-09-01", warehouseId: "w1", warehouseName: "ALMACÉN PRINCIPAL", kind: "CREACION", source: "manual", summary: "Almacén «ALMACÉN PRINCIPAL» creado", items: [], counts: {}, userName: "admin", undoneAt: null },
     { id: "e2", ts: 3, date: "2026-09-02", warehouseId: "w2", warehouseName: "TIENDA PINAR", kind: "VALORES", source: "pegado", summary: "Entrada de valores en «TIENDA PINAR»: 2 cambios", items: [{ productId: "p1", productName: "PANEL SOLAR 500W", warehouseId: "w2", warehouseName: "TIENDA PINAR", field: "stock", old: 0, new: 3 }], counts: { cambios: 1 }, userName: "almacenero", undoneAt: null },
+  ],
+  customers: [
+    { id: "c1", name: "María Pérez", phone: "555-1234", email: "", address: "", notes: "", creditLimitUsd: 500, deletedAt: null, createdAt: 1 },
+  ],
+  credits: [
+    { id: "cr1", customerId: "c1", customerName: "María Pérez", date: "2026-09-20", dueDate: "2026-09-25", totalUsd: 200, paidUsd: 50, origin: "MANUAL", concept: "Panel a crédito", movementIds: [], payments: [{ id: "pay1", date: "2026-09-21", amountUsd: 50, method: "EFECTIVO" }], deletedAt: null, createdAt: 2 },
   ],
   settings: { theme: "light", businessName: "NovaGest", comisionSoloGestor: false, lowStockAlerts: true, goalDaily: 1000, goalWeekly: 6000, sessionMinutes: 20, defaultCupUsd: 750 },
   session: { id: 1, username: "admin", displayName: "Yosvany", role: "ADMINISTRADOR", totpEnabled: false },
@@ -413,6 +419,45 @@ test("El rol JEFE puede ver las licencias pero no eliminarlas", () => {
 });
 
 /* ----------------------------- PWA sin conexión y metadatos ----------------------------- */
+console.log("\nWeb · NovaGest v1.0.0 · Licencia WhatsApp, escáner, clientes y fiados\n");
+
+test("Clientes y fiados: saldo, estados y abonos visibles", () => {
+  const html = go("customers");
+  assert.match(html, /Clientes y fiados/);
+  assert.match(html, /María Pérez/);
+  assert.match(html, /Por cobrar/);
+  assert.match(html, /Con deuda/);
+  assert.match(html, /data-act="export-customers"/);
+  app.dispatch("click", { target: { closest: () => ({ dataset: { custTab: "fiados" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+  assert.match(app.innerHTML, /VENCIDO|PARCIAL/);
+  assert.match(app.innerHTML, /data-pay-credit="cr1"/);
+  assert.match(app.innerHTML, /data-act="export-credits"/);
+  app.dispatch("click", { target: { closest: () => ({ dataset: { payCredit: "cr1" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+  assert.match(app.innerHTML, /creditPayForm/);
+  assert.match(app.innerHTML, /Registrar abono/);
+});
+
+test("Venta rápida: escáner, código de barras y cobro a fiado", () => {
+  const html = go("pos");
+  assert.match(html, /id="barcodeInput"/);
+  assert.match(html, /data-act="scan-camera"/);
+  assert.match(html, /Fiado/);
+  getEl("posPayment").value = "FIADO";
+  getEl("posPayment").dispatch("change", { target: getEl("posPayment") });
+  assert.match(app.innerHTML, /posCustomer/);
+  const inv = go("inventory");
+  assert.match(inv, /7501234567890/);
+  assert.match(inv, /data-act="scan-inventory"/);
+});
+
+test("Licencia: solicitud por WhatsApp con plazos y paso de activación", () => {
+  const html = go("settings");
+  assert.match(html, /Renovar por WhatsApp|Solicitar.*WhatsApp/);
+  assert.match(html, /data-act="license-whatsapp"/);
+  assert.match(html, /data-lic-term=/);
+  assert.match(html, /Web v1\.0\.0/);
+});
+
 console.log("\nWeb · PWA sin conexión y metadatos\n");
 
 test("El service worker cachea todos los módulos JS para el modo sin conexión", () => {

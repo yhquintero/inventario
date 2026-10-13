@@ -1,4 +1,44 @@
-# Registro de cambios
+# NovaGest — Registro de cambios
+
+## NovaGest v1.0.0 — 2026-10-12 · Licencia por WhatsApp, escáner y fiados
+
+Primera versión única de la plataforma: Web, Android y servidor comparten **v1.0.0**
+(Android `versionCode 5`). Desaparece la marca «Cuadre Pinar» de todo lo visible
+(PDF, semillas, documentos y textos); se conserva la compatibilidad silenciosa con
+datos y licencias anteriores (`CP-`, `cuadrepinar.*`, `data/cuadre.db`, nombre heredado
+del libro y `sourceFormat:"pinar"`). «Pinar» como topónimo (Pinar del Río, libros NOVA)
+no cambia.
+
+### Licencia por término solicitada por WhatsApp
+- Plazos elegibles por el cliente: 1 día, 1 semana, 1 mes, 3 meses, 6 meses, 1 año,
+  2 años o permanente — el mismo flujo de DrywallMaterialsCalculator adaptado a la
+  firma HMAC `NG-` de NovaGest.
+- Web y Android: tarjeta «Solicitar licencia por WhatsApp» con nombre/empresa, ID de
+  dispositivo con copiar, selector de plazo y botón WhatsApp; después se pega la clave
+  recibida y se activa.
+- Servidor: `GET /api/license/status` e `info` publican plazos y número configurables
+  (`LICENSE_WHATSAPP` / `NOVAGEST_WHATSAPP` / `WHATSAPP_NUMBER`); sin número, WhatsApp
+  se abre para elegir contacto. `POST /api/license/generate` y
+  `tools/generate_license.py --term` aceptan el plazo (manda sobre tipo/días).
+
+### Escáner de códigos de barras
+- Campo `barcode` único por producto (Web y Android, Room v5 con `MIGRATION_4_5`).
+- Venta rápida Web: lector USB/Bluetooth (escribe el código y Enter) y cámara con
+  `BarcodeDetector` cuando el navegador lo soporta; código desconocido ofrece crear
+  el producto con el código precargado. Android: entrada wedge/manual y búsqueda por código.
+
+### Clientes y fiados (Prioridad 1 del roadmap)
+- Colecciones `customers` y `credits` en el estado compartido, con permisos por rol
+  en servidor y cliente; un guardado parcial nunca las borra.
+- Saldo derivado (total − abonado), límite de crédito, estados
+  pendiente/parcial/vencido/pagado, abonos con historial y auditoría.
+- Venta rápida a **fiado**: valida cliente y límite antes de vender, descuenta stock
+  y crea el fiado enlazado a la venta (Web y Android). Android consulta clientes y
+  registra abonos sobre el mismo JSON compartido.
+
+### Pruebas
+- Nueva suite `tools/test_customers_credits.mjs` (8) y suites existentes en verde:
+  Excel (10), almacenes (14) y smoke Web (33).
 
 ## Web v6.1.0 · Android 1.3.0 — 2026-10-12 · Identificadores NovaGest
 

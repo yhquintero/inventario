@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 """
-Generador de licencias de uso para NovaGest.
+Generador de licencias de uso para NovaGest v1.0.0.
 Uso:
-  python3 tools/generate_license.py --client "Tienda Pinar" --type FULL --days 365 --users 20 --devices 10
+  python3 tools/generate_license.py --client "Mi Tienda" --term MES
+  python3 tools/generate_license.py --client "Mi Tienda" --type FULL --days 365 --users 20 --devices 10
   python3 tools/generate_license.py --client "Demo" --type TRIAL --days 15
 
+Licencia por término (--term): DIA=1, SEMANA=7, MES=30, TRIMESTRE=90,
+SEMESTRE=180, ANIO=365, DOS_ANIOS=730, PERMANENTE=0 (LIFETIME).
+Son los mismos plazos que el cliente elige al solicitarla por WhatsApp.
 La licencia es un token firmado HMAC-SHA256 con el secreto de licencia (LICENSE_SECRET, BACKUP_KEY o data/license.key).
 El servidor verifica la firma en /api/license/activate.
 """
+
+TERMS = {
+    "DIA": (1, "FULL"), "SEMANA": (7, "FULL"), "MES": (30, "FULL"),
+    "TRIMESTRE": (90, "FULL"), "SEMESTRE": (180, "FULL"), "ANIO": (365, "FULL"),
+    "DOS_ANIOS": (730, "FULL"), "PERMANENTE": (0, "LIFETIME"),
+}
 import argparse, base64, json, os, sys, hmac, hashlib, secrets, time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -61,12 +71,15 @@ def main():
     p = argparse.ArgumentParser(description="Generador de licencias NovaGest")
     p.add_argument("--client", default="NovaGest", help="Nombre del cliente")
     p.add_argument("--product", default="NovaGest", help="Producto")
+    p.add_argument("--term", default=None, choices=list(TERMS), help="Plazo de la licencia (manda sobre --type/--days)")
     p.add_argument("--type", default="FULL", choices=["TRIAL","FULL","ENTERPRISE","LIFETIME"], help="Tipo de licencia")
     p.add_argument("--days", type=int, default=365, help="Días de validez (0=permanente)")
     p.add_argument("--users", type=int, default=20, help="Máx usuarios")
     p.add_argument("--devices", type=int, default=10, help="Máx dispositivos")
     p.add_argument("--features", default="*", help="Features separadas por coma, * = todas")
     args = p.parse_args()
+    if args.term:
+        args.days, args.type = TERMS[args.term]
 
     issued = int(time.time())
     expires = 0 if args.days == 0 else issued + args.days * 86400

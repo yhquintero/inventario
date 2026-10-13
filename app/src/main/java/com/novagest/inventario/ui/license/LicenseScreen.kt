@@ -58,6 +58,9 @@ class LicenseViewModel @Inject constructor(
     val state: StateFlow<LicenseUiState> = _state
 
     fun server(): String = sync.server()
+    fun deviceId(): String = licenseManager.deviceId()
+    fun whatsappUrl(name: String, term: com.novagest.inventario.security.LicenseTerm, whatsapp: String): String =
+        licenseManager.whatsappLicenseUrl(name, term, whatsapp)
 
     fun check() {
         viewModelScope.launch {
@@ -147,10 +150,50 @@ fun LicenseScreen(
 
             Spacer(Modifier.height(16.dp))
 
+            // 1 · Solicitar licencia por término vía WhatsApp (patrón DrywallMaterialsCalculator)
+            var reqName by remember { mutableStateOf("") }
+            val terms = st?.terms?.takeIf { it.isNotEmpty() } ?: com.novagest.inventario.security.LicenseManager.DEFAULT_TERMS
+            var reqTerm by remember { mutableStateOf(terms.firstOrNull { it.id == "MES" } ?: terms.first()) }
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("1 · Solicitar licencia por WhatsApp", style = MaterialTheme.typography.titleSmall)
+                    OutlinedTextField(reqName, { reqName = it }, label = { Text("Nombre o empresa") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("ID de dispositivo: ${vm.deviceId()}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        OutlinedButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(vm.deviceId())) }) { Text("Copiar") }
+                    }
+                    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        terms.take(4).forEach { t ->
+                            androidx.compose.material3.FilterChip(selected = reqTerm.id == t.id, onClick = { reqTerm = t }, label = { Text(t.label) })
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        terms.drop(4).forEach { t ->
+                            androidx.compose.material3.FilterChip(selected = reqTerm.id == t.id, onClick = { reqTerm = t }, label = { Text(t.label) })
+                        }
+                    }
+                    Button(
+                        onClick = {
+                            val url = vm.whatsappUrl(reqName.trim(), reqTerm, st?.whatsapp ?: "")
+                            runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))) }
+                        },
+                        enabled = reqName.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Solicitar por WhatsApp") }
+                    Text("Te enviaremos la clave firmada; pégala abajo para activar.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Text("2 · Activar licencia", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(8.dp))
+
             OutlinedTextField(
                 value = key,
                 onValueChange = { key = it },
-                label = { Text("Clave de licencia (CP-...)") },
+                label = { Text("Clave de licencia (NG-...)") },
                 placeholder = { Text("Pegue la clave completa con punto") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3

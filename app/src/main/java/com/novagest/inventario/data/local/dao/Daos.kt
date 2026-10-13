@@ -34,6 +34,9 @@ interface ProductDao {
     @Query("SELECT * FROM products WHERE name = :name COLLATE NOCASE LIMIT 1")
     suspend fun byName(name: String): ProductEntity?
 
+    @Query("SELECT * FROM products WHERE barcode = :barcode AND barcode <> '' AND active = 1 LIMIT 1")
+    suspend fun byBarcode(barcode: String): ProductEntity?
+
     @Query("SELECT * FROM products WHERE name LIKE '%' || :q || '%' COLLATE NOCASE ORDER BY name")
     suspend fun search(q: String): List<ProductEntity>
 
