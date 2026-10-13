@@ -123,22 +123,28 @@ fun ReportsScreen(user: UserAccount, vm: ReportsViewModel = hiltViewModel()) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         onClick = {
-                            DatePickerDialog(context, { _, year, month, day -> vm.setCustomFrom(LocalDate.of(year, month + 1, day)) },
-                                vm.fromDate.year, vm.fromDate.monthValue - 1, vm.fromDate.dayOfMonth).show()
+                            val dialog = DatePickerDialog(context, { _, year, month, day -> vm.setCustomFrom(LocalDate.of(year, month + 1, day)) },
+                                vm.fromDate.year, vm.fromDate.monthValue - 1, vm.fromDate.dayOfMonth)
+                            dialog.datePicker.maxDate = System.currentTimeMillis()
+                            dialog.show()
                         }, modifier = Modifier.weight(1f)
                     ) { Text("Desde ${Dates.format(Dates.startOfDay(vm.fromDate))}") }
                     OutlinedButton(
                         onClick = {
-                            DatePickerDialog(context, { _, year, month, day -> vm.setCustomTo(LocalDate.of(year, month + 1, day)) },
-                                vm.toDate.year, vm.toDate.monthValue - 1, vm.toDate.dayOfMonth).show()
+                            val dialog = DatePickerDialog(context, { _, year, month, day -> vm.setCustomTo(LocalDate.of(year, month + 1, day)) },
+                                vm.toDate.year, vm.toDate.monthValue - 1, vm.toDate.dayOfMonth)
+                            dialog.datePicker.maxDate = System.currentTimeMillis()
+                            dialog.show()
                         }, modifier = Modifier.weight(1f)
                     ) { Text("Hasta ${Dates.format(Dates.startOfDay(vm.toDate))}") }
                 }
             } else {
                 OutlinedButton(onClick = {
-                    DatePickerDialog(context, { _, year, month, day ->
+                    val dialog = DatePickerDialog(context, { _, year, month, day ->
                         vm.load(vm.period, LocalDate.of(year, month + 1, day))
-                    }, vm.anchorDate.year, vm.anchorDate.monthValue - 1, vm.anchorDate.dayOfMonth).show()
+                    }, vm.anchorDate.year, vm.anchorDate.monthValue - 1, vm.anchorDate.dayOfMonth)
+                    dialog.datePicker.maxDate = System.currentTimeMillis()
+                    dialog.show()
                 }) { Text("Fecha de referencia: ${Dates.format(Dates.startOfDay(vm.anchorDate))}") }
             }
             val label = "${Dates.format(Dates.startOfDay(range.first))} – ${Dates.format(Dates.startOfDay(range.second))}"

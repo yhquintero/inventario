@@ -447,7 +447,7 @@ function movementsView() {
     <div class="toolbar">
       <div class="chips">${["TODOS", "VENTA", "ENTRADA", "SALIDA"].map((t) => `<button class="chip ${ui.filter === t ? "on" : ""}" data-filter="${t}">${t}</button>`).join("")}</div>
       <div class="row">
-        <input type="date" id="movDate" class="sel" value="${ui.movDate}">${ui.movDate ? `<button class="btn ghost small" data-act="clear-date">Todas las fechas</button>` : ""}
+        <input type="date" id="movDate" class="sel" value="${ui.movDate}" max="${todayISO()}">${ui.movDate ? `<button class="btn ghost small" data-act="clear-date">Todas las fechas</button>` : ""}
         ${canC ? `<button class="btn" data-act="new-movement">＋ Nuevo movimiento</button>` : ""}
         <button class="btn ghost small" data-act="export-movements-view">CSV</button><button class="btn gold small" data-act="print">PDF</button>
       </div>
@@ -497,7 +497,7 @@ function cuadreView() {
     <div class="toolbar">
       <div class="row">
         <button class="btn ghost small" data-cdate="${addDays(date, -1)}">‹</button>
-        <input type="date" id="cuadreDate" class="sel" value="${date}">
+        <input type="date" id="cuadreDate" class="sel" value="${date}" max="${todayISO()}">
         <button class="btn ghost small" data-cdate="${addDays(date, 1)}">›</button>
         <span class="hint">${weekday(date)} ${formatDate(date)} ${c.imported ? "· importado del Excel" : ""}</span>
       </div>
@@ -675,7 +675,7 @@ function weeklyView() {
     <div class="toolbar">
       <div class="row">
         <button class="btn ghost small" data-wdate="${addDays(r.w.from, -7)}">‹ Semana anterior</button>
-        <input type="date" id="weekDate" class="sel" value="${anchor}">
+        <input type="date" id="weekDate" class="sel" value="${anchor}" max="${todayISO()}">
         <button class="btn ghost small" data-wdate="${addDays(r.w.from, 7)}">Semana siguiente ›</button>
       </div>
       <div class="row"><button class="btn ghost small" data-act="export-weekly">CSV</button>${canEdit ? `<button class="btn ghost small" data-act="weekly-summary-browse">📥 Importar resumen Excel</button><input type="file" id="weeklySummaryFile" accept=".xlsx,.xls" hidden>` : ""}<button class="btn gold small" data-act="print">Imprimir / PDF</button></div>
@@ -772,8 +772,8 @@ function reportsView() {
     ? (stockMismatch ? `<span class="tag salida">NOVA: ${stockMismatch} productos con diferencia</span>` : `<span class="tag entrada">NOVA: existencias cuadradas</span>`)
     : `<span class="tag mov">Sin cierre físico importado</span>`;
   const dateControls = ui.period === "período"
-    ? `<label>Desde<input type="date" id="reportFrom" value="${esc(ui.reportFrom)}"></label><label>Hasta<input type="date" id="reportTo" value="${esc(ui.reportTo)}"></label>`
-    : `<label>Fecha de referencia<input type="date" id="reportDate" value="${esc(anchor)}"></label>`;
+    ? `<label>Desde<input type="date" id="reportFrom" value="${esc(ui.reportFrom)}" max="${todayISO()}"></label><label>Hasta<input type="date" id="reportTo" value="${esc(ui.reportTo)}" max="${todayISO()}"></label>`
+    : `<label>Fecha de referencia<input type="date" id="reportDate" value="${esc(anchor)}" max="${todayISO()}"></label>`;
   const novaSection = novaReports.length ? `
     <div class="card table-wrap flush" style="margin-top:14px" id="novaDailyReports">
       <div class="card-h pad"><span class="k">Informes diarios NOVA · ${novaReports.length} hojas</span><span class="hint">Valores transcritos del Excel, sin sustituir el cálculo operacional</span></div>
@@ -1172,7 +1172,7 @@ function posView() {
             </div>`; }).join("") || `<div class="cart-empty">Toca un producto para empezar ✨</div>`}
         </div>
         <div class="form-grid">
-          <label>Fecha<input type="date" id="posDate" value="${ui.posDate || todayISO()}"></label>
+          <label>Fecha<input type="date" id="posDate" value="${ui.posDate || todayISO()}" max="${todayISO()}"></label>
           <label>Tipo<select id="posCenter">${["TIENDA", "GESTOR"].map((c) => `<option ${ui.posCenter === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
           <label class="span-2">Almacén<select id="posWh" data-tip="La venta descuenta del almacén elegido">${store.warehousesActive().map((w) => `<option value="${w.id}" ${w.id === wid ? "selected" : ""}>${esc(w.name)} · ${qty(store.warehouseStats(w).unidades)} uds</option>`).join("")}</select></label>
           <label class="span-2">Domicilio <small>CUP</small><input type="number" id="posDom" step="any" value="${ui.posDom || 0}"></label>
@@ -1353,7 +1353,7 @@ function novaImportModal() {
   const rows = records.map((record, index) => `<tr class="${conflicts.has(record.sheet) ? "warn-row" : ""}">
     <td><input type="checkbox" data-nova-selected="${index}" ${record.selected ? "checked" : ""} aria-label="Incluir hoja ${esc(record.sheet)}"></td>
     <td><b>${esc(record.sheet)}</b>${conflicts.has(record.sheet) ? `<div class="hint danger-t">Fecha duplicada</div>` : ""}</td>
-    <td><input type="date" class="cell" data-nova-date="${index}" value="${esc(record.date || "")}" aria-label="Fecha de la hoja ${esc(record.sheet)}"></td>
+    <td><input type="date" class="cell" data-nova-date="${index}" value="${esc(record.date || "")}" max="${todayISO()}" aria-label="Fecha de la hoja ${esc(record.sheet)}"></td>
     <td class="mono r">${qty(record.summary.productSalesUnits)}</td>
     <td class="mono r">${usd(record.finance.productSalesUsd)}</td>
     <td class="mono r">${usd(record.finance.declaredSalesUsd)}</td>
@@ -1650,7 +1650,7 @@ function transferModal({ fromId = null, productId = null } = {}) {
     </select></label>
     <div class="form-grid">
       <label>Cantidad <input name="qty" type="number" step="any" min="0" value="1" required></label>
-      <label>Fecha<input name="date" type="date" value="${todayISO()}"></label>
+      <label>Fecha<input name="date" type="date" value="${todayISO()}" max="${todayISO()}"></label>
       <label class="span-2">Nota <input name="note" placeholder="Ej.: pedido de la tienda"></label>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn">Traspasar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "transferForm", `data-from="${from.id}"`);
@@ -2006,7 +2006,7 @@ function movementModal(m = null, productId = null) {
       <label>TIPO<select name="center">${["TIENDA", "GESTOR", "MOV"].map((t) => `<option ${x.center === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       <label>ALMACÉN<select name="warehouseId">${whs.map((w) => `<option value="${w.id}" ${w.id === x.warehouseId ? "selected" : ""}>${esc(w.name)}</option>`).join("")}</select></label>
       <label>CANTIDAD <input name="quantity" type="number" step="any" min="0" value="${x.quantity}" required></label>
-      <label>Fecha <input name="date" type="date" value="${x.date}" required></label>
+      <label>Fecha <input name="date" type="date" value="${x.date}" required max="${todayISO()}"></label>
       <label>Precio unitario <small>USD (vacío = lista)</small><input name="unitPriceUsd" type="number" step="any" min="0" value="${m ? x.unitPriceUsd : ""}"></label>
       <label>Domicilio <small>CUP</small><input name="domicilioCup" type="number" step="any" min="0" value="${x.domicilioCup || 0}"></label>
     </div>
@@ -2022,7 +2022,7 @@ function rateModal(r = null) {
     <div class="form-grid">
       <label>Moneda<input name="currency" list="curList" value="${esc(x.currency)}" required><datalist id="curList">${CURRENCIES.map((c) => `<option>${c}</option>`).join("")}</datalist></label>
       <label>Valor en CUP<input name="rate" type="number" step="any" value="${x.rate}" required></label>
-      <label>Fecha<input name="date" type="date" value="${x.date}" required></label>
+      <label>Fecha<input name="date" type="date" value="${x.date}" required max="${todayISO()}"></label>
       <label>Nota<input name="note" value="${esc(x.note || "")}"></label>
     </div>
     <p class="hint">Si ya existe una tasa para esa moneda y fecha, se actualiza (una por día).</p>
