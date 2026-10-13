@@ -1,8 +1,10 @@
 /* Service worker: la interfaz abre al instante y sin conexión; los datos (/api) siempre van al servidor.
    v6: el caché del shell incluye TODOS los módulos de la app (antes faltaban excel-import.js,
    license.js y el lector XLSX, lo que rompía el modo sin conexión) y las imágenes se cachean
-   la primera vez que se usan. */
-const CACHE = "novagest-v9";
+   la primera vez que se usan.
+   v10: panel «Gestionar licencia» (estado, solicitudes, claves y equipos) y registro de las
+   solicitudes de licencia en el servidor. */
+const CACHE = "novagest-v10";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/ux.js",

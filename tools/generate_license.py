@@ -5,6 +5,8 @@ Uso:
   python3 tools/generate_license.py --client "Mi Tienda" --term MES
   python3 tools/generate_license.py --client "Mi Tienda" --type FULL --days 365 --users 20 --devices 10
   python3 tools/generate_license.py --client "Demo" --type TRIAL --days 15
+  python3 tools/generate_license.py --requests          # solicitudes recibidas por WhatsApp (Web/Android)
+  python3 tools/generate_license.py --request 3         # genera la clave de la solicitud #3 y la deja atendida
 
 Licencia por término (--term): DIA=1, SEMANA=7, MES=30, TRIMESTRE=90,
 SEMESTRE=180, ANIO=365, DOS_ANIOS=730, PERMANENTE=0 (LIFETIME).
@@ -18,7 +20,8 @@ TERMS = {
     "TRIMESTRE": (90, "FULL"), "SEMESTRE": (180, "FULL"), "ANIO": (365, "FULL"),
     "DOS_ANIOS": (730, "FULL"), "PERMANENTE": (0, "LIFETIME"),
 }
-import argparse, base64, json, os, sys, hmac, hashlib, secrets, time
+import argparse, base64, json, os, sqlite3, sys, hmac, hashlib, secrets, time
+from urllib.parse import quote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
@@ -67,6 +70,51 @@ def create_token(payload: dict) -> str:
     sig = sign(b64)
     return f"{b64}.{sig}"
 
+def db_path() -> str:
+    return os.path.join(DATA, "novagest.db")
+
+
+def db_rows(sql: str, args: tuple = ()):
+    """Lee de la base del servidor (solicitudes de licencia). Devuelve [] si no existe."""
+    if not os.path.exists(db_path()):
+        return []
+    con = sqlite3.connect(db_path(), timeout=10)
+    con.row_factory = sqlite3.Row
+    try:
+        return con.execute(sql, args).fetchall()
+    finally:
+        con.close()
+
+
+def db_exec(sql: str, args: tuple = ()):
+    if not os.path.exists(db_path()):
+        return
+    con = sqlite3.connect(db_path(), timeout=10)
+    try:
+        con.execute(sql, args)
+        con.commit()
+    finally:
+        con.close()
+
+
+def fmt_fecha(ts: int) -> str:
+    return time.strftime("%d/%m/%Y, %I:%M:%S %p", time.localtime(ts)) if ts else "—"
+
+
+def listar_solicitudes():
+    rows = db_rows("SELECT * FROM license_requests ORDER BY CASE status WHEN 'pendiente' THEN 0 ELSE 1 END, created_at DESC")
+    if not rows:
+        print("\nNo hay solicitudes de licencia registradas en " + db_path() + "\n")
+        return
+    pend = len([r for r in rows if (r["status"] or "pendiente") == "pendiente"])
+    print(f"\n=== Solicitudes de licencia ({len(rows)} · {pend} pendiente(s)) ===")
+    for r in rows:
+        print(f"\n#{r['id']}  [{r['status'] or 'pendiente'}]  {fmt_fecha(r['created_at'])}  ({r['channel'] or 'web'})")
+        print(f"   Usuario: {r['client_name']}   Plan: {r['term_label']} ({r['days']} días · {r['license_type']})")
+        print(f"   Dispositivo: {r['device_id']}   Teléfono: {r['phone'] or '—'}")
+    print("\nPara crear la clave de una solicitud:  python3 tools/generate_license.py --request <ID>\n")
+
+
 def main():
     p = argparse.ArgumentParser(description="Generador de licencias NovaGest")
     p.add_argument("--client", default="NovaGest", help="Nombre del cliente")
@@ -77,7 +125,22 @@ def main():
     p.add_argument("--users", type=int, default=20, help="Máx usuarios")
     p.add_argument("--devices", type=int, default=10, help="Máx dispositivos")
     p.add_argument("--features", default="*", help="Features separadas por coma, * = todas")
+    p.add_argument("--requests", action="store_true", help="Lista las solicitudes de licencia recibidas y termina")
+    p.add_argument("--request", type=int, default=None, help="Genera la clave de la solicitud con ese ID (marca la solicitud como atendida)")
     args = p.parse_args()
+    if args.requests:
+        listar_solicitudes()
+        return
+    solicitud = None
+    if args.request:
+        rows = db_rows("SELECT * FROM license_requests WHERE id=?", (args.request,))
+        if not rows:
+            sys.exit(f"No existe la solicitud #{args.request} en {db_path()}")
+        solicitud = rows[0]
+        # El cliente y el plazo salen de la propia solicitud
+        args.client = solicitud["client_name"]
+        term_id = (solicitud["term"] or "MES").upper()
+        args.term = term_id if term_id in TERMS else "MES"
     if args.term:
         args.days, args.type = TERMS[args.term]
 
@@ -112,7 +175,27 @@ def main():
     print("\n--- Payload ---")
     print(json.dumps(payload, indent=2, ensure_ascii=False))
     print("\nPara activar: POST /api/license/activate con {\"license_key\": \"<clave>\"}")
-    print("O pegar en la pantalla de licencia de la Web/App.\n")
+    print("O pegar en la pantalla de licencia de la Web/App.")
+    if solicitud:
+        telefono = (solicitud["phone"] or "").replace("+", "").strip()
+        mensaje = "\n".join([
+            f"🔐 Tu Licencia de NovaGest ya está lista.",
+            "",
+            f"👤 Usuario: {payload['client_name']}",
+            f"📅 Plan: {solicitud['term_label']} · {payload['type']}",
+            f"⏳ Vigencia: {'Permanente' if expires == 0 else time.strftime('%d/%m/%Y', time.localtime(expires))}",
+            "",
+            "Pega esta clave en la App en «Licencia de uso → Activar licencia»:",
+            "",
+            token,
+        ])
+        db_exec("UPDATE license_requests SET status='atendida', handled_at=?, handled_by='generate_license.py', license_preview=? WHERE id=?",
+                (int(time.time()), pretty[:18] + "…" + pretty[-8:], solicitud["id"]))
+        print(f"\nSolicitud #{solicitud['id']} de {payload['client_name']} marcada como ATENDIDA.")
+        if telefono:
+            print(f"\nEnviar por WhatsApp a {telefono}:")
+            print(f"  https://wa.me/{telefono}?text={quote(mensaje)}")
+    print()
 
 if __name__ == "__main__":
     main()

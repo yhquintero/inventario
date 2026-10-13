@@ -216,6 +216,21 @@ export function licenseRequestMessage({ name, device, term, product = "NovaGest"
   ].join("\n");
 }
 
+/** Mensaje con la clave ya generada, para enviársela al cliente. */
+export function licenseKeyMessage({ clientName, key, term, expiresText, product = "NovaGest" }) {
+  const t = typeof term === "string" ? licenseTerm(term) : term;
+  const plan = t ? `${t.label}${t.days ? ` (${t.days} días)` : ""} · ${t.type}` : "";
+  const lines = [
+    `🔐 Tu Licencia de ${product} ya está lista.`,
+    "",
+    `👤 Usuario: ${String(clientName || "").trim()}`,
+  ];
+  if (plan) lines.push(`📅 Plan: ${plan}`);
+  if (expiresText) lines.push(`⏳ Vigencia: ${expiresText}`);
+  lines.push("", "Pega esta clave en la App en «Licencia de uso → Activar licencia»:", "", String(key || "").trim());
+  return lines.join("\n");
+}
+
 /** URL de WhatsApp: wa.me/<número> si el servidor configuró uno; si no, selector de contacto. */
 export function whatsappLicenseUrl(message, whatsapp = "") {
   const num = String(whatsapp || "").replace(/\D/g, "");
@@ -223,14 +238,52 @@ export function whatsappLicenseUrl(message, whatsapp = "") {
   return num ? `https://wa.me/${num}?text=${text}` : `https://api.whatsapp.com/send?text=${text}`;
 }
 
-export function requestLicenseByWhatsApp({ name, term, status } = {}) {
+/**
+ * Registra la solicitud en el servidor para que aparezca en «Gestionar → Solicitudes»
+ * (Web y Android). Si no hay conexión, la solicitud se envía igual por WhatsApp.
+ */
+export async function submitLicenseRequest({ name, term, phone = "", status, channel = "web", message } = {}) {
+  const t = typeof term === "string" ? licenseTerm(term) : term;
+  const device = deviceId();
+  const product = status?.product || "NovaGest";
+  const version = status?.version || "1.0.0";
+  const body = {
+    client_name: String(name || "").trim(),
+    device_id: device,
+    device_info: (navigator?.userAgent || "").slice(0, 300),
+    term: t.id,
+    phone: String(phone || "").trim(),
+    channel,
+    product,
+    version,
+    message: message || licenseRequestMessage({ name, device, term: t, product, version }),
+  };
+  try {
+    const r = await fetch("/api/license/request", {
+      method: "POST",
+      headers: { "X-CP": "1", "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(body),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data.ok) return { ok: true, id: data.id, duplicate: !!data.duplicate, request: data.request, whatsapp: data.whatsapp || "" };
+    return { ok: false, error: data.error || `Error ${r.status}` };
+  } catch {
+    return { ok: false, error: "Sin conexión: la solicitud se abrirá igual en WhatsApp." };
+  }
+}
+
+export function requestLicenseByWhatsApp({ name, term, phone = "", status } = {}) {
+  const t = typeof term === "string" ? licenseTerm(term) : term;
   const msg = licenseRequestMessage({
-    name, device: deviceId(), term,
+    name, device: deviceId(), term: t,
     product: status?.product || "NovaGest", version: status?.version || "1.0.0",
   });
   const url = whatsappLicenseUrl(msg, status?.whatsapp || "");
+  // Abre WhatsApp de forma síncrona (dentro del clic) para que el navegador no lo bloquee
   window.open(url, "_blank", "noopener");
-  return url;
+  // …y registra la solicitud en el servidor en paralelo
+  return submitLicenseRequest({ name, term: t, phone, status, message: msg }).then((r) => ({ url, message: msg, ...r }));
 }
 
 export const LicenseManager = {
@@ -247,6 +300,8 @@ export const LicenseManager = {
   term: licenseTerm,
   serverTerms,
   requestMessage: licenseRequestMessage,
+  keyMessage: licenseKeyMessage,
   whatsappUrl: whatsappLicenseUrl,
   requestByWhatsApp: requestLicenseByWhatsApp,
+  submitRequest: submitLicenseRequest,
 };

@@ -1,5 +1,53 @@
 # NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-13 · Panel «Gestionar licencia» y solicitudes registradas
+
+El botón **Gestionar** de Ajustes → Licencia de Uso ya no se limita a volver a verificar
+el estado: abre un panel completo de administración de la licencia (Web) y cada solicitud
+de licencia enviada por WhatsApp queda registrada en el servidor.
+
+### Panel 🔐 Gestionar licencia (Web)
+- Se abre desde el botón 🔐 de la barra superior (con indicador de solicitudes pendientes)
+  o desde Ajustes → Licencia de Uso → **Gestionar licencia**, y vive en su propia ruta
+  `#license` sin ocupar sitio en el menú.
+- Pestaña **Estado**: cliente, producto, plan, vencimiento, días restantes, límites, ID de
+  licencia y de dispositivo, activación/renovación de una clave y solicitud de renovación
+  por WhatsApp.
+- Pestaña **Solicitudes**: las peticiones recibidas desde la Web y la app Android con su
+  fecha, usuario, teléfono, ID de dispositivo, plan y estado; muestra el **mensaje tal cual
+  se envió**, permite descartar/reabrir/eliminar y **crear la clave en un clic** con el
+  nombre y el plazo pedidos (la solicitud queda atendida).
+- Pestaña **Generar clave**: los 8 plazos del flujo WhatsApp (1 día … permanente), tipo,
+  días y límites; la clave se copia, se descarga en `.txt` o se envía al cliente por WhatsApp.
+- Pestaña **Licencias y equipos**: listado numerado de licencias (Nº, Cliente, Tipo, Expira,
+  Activa, Clave) y los dispositivos que activaron una licencia, con su IP y última conexión.
+  Solo el rol **ADMINISTRADOR** puede eliminar licencias (una o todas); el **JEFE** las
+  consulta y genera.
+- En el acceso (sin sesión) el botón **Gestionar licencia** despliega el mismo panel con la
+  información pública: estado, solicitud por WhatsApp y activación de una clave.
+
+### Solicitudes de licencia (servidor + Web + Android)
+- Nueva tabla `license_requests` y endpoints `POST /api/license/request` (público, sin
+  licencia válida, con deduplicación de 3 minutos), `GET /api/license/requests`,
+  `POST /api/license/requests/:id` (pendiente/atendida/descartada), `DELETE
+  /api/license/requests/:id` y `POST /api/license/requests/purge`.
+- El mensaje que se envía por WhatsApp se compone igual en la Web, en Android y en el
+  servidor (`license_request_message`), así que el texto guardado es exactamente el que
+  recibió el administrador. El teléfono del cliente es opcional y se usa para responderle
+  la clave desde el panel.
+- `POST /api/license/generate` acepta `request_id`: toma el nombre y el plazo de la
+  solicitud y la marca como atendida con la vista previa de la clave. Al activar una clave,
+  las solicitudes pendientes de ese dispositivo pasan a atendidas automáticamente.
+- `tools/generate_license.py --requests` lista las solicitudes y `--request <ID>` genera su
+  clave desde la terminal, la marca atendida e imprime el enlace de WhatsApp de respuesta.
+- La app Android registra la solicitud con el mismo formato de mensaje (`🕒 Fecha Actual`) y
+  muestra el número de solicitud registrada.
+
+### Pruebas
+- Nueva suite `python3 tools/test_licencia.py` (9) y `tools/smoke_web.mjs` ampliado a 39
+  comprobaciones, incluidas las del panel y el registro de solicitudes; el resto de suites
+  siguen en verde (almacenes 14, clientes y fiados 8, Excel 10).
+
 ## NovaGest v1.0.0 — 2026-10-12 · Licencia por WhatsApp, escáner y fiados
 
 Primera versión única de la plataforma: Web, Android y servidor comparten **v1.0.0**

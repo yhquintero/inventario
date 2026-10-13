@@ -46,7 +46,10 @@ data class LicenseUiState(
     val status: LicenseStatus? = null,
     val error: String? = null,
     val activating: Boolean = false,
-    val success: String? = null
+    val success: String? = null,
+    /** Nº de la solicitud registrada en el servidor (visible para el administrador en la Web). */
+    val requestId: String? = null,
+    val requestError: String? = null
 )
 
 @HiltViewModel
@@ -81,6 +84,18 @@ class LicenseViewModel @Inject constructor(
                 return@launch
             }
             _state.value = _state.value.copy(activating = false)
+        }
+    }
+
+    /** Registra la solicitud en el servidor (el envío por WhatsApp lo hace la pantalla). */
+    fun request(name: String, phone: String, term: com.novagest.inventario.security.LicenseTerm) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(requestId = null, requestError = null)
+            val res = licenseManager.submitRequest(server(), name, phone, term)
+            _state.value = _state.value.copy(
+                requestId = res.getOrNull(),
+                requestError = res.exceptionOrNull()?.message
+            )
         }
     }
 
@@ -152,6 +167,7 @@ fun LicenseScreen(
 
             // 1 · Solicitar licencia por término vía WhatsApp (patrón DrywallMaterialsCalculator)
             var reqName by remember { mutableStateOf("") }
+            var reqPhone by remember { mutableStateOf("") }
             val terms = st?.terms?.takeIf { it.isNotEmpty() } ?: com.novagest.inventario.security.LicenseManager.DEFAULT_TERMS
             var reqTerm by remember { mutableStateOf(terms.firstOrNull { it.id == "MES" } ?: terms.first()) }
             val context = androidx.compose.ui.platform.LocalContext.current
@@ -160,6 +176,7 @@ fun LicenseScreen(
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("1 · Solicitar licencia por WhatsApp", style = MaterialTheme.typography.titleSmall)
                     OutlinedTextField(reqName, { reqName = it }, label = { Text("Nombre o empresa") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(reqPhone, { reqPhone = it }, label = { Text("Tu WhatsApp (opcional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("ID de dispositivo: ${vm.deviceId()}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                         OutlinedButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(vm.deviceId())) }) { Text("Copiar") }
@@ -176,6 +193,8 @@ fun LicenseScreen(
                     }
                     Button(
                         onClick = {
+                            // Registra la solicitud (panel «Gestionar → Solicitudes» de la Web) y abre WhatsApp
+                            vm.request(reqName.trim(), reqPhone.trim(), reqTerm)
                             val url = vm.whatsappUrl(reqName.trim(), reqTerm, st?.whatsapp ?: "")
                             runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))) }
                         },
@@ -183,6 +202,12 @@ fun LicenseScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Solicitar por WhatsApp") }
                     Text("Te enviaremos la clave firmada; pégala abajo para activar.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    state.requestError?.let {
+                        Text("No se pudo registrar la solicitud en el servidor: $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
+                    state.requestId?.let {
+                        Text("✔ Solicitud registrada (Nº $it). El administrador ya la ve en «Gestionar → Solicitudes».", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
 

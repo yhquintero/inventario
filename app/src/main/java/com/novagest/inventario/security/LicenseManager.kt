@@ -263,18 +263,64 @@ class LicenseManager @Inject constructor(
         }.ifEmpty { DEFAULT_TERMS }
     }
 
-    /** Mensaje de solicitud de licencia por término, listo para WhatsApp. */
+    /** Mensaje de solicitud de licencia por término, listo para WhatsApp (mismo formato que la Web). */
     fun licenseRequestMessage(name: String, term: LicenseTerm): String {
-        val fecha = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
-        val plazo = if (term.days > 0) "${term.label} (${term.days} días · ${term.type})" else "${term.label} (${term.type})"
+        val fecha = java.text.SimpleDateFormat("dd/MM/yyyy, h:mm:ss a", java.util.Locale("es", "CU"))
+            .format(java.util.Date())
+            .replace("a. m.", "a.m.")
+            .replace("p. m.", "p.m.")
+        val plazo = if (term.days > 0) "${term.label} (${term.days} días) · ${term.type}" else "${term.label} · ${term.type}"
         return listOf(
             "Hola, solicito activar mi Licencia de NovaGest.",
+            "",
             "👤 Usuario: $name",
             "🆔 ID Dispositivo: ${deviceId()}",
             "📦 Producto: NovaGest v1.0.0",
             "📅 Plan: $plazo",
-            "🕒 Fecha: $fecha"
+            "🕒 Fecha Actual: $fecha"
         ).joinToString("\n")
+    }
+
+    /**
+     * Registra la solicitud en el servidor para que el administrador la vea en
+     * «Gestionar → Solicitudes» (Web). El envío por WhatsApp no depende de esto:
+     * si no hay conexión, la solicitud se envía igual.
+     */
+    suspend fun submitRequest(serverBase: String, name: String, phone: String, term: LicenseTerm): Result<String> = withContext(Dispatchers.IO) {
+        if (serverBase.isBlank()) return@withContext Result.failure(Exception("Sin servidor configurado."))
+        try {
+            val url = URL(serverBase.trimEnd('/') + "/api/license/request")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.connectTimeout = 8000
+            conn.readTimeout = 10000
+            conn.doOutput = true
+            conn.setRequestProperty("X-CP", "1")
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("Accept", "application/json")
+            val body = JSONObject()
+                .put("client_name", name.trim())
+                .put("device_id", deviceId())
+                .put("device_info", "Android App ${android.os.Build.MODEL} ${android.os.Build.VERSION.RELEASE}")
+                .put("phone", phone.trim())
+                .put("term", term.id)
+                .put("channel", "android")
+                .put("product", "NovaGest")
+                .put("version", "1.0.0")
+                .toString()
+            conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            val code = conn.responseCode
+            val text = (if (code >= 400) conn.errorStream else conn.inputStream)?.bufferedReader()?.readText().orEmpty()
+            conn.disconnect()
+            val json = try { JSONObject(text) } catch { JSONObject() }
+            if (code == 200 && json.optBoolean("ok", false)) {
+                Result.success(json.optInt("id", 0).toString())
+            } else {
+                Result.failure(Exception(json.optString("error", "No se pudo registrar la solicitud ($code)")))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Sin conexión: ${e.message}"))
+        }
     }
 
     /** URL de WhatsApp: con número configurado (wa.me) o sin número (elegir contacto). */

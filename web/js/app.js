@@ -35,6 +35,8 @@ const routes = {
   audit: { title: "Auditoría", icon: "◉", perm: "AUDIT_VIEW", group: "Sistema", search: true },
   backup: { title: "Copias", icon: "⇩", perm: "BACKUP_MANAGE", group: "Sistema" },
   settings: { title: "Ajustes", icon: "⚙", perm: null, group: "Sistema" },
+  // Panel de gestión de la licencia (se abre desde 🔐 o desde Ajustes → Licencia; no va en el menú)
+  license: { title: "Licencia de uso", icon: "🔐", perm: null, group: "Sistema", hidden: true },
 };
 
 let ui = {
@@ -42,7 +44,12 @@ let ui = {
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
   histTab: "precios",
   whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, pdfWarehouseId: null, iv: null,
-  license: { status: null, loading: true, error: null, key: "", activating: false, info: null, reqName: "", reqTerm: "MES" },
+  license: {
+    status: null, loading: true, error: null, key: "", activating: false, info: null, infoLoaded: false,
+    lastGenerated: null, tab: "estado", expand: false, infoTried: false,
+    requests: null, counts: null, reqFilter: "TODAS", reqName: "", reqPhone: "", reqTerm: "MES",
+    genClient: "", genPhone: "", genTerm: "ANIO", genRequest: null,
+  },
   custTab: "clientes",
 };
 
@@ -93,10 +100,11 @@ const catBadge = (cat) => {
 /* ============================ SHELL ============================ */
 function shell(body) {
   const u = store.state.session;
-  const items = Object.entries(routes).filter(([, r]) => allowed(r.perm));
+  const items = Object.entries(routes).filter(([, r]) => allowed(r.perm) && !r.hidden);
   const groups = [...new Set(items.map(([, r]) => r.group))];
   const trashCount = store.trashProducts().length + store.trashMovements().length;
   const r = routes[ui.route];
+  const pendingReq = ui.license.counts?.pendiente || 0;
   return `
     <div class="shell">
       <aside class="rail ${ui.drawer ? "open" : ""}">
@@ -122,7 +130,7 @@ function shell(body) {
           ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" aria-label="Buscar en ${r.title.toLowerCase()}" />${ui.q ? `<button class="x" data-act="clear-q" aria-label="Borrar búsqueda">✕</button>` : ""}</div>` : `<div style="flex:1"></div>`}
           ${whPicker()}
           <span class="sync-dot ${store.sync}" id="syncDot" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
-          <button class="btn ghost small" data-act="license-manage" title="Licencia de uso" aria-label="Licencia de uso" data-tip="Licencia ${ui.license.status?.valid ? `${ui.license.status.type} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}` : "no válida"}">🔐</button>
+          <button class="btn ghost small lic-btn ${ui.route === "license" ? "on" : ""}" data-act="license-manage" title="Gestionar la licencia de uso" aria-label="Licencia de uso" data-tip="Gestionar la licencia de uso · Licencia ${ui.license.status?.valid ? `${ui.license.status.type} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}` : "no válida"}${pendingReq ? ` · ${pendingReq} solicitud(es) pendiente(s)` : ""}">🔐${pendingReq ? `<span class="pill">${pendingReq}</span>` : ""}</button>
           <button class="btn ghost small kbd-btn" data-act="palette" aria-label="Búsqueda rápida (Ctrl+K)">⌘K</button>
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema" aria-label="Cambiar tema: claro, oscuro o automático">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
@@ -144,9 +152,10 @@ function licenseRequestCard(st) {
   const device = LicenseManager.deviceId();
   const sel = ui.license.reqTerm || "MES";
   return `
-    <div class="card" style="margin-bottom:12px">
+    <div class="card lic-request" style="margin-bottom:12px">
       <div class="card-h"><span class="k">1 · Solicitar licencia por WhatsApp</span><span class="tag mov">Por término</span></div>
       <label>Nombre o empresa<input id="licReqName" value="${esc(ui.license.reqName || "")}" placeholder="Ej. Tienda Nova" autocomplete="name"></label>
+      <label>Tu teléfono de WhatsApp (opcional)<input id="licReqPhone" value="${esc(ui.license.reqPhone || "")}" placeholder="Ej. 5351234567" inputmode="tel" autocomplete="tel"></label>
       <div class="hint" style="margin:8px 0">ID de dispositivo · <b class="mono">${esc(device)}</b>
         <button type="button" class="btn ghost small" data-act="license-copy-device">Copiar</button></div>
       <div class="hint">Elige el plazo de tu licencia:</div>
@@ -154,8 +163,301 @@ function licenseRequestCard(st) {
         ${terms.map((t) => `<button type="button" class="chip ${sel === t.id ? "on" : ""}" data-lic-term="${t.id}">${t.icon || ""} ${esc(t.label)}</button>`).join("")}
       </div>
       <button type="button" class="btn full" style="background:#25d366;border-color:#25d366;color:#06281a" data-act="license-whatsapp">💬 SOLICITAR POR WHATSAPP</button>
-      <p class="hint" style="margin-top:8px">Se abre WhatsApp con tu nombre, ID de dispositivo y plazo ya escritos${st?.whatsapp ? " al número de NovaGest" : ""}. Te responderán con la clave firmada para pegarla abajo.</p>
+      <p class="hint" style="margin-top:8px">Se abre WhatsApp con tu nombre, ID de dispositivo y plazo ya escritos${st?.whatsapp ? " al número de NovaGest" : ""} y la solicitud queda <b>registrada</b>: el administrador la ve en <b>Gestionar → Solicitudes</b> y responde con la clave firmada para pegarla abajo.</p>
     </div>`;
+}
+
+/* ============================ LICENCIA: PANEL DE GESTIÓN ============================ */
+/** ¿Quién puede ver y generar licencias? (ADMINISTRADOR y JEFE; borrar, solo ADMINISTRADOR) */
+const adminLicense = () => !!(store.state.session && ["ADMINISTRADOR", "JEFE"].includes(role()));
+const canDeleteLicense = () => role() === "ADMINISTRADOR";
+
+/** Carga licencias, solicitudes y equipos con una sola llamada a /api/license/info. */
+async function loadLicenseInfo(force = false) {
+  if (!adminLicense()) {
+    ui.license.info = null; ui.license.requests = null; ui.license.counts = null; ui.license.infoLoaded = false;
+    return;
+  }
+  if (ui.license.infoLoaded && !force) return;
+  ui.license.infoLoaded = true;
+  const r = await api("/license/info");
+  if (r.error) { ui.license.infoLoaded = false; if (force) toast(r.error, "err"); return; }
+  ui.license.info = r;
+  ui.license.requests = r.requests || [];
+  ui.license.counts = r.requestCounts || null;
+  render();
+}
+
+/** Abre el panel de licencia: con sesión en la ruta #license; sin sesión, desplegado en el acceso. */
+function openLicensePanel(tab) {
+  if (tab) ui.license.tab = tab;
+  if (!ui.license.tab) ui.license.tab = "estado";
+  if (store.state.session) {
+    if (ui.route !== "license") navTo("license"); else render();
+  } else {
+    ui.license.expand = true;
+    render();
+  }
+  loadLicenseInfo(true).then(() => {
+    const pend = ui.license.counts?.pendiente || 0;
+    if (pend) toast(`📨 ${pend} solicitud(es) de licencia pendiente(s) de atender`, "ok");
+  });
+}
+
+function licTabsBar() {
+  const counts = ui.license.counts || {};
+  const tabs = [["estado", "🔐 Estado"]];
+  if (adminLicense()) {
+    tabs.push(["solicitudes", `📨 Solicitudes${counts.pendiente ? ` · ${counts.pendiente}` : ""}`]);
+    tabs.push(["generar", "🆕 Generar clave"]);
+    tabs.push(["licencias", `🗂 Licencias y equipos${ui.license.info?.licenses?.length ? ` · ${ui.license.info.licenses.length}` : ""}`]);
+  }
+  return `<div class="chips lic-tabs">${tabs.map(([id, label]) => `<button type="button" class="chip ${ui.license.tab === id ? "on" : ""}" data-lic-tab="${id}">${label}</button>`).join("")}</div>`;
+}
+
+function licensePanelBody() {
+  if (!adminLicense() && ["solicitudes", "generar", "licencias"].includes(ui.license.tab)) ui.license.tab = "estado";
+  const tab = ui.license.tab || "estado";
+  return `${licTabsBar()}<div class="lic-tab-body">${
+    tab === "solicitudes" ? licenseRequestsTab() :
+    tab === "generar" ? licenseGenerateTab() :
+    tab === "licencias" ? licenseLicensesTab() : licenseStatusTab()
+  }</div>`;
+}
+
+/** Vista completa del panel (ruta #license, dentro de la app con sesión). */
+function licenseManageView() {
+  const st = ui.license.status || {};
+  const tag = st.valid ? `${esc(st.type || "")} · ${st.daysLeft === -1 ? "Permanente" : `${st.daysLeft} días`}` : "Sin licencia válida";
+  return `
+    <div class="card lic-panel">
+      <div class="card-h"><span class="k">🔐 Gestión de la licencia de uso</span><span class="tag ${st.valid ? "entrada" : "salida"}">${tag}</span></div>
+      <p class="hint">El acceso a todas las Apps (Web y Móvil) se verifica siempre primero por la licencia. Aquí puede ver su estado, atender las solicitudes recibidas y crear o activar las claves.</p>
+      ${licensePanelBody()}
+      <div class="row" style="margin-top:14px"><button type="button" class="btn ghost small" data-nav="home">← Volver al panel</button>
+        <button type="button" class="btn ghost small" data-nav="settings">⚙ Ajustes</button></div>
+    </div>`;
+}
+
+/** Pestaña «Estado»: licencia vigente, activación de una clave y solicitud de renovación. */
+function licenseStatusTab() {
+  const st = ui.license.status || {};
+  const days = st.daysLeft;
+  const expText = st.expiresAt ? LicenseManager.fmtDate(st.expiresAt) : "Sin vencimiento";
+  return `
+    ${st.valid ? `
+      <div class="kpis mini">
+        ${kpi("Cliente", esc(st.clientName || "—"), esc(st.product || ""))}
+        ${kpi("Plan", esc(st.type || "—"), days === -1 ? "Permanente" : `${days} día(s) restantes`)}
+        ${kpi("Vence", expText, st.expiresAt ? LicenseManager.fmtDate(st.issuedAt) : "sin caducidad")}
+        ${kpi("Límites", `${st.maxUsers ?? "—"} / ${st.maxDevices ?? "—"}`, "usuarios / dispositivos")}
+      </div>
+      <p class="hint" style="margin-top:10px">ID de licencia · <b class="mono">${esc(st.licenseId || "")}</b> · comprobada ${st.offline ? "en la caché local (sin conexión)" : "en el servidor"}${st.checkedAt ? ` · ${new Date(st.checkedAt).toLocaleString("es-CU")}` : ""}</p>
+      <p class="hint">Este equipo · <b class="mono">${esc(LicenseManager.deviceId())}</b> <button type="button" class="btn ghost small" data-act="license-copy-device">Copiar</button> <span class="hint">(el ID identifica a este dispositivo en las activaciones)</span></p>
+      ${LicenseManager.isExpiringSoon(st) ? `<div class="banner">⚠ La licencia vence en ${days} días. Renuévela antes de que expire para no bloquear el acceso.</div>` : ""}
+    ` : `<div class="banner">⛔ No hay licencia válida. Active una clave para poder entrar al sistema.</div>`}
+    <form id="licenseFormInline" class="form-grid" style="margin-top:12px">
+      <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="NG-…" style="font-family:monospace;word-break:break-all">${esc(ui.license.key || "")}</textarea></label>
+      <div class="span-2 row"><button type="button" class="btn small" data-act="license-activate-inline">${st.valid ? "Actualizar / renovar" : "Activar licencia"}</button>
+        <button type="button" class="btn ghost small" data-act="license-refresh">↻ Verificar de nuevo</button></div>
+    </form>
+    ${licenseRequestCard(st)}
+    ${ui.license.info?.active?.db_row?.key ? `<p class="hint">Clave activa en el servidor: <b class="mono" style="word-break:break-all">${esc(ui.license.info.active.db_row.key)}</b> <button type="button" class="btn ghost small" data-act="license-copy">Copiar clave activa</button></p>` : ""}`;
+}
+
+/** Pestaña «Solicitudes»: las peticiones de licencia recibidas (Web y Android). */
+function licenseRequestsTab() {
+  const counts = ui.license.counts || {};
+  const filter = ui.license.reqFilter || "TODAS";
+  const list = (ui.license.requests || []).filter((r) => filter === "TODAS" || String(r.status).toUpperCase() === filter);
+  const filters = [["TODAS", "Todas", counts.total], ["PENDIENTE", "Pendientes", counts.pendiente], ["ATENDIDA", "Atendidas", counts.atendida], ["DESCARTADA", "Descartadas", counts.descartada]];
+  return `
+    <div class="row" style="margin:4px 0 10px">
+      ${filters.map(([id, label, n]) => `<button type="button" class="chip ${filter === id ? "on" : ""}" data-lic-filter="${id}">${label}${n ? ` · ${n}` : ""}</button>`).join("")}
+      <div style="flex:1"></div>
+      <button type="button" class="btn ghost small" data-act="license-refresh-info">↻ Actualizar</button>
+      ${(counts.atendida || counts.descartada) ? `<button type="button" class="btn ghost small danger-t" data-act="license-req-purge">🗑 Limpiar atendidas</button>` : ""}
+    </div>
+    ${list.length ? `
+      <div class="table-wrap"><table>
+        <thead><tr><th>Nº</th><th>Fecha</th><th>Usuario</th><th>Dispositivo</th><th>Plan</th><th>Estado</th><th></th></tr></thead>
+        <tbody>${list.map((r) => `<tr>
+          <td class="hint">${r.id}</td>
+          <td class="hint">${esc(r.createdText || LicenseManager.fmtDate(r.createdAt))}</td>
+          <td><b>${esc(r.clientName)}</b>${r.phone ? `<div class="hint">📱 ${esc(r.phone)}</div>` : ""}</td>
+          <td class="mono hint"><span title="${esc(r.deviceInfo || "")}">${esc(r.deviceId)}</span><div class="hint">${esc(r.channel || "web")}</div></td>
+          <td>${esc(r.termLabel || "")}${r.days ? ` · ${r.days}d` : ""}<div><span class="tag mov">${esc(r.type || "")}</span></div></td>
+          <td><span class="tag ${r.status === "atendida" ? "entrada" : r.status === "descartada" ? "salida" : "mov"}">${esc(r.status || "pendiente")}</span>${r.licensePreview ? `<div class="hint mono" title="${esc(r.licensePreview)}">${esc(String(r.licensePreview).slice(0, 14))}…</div>` : ""}</td>
+          <td class="row nowrap">
+            <button type="button" class="btn ghost small" data-lic-msg="${r.id}" title="Ver el mensaje de WhatsApp recibido">📋 Mensaje</button>
+            ${r.status === "pendiente"
+              ? `<button type="button" class="btn small" data-lic-key="${r.id}" title="Generar la clave con el plan solicitado">🔑 Crear clave</button>
+                 <button type="button" class="btn ghost small" data-lic-status="${r.id}" data-lic-status-value="descartada">Descartar</button>`
+              : `<button type="button" class="btn ghost small" data-lic-status="${r.id}" data-lic-status-value="pendiente">↺ Reabrir</button>`}
+            <button type="button" class="btn ghost small danger-t" data-lic-req-del="${r.id}" title="Eliminar esta solicitud del historial">🗑</button>
+          </td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="hint">${counts.total ? `No hay solicitudes ${filter === "TODAS" ? "" : `${esc(filter.toLowerCase())}s`}.` : "Aún no hay solicitudes. Cuando un cliente pulse «SOLICITAR POR WHATSAPP» (Web o Android) aparecerá aquí con su nombre, plan e ID de dispositivo."}</p>`}
+    <p class="hint">«Crear clave» usa el nombre y el plazo de la propia solicitud y la deja marcada como <b>atendida</b>; después puede copiar la clave y enviarla por WhatsApp al cliente.</p>`;
+}
+
+/** Pestaña «Generar clave»: crea una licencia con cualquiera de los plazos. */
+function licenseGenerateTab() {
+  const st = ui.license.status;
+  const terms = LicenseManager.serverTerms(st);
+  const sel = ui.license.genTerm || "ANIO";
+  return `
+    <form id="licenseGenForm" class="form-grid">
+      <label>Cliente o tienda<input name="client_name" value="${esc(ui.license.genClient || st?.clientName || "NovaGest")}" required></label>
+      <label>Teléfono WhatsApp del cliente (opcional)<input name="phone" value="${esc(ui.license.genPhone || "")}" placeholder="5351234567" inputmode="tel"></label>
+      <label>Plazo<select name="term" id="licGenTerm">${terms.map((t) => `<option value="${t.id}" ${sel === t.id ? "selected" : ""}>${esc(t.label)}${t.days ? ` · ${t.days} días` : ""} · ${t.type}</option>`).join("")}</select></label>
+      <label>Tipo<select name="type"><option>FULL</option><option>ENTERPRISE</option><option>TRIAL</option><option>LIFETIME</option></select></label>
+      <label>Días (vacío = según el plazo)<input name="days" type="number" placeholder="Automático"></label>
+      <label>Máx. usuarios<input name="max_users" type="number" value="20"></label>
+      <label>Máx. dispositivos<input name="max_devices" type="number" value="10"></label>
+      <label><input type="checkbox" name="activate"> Activar al generar (reemplaza la licencia activa)</label>
+      <div class="span-2 row"><button type="button" class="btn small" data-act="license-gen">🔑 Generar clave</button>
+        <span class="hint">Los plazos son los mismos que el cliente ve al solicitarla por WhatsApp.</span></div>
+    </form>
+    ${ui.license.lastGenerated ? keyBlock(ui.license.lastGenerated) : ""}`;
+}
+
+/** Bloque con la clave recién generada: copiar, descargar y enviar por WhatsApp. */
+function keyBlock(res) {
+  const key = res?.license_key || "";
+  const p = res?.payload || {};
+  const req = res?.request || null;
+  const phone = req?.phone || ui.license.genPhone || "";
+  const vigencia = p.expires_at ? `expira ${LicenseManager.fmtDate(p.expires_at)}` : "permanente";
+  return `
+    <div class="card" style="margin-top:14px;border-color:var(--ok)">
+      <div class="card-h"><span class="k">✔ Clave generada · ${esc(p.client_name || "")}</span><span class="tag entrada">${esc(p.type || "")} · ${vigencia}</span></div>
+      ${req ? `<p class="hint">Para la solicitud #${req.id} de <b>${esc(req.clientName)}</b> · ${esc(req.termLabel || "")}</p>` : ""}
+      <p class="mono" style="word-break:break-all;background:rgba(127,127,127,.14);padding:10px;border-radius:8px;font-size:12.5px">${esc(key)}</p>
+      <div class="row">
+        <button type="button" class="btn ghost small" data-act="license-copy">📋 Copiar clave</button>
+        <button type="button" class="btn ghost small" data-act="license-dl">⬇ Descargar .txt</button>
+        <button type="button" class="btn small" style="background:#25d366;border-color:#25d366;color:#06281a" data-act="license-send-key">💬 Enviar por WhatsApp${phone ? ` a ${esc(phone)}` : " (elegir contacto)"}</button>
+      </div>
+      <p class="hint">El cliente pega esta clave en <b>Licencia de uso → Activar licencia</b> (Web o App Android). La clave se verifica en el servidor, así que sirve en el equipo que la active.</p>
+    </div>`;
+}
+
+/** Pestaña «Licencias y equipos»: licencias creadas, activaciones y borrado (ADMINISTRADOR). */
+function licenseLicensesTab() {
+  const info = ui.license.info;
+  const list = info?.licenses || [];
+  const acts = info?.activations || [];
+  const nowSec = Math.floor(Date.now() / 1000);
+  const canDelete = canDeleteLicense();
+  return `
+    <div class="card-h" style="margin-top:4px"><span class="k">Licencias creadas${list.length ? ` · ${list.length}` : ""}</span>
+      ${canDelete && list.length ? `<button type="button" class="btn danger small" data-act="license-del-all" title="Eliminar todas las licencias registradas">🗑 Eliminar todas las licencias</button>` : ""}</div>
+    ${list.length ? `<div class="table-wrap"><table><thead><tr><th>Nº</th><th>Cliente</th><th>Tipo</th><th>Expira</th><th>Activa</th><th>Clave</th>${canDelete ? "<th></th>" : ""}</tr></thead>
+      <tbody>${list.map((l, i) => `<tr>
+        <td class="hint">${i + 1}</td>
+        <td>${esc(l.client_name)}</td>
+        <td><span class="tag ${l.active ? "entrada" : "salida"}">${esc(l.type)}</span></td>
+        <td>${l.expires_at ? LicenseManager.fmtDate(l.expires_at) : "Permanente"}${l.expires_at && l.expires_at < nowSec ? " · expirada" : ""}</td>
+        <td>${l.active ? "✔" : "—"}</td>
+        <td class="mono hint" title="${esc(l.key)}">${esc(l.keyPreview || l.formattedKey || "")}</td>
+        ${canDelete ? `<td class="nowrap"><button type="button" class="btn ghost small danger-t" data-act="license-del" data-lic-del="${l.id}" title="Eliminar esta licencia definitivamente">🗑 Eliminar</button></td>` : ""}
+      </tr>`).join("")}</tbody></table></div>`
+      : `<p class="hint">Aún no hay licencias creadas. Use «Generar clave» para crear la primera.</p>`}
+    <div class="card-h" style="margin-top:16px"><span class="k">Equipos activados${acts.length ? ` · ${acts.length}` : ""}</span></div>
+    ${acts.length ? `<div class="table-wrap"><table><thead><tr><th>Dispositivo</th><th>Info</th><th>IP</th><th>Activado</th><th>Última vez</th><th>Estado</th></tr></thead>
+      <tbody>${acts.map((a) => `<tr>
+        <td class="mono hint">${esc(a.device_id || "")}</td>
+        <td class="hint">${esc(String(a.device_info || "").slice(0, 90))}</td>
+        <td class="hint">${esc(a.ip || "")}</td>
+        <td class="hint">${a.activated_at ? new Date(a.activated_at * 1000).toLocaleString("es-CU") : ""}</td>
+        <td class="hint">${a.last_seen ? new Date(a.last_seen * 1000).toLocaleString("es-CU") : ""}</td>
+        <td>${a.active ? "✔ activo" : "—"}</td>
+      </tr>`).join("")}</tbody></table></div>`
+      : `<p class="hint">Todavía ningún equipo ha activado una licencia.</p>`}
+    <p class="hint">${canDelete ? "Solo el rol <b>ADMINISTRADOR</b> puede eliminar licencias. Si elimina la licencia activa, el sistema quedará bloqueado hasta activar otra." : "Solo el rol <b>ADMINISTRADOR</b> puede eliminar licencias."}</p>`;
+}
+
+/** Ventana con el mensaje de WhatsApp tal cual lo envió el cliente. */
+function licenseRequestModal(id) {
+  const r = (ui.license.requests || []).find((x) => String(x.id) === String(id));
+  if (!r) return toast("Solicitud no encontrada.", "err");
+  ui.license.msgRequest = r.id;
+  ui.modal = `<div class="modal-back" data-act="close-modal"><div class="modal">
+    <div class="h2">📨 Solicitud #${r.id} · ${esc(r.clientName)}</div>
+    <p class="hint">${esc(r.createdText || LicenseManager.fmtDate(r.createdAt))} · ${esc(r.channel || "web")} · ${esc(r.deviceId)}${r.phone ? ` · 📱 ${esc(r.phone)}` : ""}</p>
+    <pre class="mono" style="white-space:pre-wrap;word-break:break-word;background:rgba(127,127,127,.14);padding:12px;border-radius:8px;font-size:12.5px">${esc(r.message || "")}</pre>
+    <div class="row" style="margin-top:12px">
+      <button type="button" class="btn ghost small" data-act="license-copy-message">📋 Copiar mensaje</button>
+      ${r.status === "pendiente" ? `<button type="button" class="btn small" data-lic-key="${r.id}">🔑 Crear clave para esta solicitud</button>` : ""}
+      <button type="button" class="btn ghost small" data-act="close-modal">Cerrar</button>
+    </div></div></div>`;
+  render();
+}
+
+/** Crea la clave a partir de una solicitud (nombre y plazo ya elegidos por el cliente). */
+function licenseGenerateFromRequest(id) {
+  const r = (ui.license.requests || []).find((x) => String(x.id) === String(id));
+  if (!r) return toast("Solicitud no encontrada.", "err");
+  ui.license.genRequest = r.id;
+  ui.license.genClient = r.clientName;
+  ui.license.genPhone = r.phone || ui.license.genPhone;
+  ui.license.genTerm = r.term || "MES";
+  ui.license.tab = "generar";
+  ui.modal = null;
+  render();
+  const body = { request_id: String(r.id), client_name: r.clientName, term: r.term, phone: r.phone || "" };
+  api("/license/generate", { method: "POST", body }).then((res) => {
+    if (res.error) return toast(res.error, "err");
+    ui.license.lastGenerated = { ...res, request: res.request || r, phone: r.phone || "" };
+    toast(`🔑 Clave creada para ${r.clientName} · ${r.termLabel}`, "ok");
+    loadLicenseInfo(true);
+    render();
+  });
+}
+
+/** Marca una solicitud como atendida, descartada o pendiente. */
+function licenseRequestStatusFlow(id, status) {
+  api(`/license/requests/${encodeURIComponent(id)}`, { method: "POST", body: { status } }).then((r) => {
+    if (r.error) return toast(r.error, "err");
+    if (r.counts) ui.license.counts = r.counts;
+    if (r.requests) ui.license.requests = r.requests;
+    toast(`Solicitud #${id} · ${status}`, "ok");
+    render();
+  });
+}
+
+function licenseRequestDeleteFlow(id) {
+  const r = (ui.license.requests || []).find((x) => String(x.id) === String(id));
+  confirmModal(`¿Eliminar la solicitud #${esc(String(id))}${r ? ` de <b>${esc(r.clientName)}</b>` : ""} del historial?`, () => {
+    api(`/license/requests/${encodeURIComponent(id)}`, { method: "DELETE" }).then((res) => {
+      if (res.error) return toast(res.error, "err");
+      if (res.counts) ui.license.counts = res.counts;
+      if (res.requests) ui.license.requests = res.requests;
+      else ui.license.infoLoaded = false;
+      ui.modal = null;
+      toast("Solicitud eliminada", "ok");
+      loadLicenseInfo(true);
+      render();
+    });
+  });
+}
+
+/** Envía por WhatsApp la clave recién generada al cliente (o abre el selector de contacto). */
+function sendLicenseKeyByWhatsApp() {
+  const res = ui.license.lastGenerated;
+  if (!res?.license_key) return toast("Genere primero una clave.", "err");
+  const p = res.payload || {};
+  const req = res.request || null;
+  const msg = LicenseManager.keyMessage({
+    clientName: req?.clientName || p.client_name,
+    key: res.license_key,
+    term: req?.term || ui.license.genTerm,
+    expiresText: p.expires_at ? `hasta el ${LicenseManager.fmtDate(p.expires_at)}` : "permanente",
+    product: p.product || "NovaGest",
+  });
+  const phone = req?.phone || ui.license.genPhone || ui.license.status?.whatsapp || "";
+  window.open(LicenseManager.whatsappUrl(msg, phone), "_blank", "noopener");
+  toast(phone ? `Abriendo WhatsApp para ${phone}…` : "Abriendo WhatsApp: elija el contacto…", "ok");
 }
 
 function licenseView() {
@@ -229,10 +531,14 @@ function loginView() {
         <p><strong>Inventario, punto de venta, caja e informes</strong> de tu negocio en una sola plataforma: multi-almacén, multi-dispositivo y siempre sincronizada — Web y Android.</p>
         <div class="hero-cats">${Object.values(CATEGORIES).filter((c) => c.img).slice(0, 6).map((c) => `<img src="./public/cat/${c.img}.jpg" alt="">`).join("")}</div>
         ${expiring ? `<div class="banner" style="margin-top:16px">⚠ Licencia vence en ${ui.license.status.daysLeft} días (${LicenseManager.fmtDate(ui.license.status.expiresAt)}). Renueve pronto.</div>` : ""}
-        <div class="card" style="margin-top:12px"><div class="card-h"><span class="k">Licencia</span><span class="tag entrada">${esc(ui.license.status.type)}</span></div>
-          <p class="hint">${esc(ui.license.status.clientName)} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días restantes`}</p>
-          <button class="btn ghost small" data-act="license-manage">Gestionar licencia</button>
+        <div class="card" style="margin-top:12px"><div class="card-h"><span class="k">🔐 Licencia de uso</span><span class="tag entrada">${esc(ui.license.status.type)} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}</span></div>
+          <p class="hint">${esc(ui.license.status.clientName)} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días restantes`} · el acceso se verifica siempre primero por la licencia.</p>
+          <div class="row" style="margin-top:8px">
+            <button class="btn ghost small" data-act="license-manage">${ui.license.expand ? "↻ Actualizar gestión" : "Gestionar licencia"}</button>
+            ${ui.license.expand ? `<button class="btn ghost small" data-act="license-close">Cerrar</button>` : ""}
+          </div>
         </div>
+        ${ui.license.expand ? `<div class="card lic-panel" style="margin-top:12px"><div class="card-h"><span class="k">Gestión de la licencia</span><span class="tag mov">${esc(ui.license.status.type)}</span></div>${licensePanelBody()}</div>` : ""}
       </div>
       <div class="login-panel">
         <form class="login-card" id="loginForm">
@@ -999,19 +1305,10 @@ function backupView() {
 function licenseCard() {
   const lic = ui.license.status;
   const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
-  // Solo el rol ADMINISTRADOR puede eliminar licencias (el Jefe puede verlas, no borrarlas)
   const canDelete = role() === "ADMINISTRADOR";
-  const lastGen = ui.license.lastGenerated;
-  if (!ui.license.infoLoaded && admin) {
-    ui.license.infoLoaded = true;
-    api("/license/info").then((r) => {
-      ui.license.info = r;
-      render();
-    });
-  }
-  const info = ui.license.info;
-  const list = info?.licenses || [];
-  const nowSec = Math.floor(Date.now() / 1000);
+  if (!ui.license.infoLoaded && admin) loadLicenseInfo();
+  const counts = ui.license.counts || {};
+  const pend = counts.pendiente || 0;
   const expText = lic?.valid ? (lic.daysLeft === -1 ? "Permanente" : `${lic.daysLeft} días · expira ${LicenseManager.fmtDate(lic.expiresAt)}`) : "No válida";
   return `
     <div class="card" style="margin-bottom:14px">
@@ -1025,9 +1322,11 @@ function licenseCard() {
         </div>
         ${LicenseManager.isExpiringSoon(lic) ? `<div class="banner">⚠ La licencia vence en ${lic.daysLeft} días. Renueve antes de que expire para no bloquear el acceso.</div>` : ""}
         <p class="hint">El acceso a todas las Apps (Web y Móvil) se verifica siempre primero por la licencia. Sin licencia válida no se puede iniciar sesión.</p>
+        ${admin && pend ? `<div class="banner">📨 <b>${pend} solicitud(es) de licencia</b> pendiente(s) de atender en <b>Gestionar → Solicitudes</b>.</div>` : ""}
         <div class="row" style="margin-top:8px">
+          <button class="btn small" data-act="license-manage">🔐 Gestionar licencia</button>
+          ${admin ? `<button class="btn ghost small" data-act="license-manage" data-lic-tab-go="solicitudes">📨 Solicitudes${pend ? ` · ${pend}` : ""}</button>` : ""}
           <button class="btn ghost small" data-act="license-refresh">↻ Verificar</button>
-          <button class="btn ghost small" data-act="license-manage">Gestionar</button>
         </div>
       ` : `
         <div class="banner">⛔ No hay licencia activa. Active una licencia para usar la App.</div>
@@ -1041,42 +1340,7 @@ function licenseCard() {
         <div class="card-h"><span class="k">Renovar por WhatsApp</span><span class="tag mov">Por término</span></div>
         ${licenseRequestCard(lic)}
       </div>
-      ${admin ? `
-        <div class="card" style="margin-top:14px">
-          <div class="card-h"><span class="k">Generar nueva licencia (Admin)</span></div>
-          <form id="licenseGenForm" class="form-grid">
-            <label>Cliente<input name="client_name" value="${esc(lic?.clientName || "NovaGest")}" required></label>
-            <label>Plazo (término)<select name="term" id="licGenTerm">${LicenseManager.serverTerms(lic).map((t) => `<option value="${t.id}" ${t.id === "ANIO" ? "selected" : ""}>${esc(t.label)}${t.days ? ` · ${t.days} días` : ""} · ${t.type}</option>`).join("")}</select></label>
-            <label>Tipo<select name="type"><option>FULL</option><option>TRIAL</option><option>ENTERPRISE</option><option>LIFETIME</option></select></label>
-            <label>Días (vacío = según plazo)<input name="days" type="number" placeholder="Automático"></label>
-            <label>Max usuarios<input name="max_users" type="number" value="20"></label>
-            <label>Max dispositivos<input name="max_devices" type="number" value="10"></label>
-            <label><input type="checkbox" name="activate"> Activar al generar (desactiva otras)</label>
-            <div class="span-2 row"><button type="button" class="btn small" data-act="license-gen">Generar licencia</button></div>
-          </form>
-          ${lastGen ? `<div class="card" style="margin-top:12px"><div class="card-h"><span class="k">Última generada · ${esc(lastGen.payload.license_id)}</span><span class="tag entrada">${esc(lastGen.payload.type)}</span></div>
-            <p class="mono" style="word-break:break-all;background:#f5f5f5;padding:8px;border-radius:6px">${esc(lastGen.license_key)}</p>
-            <p class="hint">Formateada: ${esc(lastGen.formattedKey)}</p>
-            <div class="row"><button class="btn ghost small" data-act="license-copy">Copiar clave</button></div>
-          </div>` : ""}
-        </div>
-        <div class="card" style="margin-top:12px">
-          <div class="card-h"><span class="k">Licencias creadas${list.length ? ` · ${list.length}` : ""}</span>
-            ${canDelete && list.length ? `<button type="button" class="btn danger small" data-act="license-del-all" title="Eliminar todas las licencias registradas">🗑 Eliminar todas las licencias</button>` : ""}</div>
-          ${list.length ? `<div class="table-wrap"><table><thead><tr><th>Nº</th><th>Cliente</th><th>Tipo</th><th>Expira</th><th>Activa</th><th>Clave</th>${canDelete ? "<th></th>" : ""}</tr></thead>
-            <tbody>${list.map((l, i) => `<tr>
-              <td class="hint">${i + 1}</td>
-              <td>${esc(l.client_name)}</td>
-              <td><span class="tag ${l.active ? "entrada" : "salida"}">${esc(l.type)}</span></td>
-              <td>${l.expires_at ? LicenseManager.fmtDate(l.expires_at) : "Permanente"}${l.expires_at && l.expires_at < nowSec ? " · expirada" : ""}</td>
-              <td>${l.active ? "✔" : "—"}</td>
-              <td class="mono hint" title="${esc(l.key)}">${esc(l.keyPreview || l.formattedKey || "")}</td>
-              ${canDelete ? `<td class="nowrap"><button type="button" class="btn ghost small danger-t" data-act="license-del" data-lic-del="${l.id}" title="Eliminar esta licencia definitivamente">🗑 Eliminar</button></td>` : ""}
-            </tr>`).join("")}</tbody></table></div>`
-            : `<p class="hint">Aún no hay licencias creadas.${canDelete ? " Use «Generar licencia» para crear la primera." : ""}</p>`}
-          <p class="hint">${canDelete ? "Solo el rol <b>ADMINISTRADOR</b> puede eliminar licencias. Si elimina la licencia activa, el sistema quedará bloqueado hasta activar otra." : "Solo el rol <b>ADMINISTRADOR</b> puede eliminar licencias."}</p>
-        </div>
-      ` : `<p class="hint">Solo administradores pueden generar licencias.</p>`}
+      <p class="hint">${canDelete ? "En <b>Gestionar licencia</b> puede crear claves, atender las solicitudes recibidas y eliminar licencias (solo ADMINISTRADOR)." : admin ? "En <b>Gestionar licencia</b> puede crear claves y atender las solicitudes recibidas." : "Solo administradores pueden generar licencias."}</p>
     </div>`;
 }
 
@@ -2266,24 +2530,31 @@ function confirmModal(text, onYes) {
   render();
 }
 
-/** Recarga estado + listado de licencias tras generar/eliminar en Ajustes. */
+/** Recarga estado + licencias + solicitudes + equipos tras generar o eliminar. */
 async function reloadLicensePanel() {
   const st = await LicenseManager.fetchStatus();
   ui.license.status = st;
   ui.license.loading = false;
-  if (st.valid && ["ADMINISTRADOR", "JEFE"].includes(role())) {
+  ui.license.infoLoaded = false;
+  if (st.valid && adminLicense()) {
     const r = await api("/license/info");
-    if (!r.error) { ui.license.info = r; ui.license.infoLoaded = true; }
+    if (!r.error) {
+      ui.license.info = r;
+      ui.license.requests = r.requests || [];
+      ui.license.counts = r.requestCounts || null;
+      ui.license.infoLoaded = true;
+    }
   } else {
     ui.license.info = null;
-    ui.license.infoLoaded = false;
+    ui.license.requests = null;
+    ui.license.counts = null;
   }
   render();
 }
 
 /* ============================ RENDER ============================ */
 function page() {
-  const views = { pos: posView, customers: customersView, analytics: analyticsView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
+  const views = { license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
   return (views[ui.route] || homeView)();
 }
 
@@ -2322,6 +2593,8 @@ function render() {
   }
   if (!store.state.session) { app.innerHTML = loginView(); bindLogin(); return; }
   if (!allowed(routes[ui.route]?.perm)) ui.route = "home";
+  // Administradores: una consulta por sesión para avisar de las solicitudes pendientes en el botón 🔐
+  if (!ui.license.infoTried && adminLicense()) { ui.license.infoTried = true; loadLicenseInfo(); }
   const formVals = {};
   document.querySelectorAll(".modal input, .modal select").forEach((el) => { if (el.name && el.type !== "file") formVals[el.name] = el.value; });
   const hadModal = !!$(".modal");
@@ -2375,9 +2648,15 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "?") startTour();
 });
 
+/** Campos compartidos por la tarjeta de solicitud (acceso, Ajustes y panel). */
+function bindLicenseInputs() {
+  $("#licReqName")?.addEventListener("input", (e) => { ui.license.reqName = e.target.value; });
+  $("#licReqPhone")?.addEventListener("input", (e) => { ui.license.reqPhone = e.target.value; });
+}
+
 function bindLicense() {
   ensureClicks();
-  $("#licReqName")?.addEventListener("input", (e) => { ui.license.reqName = e.target.value; });
+  bindLicenseInputs();
   $("#licenseKey")?.addEventListener("input", (e) => {
     ui.license.key = e.target.value;
   });
@@ -2410,6 +2689,7 @@ function bindLicense() {
 
 function bindLogin() {
   ensureClicks();
+  bindLicenseInputs();
   // Si la licencia no es válida, no intenta login
   if (!ui.license.status?.valid) {
     bindLicense();
@@ -2468,7 +2748,7 @@ function bindApp() {
     e.target.value = "";
     handleScannedCode(code);
   });
-  $("#licReqName")?.addEventListener("input", (e) => { ui.license.reqName = e.target.value; });
+  bindLicenseInputs();
   document.querySelectorAll("[data-cart-price]").forEach((el) => el.addEventListener("change", () => { ui.cart[+el.dataset.cartPrice].price = Number(el.value) || 0; render(); }));
   $("#importSheet")?.addEventListener("change", (e) => { ui.importSheet = e.target.value; importModal(); render(); });
   $("#importWh")?.addEventListener("change", (e) => { ui.importWarehouseId = e.target.value; importModal(); render(); });
@@ -2754,7 +3034,7 @@ function ensureClicks() {
 function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"); }
 
 function onClick(e) {
-  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-cust-tab],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit]");
+  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
@@ -2796,6 +3076,13 @@ function onClick(e) {
   else if (d.ivConfirm) ivApply(d.ivConfirm);
   else if (d.gotoCuadre) { ui.cuadreDate = d.gotoCuadre; navTo("cuadre"); }
   else if (d.licTerm) { ui.license.reqTerm = d.licTerm; render(); }
+  else if (d.licTab) { ui.license.tab = d.licTab; render(); }
+  else if (d.licTabGo) { openLicensePanel(d.licTabGo); }
+  else if (d.licFilter) { ui.license.reqFilter = d.licFilter; render(); }
+  else if (d.licMsg) licenseRequestModal(d.licMsg);
+  else if (d.licKey) licenseGenerateFromRequest(d.licKey);
+  else if (d.licStatus) licenseRequestStatusFlow(d.licStatus, d.licStatusValue);
+  else if (d.licReqDel) licenseRequestDeleteFlow(d.licReqDel);
   else if (d.custTab) { ui.custTab = d.custTab; render(); }
   else if (d.editCustomer) { customerModal(store.customerById(d.editCustomer)); render(); }
   else if (d.creditFor) { creditModal(d.creditFor); render(); }
@@ -2832,7 +3119,7 @@ function onClick(e) {
   else if (act === "close-day") confirmModal(`¿Cerrar el día <b>${formatDate(d.date)}</b>? Nadie podrá modificar sus movimientos ni el cuadre (solo un administrador puede reabrirlo).`, () => store.closeDay(d.date).then((r) => (r.error ? toast(r.error, "err") : confetti(`<b>🔒 Día cerrado</b><span>${formatDate(d.date)}</span>`))));
   else if (act === "reopen-day") { const reason = prompt("Motivo de la reapertura (queda en la auditoría):"); if (reason) store.reopenDay(d.date, reason).then((r) => result(r, "Día reabierto")); }
   else if (act === "confirm-yes") { const fn = ui.confirm; ui.confirm = null; ui.modal = null; fn?.(); render(); }
-  else if (act === "logout") { ui.sec = null; ui.usersLoaded = false; ui.backups = null; store.logout(); }
+  else if (act === "logout") { ui.sec = null; ui.usersLoaded = false; ui.backups = null; ui.license.infoTried = false; ui.license.infoLoaded = false; store.logout(); }
   else if (act === "palette") openPalette(paletteCtx());
   else if (act === "cart-clear") { ui.cart = []; render(); }
   else if (act === "checkout") {
@@ -2885,27 +3172,60 @@ function onClick(e) {
   else if (act === "iv-clear") { const st = ivState(); st.rows = []; st.text = ""; st.last = null; st.warn = false; render(); }
   else if (act === "iv-template") ivTemplate();
   else if (act === "license-refresh") {
-    ui.license.loading = true;
+    if (!store.state.session) ui.license.loading = true;
     ui.license.error = null;
     render();
     LicenseManager.fetchStatus().then((st) => {
       ui.license.status = st;
       ui.license.loading = false;
+      ui.license.infoLoaded = false;
       render();
       toast(st.valid ? "Licencia verificada · válida" : `Licencia: ${st.reason || "no válida"}`, st.valid ? "ok" : "err");
+      loadLicenseInfo(true);
+    });
+  }
+  else if (act === "license-refresh-info") { ui.license.infoLoaded = false; loadLicenseInfo(true).then(() => toast("Listado actualizado", "ok")); }
+  else if (act === "license-close") { ui.license.expand = false; render(); }
+  else if (act === "license-copy-message") {
+    const r = (ui.license.requests || []).find((x) => String(x.id) === String(ui.license.msgRequest));
+    const text = r?.message || "";
+    if (!text) return toast("No hay mensaje que copiar.", "err");
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast("Mensaje copiado", "ok")).catch(() => toast(text, ""));
+    else toast(text, "");
+  }
+  else if (act === "license-send-key") sendLicenseKeyByWhatsApp();
+  else if (act === "license-dl") {
+    const res = ui.license.lastGenerated;
+    if (!res?.license_key) return toast("Genere primero una clave.", "err");
+    const p = res.payload || {};
+    const txt = [
+      `Licencia de Uso · ${p.product || "NovaGest"} v${APP_VERSION}`,
+      `Cliente: ${p.client_name || ""}`,
+      `Tipo: ${p.type || ""}`,
+      p.expires_at ? `Expira: ${LicenseManager.fmtDate(p.expires_at)}` : "Expira: Permanente",
+      "",
+      res.license_key,
+    ].join("\n");
+    download(`licencia-${String(p.client_name || "novagest").replace(/\s+/g, "-").toLowerCase()}.txt`, txt, "text/plain");
+    toast("Clave descargada", "ok");
+  }
+  else if (act === "license-req-purge") {
+    if (!adminLicense()) return toast("Solo administradores pueden limpiar las solicitudes.", "err");
+    confirmModal("¿Eliminar del historial las solicitudes ya <b>atendidas</b> y <b>descartadas</b>? Las pendientes se conservan.", () => {
+      api("/license/requests/purge", { method: "POST", body: { confirm: "ELIMINAR" } }).then((r) => {
+        if (r.error) return toast(r.error, "err");
+        if (r.counts) ui.license.counts = r.counts;
+        if (r.requests) ui.license.requests = r.requests;
+        toast("Historial de solicitudes limpiado", "ok");
+        render();
+      });
     });
   }
   else if (act === "license-continue") {
     if (ui.license.status?.valid) render();
   }
   else if (act === "license-manage") {
-    ui.license.loading = true;
-    render();
-    LicenseManager.fetchStatus().then((st) => {
-      ui.license.status = st;
-      ui.license.loading = false;
-      render();
-    });
+    openLicensePanel(d.licTabGo);
   }
   else if (act === "license-gen") {
     // Solo admin: genera licencia desde el modal
@@ -2914,25 +3234,32 @@ function onClick(e) {
     const fd = new FormData(form);
     const body = {
       client_name: fd.get("client_name"),
+      phone: fd.get("phone"),
       term: fd.get("term") || undefined,
       type: fd.get("type"),
       days: fd.get("days") || undefined,
       max_users: fd.get("max_users"),
       max_devices: fd.get("max_devices"),
       activate: fd.get("activate") === "on",
+      request_id: ui.license.genRequest ? String(ui.license.genRequest) : undefined,
     };
+    ui.license.genClient = String(fd.get("client_name") || "");
+    ui.license.genPhone = String(fd.get("phone") || "");
+    ui.license.genTerm = String(fd.get("term") || ui.license.genTerm || "ANIO");
     api("/license/generate", { method: "POST", body }).then((r) => {
       if (r.error) return toast(r.error, "err");
-      ui.license.lastGenerated = r;
-      toast(`Licencia generada · ${r.payload.license_id}`, "ok");
+      ui.license.lastGenerated = { ...r, phone: body.phone || "" };
+      ui.license.genRequest = null;
+      toast(`🔑 Licencia generada · ${r.payload.client_name} · ${r.payload.type}`, "ok");
+      loadLicenseInfo(true);
       render();
     });
   }
   else if (act === "license-copy") {
-    const key = ui.license.lastGenerated?.license_key || ui.license.status?.formattedKey || "";
-    if (key) {
-      navigator.clipboard?.writeText(key).then(() => toast("Clave copiada al portapapeles", "ok")).catch(() => toast(key, ""));
-    }
+    const key = ui.license.lastGenerated?.license_key || ui.license.info?.active?.db_row?.key || ui.license.status?.formattedKey || "";
+    if (!key) return toast("No hay clave para copiar.", "err");
+    if (navigator.clipboard) navigator.clipboard.writeText(key).then(() => toast("Clave copiada al portapapeles", "ok")).catch(() => toast(key, ""));
+    else toast(key, "");
   }
   else if (act === "license-del") {
     // Eliminar una licencia (solo ADMINISTRADOR; el servidor también lo verifica)
@@ -2945,6 +3272,7 @@ function onClick(e) {
       api(`/license/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => {
         if (r.error) return toast(r.error, "err");
         ui.license.lastGenerated = null;
+        ui.license.infoLoaded = false;
         toast("Licencia eliminada", "ok");
         reloadLicensePanel();
       });
@@ -2972,11 +3300,15 @@ function onClick(e) {
     const fd = new FormData(form);
     const key = String(fd.get("license_key") || "").trim();
     if (!key) return toast("Pegue la clave de licencia.", "err");
+    ui.license.key = key;
     LicenseManager.activate(key).then((r) => {
       if (r.ok) {
         LicenseManager.fetchStatus().then((st) => {
           ui.license.status = st;
-          toast(`Licencia activada · ${r.clientName}`, "ok");
+          ui.license.key = "";
+          ui.license.infoLoaded = false;
+          toast(`Licencia activada · ${r.clientName} · ${st.valid ? `${st.daysLeft === -1 ? "Permanente" : `${st.daysLeft} días`}` : ""}`, "ok");
+          loadLicenseInfo(true);
           render();
         });
       } else {
@@ -2988,8 +3320,17 @@ function onClick(e) {
     const name = ($("#licReqName")?.value || ui.license.reqName || "").trim();
     if (!name) { toast("Escribe tu nombre o empresa para solicitar la licencia.", "err"); $("#licReqName")?.focus(); return; }
     ui.license.reqName = name;
-    LicenseManager.requestByWhatsApp({ name, term: ui.license.reqTerm || "MES", status: ui.license.status });
-    toast("Abriendo WhatsApp con tu solicitud…", "ok");
+    const phone = ($("#licReqPhone")?.value || ui.license.reqPhone || "").trim();
+    ui.license.reqPhone = phone;
+    LicenseManager.requestByWhatsApp({ name, term: ui.license.reqTerm || "MES", phone, status: ui.license.status }).then((r) => {
+      if (r.ok) {
+        toast(r.duplicate ? `Solicitud #${r.id} ya registrada · abriendo WhatsApp…` : `Solicitud #${r.id} registrada · abriendo WhatsApp…`, "ok");
+        ui.license.infoLoaded = false;
+        loadLicenseInfo(true);
+      } else {
+        toast(r.error || "Se abrió WhatsApp con tu solicitud.", "err");
+      }
+    });
   }
   else if (act === "license-copy-device") {
     const id = LicenseManager.deviceId();
