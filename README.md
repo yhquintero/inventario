@@ -125,6 +125,30 @@ En **Ajustes → Licencia de Uso** la tarjeta resume el estado y abre el panel *
 
 El rol **Administrador** puede generar licencias (FULL, TRIAL, ENTERPRISE o LIFETIME) y eliminarlas, una por una o todas a la vez (`DELETE /api/license/:id` y `POST /api/license/delete-all`, ambos validados en el servidor); el resto de los roles solo pueden consultarlas. Si se elimina la licencia activa, el sistema queda bloqueado hasta activar otra (la activación de una clave firmada no depende del listado, así que una clave guardada siempre sirve para recuperar el acceso).
 
+### Dónde se generan las licencias
+
+1. **Panel de la Web** — 🔐 **Gestionar licencia → 🆕 Generar clave** (o **Solicitudes** → «Crear clave»); requiere sesión de administrador.
+2. **Herramienta independiente** — `tools/license_studio.py`, el generador **aparte de la Web** con interfaz propia y botón «Enviar por WhatsApp».
+3. **Terminal** — `tools/generate_license.py`, para dejar instalaciones listas desde la línea de comandos.
+4. **API** — `POST /api/license/generate`, para integraciones con sesión de administrador.
+
+### Generar licencias aparte de la Web (herramienta independiente)
+
+El generador se ejecuta como un **proceso propio, separado de la Web y del servidor** de NovaGest (su propio puerto), y sirve para crear la clave y **enviar la generación por WhatsApp** con un solo clic: prepara el enlace `wa.me` con el mensaje ya redactado (nombre, plan, vigencia y la clave) para que solo pulses **Enviar**.
+
+```bash
+python3 tools/license_studio.py                      # interfaz en http://localhost:8777
+python3 tools/license_studio.py --open               # además abre el navegador
+python3 tools/license_studio.py --port 9000          # otro puerto
+python3 tools/license_studio.py --host 127.0.0.1     # solo esta máquina (herramienta privada)
+python3 tools/license_studio.py --data /ruta/a/data  # secreto y BD de esa instalación
+python3 tools/license_studio.py --whatsapp 5351234567  # WhatsApp destino por defecto
+```
+
+En Windows puede lanzarse con `powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador.ps1`. La interfaz ofrece: formulario con los **8 plazos** (día … permanente), tipo y límites; la clave generada con **Copiar**, **Descargar `.txt`** y **💬 Enviar por WhatsApp** (enlace `wa.me` con el mensaje listo); y, si encuentra `data/novagest.db`, la lista de **solicitudes recibidas por WhatsApp** (Web y Android) con «Crear clave y enviar por WhatsApp» en un clic, que las deja marcadas como atendidas. Usa el **mismo formato de clave** (HMAC-SHA256) y el mismo mensaje que el panel de la Web, así que las claves activan sin cambios.
+
+> ⚠️ La clave solo verifica en la instalación que comparte el secreto (`LICENSE_SECRET` o `data/license.key`): si generas desde otra máquina, exporta el mismo `LICENSE_SECRET` o apunta `--data` a la carpeta `data` del servidor del cliente. La herramienta es privada del administrador: no la expongas en Internet.
+
 ### Generar una licencia desde la terminal
 
 Para crear una clave sin entrar en la aplicación (por ejemplo, para dejar una instalación nueva lista para usar):
@@ -161,6 +185,7 @@ node tools/test_almacenes.mjs        # lógica de almacenes e importación
 node tools/test_customers_credits.mjs # clientes, fiados, abonos y códigos de barras
 node tools/smoke_web.mjs             # recorrido de pantallas Web con DOM simulado
 python3 tools/test_licencia.py       # solicitudes de licencia, plazos y texto del mensaje
+python3 tools/test_generador.py      # generador independiente: claves firmadas y envío por WhatsApp
 ```
 
 Para ejecutar las pruebas unitarias Android, usa Android Studio o Gradle 8.9 desde la raíz:
