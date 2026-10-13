@@ -1,5 +1,54 @@
 # NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-13 · Generador de licencias por HTTPS y control de licencias
+
+El generador independiente se puede abrir **por HTTPS en su propio puerto** (8444 por
+defecto, aparte del 8443 del servidor), queda protegido con **clave de acceso** y gana un
+panel de **control de las licencias emitidas**: activar, renovar, revocar, reactivar,
+quitar equipos, reenviar por WhatsApp, eliminar y exportar a CSV.
+
+### 🔒 HTTPS en su propio puerto (`tools/iniciar-generador-https.ps1`)
+- Nuevo lanzador para Windows: reutiliza el certificado del servidor (`certs\cuadre.crt`)
+  cuando ya cubre las IPs de la laptop —comprobando el SAN del certificado— o crea el suyo
+  con mkcert (`certs\licencias.crt`), abre la regla de Firewall del puerto (UAC la primera
+  vez), imprime las URLs de cada red (localhost, router y hotspot `192.168.137.1`) y la
+  clave de acceso, y arranca la herramienta con registro en `data\logs\generador_*.log`.
+- La herramienta acepta `--ssl-cert` / `--ssl-key` (o `SSL_CERT` / `SSL_KEY`) y sirve con
+  TLS 1.2+; con HTTPS la cookie de sesión se marca `Secure`.
+- `tools\iniciar-generador.ps1` acepta `-Https` y delega en el lanzador HTTPS (puerto 8444
+  por defecto) y `-Clave` para pasar la clave de acceso.
+
+### 🔑 Clave de acceso de la herramienta
+- La interfaz pide una clave (pestaña **🔑 Acceso y datos** para cambiarla). Se toma de
+  `--clave`, `LICENSE_ADMIN_KEY`, `NOVAGEST_ADMIN_KEY` o `data/licencia-acceso.txt`, que se
+  crea sola la primera vez y se imprime en la consola.
+- Sesión de 12 h por cookie `HttpOnly`+`SameSite=Lax` (y `Secure` con HTTPS); bloqueo
+  temporal de la IP tras 8 intentos fallidos; todo `/api/*` exige sesión y responde 401
+  con `authRequired`.
+
+### 🗂 Control de las licencias emitidas (`/api/licenses` …)
+- **Listado completo** de claves emitidas (Web, Android, terminal y generador) con estado
+  — Vigente · en uso, Emitida · sin activar, Vencida, Revocada o Firma no coincide —, días
+  restantes, ID de licencia, límites, quién la creó y los **equipos que la activaron**
+  (ID de dispositivo, IP, activación y última vez visto).
+- Acciones: **usar como activa** (desactiva las demás del mismo producto), **renovar** con
+  el plazo elegido (emite clave nueva, revoca la anterior y prepara el WhatsApp),
+  **revocar** / **reactivar** (se distingue `revoked` en el metadata de una licencia solo
+  emitida), **quitar equipo**, **reenviar por WhatsApp** con el mensaje reconstruido,
+  copiar/descargar la clave, **eliminar** y **exportar CSV** para Excel.
+- Las solicitudes se pueden **descartar**, volver a **pendiente** o **eliminar**, además de
+  crear su clave y dejarlas atendidas.
+- Cada acción se anota en la **auditoría** del servidor con el usuario `license_studio`
+  (`LICENSE_GENERATE_STUDIO`, `LICENSE_REQUEST_DONE`, `LICENSE_RENEW`, `LICENSE_REVOKE`,
+  `LICENSE_RESTORE`, `LICENSE_ACTIVATE_PANEL`, `LICENSE_DEVICE_REVOKE`, `LICENSE_DELETE`…).
+
+### Pruebas y documentación
+- `tools/test_generador.py` pasa de 4 a 12 pruebas: clave de acceso (401 sin sesión,
+  bloqueo, cambio de clave), HTTPS con cookie `Secure`, generación y firma, mensaje de
+  WhatsApp, solicitudes, control de licencias (activar/renovar/revocar/reactivar/eliminar),
+  equipos, CSV y que un navegador sin sesión no genera ni revoca nada.
+- README y MANUAL: apartados de HTTPS, clave de acceso y control de licencias.
+
 ## NovaGest v1.0.0 · revisión 2026-10-12 · Generador de licencias aparte de la Web
 
 El generador de licencias ahora se ejecuta como una **herramienta independiente de la

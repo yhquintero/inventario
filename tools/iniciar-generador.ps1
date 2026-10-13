@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  NovaGest - Generador de licencias INDEPENDIENTE de la Web (envío por WhatsApp).
+  NovaGest - Generador de Licencias INDEPENDIENTE de la Web (envío por WhatsApp).
 
 .DESCRIPTION
   Arranca tools\license_studio.py: una herramienta con interfaz propia que se
@@ -9,18 +9,26 @@
   WhatsApp con un solo clic (enlace wa.me con el mensaje listo).
 
   Lista además las solicitudes de licencia recibidas por WhatsApp (Web y
-  Android) si encuentra la base de datos del servidor, y crea su clave en un
-  clic dejándola marcada como atendida.
+  Android) si encuentra la base de datos del servidor, y en la pestaña
+  «Licencias y equipos» permite controlar todas las licencias emitidas
+  (activar, renovar, revocar, reactivar, eliminar y exportar a CSV).
 
   La clave se firma con el MISMO secreto que la instalación del cliente
   (LICENSE_SECRET o data\license.key), así que solo verifica en ese servidor.
 
+  Con -Https delega en tools\iniciar-generador-https.ps1, que sirve la
+  herramienta por HTTPS con mkcert y abre el firewall (recomendado si la vas a
+  abrir desde el móvil o desde otra PC de la red).
+
 .PARAMETER Puerto
-  Puerto de la herramienta. Por defecto 8777.
+  Puerto de la herramienta. Por defecto 8777 (HTTP) o 8444 con -Https.
 
 .PARAMETER Datos
   Carpeta data del servidor del cliente (secreto y solicitudes). Por defecto
   la del propio repositorio (data\).
+
+.PARAMETER Clave
+  Clave de acceso de la interfaz (si no, LICENSE_ADMIN_KEY o data\licencia-acceso.txt).
 
 .PARAMETER SoloLocal
   Escucha solo en esta máquina (127.0.0.1). Recomendado si no necesita
@@ -29,11 +37,17 @@
 .PARAMETER WhatsApp
   Número de WhatsApp destino por defecto (solo dígitos, con código de país).
 
+.PARAMETER Https
+  Arranca por HTTPS en su propio puerto con tools\iniciar-generador-https.ps1.
+
 .PARAMETER AbrirNavegador
   Abre el navegador al arrancar (por defecto sí).
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador.ps1
+
+.EXAMPLE
+  powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador.ps1 -Https
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador.ps1 -Datos D:\novagest\data -SoloLocal
@@ -45,10 +59,31 @@
 param(
     [int]$Puerto = 8777,
     [string]$Datos = "",
+    [string]$Clave = "",
     [switch]$SoloLocal,
+    [switch]$Https,
     [string]$WhatsApp = "",
     [bool]$AbrirNavegador = $true
 )
+
+# Con -Https todo lo hace el lanzador HTTPS (mkcert + firewall + URLs)
+if ($Https) {
+    $psHttps = Join-Path $PSScriptRoot 'iniciar-generador-https.ps1'
+    if (-not (Test-Path $psHttps)) {
+        Write-Error "No se encontró $psHttps"
+        exit 1
+    }
+    $destino = if ($Puerto -eq 8777) { 8444 } else { $Puerto }
+    $argsHttps = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$psHttps`"",
+                   '-Puerto', "$destino", '-AbrirNavegador', "$AbrirNavegador")
+    if ($Datos -ne "") { $argsHttps += @('-Datos', $Datos) }
+    if ($Clave -ne "") { $argsHttps += @('-Clave', $Clave) }
+    if ($WhatsApp -ne "") { $argsHttps += @('-WhatsApp', $WhatsApp) }
+    if ($SoloLocal) { $argsHttps += '-SoloLocal' }
+    $psExe = (Get-Process -Id $PID).Path
+    & $psExe @argsHttps
+    exit $LASTEXITCODE
+}
 
 $raiz = Split-Path -Parent $PSScriptRoot
 $script = Join-Path $raiz "tools\license_studio.py"
@@ -66,6 +101,7 @@ else {
 $argList = @($script, "--port", "$Puerto")
 if ($SoloLocal) { $argList += @("--host", "127.0.0.1") }
 if ($Datos -ne "") { $argList += @("--data", $Datos) }
+if ($Clave -ne "") { $argList += @("--clave", $Clave) }
 if ($WhatsApp -ne "") { $argList += @("--whatsapp", $WhatsApp) }
 if ($AbrirNavegador) { $argList += "--open" }
 
