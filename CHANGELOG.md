@@ -1,5 +1,34 @@
 # NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-12 · Generador de licencias aparte de la Web
+
+El generador de licencias ahora se ejecuta como una **herramienta independiente de la
+Web**, con interfaz propia y envío de la generación por WhatsApp en un clic.
+
+### 🔐 Generador independiente (`tools/license_studio.py`)
+- Nuevo proceso aparte de la Web y del servidor de NovaGest (su propio puerto, 8777 por
+  defecto) con interfaz propia: formulario con los 8 plazos (día … permanente), tipo,
+  usuarios y dispositivos; la clave se **copia**, se **descarga en `.txt`** o se **envía
+  por WhatsApp** con el mensaje ya redactado (enlace `wa.me` — solo pulsar «Enviar»).
+- Si encuentra `data/novagest.db` lista las **solicitudes recibidas por WhatsApp** (Web y
+  Android) y con «Crear clave y enviar por WhatsApp» genera la clave con el nombre y el
+  plazo pedidos, deja la solicitud **atendida** y abre el chat con la clave ya escrita.
+- Firma con el mismo secreto que la instalación del cliente (`LICENSE_SECRET` /
+  `data/license.key`), y produce exactamente la misma clave y el mismo mensaje de
+  WhatsApp que el panel «🔐 Gestionar licencia» y `tools/generate_license.py`. Las claves
+  se registran en la tabla `licenses` cuando hay BD (aparecen en «Licencias y equipos»).
+- Opciones: `--host` (127.0.0.1 para uso solo local), `--port`, `--data` (secreto y
+  solicitudes de otra instalación), `--whatsapp` (número destino) y `--open`.
+- Lanzador para Windows: `tools/iniciar-generador.ps1`.
+- Nueva prueba `tools/test_generador.py`: la herramienta responde sola, genera claves
+  que el servidor verifica con la misma firma, compone el mensaje/enlace de WhatsApp y
+  atiende solicitudes dejándolas marcadas como atendidas.
+
+### Documentación
+- README: nuevo mapa **«Dónde se generan las licencias»** (panel de la Web, herramienta
+  independiente, terminal y API) y sección de uso del generador aparte; MANUAL: cómo lo
+  usa el administrador para responder por WhatsApp.
+
 ## NovaGest v1.0.0 · revisión 2026-10-13 · Panel «Gestionar licencia» y solicitudes registradas
 
 El botón **Gestionar** de Ajustes → Licencia de Uso ya no se limita a volver a verificar
