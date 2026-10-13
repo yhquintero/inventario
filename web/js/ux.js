@@ -139,7 +139,7 @@ export function startTour() { step = 0; showStep(); }
 function endTour() {
   step = -1;
   document.querySelector(".tour")?.remove();
-  localStorage.setItem("cuadrepinar.tour", "1");
+  localStorage.setItem("novagest.tour", "1");
 }
 function showStep() {
   document.querySelector(".tour")?.remove();
@@ -173,7 +173,12 @@ function showStep() {
   });
   document.body.appendChild(wrap);
 }
-export const tourSeen = () => !!localStorage.getItem("cuadrepinar.tour");
+export const tourSeen = () => {
+  try { // migra la marca heredada de Cuadre Pinar
+    if (localStorage.getItem("cuadrepinar.tour")) { localStorage.setItem("novagest.tour", "1"); localStorage.removeItem("cuadrepinar.tour"); }
+  } catch {}
+  return !!localStorage.getItem("novagest.tour");
+};
 
 /* ---------------- Paleta de comandos (Ctrl+K) ---------------- */
 export function openPalette({ routes, products, allowed, go, act, openProduct, norm }) {

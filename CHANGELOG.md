@@ -1,5 +1,44 @@
 # Registro de cambios
 
+## Web v6.1.0 · Android 1.3.0 — 2026-10-12 · Identificadores NovaGest
+
+Migración completa de los identificadores técnicos de Cuadre Pinar a NovaGest, manteniendo la
+compatibilidad con los datos y licencias existentes.
+
+### Android
+- **Paquete renombrado**: `com.cuadrepinar.inventario` → `com.novagest.inventario` (namespace,
+  applicationId, directorios de código y tests, reglas ProGuard). ⚠️ Al cambiar el applicationId,
+  Android instala la app como **aplicación nueva** junto a la anterior: usa una copia de
+  seguridad o la sincronización con el servidor para llevar los datos a la nueva instalación y
+  desinstala la antigua cuando quieras.
+- Base de datos Room renombrada a `novagest.db` (antes `cuadre_pinar.db`) y reglas de
+  backup/extracción actualizadas.
+- `CuadreApp` → `NovaGestApp`, `CuadrePinarTheme` → `NovaGestTheme`,
+  `Theme.CuadrePinar` → `Theme.NovaGest`; proyecto Gradle renombrado a `NovaGest`.
+- User-Agent de sincronización ahora `NovaGestApp Android`; frase de paso por defecto de las
+  copias locales: `NovaGest`. Cuentas de demostración con correo `@novagest.app`.
+- v1.3.0 (versionCode 4).
+
+### Servidor
+- **Archivo renombrado**: `server/cuadre_server.py` → `server/novagest_server.py`
+  (README, Dockerfile, systemd, arranque HTTPS y `web/serve.py` actualizados).
+- Servicio systemd renombrado a `novagest.service` con rutas `/opt/novagest` y
+  `/var/lib/novagest`.
+- **Base de datos**: las instalaciones nuevas usan `data/novagest.db`; las existentes conservan
+  automáticamente su `data/cuadre.db` (detección con respaldo, sin pérdida de datos).
+- Copias de seguridad automáticas con prefijo `novagest_…` (las antiguas `cuadre_…` siguen
+  siendo visibles y restaurables). Cabecera HTTP `Server: NovaGest`.
+- **Licencias**: las claves nuevas se emiten con prefijo **`NG-`**; las claves heredadas
+  **`CP-` siguen verificando igual** (el servidor acepta ambos prefijos al activar).
+
+### Web
+- Claves de localStorage migradas a `novagest.*` (tema, almacén en uso, token, licencia,
+  dispositivo y guía vista) con **migración automática** desde las claves antiguas: nadie
+  pierde sus preferencias ni su sesión.
+- Descargas renombradas: `novagest-backup.json` y `novagest-codigos-2fa.txt`; consola con
+  prefijo `[NovaGest]`; parser del libro histórico renombrado a `parseLegacyCuadreGrid`.
+- Formulario de licencia muestra el formato `NG-…` (acepta también `CP-…`). Caché PWA `v8`.
+
 ## Web v6.0.0 · Android 1.2.0 — 2026-10-12 · NovaGest
 
 ### Nueva marca: de «Cuadre Pinar» a **NovaGest**
@@ -10,10 +49,7 @@
   (antes teal/dorado), nuevo logotipo y icono de app, iconos adaptativos Android (monograma N
   con fondo en degradado) e iconos PWA regenerados en todas las densidades.
 - La marca se actualizó en toda la interfaz (título, menú, acceso, licencia, PDF impresos,
-  notificaciones) y en la documentación. Los identificadores técnicos se mantienen para no
-  romper instalaciones ni licencias actuales: paquete Android `com.cuadrepinar.inventario`,
-  prefijo de claves `CP-`, nombre del servicio systemd y claves de localStorage. Las claves de
-  licencia existentes siguen verificando exactamente igual (cada clave firma su propio payload).
+  notificaciones) y en la documentación. Ver 6.1.0 para la migración de identificadores técnicos.
 
 ### Mejoras Web
 - **Panel**: nuevos **accesos rápidos** (Venta rápida, Importar valores, Cuadre del día,

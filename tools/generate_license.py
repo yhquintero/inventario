@@ -83,7 +83,7 @@ def main():
         "version": 1,
     }
     token = create_token(payload)
-    pretty = f"CP-{token}"
+    pretty = f"NG-{token}"
     print("\n=== Licencia de Uso Generada ===")
     print(f"Cliente: {payload['client_name']}")
     print(f"Producto: {payload['product']}")
@@ -94,7 +94,7 @@ def main():
     print(f"Usuarios: {args.users}  Dispositivos: {args.devices}")
     print("\n--- Clave (copiar completa) ---")
     print(token)
-    print("\n--- Con prefijo CP- ---")
+    print("\n--- Con prefijo NG- ---")
     print(pretty)
     print("\n--- Payload ---")
     print(json.dumps(payload, indent=2, ensure_ascii=False))

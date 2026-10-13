@@ -1,6 +1,6 @@
 import { store } from "./store.js";
 import { api, setLicenseErrorHandler } from "./api.js";
-import { parseCuadrePinarGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
+import { parseLegacyCuadreGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
 import { LicenseManager } from "./license.js";
 import qrcode from "../vendor/qrcode.mjs";
 import { applyTips, initTooltips, startTour, tourSeen, openPalette, animateCounters } from "./ux.js";
@@ -13,7 +13,7 @@ import {
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
 /** Versión de la interfaz Web (visible en Ajustes → Acerca de). */
-export const APP_VERSION = "6.0.0";
+export const APP_VERSION = "6.1.0";
 
 const routes = {
   home: { title: "Panel", icon: "⌂", perm: null, group: "General" },
@@ -169,8 +169,8 @@ function licenseView() {
               ${hasExpired ? `<div class="banner">${isExpired ? `⛔ La licencia expiró el ${LicenseManager.fmtDate(st.lastLicense.expiresAt)}. Debe activar una nueva.` : `⚠ ${esc(st.reason || "No hay licencia activa")}`}</div>` : `<div class="banner">${esc(st?.reason || "No hay licencia activa. Active una licencia para continuar.")}</div>`}
             `}
             <div class="h2">${st?.valid ? "Cambiar / Renovar licencia" : "Activar licencia de uso"}</div>
-            <p class="hint">Pegue la clave de licencia completa (incluye el punto). Formato: <code>CP-XXXX-...XXXX.YYYY</code>. La clave es verificada criptográficamente en el servidor antes de permitir cualquier acceso.</p>
-            <label>Clave de licencia<textarea name="license_key" id="licenseKey" rows="4" placeholder="CP-...." required style="font-family:monospace;word-break:break-all">${esc(lic.key || "")}</textarea></label>
+            <p class="hint">Pegue la clave de licencia completa (incluye el punto). Formato: <code>NG-XXXX-...XXXX.YYYY</code>. Las claves heredadas <code>CP-…</code> también son válidas. La clave es verificada criptográficamente en el servidor antes de permitir cualquier acceso.</p>
+            <label>Clave de licencia<textarea name="license_key" id="licenseKey" rows="4" placeholder="NG-...." required style="font-family:monospace;word-break:break-all">${esc(lic.key || "")}</textarea></label>
             <div class="row" style="margin-top:12px">
               <button class="btn full" ${lic.activating ? "disabled" : ""}>${lic.activating ? "Verificando…" : st?.valid ? "Actualizar licencia" : "Activar licencia"}</button>
             </div>
@@ -1006,7 +1006,7 @@ function licenseCard() {
         <div class="banner">⛔ No hay licencia activa. Active una licencia para usar la App.</div>
         <p class="hint">Pegue la clave completa con punto. La verificación es criptográfica y se hace en el servidor antes de cualquier acceso.</p>
         <form id="licenseFormInline" class="form-grid">
-          <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="CP-..." style="font-family:monospace"></textarea></label>
+          <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="NG-..." style="font-family:monospace"></textarea></label>
           <div class="span-2 row"><button class="btn small" data-act="license-activate-inline">Activar</button><button type="button" class="btn ghost small" data-act="license-refresh">Verificar estado</button></div>
         </form>
       `}
@@ -1087,7 +1087,7 @@ function securityCard() {
 }
 function uaName(ua = "") {
   const os = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "";
-  const br = /CuadrePinarApp/.test(ua) ? "App" : /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : ua.slice(0, 30) || "Desconocido";
+  const br = /NovaGestApp/.test(ua) ? "App" : /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : ua.slice(0, 30) || "Desconocido";
   return `${br}${os ? " · " + os : ""}`;
 }
 
@@ -1266,7 +1266,7 @@ function parseSheet(XLSX, wb, name) {
   const ws = wb.Sheets[name];
   if (!ws) return null;
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
-  return parseCuadrePinarGrid(rows, {
+  return parseLegacyCuadreGrid(rows, {
     sheetName: name,
     formulaAt: (row, column) => ws[XLSX.utils.encode_cell({ r: row, c: column })]?.f || "",
   });
@@ -2564,7 +2564,7 @@ function onClick(e) {
   else if (act === "tfa-setup") api("/2fa/setup", { method: "POST" }).then((r) => { if (r.error) return toast(r.error, "err"); ui.sec.setup = r; render(); });
   else if (act === "tfa-cancel") { ui.sec.setup = null; render(); }
   else if (act === "codes-done") { ui.sec.codes = null; render(); }
-  else if (act === "dl-codes") download("cuadre-pinar-codigos-2fa.txt", `Códigos de recuperación de ${store.state.session.username}\n\n${ui.sec.codes.join("\n")}\n`, "text/plain");
+  else if (act === "dl-codes") download("novagest-codigos-2fa.txt", `Códigos de recuperación de ${store.state.session.username}\n\n${ui.sec.codes.join("\n")}\n`, "text/plain");
   else if (act === "logout-all") api("/logout-all", { method: "POST" }).then(() => { ui.sec.sessions = null; toast("Otras sesiones cerradas", "ok"); });
   else if (act === "close-day") confirmModal(`¿Cerrar el día <b>${formatDate(d.date)}</b>? Nadie podrá modificar sus movimientos ni el cuadre (solo un administrador puede reabrirlo).`, () => store.closeDay(d.date).then((r) => (r.error ? toast(r.error, "err") : confetti(`<b>🔒 Día cerrado</b><span>${formatDate(d.date)}</span>`))));
   else if (act === "reopen-day") { const reason = prompt("Motivo de la reapertura (queda en la auditoría):"); if (reason) store.reopenDay(d.date, reason).then((r) => result(r, "Día reabierto")); }
@@ -2741,7 +2741,7 @@ function onClick(e) {
   else if (act === "close-modal") {
     if (t.tagName !== "DIV" || e.target === t) { ui.modal = null; render(); }
   }
-  else if (act === "do-backup") { download("cuadre-pinar-backup.json", store.exportBackup(), "application/json"); toast("Copia descargada", "ok"); }
+  else if (act === "do-backup") { download("novagest-backup.json", store.exportBackup(), "application/json"); toast("Copia descargada", "ok"); }
   else if (act === "reset") confirmModal("Esto reemplaza los datos del servidor (para todos) por CUADRE PINAR SEPT.xlsx (hoja 25 9 26). Crea antes una copia.", () => { store.resetDemo(); toast("Datos recargados desde el Excel", "ok"); });
   else if (act === "export-csv") exportComprobacion();
   else if (act === "export-mov") exportMovements();
@@ -2872,11 +2872,11 @@ function noticeUnexpected(msg) {
   toast(msg, "err");
 }
 window.addEventListener("error", (e) => {
-  console.error("[CuadrePinar]", e.error || e.message);
+  console.error("[NovaGest]", e.error || e.message);
   noticeUnexpected("Ocurrió un error inesperado. Si se repite, recarga la página.");
 });
 window.addEventListener("unhandledrejection", (e) => {
-  console.error("[CuadrePinar]", e.reason);
+  console.error("[NovaGest]", e.reason);
   noticeUnexpected("Una operación no pudo completarse.");
 });
 let lastActivity = Date.now();

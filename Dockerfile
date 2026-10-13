@@ -7,4 +7,4 @@ ENV PORT=8080 DATA_DIR=/data TRUST_PROXY=1
 VOLUME /data
 EXPOSE 8080
 USER 1000
-CMD ["python3", "server/cuadre_server.py"]
+CMD ["python3", "server/novagest_server.py"]

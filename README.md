@@ -67,12 +67,12 @@ Requisitos: Python 3.10 o posterior y los paquetes `cryptography` (servidor) y `
 
 ```bash
 python3 -m pip install cryptography openpyxl
-python3 server/cuadre_server.py
+python3 server/novagest_server.py
 ```
 
 Para reconstruir `web/js/seed-data.js` y `app/src/main/assets/seed.json` desde todas las hojas fechadas de `xlsx/CUADRE PINAR SEPT.xlsx`, ejecuta `python3 tools/import_excel.py`. El generador conserva ventas, costos y comisiones por movimiento y anota los ajustes de apertura/cierre.
 
-El servidor escucha en `http://localhost:8080` por defecto y sirve la interfaz Web junto con la API. Para cambiar el puerto: `PORT=9090 python3 server/cuadre_server.py`.
+El servidor escucha en `http://localhost:8080` por defecto y sirve la interfaz Web junto con la API. Para cambiar el puerto: `PORT=9090 python3 server/novagest_server.py`.
 
 ### Despliegue con HTTPS
 
@@ -89,6 +89,11 @@ El despliegue usa Caddy para HTTPS y conserva los datos en el volumen Docker. Re
 1. Abre la raíz del proyecto en Android Studio.
 2. Usa JDK 17 y Gradle 8.9; sincroniza el proyecto y ejecuta la configuración `app` en un emulador o dispositivo.
 3. Para sincronizar Web y Android, configura en el acceso de la aplicación la dirección HTTPS del servidor.
+
+> 📱 El identificador de la app es `com.novagest.inventario`. Si vienes de la versión anterior
+> (`com.cuadrepinar.inventario`), Android la instalará como **aplicación nueva**: pasa tus datos
+> con una copia de seguridad (Copias → restaurar) o con la sincronización al servidor, y luego
+> desinstala la antigua.
 
 La aplicación Android utiliza Kotlin, Jetpack Compose, Room, Hilt y Navigation Compose. La Web no requiere un proceso de compilación de frontend: el servidor sirve los archivos de `web/` directamente.
 

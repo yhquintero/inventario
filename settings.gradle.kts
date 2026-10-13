@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "CuadrePinar"
+rootProject.name = "NovaGest"
 include(":app")

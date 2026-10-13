@@ -254,11 +254,11 @@ const PINAR_CUADRE_LABELS = {
 const PINAR_CUP_FIELDS = new Set(["fondoCup", "aumentoFondoCup", "comisionesCup", "domiciliosCup", "gastosCup", "salidaJesusMn", "mnEfectivoCup", "mnTarjetaCup"]);
 
 /**
- * Interpreta una hoja diaria de CUADRE PINAR SEPT.xlsx (formato Pinar antiguo).
+ * Interpreta una hoja diaria del libro histórico CUADRE PINAR SEPT.xlsx (formato heredado).
  * formulaAt recibe índices base cero de fila y columna y permite leer la tasa
  * que el libro guarda en las fórmulas del panel financiero.
  */
-export function parseCuadrePinarGrid(grid, { sheetName = "", formulaAt = () => "" } = {}) {
+export function parseLegacyCuadreGrid(grid, { sheetName = "", formulaAt = () => "" } = {}) {
   if (!Array.isArray(grid) || !grid.length) return null;
   const date = daySheetDate(grid, sheetName);
   if (!date) return null;

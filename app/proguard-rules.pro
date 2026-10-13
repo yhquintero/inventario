@@ -1,5 +1,5 @@
--keep class com.cuadrepinar.inventario.data.local.entity.** { *; }
--keep class com.cuadrepinar.inventario.domain.model.** { *; }
+-keep class com.novagest.inventario.data.local.entity.** { *; }
+-keep class com.novagest.inventario.domain.model.** { *; }
 -dontwarn javax.annotation.**
 -keepattributes *Annotation*
 -keep class dagger.hilt.** { *; }

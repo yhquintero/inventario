@@ -35,7 +35,7 @@ $ErrorActionPreference = 'Continue'
 $raiz      = Split-Path -Parent $PSScriptRoot
 $certs     = Join-Path $raiz 'certs'
 $logDir    = Join-Path $raiz 'data\logs'
-$servidor  = Join-Path $PSScriptRoot 'cuadre_server.py'
+$servidor  = Join-Path $PSScriptRoot 'novagest_server.py'
 $nomRegla  = "NovaGest HTTPS $Puerto"
 
 function Ok($m)    { Write-Host "  [OK] $m" -ForegroundColor Green }

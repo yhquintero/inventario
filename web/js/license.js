@@ -7,8 +7,15 @@
  * - Cálculo de días restantes, expiración, estado
  */
 
-const LS_KEY = "cuadrepinar.license";
-const LS_DEVICE = "cuadrepinar.device_id";
+const LS_KEY = "novagest.license";
+const LS_DEVICE = "novagest.device_id";
+// Migra las claves heredadas de Cuadre Pinar para no perder la licencia activa
+try {
+  for (const [oldK, newK] of [["cuadrepinar.license", LS_KEY], ["cuadrepinar.device_id", LS_DEVICE]]) {
+    const v = localStorage.getItem(oldK);
+    if (v && !localStorage.getItem(newK)) { localStorage.setItem(newK, v); localStorage.removeItem(oldK); }
+  }
+} catch {}
 
 function deviceId() {
   try {
