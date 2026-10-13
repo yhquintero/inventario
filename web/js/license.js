@@ -9,7 +9,7 @@
 
 const LS_KEY = "novagest.license";
 const LS_DEVICE = "novagest.device_id";
-// Migra las claves heredadas de Cuadre Pinar para no perder la licencia activa
+// Migra las claves heredadas de la marca anterior para no perder la licencia activa
 try {
   for (const [oldK, newK] of [["cuadrepinar.license", LS_KEY], ["cuadrepinar.device_id", LS_DEVICE]]) {
     const v = localStorage.getItem(oldK);
@@ -172,6 +172,67 @@ export function isLicenseExpiringSoon(status, threshold = 7) {
   return dl <= threshold;
 }
 
+/* ================= Licencia por término + solicitud por WhatsApp =================
+ * Mismo flujo que DrywallMaterialsCalculator (ActivationScreen.kt):
+ *  1) el cliente escribe su nombre/empresa, ve su ID de dispositivo y elige un plazo;
+ *  2) pulsa «SOLICITAR POR WHATSAPP» y se abre WhatsApp con el mensaje ya redactado;
+ *  3) recibe la clave firmada y la pega en «Activar licencia».
+ * El número destino lo configura el servidor (LICENSE_WHATSAPP); si no hay número,
+ * se abre el selector de WhatsApp sin destinatario fijo, igual que la referencia.
+ */
+export const LICENSE_TERMS = [
+  { id: "DIA", label: "1 día", days: 1, type: "FULL", icon: "⏱" },
+  { id: "SEMANA", label: "1 semana", days: 7, type: "FULL", icon: "📅" },
+  { id: "MES", label: "1 mes", days: 30, type: "FULL", icon: "🗓" },
+  { id: "TRIMESTRE", label: "3 meses", days: 90, type: "FULL", icon: "📆" },
+  { id: "SEMESTRE", label: "6 meses", days: 180, type: "FULL", icon: "📆" },
+  { id: "ANIO", label: "1 año", days: 365, type: "FULL", icon: "🏆" },
+  { id: "DOS_ANIOS", label: "2 años", days: 730, type: "FULL", icon: "⭐" },
+  { id: "PERMANENTE", label: "Permanente", days: 0, type: "LIFETIME", icon: "♾" },
+];
+
+export function licenseTerm(id) {
+  return LICENSE_TERMS.find((t) => t.id === id) || LICENSE_TERMS[2];
+}
+
+/** Términos que anuncia el servidor (si difieren, mandan los del servidor). */
+export function serverTerms(status) {
+  if (!Array.isArray(status?.terms) || !status.terms.length) return LICENSE_TERMS;
+  return status.terms.map((t) => ({ ...licenseTerm(t.id), ...t, icon: licenseTerm(t.id).icon }));
+}
+
+/** Mensaje de solicitud, con el mismo formato que la app de referencia. */
+export function licenseRequestMessage({ name, device, term, product = "NovaGest", version = "1.0.0" }) {
+  const t = typeof term === "string" ? licenseTerm(term) : term;
+  const fecha = new Date().toLocaleString("es-CU");
+  return [
+    `Hola, solicito activar mi Licencia de ${product}.`,
+    "",
+    `👤 Usuario: ${String(name || "").trim()}`,
+    `🆔 ID Dispositivo: ${device}`,
+    `📦 Producto: ${product} v${version}`,
+    `📅 Plan: ${t.label}${t.days ? ` (${t.days} días)` : ""} · ${t.type}`,
+    `🕒 Fecha Actual: ${fecha}`,
+  ].join("\n");
+}
+
+/** URL de WhatsApp: wa.me/<número> si el servidor configuró uno; si no, selector de contacto. */
+export function whatsappLicenseUrl(message, whatsapp = "") {
+  const num = String(whatsapp || "").replace(/\D/g, "");
+  const text = encodeURIComponent(message);
+  return num ? `https://wa.me/${num}?text=${text}` : `https://api.whatsapp.com/send?text=${text}`;
+}
+
+export function requestLicenseByWhatsApp({ name, term, status } = {}) {
+  const msg = licenseRequestMessage({
+    name, device: deviceId(), term,
+    product: status?.product || "NovaGest", version: status?.version || "1.0.0",
+  });
+  const url = whatsappLicenseUrl(msg, status?.whatsapp || "");
+  window.open(url, "_blank", "noopener");
+  return url;
+}
+
 export const LicenseManager = {
   fetchStatus: fetchLicenseStatus,
   activate: activateLicense,
@@ -182,4 +243,10 @@ export const LicenseManager = {
   fmtDate,
   daysLeft,
   isExpiringSoon: isLicenseExpiringSoon,
+  terms: LICENSE_TERMS,
+  term: licenseTerm,
+  serverTerms,
+  requestMessage: licenseRequestMessage,
+  whatsappUrl: whatsappLicenseUrl,
+  requestByWhatsApp: requestLicenseByWhatsApp,
 };

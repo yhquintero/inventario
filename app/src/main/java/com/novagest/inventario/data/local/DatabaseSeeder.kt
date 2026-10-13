@@ -28,7 +28,7 @@ object DatabaseSeeder {
 
         db.settings().upsert(SettingsEntity())
 
-        // Fuente: CUADRE PINAR SEPT.xlsx, hoja "25 9 26" (generado por tools/import_excel.py)
+        // Fuente: NovaGest SEPT.xlsx, hoja "25 9 26" (generado por tools/import_excel.py)
         val json = context.assets.open("seed.json").bufferedReader().use { it.readText() }
         val root = JSONObject(json)
 
@@ -62,7 +62,8 @@ object DatabaseSeeder {
                 category = o.optString("category", "").ifBlank { categorize(name) },
                 precioCostoUsd = o.optDouble("precioCostoUsd", 0.0),
                 precioVenta2Usd = o.optDouble("precioVenta2Usd", 0.0),
-                observaciones = o.optString("observaciones", "")
+                observaciones = o.optString("observaciones", ""),
+                barcode = o.optString("barcode", "")
             )
             val id = db.products().insert(entity)
             byName[name.uppercase()] = entity.copy(id = id)
@@ -99,7 +100,7 @@ object DatabaseSeeder {
                     stockFinal = stockFin,
                     userId = admin.id,
                     notes = listOf(o.optString("notes", ""), if (dom > 0) "Domicilio ${dom.toLong()} CUP" else "")
-                        .filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "CUADRE PINAR SEPT.xlsx" },
+                        .filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "NovaGest SEPT.xlsx" },
                     unitCostUsd = unitCost
                 )
             )
@@ -155,7 +156,7 @@ object DatabaseSeeder {
                 action = "SEED",
                 entity = "database",
                 entityId = null,
-                details = "Carga inicial desde CUADRE PINAR SEPT.xlsx, hoja 25 9 26 (${byName.size} productos)"
+                details = "Carga inicial desde NovaGest SEPT.xlsx, hoja 25 9 26 (${byName.size} productos)"
             )
         )
     }

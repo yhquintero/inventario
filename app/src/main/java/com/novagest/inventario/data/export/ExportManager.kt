@@ -402,7 +402,7 @@ class ExportManager @Inject constructor(
         val bandHeight = if (compact) 66f else 94f
         canvas.drawRect(0f, 0f, width, bandHeight, pdfFill(pdfNavy))
         canvas.drawRect(0f, 0f, 6f, bandHeight, pdfFill(pdfTeal))
-        drawPdfText(canvas, "CUADRE PINAR", 35f, 22f, pdfText(8.5f, Color.rgb(171, 218, 213), bold = true))
+        drawPdfText(canvas, "NovaGest", 35f, 22f, pdfText(8.5f, Color.rgb(171, 218, 213), bold = true))
         drawPdfTextFit(canvas, title, 35f, if (compact) 44f else 52f, width - 135f, pdfText(if (compact) 16f else 21f, Color.WHITE, bold = true))
         drawPdfTextFit(canvas, subtitle, 35f, if (compact) 58f else 74f, width - 120f, pdfText(8f, Color.rgb(220, 230, 236)))
         val badge = RectF(width - 91f, 17f, width - 27f, 39f)

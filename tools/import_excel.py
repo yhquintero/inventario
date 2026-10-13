@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera las semillas de la Web y de la App desde CUADRE PINAR SEPT.xlsx.
+"""Genera las semillas de la Web y de la App desde NovaGest SEPT.xlsx.
 
 Inventario actual  -> hoja '25 9 26' (existencias, entradas, salidas, ventas, comisiones, costos, precios).
 Historial          -> todas las hojas diarias (tipo de cambio CUP/USD y cambios de precio por día + cuadres).
@@ -9,7 +9,12 @@ Uso: python3 tools/import_excel.py
 import json, re, os, datetime, openpyxl
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "xlsx", "CUADRE PINAR SEPT.xlsx")
+BOOK_NAME = "NovaGest SEPT.xlsx"
+SRC = os.path.join(ROOT, "xlsx", BOOK_NAME)
+if not os.path.exists(SRC):  # compatibilidad con el nombre heredado del libro
+    _legacy = os.path.join(ROOT, "xlsx", "CUADRE PINAR SEPT.xlsx")
+    if os.path.exists(_legacy):
+        SRC = _legacy
 MAIN = "25 9 26"
 
 def clean(s):
@@ -145,7 +150,7 @@ running_stock = dict(opening_by_name)
 for sheet_name in daily:
     source_ws = wb[sheet_name]
     day = sheet_date(sheet_name)
-    import_key = f"CUADRE PINAR SEPT.xlsx#{sheet_name}"
+    import_key = f"{BOOK_NAME}#{sheet_name}"
     seen_day = set()
     for r, name in product_rows(source_ws):
         if name in seen_day: continue
@@ -224,7 +229,7 @@ for s in daily:
             k = (name, field)
             if k in last and last[k] != val:
                 price_hist.append({"date": d, "product": name, "field": field, "old": last[k], "new": val,
-                                   "importKey": f"CUADRE PINAR SEPT.xlsx#{s}", "sourceSheet": s, "sourceFormat": "pinar"})
+                                   "importKey": f"{BOOK_NAME}#{s}", "sourceSheet": s, "sourceFormat": "pinar"})
             last[k] = val
     c = cuadre_panel(s)
     c["date"] = d
@@ -233,12 +238,12 @@ for s in daily:
         rates.append({"date": d, "currency": "USD", "rate": c["cupUsd"], "note": f"Hoja {s}"})
         last_rate = c["cupUsd"]
 
-seed = {"source": "CUADRE PINAR SEPT.xlsx", "sheet": MAIN, "date": date,
+seed = {"source": BOOK_NAME, "sheet": MAIN, "date": date,
         "products": products, "movements": movements, "cuadres": cuadres,
         "rates": rates, "priceHistory": price_hist}
 
 with open(os.path.join(ROOT, "web/js/seed-data.js"), "w", encoding="utf-8") as f:
-    f.write("/** Generado por tools/import_excel.py desde CUADRE PINAR SEPT.xlsx (hoja 25 9 26) */\n")
+    f.write("/** Generado por tools/import_excel.py desde NovaGest SEPT.xlsx (hoja 25 9 26) */\n")
     f.write("export const SEED = " + json.dumps(seed, ensure_ascii=False) + ";\n")
 with open(os.path.join(ROOT, "app/src/main/assets/seed.json"), "w", encoding="utf-8") as f:
     json.dump(seed, f, ensure_ascii=False, indent=1)

@@ -59,7 +59,8 @@ data class CartLine(val product: Product, val qty: Int)
 @HiltViewModel
 class PosViewModel @Inject constructor(
     products: ProductRepository,
-    private val movements: MovementRepository
+    private val movements: MovementRepository,
+    private val sync: com.novagest.inventario.data.sync.SyncManager
 ) : ViewModel() {
     val products = products.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val cart = mutableStateListOf<CartLine>()
@@ -82,21 +83,38 @@ class PosViewModel @Inject constructor(
 
     val total get() = cart.sumOf { it.qty * it.product.precioVentaUsd }
 
-    fun checkout(center: SaleCenter, actor: UserAccount) {
+    fun customers() = sync.customers()
+
+    /** Escáner wedge/manual: un código exacto añade el producto al carrito. */
+    fun addByBarcode(raw: String) {
+        val code = raw.filter { !it.isWhitespace() }
+        if (code.isBlank()) return
+        val p = products.value.firstOrNull { it.barcode.equals(code, true) }
+        if (p == null) { message = "Código no encontrado: $code"; return }
+        add(p)
+    }
+
+    fun checkout(center: SaleCenter, actor: UserAccount, paymentType: String = "CONTADO", customerId: String = "", dueDate: String = "") {
         if (cart.isEmpty() || busy) return
+        val isFiado = paymentType == "FIADO"
+        if (isFiado && customerId.isBlank()) { message = "Elige el cliente del fiado."; return }
         busy = true
         viewModelScope.launch {
             val done = mutableListOf<CartLine>()
             var error: String? = null
             for (line in cart.toList()) {
-                when (val r = movements.register(line.product.id, MovementType.VENTA, line.qty.toDouble(), center, LocalDate.now(), actor, "Venta rápida (App)")) {
+                when (val r = movements.register(line.product.id, MovementType.VENTA, line.qty.toDouble(), center, LocalDate.now(), actor, if (isFiado) "Venta rápida a fiado (App)" else "Venta rápida (App)")) {
                     is AppResult.Ok -> done += line
                     is AppResult.Err -> { error = "${line.product.name}: ${r.message}"; break }
                 }
             }
             val sum = done.sumOf { it.qty * it.product.precioVentaUsd }
             cart.removeAll(done)
-            message = error ?: "✔ Venta registrada · ${Money.usd(sum)}"
+            message = when {
+                error != null -> error
+                isFiado && done.isNotEmpty() -> sync.createPosCredit(customerId, sum, dueDate) ?: "✔ Fiado registrado · ${Money.usd(sum)}"
+                else -> "✔ Venta registrada · ${Money.usd(sum)}"
+            }
             busy = false
         }
     }
@@ -109,12 +127,25 @@ fun PosScreen(user: UserAccount, vm: PosViewModel = hiltViewModel()) {
     var q by remember { mutableStateOf("") }
     var cat by remember { mutableStateOf("TODAS") }
     var center by remember { mutableStateOf(SaleCenter.TIENDA) }
+    var barcode by remember { mutableStateOf("") }
+    var payment by remember { mutableStateOf("CONTADO") }
+    var customerId by remember { mutableStateOf("") }
+    var dueDate by remember { mutableStateOf("") }
+    val customers = remember(products) { vm.customers() }
     val cats = remember(products) { listOf("TODAS") + products.map { it.category }.distinct().sorted() }
-    val list = products.filter { it.stockActual > 0 && (cat == "TODAS" || it.category == cat) && (q.isBlank() || it.name.contains(q, true)) }
+    val list = products.filter { it.stockActual > 0 && (cat == "TODAS" || it.category == cat) && (q.isBlank() || it.name.contains(q, true) || it.barcode.contains(q.trim(), true)) }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         Spacer(Modifier.height(8.dp))
         SearchField(q, { q = it }, "Buscar producto", Modifier.fillMaxWidth())
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.OutlinedTextField(
+                value = barcode, onValueChange = { barcode = it }, label = { Text("Código de barras") },
+                singleLine = true, modifier = Modifier.weight(1f)
+            )
+            OutlinedButton(onClick = { vm.addByBarcode(barcode); barcode = "" }) { Text("Añadir") }
+        }
+        Text("Lector USB/Bluetooth: escribe el código y pulsa Añadir (o toca el producto).", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             cats.forEach { c -> FilterChip(selected = cat == c, onClick = { cat = c }, label = { Text(c) }) }
         }
@@ -149,11 +180,25 @@ fun PosScreen(user: UserAccount, vm: PosViewModel = hiltViewModel()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     SaleCenter.entries.filter { it != SaleCenter.MOV }.forEach { c -> FilterChip(selected = center == c, onClick = { center = c }, label = { Text(c.label) }) }
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(selected = payment == "CONTADO", onClick = { payment = "CONTADO" }, label = { Text("Contado") })
+                    FilterChip(selected = payment == "FIADO", onClick = { payment = "FIADO" }, label = { Text("Fiado") })
+                }
+                if (payment == "FIADO") {
+                    if (customers.isEmpty()) {
+                        Text("Sin clientes sincronizados: créelos en la Web.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    } else {
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            customers.forEach { c -> FilterChip(selected = customerId == c.id, onClick = { customerId = c.id }, label = { Text(c.name) }) }
+                        }
+                        androidx.compose.material3.OutlinedTextField(dueDate, { dueDate = it }, label = { Text("Vence (AAAA-MM-DD, opcional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    }
+                }
                 vm.message?.let { Text(it, color = if (it.startsWith("✔")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (vm.cart.isNotEmpty()) OutlinedButton(onClick = { vm.cart.clear() }) { Text("Vaciar") }
-                    Button(onClick = { vm.checkout(center, user) }, enabled = vm.cart.isNotEmpty() && !vm.busy, modifier = Modifier.weight(1f)) {
-                        Text(if (vm.cart.isEmpty()) "Toca productos para vender" else "Cobrar ${Money.usd(vm.total)}")
+                    Button(onClick = { vm.checkout(center, user, payment, customerId, dueDate) }, enabled = vm.cart.isNotEmpty() && !vm.busy, modifier = Modifier.weight(1f)) {
+                        Text(if (vm.cart.isEmpty()) "Toca productos para vender" else (if (payment == "FIADO") "Fiar " else "Cobrar ") + Money.usd(vm.total))
                     }
                 }
             }

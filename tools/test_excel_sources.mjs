@@ -135,8 +135,8 @@ test("NOVA conserva importes, costos y comisiones exactos por venta", () => {
   assert.equal(parsed.finance.expenses.otrosGastosCup, 2000);
 });
 
-test("CUADRE PINAR SEPT.xlsx reconoce las 21 hojas diarias y sus cierres", () => {
-  const workbook = workbookFrom("CUADRE PINAR SEPT.xlsx");
+test("NovaGest SEPT.xlsx reconoce las 21 hojas diarias y sus cierres", () => {
+  const workbook = workbookFrom("NovaGest SEPT.xlsx");
   const dailyNames = workbook.SheetNames.filter((name) => /^\d{1,2}\s+\d{1,2}\s+\d{2,4}$/.test(name));
   assert.equal(dailyNames.length, 21);
   assert.ok(workbook.SheetNames.includes("INVENTARIO"), "la hoja sin fecha no se cuenta como día");
@@ -168,14 +168,14 @@ test("CUADRE PINAR SEPT.xlsx reconoce las 21 hojas diarias y sus cierres", () =>
   assert.equal(sale.commissionCup, 1000);
 });
 
-test("importar en bloque las 21 hojas Pinar conserva snapshots, ajustes y saldo final", () => {
-  const workbook = workbookFrom("CUADRE PINAR SEPT.xlsx");
+test("importar en bloque las 21 hojas NovaGest conserva snapshots, ajustes y saldo final", () => {
+  const workbook = workbookFrom("NovaGest SEPT.xlsx");
   const rawDays = workbook.SheetNames.filter((name) => /^\d{1,2}\s+\d{1,2}\s+\d{2,4}$/.test(name)).map((sheetName) => {
     const sheet = workbook.Sheets[sheetName];
     const parsed = parseLegacyCuadreGrid(XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }), {
       sheetName, formulaAt: (row, column) => sheet[XLSX.utils.encode_cell({ r: row, c: column })]?.f || "",
     });
-    return { ...parsed, importKey: `CUADRE PINAR SEPT.xlsx#${sheetName}`, sourceFile: "CUADRE PINAR SEPT.xlsx", warehouseId: "w_principal" };
+    return { ...parsed, importKey: `NovaGest SEPT.xlsx#${sheetName}`, sourceFile: "NovaGest SEPT.xlsx", warehouseId: "w_principal" };
   }).sort((a, b) => a.date.localeCompare(b.date));
   const seenProducts = new Set();
   const days = rawDays.map((day) => ({
@@ -189,14 +189,14 @@ test("importar en bloque las 21 hojas Pinar conserva snapshots, ajustes y saldo 
   store.applyServer({ version: 10, closedDays: [], state: {
     products: [], movements: [], cuadres: [], rates: [], priceHistory: [], weekly: {}, audit: [],
     warehouses: [{ id: "w_principal", name: "Almacén principal", code: "PRI", isDefault: true, active: true }],
-    warehouseEntries: [], settings: { businessName: "Cuadre Pinar", defaultCupUsd: 750 },
+    warehouseEntries: [], settings: { businessName: "NovaGest", defaultCupUsd: 750 },
   } });
   store.state.session = { role: "ADMINISTRADOR", displayName: "Prueba" };
-  store.seed(); // el servidor nuevo ya puede contener la semilla histórica Pinar
+  store.seed(); // el servidor nuevo ya puede contener la semilla histórica NovaGest
   assert.equal(store.state.movements.length, 141);
   const legacy = store.removeLegacyExcelImports(days.map((day) => day.date), "w_principal");
-  assert.equal(legacy.removed, 141, "la carga masiva sustituye movimientos Pinar de la semilla");
-  assert.equal(legacy.removedHistory, 42, "también sustituye el historial de precios Pinar de la semilla");
+  assert.equal(legacy.removed, 141, "la carga masiva sustituye movimientos de la semilla");
+  assert.equal(legacy.removedHistory, 42, "también sustituye el historial de precios de la semilla");
   assert.equal(store.state.movements.length, 0);
   for (const day of days) {
     const result = store.importSheet(day);

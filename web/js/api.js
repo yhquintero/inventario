@@ -1,6 +1,6 @@
 /** Cliente de la API del servidor NovaGest. Sesión por cookie HttpOnly + token Bearer (para vista embebida). */
 const TOKEN = "novagest.token";
-const TOKEN_LEGACY = "cuadrepinar.token"; // clave heredada de Cuadre Pinar
+const TOKEN_LEGACY = "cuadrepinar.token"; // clave heredada (migración silenciosa)
 try { const t = localStorage.getItem(TOKEN_LEGACY); if (t && !localStorage.getItem(TOKEN)) { localStorage.setItem(TOKEN, t); localStorage.removeItem(TOKEN_LEGACY); } } catch {}
 let onUnauthorized = () => {};
 let onLicenseError = () => {};

@@ -76,10 +76,11 @@ sealed class Dest(val route: String, val label: String, val icon: ImageVector, v
     data object Pos : Dest("pos", "Vender", Icons.Outlined.PointOfSale, Permission.MOVEMENT_CREATE)
     data object Trash : Dest("trash", "Papelera", Icons.Outlined.DeleteOutline, Permission.INVENTORY_EDIT)
     data object History : Dest("history", "Historial precios", Icons.Outlined.Timeline, Permission.INVENTORY_VIEW)
+    data object Customers : Dest("customers", "Clientes y fiados", Icons.Outlined.People, Permission.CUSTOMER_VIEW)
 }
 
 private val bottom = listOf(Dest.Home, Dest.Pos, Dest.Inventory, Dest.Movements)
-private val drawer = listOf(Dest.Reports, Dest.History, Dest.Trash, Dest.Cuadre, Dest.Finance, Dest.Users, Dest.Audit, Dest.Backup, Dest.Settings)
+private val drawer = listOf(Dest.Reports, Dest.History, Dest.Trash, Dest.Cuadre, Dest.Finance, Dest.Customers, Dest.Users, Dest.Audit, Dest.Backup, Dest.Settings)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @dagger.hilt.android.lifecycle.HiltViewModel
@@ -211,6 +212,7 @@ fun AppShell(
                 composable(Dest.Pos.route) { com.novagest.inventario.ui.pos.PosScreen(user) }
                 composable(Dest.Trash.route) { com.novagest.inventario.ui.trash.TrashScreen(user) }
                 composable(Dest.History.route) { com.novagest.inventario.ui.history.PriceHistoryScreen() }
+                composable(Dest.Customers.route) { com.novagest.inventario.ui.customers.CustomersScreen(user) }
             }
         }
     }

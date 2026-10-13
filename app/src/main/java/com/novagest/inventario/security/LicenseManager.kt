@@ -35,7 +35,10 @@ data class LicenseStatus(
     val maxDevices: Int = 0,
     val licenseId: String = "",
     val reason: String = "",
-    val offline: Boolean = false
+    val offline: Boolean = false,
+    /** Número WhatsApp para solicitar la licencia (configurable en el servidor); vacío = elegir contacto. */
+    val whatsapp: String = "",
+    val terms: List<LicenseTerm> = emptyList()
 ) {
     val isExpiringSoon: Boolean get() = valid && daysLeft in 0..7
     val isPermanent: Boolean get() = expiresAt == 0L
@@ -46,6 +49,9 @@ data class LicenseStatus(
         return if (daysLeft >= 0) "$d (${daysLeft}d restantes)" else d
     }
 }
+
+/** Plazo de licencia elegible al solicitarla por WhatsApp (como en DrywallMaterialsCalculator). */
+data class LicenseTerm(val id: String, val label: String, val days: Int, val type: String)
 
 @Singleton
 class LicenseManager @Inject constructor(
@@ -157,7 +163,9 @@ class LicenseManager @Inject constructor(
                         maxUsers = json.optInt("maxUsers"),
                         maxDevices = json.optInt("maxDevices"),
                         licenseId = json.optString("licenseId"),
-                        reason = ""
+                        reason = "",
+                        whatsapp = json.optString("whatsapp"),
+                        terms = parseTerms(json)
                     )
                 } else {
                     LicenseStatus(
@@ -245,5 +253,48 @@ class LicenseManager @Inject constructor(
         if (!cached.valid) return false
         if (cached.expiresAt == 0L) return true
         return cached.expiresAt > System.currentTimeMillis() / 1000
+    }
+
+    private fun parseTerms(json: JSONObject): List<LicenseTerm> {
+        val arr = json.optJSONArray("terms") ?: return DEFAULT_TERMS
+        if (arr.length() == 0) return DEFAULT_TERMS
+        return (0 until arr.length()).mapNotNull { i ->
+            arr.optJSONObject(i)?.let { LicenseTerm(it.optString("id"), it.optString("label"), it.optInt("days"), it.optString("type")) }
+        }.ifEmpty { DEFAULT_TERMS }
+    }
+
+    /** Mensaje de solicitud de licencia por término, listo para WhatsApp. */
+    fun licenseRequestMessage(name: String, term: LicenseTerm): String {
+        val fecha = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+        val plazo = if (term.days > 0) "${term.label} (${term.days} días · ${term.type})" else "${term.label} (${term.type})"
+        return listOf(
+            "Hola, solicito activar mi Licencia de NovaGest.",
+            "👤 Usuario: $name",
+            "🆔 ID Dispositivo: ${deviceId()}",
+            "📦 Producto: NovaGest v1.0.0",
+            "📅 Plan: $plazo",
+            "🕒 Fecha: $fecha"
+        ).joinToString("\n")
+    }
+
+    /** URL de WhatsApp: con número configurado (wa.me) o sin número (elegir contacto). */
+    fun whatsappLicenseUrl(name: String, term: LicenseTerm, whatsapp: String): String {
+        val text = java.net.URLEncoder.encode(licenseRequestMessage(name, term), "UTF-8")
+        val number = whatsapp.filter { it.isDigit() }
+        return if (number.isNotBlank()) "https://wa.me/$number?text=$text"
+        else "https://api.whatsapp.com/send?text=$text"
+    }
+
+    companion object {
+        val DEFAULT_TERMS = listOf(
+            LicenseTerm("DIA", "1 día", 1, "FULL"),
+            LicenseTerm("SEMANA", "1 semana", 7, "FULL"),
+            LicenseTerm("MES", "1 mes", 30, "FULL"),
+            LicenseTerm("TRIMESTRE", "3 meses", 90, "FULL"),
+            LicenseTerm("SEMESTRE", "6 meses", 180, "FULL"),
+            LicenseTerm("ANIO", "1 año", 365, "FULL"),
+            LicenseTerm("DOS_ANIOS", "2 años", 730, "FULL"),
+            LicenseTerm("PERMANENTE", "Permanente", 0, "LIFETIME")
+        )
     }
 }

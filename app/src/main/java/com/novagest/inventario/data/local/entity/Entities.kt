@@ -22,7 +22,9 @@ data class ProductEntity(
     val precioVenta2Usd: Double = 0.0,
     val observaciones: String = "",
     /** Id del producto en el servidor (null = aún no sincronizado). */
-    val remoteId: String? = null
+    val remoteId: String? = null,
+    /** Código de barras único; vacío = sin código. */
+    @ColumnInfo(defaultValue = "") val barcode: String = ""
 )
 
 @Entity(

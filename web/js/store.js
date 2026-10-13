@@ -3,13 +3,14 @@ import { api, setToken, getToken, setUnauthorizedHandler } from "./api.js";
 import {
   categorize, importeUsd, round2, stockFinal, todayISO, normName, CUADRE_FIELDS, can,
   classifyValueRow, rowFieldKeys, warehouseValues, WAREHOUSE_DEFAULT_ID,
+  normalizeBarcode, findByBarcode, creditPending, creditStatus, customerBalance, totalReceivable,
 } from "./calc.js";
 
 const PRICE_FIELDS = ["precioVentaUsd", "precioVenta2Usd", "precioCostoUsd", "comisionCup"];
 export const WAREHOUSE_KINDS = { CREACION: "Almacén creado", VALORES: "Valores importados", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Almacén eliminado", DESHACER: "Deshacer" };
 const THEME = "novagest.theme";
 const WAREHOUSE = "novagest.warehouse";
-// Migra las preferencias heredadas de Cuadre Pinar (tema y almacén en uso)
+// Migra las preferencias heredadas de la marca anterior (tema y almacén en uso)
 try {
   for (const [oldK, newK] of [["cuadrepinar.theme", THEME], ["cuadrepinar.warehouse", WAREHOUSE]]) {
     const v = localStorage.getItem(oldK);
@@ -34,6 +35,8 @@ function emptyState() {
     backups: [],
     warehouses: [],
     warehouseEntries: [],
+    customers: [],
+    credits: [],
     settings: {
       theme: "system",
       businessName: "NovaGest",
@@ -50,7 +53,7 @@ function emptyState() {
     users: [],
   };
 }
-const SHARED = ["products", "movements", "cuadres", "audit", "rates", "priceHistory", "weekly", "excelDailyReports", "settings", "warehouses", "warehouseEntries"];
+const SHARED = ["products", "movements", "cuadres", "audit", "rates", "priceHistory", "weekly", "excelDailyReports", "settings", "warehouses", "warehouseEntries", "customers", "credits"];
 
 class Store {
   constructor() {
@@ -110,6 +113,8 @@ class Store {
     let changed = false;
     if (!Array.isArray(st.warehouses)) { st.warehouses = []; changed = true; }
     if (!Array.isArray(st.warehouseEntries)) { st.warehouseEntries = []; changed = true; }
+    if (!Array.isArray(st.customers)) { st.customers = []; changed = true; }
+    if (!Array.isArray(st.credits)) { st.credits = []; changed = true; }
     let def = st.warehouses.find((w) => !w.deletedAt && w.isDefault) || st.warehouses.find((w) => !w.deletedAt);
     if (!def) {
       def = {
@@ -362,12 +367,129 @@ class Store {
   activeMovements() { return this.state.movements.filter((m) => !m.deletedAt); }
   trashMovements() { return this.state.movements.filter((m) => m.deletedAt && !m.deletedWith); }
 
+  /* ================= CÓDIGOS DE BARRAS ================= */
+  findByBarcode(code) { return findByBarcode(this.activeProducts(), code); }
+
+  /* ================= CLIENTES Y FIADOS (por cobrar) ================= */
+  activeCustomers() { return (this.state.customers || []).filter((c) => !c.deletedAt); }
+  customerById(id) { return (this.state.customers || []).find((c) => c.id === id) || null; }
+  activeCredits() { return (this.state.credits || []).filter((c) => !c.deletedAt); }
+  creditById(id) { return (this.state.credits || []).find((c) => c.id === id) || null; }
+  customerBalance(customerId) { return customerBalance(this.state.credits || [], customerId); }
+  totalReceivable() { return totalReceivable(this.state.credits || []); }
+  creditPending(credit) { return creditPending(credit); }
+  creditStatus(credit) { return creditStatus(credit); }
+
+  saveCustomer(c) {
+    if (!can(this.state.session?.role, "CUSTOMER_EDIT")) return { error: "Tu rol no puede gestionar clientes." };
+    const name = String(c.name || "").replace(/\s+/g, " ").trim();
+    if (name.length < 2) return { error: "El nombre del cliente es obligatorio." };
+    const key = normName(name);
+    const dup = this.activeCustomers().find((x) => x.id !== c.id && normName(x.name) === key);
+    if (dup) return { error: `Ya existe un cliente llamado «${dup.name}».` };
+    const who = this.state.session?.displayName || "sistema";
+    const fields = {
+      name, phone: String(c.phone || "").trim(), email: String(c.email || "").trim(),
+      address: String(c.address || "").trim(), notes: String(c.notes || "").trim(),
+      creditLimitUsd: Math.max(0, Number(c.creditLimitUsd) || 0), updatedAt: Date.now(), updatedBy: who,
+    };
+    if (!c.id) {
+      const cust = { id: uid("cust"), ...fields, createdAt: Date.now(), createdBy: who, deletedAt: null };
+      (this.state.customers ||= []).push(cust);
+      this.state.customers.sort((a, b) => a.name.localeCompare(b.name, "es"));
+      this.audit("CREATE", "customer", name, cust.id);
+      this.emit();
+      return { ok: true, id: cust.id };
+    }
+    const prev = this.customerById(c.id);
+    if (!prev || prev.deletedAt) return { error: "Cliente no encontrado." };
+    Object.assign(prev, fields);
+    this.state.customers.sort((a, b) => a.name.localeCompare(b.name, "es"));
+    this.audit("UPDATE", "customer", name, prev.id);
+    this.emit();
+    return { ok: true, id: prev.id };
+  }
+
+  deleteCustomer(id) {
+    if (!can(this.state.session?.role, "CUSTOMER_EDIT")) return { error: "Tu rol no puede gestionar clientes." };
+    const cust = this.customerById(id);
+    if (!cust || cust.deletedAt) return { error: "Cliente no encontrado." };
+    const balance = this.customerBalance(id);
+    if (balance > 0) return { error: `«${cust.name}» aún debe ${round2(balance)} USD. Cobra sus fiados antes de eliminarlo.` };
+    cust.deletedAt = Date.now();
+    cust.deletedBy = this.state.session?.displayName;
+    this.audit("TRASH", "customer", cust.name, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  /** Crea un fiado manual (sin venta de inventario, ej. un préstamo o una venta anotada a mano). */
+  createCredit({ customerId, date = todayISO(), dueDate = "", totalUsd, notes = "", concept = "" }) {
+    if (!can(this.state.session?.role, "CUSTOMER_EDIT")) return { error: "Tu rol no puede registrar fiados." };
+    const cust = this.customerById(customerId);
+    if (!cust || cust.deletedAt) return { error: "Elige un cliente válido." };
+    const total = round2(totalUsd);
+    if (!(total > 0)) return { error: "El importe del fiado debe ser mayor que cero." };
+    if (this.isClosed(date)) return this.closedErr(date);
+    const limit = Number(cust.creditLimitUsd) || 0;
+    if (limit > 0 && round2(this.customerBalance(customerId) + total) > limit) {
+      return { error: `Supera el límite de crédito de «${cust.name}» (${limit} USD). Saldo actual: ${this.customerBalance(customerId)} USD.` };
+    }
+    const credit = {
+      id: uid("cred"), customerId, customerName: cust.name, date, dueDate: dueDate || "",
+      totalUsd: total, paidUsd: 0, origin: "MANUAL", concept: String(concept || notes || "Fiado manual").trim(),
+      movementIds: [], warehouseId: this.activeWarehouseId(), center: "", notes: String(notes || "").trim(),
+      payments: [], createdAt: Date.now(), createdBy: this.state.session?.displayName || "sistema", deletedAt: null,
+    };
+    (this.state.credits ||= []).unshift(credit);
+    this.audit("CREDIT", "credit", `Fiado ${total} USD a ${cust.name}${credit.concept ? ` · ${credit.concept}` : ""}`, credit.id);
+    this.emit();
+    return { ok: true, id: credit.id, total };
+  }
+
+  /** Registra un abono/cobro parcial o total de un fiado. */
+  addCreditPayment(creditId, { date = todayISO(), amountUsd, method = "EFECTIVO", notes = "" } = {}) {
+    if (!can(this.state.session?.role, "CUSTOMER_EDIT")) return { error: "Tu rol no puede registrar abonos." };
+    const credit = this.creditById(creditId);
+    if (!credit || credit.deletedAt) return { error: "Fiado no encontrado." };
+    const amount = round2(amountUsd);
+    if (!(amount > 0)) return { error: "El abono debe ser mayor que cero." };
+    const pending = creditPending(credit);
+    if (amount > pending + 1e-9) return { error: `El abono supera lo pendiente (${pending} USD).` };
+    if (this.isClosed(date)) return this.closedErr(date);
+    credit.payments = credit.payments || [];
+    credit.payments.push({ id: uid("pay"), date, amountUsd: amount, method: String(method || "EFECTIVO"), notes: String(notes || "").trim(), userName: this.state.session?.displayName || "sistema", createdAt: Date.now() });
+    credit.paidUsd = round2((Number(credit.paidUsd) || 0) + amount);
+    credit.updatedAt = Date.now();
+    this.audit("PAYMENT", "credit", `Abono ${amount} USD de ${credit.customerName} · pendiente ${creditPending(credit)} USD`, credit.id);
+    this.emit();
+    return { ok: true, pending: creditPending(credit) };
+  }
+
+  deleteCredit(id) {
+    if (!can(this.state.session?.role, "CUSTOMER_EDIT")) return { error: "Tu rol no puede eliminar fiados." };
+    const credit = this.creditById(id);
+    if (!credit || credit.deletedAt) return { error: "Fiado no encontrado." };
+    if ((credit.payments || []).length) return { error: "Este fiado ya tiene abonos; no se puede eliminar. Déjalo cobrado." };
+    credit.deletedAt = Date.now();
+    credit.deletedBy = this.state.session?.displayName;
+    this.audit("TRASH", "credit", `Fiado ${credit.totalUsd} USD de ${credit.customerName} eliminado`, id);
+    this.emit();
+    return { ok: true };
+  }
+
   saveProduct(p) {
     const name = String(p.name || "").replace(/\s+/g, " ").trim().toUpperCase();
     const key = normName(name);
     const dup = this.state.products.find((x) => normName(x.name) === key && x.id !== p.id);
     if (dup && dup.deletedAt) return { error: `"${dup.name}" está en la Papelera. Restáuralo en lugar de crearlo de nuevo.`, trashId: dup.id };
     if (dup) return { error: `Ya existe un producto llamado "${dup.name}".` };
+    const barcode = normalizeBarcode(p.barcode);
+    if (barcode) {
+      const dupCode = this.state.products.find((x) => x.id !== p.id && !x.deletedAt && normalizeBarcode(x.barcode) === barcode);
+      if (dupCode) return { error: `El código de barras ${barcode} ya lo usa «${dupCode.name}».` };
+      p = { ...p, barcode };
+    }
     const today = todayISO();
     const who = this.state.session?.displayName || "sistema";
     const wid = p.warehouseId || this.activeWarehouseId();
@@ -379,6 +501,7 @@ class Store {
         stocks: { [wid]: inicial }, stocksInicial: { [wid]: inicial },
         precioVentaUsd: p.precioVentaUsd, precioVenta2Usd: p.precioVenta2Usd || 0,
         precioCostoUsd: p.precioCostoUsd || 0, comisionCup: p.comisionCup, minStock: p.minStock ?? 1,
+        barcode,
         observaciones: p.observaciones || "", image: p.image || null,
         deletedAt: null, createdAt: Date.now(), updatedAt: Date.now(),
       };
@@ -672,28 +795,53 @@ class Store {
   }
 
   /* ================= PUNTO DE VENTA ================= */
-  posCheckout(cart, { date, center, domicilioCup = 0, notes = "", warehouseId = null }) {
+  posCheckout(cart, { date, center, domicilioCup = 0, notes = "", warehouseId = null, paymentType = "CONTADO", customerId = null, dueDate = "" }) {
     if (!cart.length) return { error: "El carrito está vacío." };
     if (this.isClosed(date)) return this.closedErr(date);
     const wid = warehouseId && this.warehouseById(warehouseId) ? warehouseId : this.activeWarehouseId();
+    const total = round2(cart.reduce((a, it) => a + it.qty * it.price, 0));
+    const isFiado = paymentType === "FIADO";
+    let customer = null;
+    if (isFiado) {
+      customer = this.customerById(customerId);
+      if (!customer || customer.deletedAt) return { error: "Elige el cliente del fiado en Clientes y fiados." };
+      const limit = Number(customer.creditLimitUsd) || 0;
+      if (limit > 0 && round2(this.customerBalance(customerId) + total) > limit) {
+        return { error: `Supera el límite de crédito de «${customer.name}» (${limit} USD). Saldo actual: ${this.customerBalance(customerId)} USD.` };
+      }
+    }
     const snapshot = JSON.stringify(this.state.movements);
     const ids = [];
+    const movementIds = [];
     cart.forEach((it, i) => {
       const prod = this.state.products.find((p) => p.id === it.productId);
+      const mid = uid("m");
+      movementIds.push(mid);
       this.state.movements.unshift({
-        id: uid("m"), date, productId: prod.id, productName: prod.name, type: "VENTA", quantity: Number(it.qty),
+        id: mid, date, productId: prod.id, productName: prod.name, type: "VENTA", quantity: Number(it.qty),
         warehouseId: wid,
         unitPriceUsd: Number(it.price), center, domicilioCup: i === 0 ? Number(domicilioCup) || 0 : 0,
         notes: notes || "Punto de venta", userName: this.state.session?.displayName, createdAt: Date.now() + i, deletedAt: null,
+        ...(isFiado ? { paymentType: "FIADO", customerId, customerName: customer.name } : { paymentType: "CONTADO" }),
       });
       ids.push(prod.id);
     });
     const bad = [...new Set(ids)].map((id) => this.recalcProduct(id)).find((r) => r.error);
     if (bad) { this.state.movements = JSON.parse(snapshot); ids.forEach((id) => this.recalcProduct(id)); return bad; }
-    const total = cart.reduce((a, it) => a + it.qty * it.price, 0);
-    this.audit("POS", "movement", `Venta rápida ${cart.length} líneas · $${round2(total)}`);
+    let creditId = null;
+    if (isFiado) {
+      const credit = {
+        id: uid("cred"), customerId, customerName: customer.name, date, dueDate: dueDate || "",
+        totalUsd: total, paidUsd: 0, origin: "POS", concept: `Venta rápida · ${cart.length} línea(s)`,
+        movementIds, warehouseId: wid, center, notes: String(notes || "").trim(),
+        payments: [], createdAt: Date.now(), createdBy: this.state.session?.displayName || "sistema", deletedAt: null,
+      };
+      (this.state.credits ||= []).unshift(credit);
+      creditId = credit.id;
+    }
+    this.audit("POS", "movement", `Venta rápida ${cart.length} líneas · $${total}${isFiado ? ` · FIADO a ${customer.name}` : ""}`);
     this.emit();
-    return { ok: true, total };
+    return { ok: true, total, creditId, paymentType: isFiado ? "FIADO" : "CONTADO" };
   }
 
   /* ================= IMPORTAR HOJA DEL EXCEL ================= */
@@ -702,13 +850,15 @@ class Store {
     const selectedDates = new Set((dates || []).map(String));
     const closedDate = [...selectedDates].find((date) => this.isClosed(date));
     if (closedDate) return { error: `El día ${closedDate} está cerrado; no se modificó.` };
-    const isLegacyPinar = (movement) => !movement.importBatchKey || movement.sourceFormat === "pinar" || movement.sourceFile === "CUADRE PINAR SEPT.xlsx";
-    const removed = this.state.movements.filter((movement) => movement.importedFrom === "excel" && isLegacyPinar(movement) &&
+    // Compatibilidad silenciosa: reconoce tanto el libro NovaGest actual como su nombre heredado.
+    const legacyBookFiles = new Set(["NovaGest SEPT.xlsx", "CUADRE PINAR SEPT.xlsx"]);
+    const isLegacyBook = (movement) => !movement.importBatchKey || movement.sourceFormat === "pinar" || legacyBookFiles.has(movement.sourceFile);
+    const removed = this.state.movements.filter((movement) => movement.importedFrom === "excel" && isLegacyBook(movement) &&
       selectedDates.has(movement.date) && this.warehouseOf(movement) === warehouseId);
     const removedIds = new Set(removed.map((movement) => movement.id));
     this.state.movements = this.state.movements.filter((movement) => !removedIds.has(movement.id));
     const legacyHistory = this.state.priceHistory.filter((item) => selectedDates.has(item.date) &&
-      (item.sourceFormat === "pinar" || item.sourceFile === "CUADRE PINAR SEPT.xlsx" || (!item.importBatchKey && item.userName === "Excel")));
+      (item.sourceFormat === "pinar" || legacyBookFiles.has(item.sourceFile) || (!item.importBatchKey && item.userName === "Excel")));
     const removedHistoryIds = new Set(legacyHistory.map((item) => item.id));
     this.state.priceHistory = this.state.priceHistory.filter((item) => !removedHistoryIds.has(item.id));
     [...new Set(removed.map((movement) => movement.productId))].forEach((productId) => this.recalcProduct(productId));

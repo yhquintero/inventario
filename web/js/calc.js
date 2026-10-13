@@ -1,4 +1,4 @@
-/** Fórmulas espejo de Nuevo Cuadre Pinar.xlsx y de StockCalculator.kt */
+/** Fórmulas de NovaGest: espejo de StockCalculator.kt (Android). */
 
 export const MovementType = { VENTA: "VENTA", SALIDA: "SALIDA", ENTRADA: "ENTRADA" };
 export const SaleCenter = { TIENDA: "TIENDA", GESTOR: "GESTOR", MOV: "MOV" };
@@ -16,11 +16,13 @@ export const PERMS = {
     "INVENTORY_VIEW", "MOVEMENT_VIEW", "CUADRE_VIEW", "CUADRE_EDIT",
     "REPORTS_VIEW", "REPORTS_EXPORT", "REPORTS_FINANCIAL", "EXCHANGE_EDIT", "AUDIT_VIEW",
     "HISTORY_VIEW", "WEEKLY_VIEW", "WEEKLY_EDIT", "WAREHOUSE_VIEW",
+    "CUSTOMER_VIEW", "CUSTOMER_EDIT",
   ],
   ALMACENERO: [
     "INVENTORY_VIEW", "INVENTORY_EDIT", "MOVEMENT_VIEW", "MOVEMENT_CREATE", "MOVEMENT_EDIT",
     "CUADRE_VIEW", "TRASH_VIEW", "HISTORY_VIEW",
     "WAREHOUSE_VIEW", "WAREHOUSE_EDIT", "VALUES_IMPORT",
+    "CUSTOMER_VIEW", "CUSTOMER_EDIT",
   ],
 };
 
@@ -65,7 +67,7 @@ export const CUADRE_FIELDS = [
   "usdEfectivo", "zelle", "mlc", "mnEfectivoCup", "mnTarjetaCup", "xCobrar",
 ];
 
-/** Cuadre exacto de la hoja diaria (filas 230–254 de CUADRE PINAR SEPT.xlsx). */
+/** Cuadre exacto de la hoja diaria NovaGest (panel de caja del libro diario). */
 export function cuadreCalc(c, dayMovs) {
   const r = Number(c.cupUsd) > 0 ? Number(c.cupUsd) : 1;
   const n = (k) => Number(c[k]) || 0;
@@ -247,6 +249,44 @@ export function validateProduct(p) {
   if (p.precioVentaUsd < 0) return "El precio no puede ser negativo.";
   if (p.comisionCup < 0) return "La comisión no puede ser negativa.";
   return null;
+}
+
+/* ================= Códigos de barras · Clientes y fiados (NovaGest v1.0.0) ================= */
+
+/** Normaliza un código de barras leído (cámara, lector USB/Bluetooth o teclado). */
+export function normalizeBarcode(code) {
+  return String(code || "").replace(/[\s-]/g, "").trim();
+}
+
+/** Busca un producto activo por código de barras exacto. */
+export function findByBarcode(products, code) {
+  const wanted = normalizeBarcode(code);
+  if (!wanted) return null;
+  return (products || []).find((p) => !p.deletedAt && normalizeBarcode(p.barcode) === wanted) || null;
+}
+
+/** Saldo pendiente de un fiado (total − abonado). */
+export function creditPending(credit) {
+  if (!credit || credit.deletedAt) return 0;
+  return round2((Number(credit.totalUsd) || 0) - (Number(credit.paidUsd) || 0));
+}
+
+/** Estado del fiado: PAGADO · PARCIAL · PENDIENTE · VENCIDO. */
+export function creditStatus(credit, today = todayISO()) {
+  const pending = creditPending(credit);
+  if (pending <= 0) return "PAGADO";
+  if (credit?.dueDate && credit.dueDate < today) return "VENCIDO";
+  return (Number(credit?.paidUsd) || 0) > 0 ? "PARCIAL" : "PENDIENTE";
+}
+
+/** Saldo total que debe un cliente (suma de sus fiados vivos). */
+export function customerBalance(credits, customerId) {
+  return round2((credits || []).filter((c) => c.customerId === customerId && !c.deletedAt).reduce((a, c) => a + creditPending(c), 0));
+}
+
+/** Total por cobrar del negocio (todos los fiados pendientes). */
+export function totalReceivable(credits) {
+  return round2((credits || []).filter((c) => !c.deletedAt).reduce((a, c) => a + creditPending(c), 0));
 }
 
 export function validatePassword(pw) {

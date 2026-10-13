@@ -2,7 +2,7 @@
    v6: el caché del shell incluye TODOS los módulos de la app (antes faltaban excel-import.js,
    license.js y el lector XLSX, lo que rompía el modo sin conexión) y las imágenes se cachean
    la primera vez que se usan. */
-const CACHE = "novagest-v8";
+const CACHE = "novagest-v9";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/ux.js",

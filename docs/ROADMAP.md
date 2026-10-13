@@ -8,10 +8,10 @@ servidor `server/novagest_server.py`).
 
 | Mejora | Descripción | Dónde |
 |---|---|---|
-| **Escáner de códigos de barras** | Venta rápida e inventario con lectura por cámara (Android: ML Kit / CameraX; Web: `BarcodeDetector`). Convierte el alta de producto y la venta en 1 segundo. | `ui/pos`, `ui/inventory`, Web `#pos` |
+| ✅ **Escáner de códigos de barras** — hecho en v1.0.0 | Campo `barcode` único; wedge USB/Bluetooth y cámara `BarcodeDetector` en Web; wedge/manual en Android. | `ui/pos`, `ui/inventory`, Web `#pos` |
 | **Alertas de reposición inteligentes** | Notificación cuando un producto cruza el mínimo **o** cuando la tendencia de venta indica que se agotará en N días (velocidad de venta × stock). | Workers + Panel Web |
 | **Presupuesto de gastos y flujo de caja** | Proyección semanal de caja con cobros pendientes, extracciones y gastos fijos; aviso de días en rojo. | `ui/cuadre`, Web `#finance` |
-| **Clientes y fiados (por cobrar)** | Ficha de cliente con saldo, límite de crédito y abonos. Hoy «por cobrar» es solo un número del cuadre; convertirlo en entidad cierra el círculo de caja. | Modelo + Web `#movements` |
+| ✅ **Clientes y fiados (por cobrar)** — hecho en v1.0.0 | Ficha de cliente con saldo derivado, límite de crédito, vencimientos y abonos; venta POS a fiado enlazada. En el Cuadre el pendiente se anota en «Por cobrar» como ayuda. | Web `#customers`, Android Clientes, colecciones `customers`/`credits` |
 | **Metas por vendedor/almacén** | Extender metas diarias/semanales a cada centro de venta con ranking interno (ya existe `goalDaily/goalWeekly`). | Web `#analytics`, Android Reportes |
 
 ## 🥈 Prioridad 2 — Impacto alto, esfuerzo medio
@@ -33,6 +33,14 @@ servidor `server/novagest_server.py`).
 | **Integración con contabilidad** | Exportación mensual en formato de asiento contable (CSV por cuenta: ventas, costo, gastos, caja) para el contador. | `ExportManager.kt`, Web export |
 | **Marketplace de plantillas de importación** | Plantillas por proveedor (NOVA, PCH, formatos propios) seleccionables desde la UI de importación. | `excel-import.js`, `tools/import_excel.py` |
 | **App de escritorio (Tauri/Electron)** | Empaquetar la Web ya existente como app de escritorio con impresoras de tickets — reutiliza el 100 % del código Web. | `web/` sin cambios |
+
+## Hecho en v1.0.0 (2026-10-12)
+
+- **Licencia por término por WhatsApp**: plazos elegibles (día→permanente), ID de
+  dispositivo y activación con la clave `NG-` recibida; número configurable en servidor.
+- **Escáner de códigos de barras** y **clientes/fiados** (Prioridad 1) en Web y Android.
+- Versión única **NovaGest v1.0.0**; marca «Cuadre Pinar» retirada de todo lo visible
+  conservando la compatibilidad con datos y licencias anteriores.
 
 ## Hecho en v6.0.0 (referencia)
 

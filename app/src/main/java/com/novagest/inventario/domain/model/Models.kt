@@ -1,7 +1,7 @@
 package com.novagest.inventario.domain.model
 
 /**
- * Modelos de dominio que replican el libro "Nuevo Cuadre Pinar.xlsx".
+ * Modelos de dominio de NovaGest v1.0.0 (libro diario NovaGest).
  *
  * Hojas origen:
  *  - Configuracion  → Product
@@ -60,6 +60,7 @@ enum class Permission {
     CUADRE_VIEW, CUADRE_EDIT,
     REPORTS_VIEW, REPORTS_EXPORT, REPORTS_FINANCIAL,
     USERS_VIEW, USERS_EDIT,
+    CUSTOMER_VIEW, CUSTOMER_EDIT,
     AUDIT_VIEW,
     BACKUP_MANAGE,
     SETTINGS_EDIT,
@@ -78,12 +79,14 @@ object RolePermissions {
             Permission.CUADRE_VIEW, Permission.CUADRE_EDIT,
             Permission.REPORTS_VIEW, Permission.REPORTS_EXPORT, Permission.REPORTS_FINANCIAL,
             Permission.EXCHANGE_EDIT,
-            Permission.AUDIT_VIEW
+            Permission.AUDIT_VIEW,
+            Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT
         )
         Role.ALMACENERO -> setOf(
             Permission.INVENTORY_VIEW, Permission.INVENTORY_EDIT,
             Permission.MOVEMENT_VIEW, Permission.MOVEMENT_CREATE,
-            Permission.CUADRE_VIEW
+            Permission.CUADRE_VIEW,
+            Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT
         )
     }
 
@@ -103,7 +106,9 @@ data class Product(
     val notes: String = "",
     val precioCostoUsd: Double = 0.0,
     val precioVenta2Usd: Double = 0.0,
-    val observaciones: String = ""
+    val observaciones: String = "",
+    /** Código de barras único (EAN/UPC/Code 128); vacío = sin código. */
+    val barcode: String = ""
 )
 
 data class Movement(
@@ -233,4 +238,37 @@ data class ReportFilter(
 sealed class AppResult<out T> {
     data class Ok<T>(val value: T) : AppResult<T>()
     data class Err(val message: String) : AppResult<Nothing>()
+}
+
+/** Cliente del libro de fiados (colección `customers` del estado compartido). */
+data class Customer(
+    val id: String,
+    val name: String,
+    val phone: String = "",
+    val email: String = "",
+    val address: String = "",
+    val notes: String = "",
+    val creditLimitUsd: Double = 0.0
+)
+
+/** Fiado / cuenta por cobrar (colección `credits` del estado compartido). */
+data class Credit(
+    val id: String,
+    val customerId: String,
+    val customerName: String,
+    val date: String = "",
+    val dueDate: String = "",
+    val totalUsd: Double = 0.0,
+    val paidUsd: Double = 0.0,
+    val origin: String = "MANUAL",
+    val concept: String = "",
+    val payments: Int = 0
+) {
+    val pending: Double get() = kotlin.math.max(0.0, Math.round((totalUsd - paidUsd) * 100.0) / 100.0)
+    val status: String get() = when {
+        pending <= 0.0 -> "PAGADO"
+        dueDate.isNotBlank() && dueDate < java.time.LocalDate.now().toString() -> "VENCIDO"
+        paidUsd > 0.0 -> "PARCIAL"
+        else -> "PENDIENTE"
+    }
 }

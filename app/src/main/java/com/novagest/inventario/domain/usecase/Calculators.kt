@@ -8,7 +8,7 @@ import com.novagest.inventario.domain.model.SaleCenter
 import kotlin.math.abs
 
 /**
- * Réplica exacta de las fórmulas de "Nuevo Cuadre Pinar.xlsx".
+ * Réplica exacta de las fórmulas del libro diario NovaGest.
  *
  * STOCK FINAL (columna I, hojas diarias):
  *   SI ENTRADA → stockInicial + cantidad
@@ -46,7 +46,7 @@ object StockCalculator {
     fun comisionCup(center: SaleCenter, quantity: Double, unitCommissionCup: Double): Double =
         if (center == SaleCenter.GESTOR) round2(quantity * unitCommissionCup) else 0.0
 
-    /** CUADRE PINAR SEPT.xlsx: IMP COMISION = (VENTA 1 + VENTA 2) × COMISION, en toda venta. */
+    /** NovaGest SEPT.xlsx: IMP COMISION = (VENTA 1 + VENTA 2) × COMISION, en toda venta. */
     fun comisionVenta(type: MovementType, quantity: Double, unitCommissionCup: Double): Double =
         if (type == MovementType.VENTA) round2(quantity * unitCommissionCup) else 0.0
 

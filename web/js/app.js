@@ -8,12 +8,13 @@ import {
   addDays, can, CATEGORIES, cup, CURRENCIES, cuadreCalc, formatDate, inRange, normName, reportPeriodRange, stockAtStart,
   qty, round2, todayISO, usd, validatePassword, validateProduct, weekday, weekRange,
   parseValuesText, summarizeRows, STATUS_LABEL, VALUE_FIELDS,
+  normalizeBarcode, creditPending, creditStatus,
 } from "./calc.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
-/** Versión de la interfaz Web (visible en Ajustes → Acerca de). */
-export const APP_VERSION = "6.1.0";
+/** Versión única de NovaGest (Web · Android · Servidor). Visible en Ajustes → Acerca de. */
+export const APP_VERSION = "1.0.0";
 
 const routes = {
   home: { title: "Panel", icon: "⌂", perm: null, group: "General" },
@@ -22,6 +23,7 @@ const routes = {
   importValues: { title: "Importar valores", icon: "📥", perm: "VALUES_IMPORT", group: "Operación", search: true },
   movements: { title: "Movimientos", icon: "⇄", perm: "MOVEMENT_VIEW", group: "Operación", search: true },
   pos: { title: "Venta rápida", icon: "🛒", perm: "MOVEMENT_CREATE", group: "Operación", search: true },
+  customers: { title: "Clientes y fiados", icon: "🤝", perm: "CUSTOMER_VIEW", group: "Operación", search: true },
   cuadre: { title: "Cuadre diario", icon: "☰", perm: "CUADRE_VIEW", group: "Operación" },
   weekly: { title: "Informe semanal", icon: "▤", perm: "WEEKLY_VIEW", group: "Análisis" },
   analytics: { title: "Análisis y metas", icon: "📈", perm: "REPORTS_VIEW", group: "Análisis" },
@@ -40,7 +42,8 @@ let ui = {
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
   histTab: "precios",
   whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, pdfWarehouseId: null, iv: null,
-  license: { status: null, loading: true, error: null, key: "", activating: false, info: null },
+  license: { status: null, loading: true, error: null, key: "", activating: false, info: null, reqName: "", reqTerm: "MES" },
+  custTab: "clientes",
 };
 
 const role = () => store.state.session?.role;
@@ -136,6 +139,25 @@ function shell(body) {
   `;
 }
 
+function licenseRequestCard(st) {
+  const terms = LicenseManager.serverTerms(st);
+  const device = LicenseManager.deviceId();
+  const sel = ui.license.reqTerm || "MES";
+  return `
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-h"><span class="k">1 · Solicitar licencia por WhatsApp</span><span class="tag mov">Por término</span></div>
+      <label>Nombre o empresa<input id="licReqName" value="${esc(ui.license.reqName || "")}" placeholder="Ej. Tienda Nova" autocomplete="name"></label>
+      <div class="hint" style="margin:8px 0">ID de dispositivo · <b class="mono">${esc(device)}</b>
+        <button type="button" class="btn ghost small" data-act="license-copy-device">Copiar</button></div>
+      <div class="hint">Elige el plazo de tu licencia:</div>
+      <div class="chips" style="margin:8px 0">
+        ${terms.map((t) => `<button type="button" class="chip ${sel === t.id ? "on" : ""}" data-lic-term="${t.id}">${t.icon || ""} ${esc(t.label)}</button>`).join("")}
+      </div>
+      <button type="button" class="btn full" style="background:#25d366;border-color:#25d366;color:#06281a" data-act="license-whatsapp">💬 SOLICITAR POR WHATSAPP</button>
+      <p class="hint" style="margin-top:8px">Se abre WhatsApp con tu nombre, ID de dispositivo y plazo ya escritos${st?.whatsapp ? " al número de NovaGest" : ""}. Te responderán con la clave firmada para pegarla abajo.</p>
+    </div>`;
+}
+
 function licenseView() {
   const lic = ui.license;
   const st = lic.status;
@@ -146,13 +168,13 @@ function licenseView() {
   return `
     <div class="login-wrap license-wrap">
       <div class="login-hero">
-        <div class="eyebrow">🔐 Licencia de Uso · Acceso controlado</div>
+        <div class="eyebrow">🔐 Licencia de Uso · NovaGest v${APP_VERSION}</div>
         <h1>Acceso protegido<br>por licencia</h1>
         <p>Para garantizar el uso legítimo de <strong>NovaGest</strong>, el acceso a todas las Apps se verifica <b>siempre primero</b> por la licencia de uso. Sin una licencia válida no se puede entrar al sistema.</p>
         <div class="license-features">
+          <div>✔ Licencia por término (día, semana, mes, año o permanente)</div>
+          <div>✔ Solicitud por WhatsApp con tu ID de dispositivo</div>
           <div>✔ Verificación criptográfica HMAC-SHA256</div>
-          <div>✔ Control de expiración y dispositivos</div>
-          <div>✔ Activación segura en el servidor</div>
           <div>✔ Bloqueo total sin licencia</div>
         </div>
         <div class="hero-cats">${Object.values(CATEGORIES).filter((c) => c.img).slice(0, 6).map((c) => `<img src="./public/cat/${c.img}.jpg" alt="">`).join("")}</div>
@@ -162,32 +184,35 @@ function licenseView() {
         </div>` : ""}
       </div>
       <div class="login-panel">
-        <form class="login-card" id="licenseForm">
+        <div class="login-card">
           <div class="brand-row"><img src="./public/icon-app.png" alt="" /><div><div class="eyebrow">Licencia de Uso</div><div>Activación</div></div></div>
           ${lic.loading ? `<div class="card"><p class="hint">Verificando licencia en el servidor…</p><div class="loader"></div></div>` : `
             ${st?.valid ? `<div class="banner ok">✔ Licencia válida · ${esc(st.clientName)} · ${expText}</div>` : `
               ${hasExpired ? `<div class="banner">${isExpired ? `⛔ La licencia expiró el ${LicenseManager.fmtDate(st.lastLicense.expiresAt)}. Debe activar una nueva.` : `⚠ ${esc(st.reason || "No hay licencia activa")}`}</div>` : `<div class="banner">${esc(st?.reason || "No hay licencia activa. Active una licencia para continuar.")}</div>`}
             `}
-            <div class="h2">${st?.valid ? "Cambiar / Renovar licencia" : "Activar licencia de uso"}</div>
-            <p class="hint">Pegue la clave de licencia completa (incluye el punto). Formato: <code>NG-XXXX-...XXXX.YYYY</code>. Las claves heredadas <code>CP-…</code> también son válidas. La clave es verificada criptográficamente en el servidor antes de permitir cualquier acceso.</p>
-            <label>Clave de licencia<textarea name="license_key" id="licenseKey" rows="4" placeholder="NG-...." required style="font-family:monospace;word-break:break-all">${esc(lic.key || "")}</textarea></label>
-            <div class="row" style="margin-top:12px">
-              <button class="btn full" ${lic.activating ? "disabled" : ""}>${lic.activating ? "Verificando…" : st?.valid ? "Actualizar licencia" : "Activar licencia"}</button>
-            </div>
-            ${lic.error ? `<div class="error" style="margin-top:12px">${esc(lic.error)}</div>` : ""}
-            ${lic.info ? `<div class="card" style="margin-top:12px"><div class="card-h"><span class="k">Verificación</span></div><p class="hint">${esc(lic.info)}</p></div>` : ""}
-            <div class="row" style="margin-top:12px">
-              <button type="button" class="btn ghost small" data-act="license-refresh">↻ Verificar de nuevo</button>
-              ${st?.valid ? `<button type="button" class="btn ghost small" data-act="license-continue">Continuar a la App →</button>` : ""}
-            </div>
-            <p class="hint secure-note" style="margin-top:16px">🔒 La licencia se valida primero en el servidor. Sin licencia válida no se puede iniciar sesión ni usar la App Web o Móvil.</p>
-            <div class="demo">
-              <strong>¿No tiene licencia?</strong><br>
-              Contacte al administrador para generar una licencia FULL, TRIAL o ENTERPRISE desde <code>Ajustes → Licencia</code> (requiere rol Administrador).<br>
-              Prueba automática: ${st?.trialDays || 15} días.
-            </div>
+            ${licenseRequestCard(st)}
+            <form id="licenseForm">
+              <div class="h2">2 · ${st?.valid ? "Cambiar / Renovar licencia" : "Activar licencia de uso"}</div>
+              <p class="hint">Pegue la clave de licencia completa (incluye el punto). Formato: <code>NG-XXXX-...XXXX.YYYY</code>. La clave es verificada criptográficamente en el servidor antes de permitir cualquier acceso.</p>
+              <label>Clave de licencia<textarea name="license_key" id="licenseKey" rows="4" placeholder="NG-...." required style="font-family:monospace;word-break:break-all">${esc(lic.key || "")}</textarea></label>
+              <div class="row" style="margin-top:12px">
+                <button class="btn full" ${lic.activating ? "disabled" : ""}>${lic.activating ? "Verificando…" : st?.valid ? "Actualizar licencia" : "Activar licencia"}</button>
+              </div>
+              ${lic.error ? `<div class="error" style="margin-top:12px">${esc(lic.error)}</div>` : ""}
+              ${lic.info ? `<div class="card" style="margin-top:12px"><div class="card-h"><span class="k">Verificación</span></div><p class="hint">${esc(lic.info)}</p></div>` : ""}
+              <div class="row" style="margin-top:12px">
+                <button type="button" class="btn ghost small" data-act="license-refresh">↻ Verificar de nuevo</button>
+                ${st?.valid ? `<button type="button" class="btn ghost small" data-act="license-continue">Continuar a la App →</button>` : ""}
+              </div>
+              <p class="hint secure-note" style="margin-top:16px">🔒 La licencia se valida primero en el servidor. Sin licencia válida no se puede iniciar sesión ni usar la App Web o Móvil.</p>
+              <div class="demo">
+                <strong>¿Primera vez?</strong><br>
+                Solicita tu plazo por WhatsApp (paso 1) o pide a un administrador que genere la clave desde <code>Ajustes → Licencia</code>.<br>
+                Prueba automática: ${st?.trialDays || 15} días.
+              </div>
+            </form>
           `}
-        </form>
+        </div>
       </div>
     </div>`;
 }
@@ -309,6 +334,7 @@ function homeView() {
       ${allowed("VALUES_IMPORT") ? `<a href="#importValues" data-nav="importValues"><span class="q-ico" style="--qc:var(--gold)">📥</span><strong>Importar valores</strong><span class="hint">Pega o sube desde Excel</span><span class="q-go">→</span></a>` : ""}
       ${allowed("CUADRE_VIEW") ? `<a href="#cuadre" data-nav="cuadre"><span class="q-ico" style="--qc:var(--ok)">☰</span><strong>Cuadre del día</strong><span class="hint">Caja, tasas y gastos</span><span class="q-go">→</span></a>` : ""}
       ${allowed("REPORTS_VIEW") ? `<a href="#analytics" data-nav="analytics"><span class="q-ico">📈</span><strong>Análisis y metas</strong><span class="hint">Ventas, utilidades y metas</span><span class="q-go">→</span></a>` : ""}
+      ${allowed("CUSTOMER_VIEW") ? `<a href="#customers" data-nav="customers"><span class="q-ico" style="--qc:#25d366">🤝</span><strong>Clientes y fiados</strong><span class="hint">${usd(store.totalReceivable())} por cobrar</span><span class="q-go">→</span></a>` : ""}
     </div>
     ${valuationMismatch ? `<div class="banner inventory-value-alert" role="alert">⚠ <strong>Los totales de valoración no coinciden.</strong> Por categoría: <b>${usd(categoryValue)}</b>; por almacén: <b>${usd(warehouseValue)}</b>; diferencia: <b>${usd(valuationDifference)}</b>. Revisa las existencias y sus almacenes.</div>` : ""}
     <div class="grid-2" style="margin-top:16px">
@@ -347,7 +373,7 @@ function inventoryView() {
   const all = store.activeProducts();
   const wh = store.activeWarehouse();
   let list = all.filter((p) => (ui.cat === "TODAS" || p.category === ui.cat) &&
-    (!ui.q || has(p.name, ui.q) || has(p.category, ui.q) || has(p.observaciones || "", ui.q)));
+    (!ui.q || has(p.name, ui.q) || has(p.category, ui.q) || has(p.observaciones || "", ui.q) || has(p.barcode || "", ui.q)));
   if (ui.filter === "STOCK") list = list.filter((p) => p.stockActual > 0);
   if (ui.filter === "AGOTADOS") list = list.filter((p) => p.stockActual <= 0);
   if (ui.filter === "BAJO") list = list.filter((p) => p.stockActual <= p.minStock);
@@ -379,6 +405,7 @@ function inventoryView() {
       <div class="row">
         <select id="catFilter" class="sel"><option value="TODAS">Todas las categorías</option>${cats.map((c) => `<option ${ui.cat === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
         <select id="sortSel" class="sel">${[["name", "Orden: nombre"], ["cat", "Orden: categoría"], ["stock", "Orden: stock"], ["price", "Orden: precio"]].map(([k, l]) => `<option value="${k}" ${ui.sort === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+        <button class="btn ghost" data-act="scan-inventory">📷 Escanear código</button>
         ${canEdit ? `<button class="btn" data-act="new-product">＋ Nuevo producto</button>` : ""}
         ${canImp ? `<button class="btn ghost" data-act="iv-go" data-tip="Pegar del Excel, subir un archivo o escribir los valores de este almacén">📥 Importar valores</button>` : ""}
         <button class="btn gold" data-act="print" data-tip="Imprimir este inventario o guardarlo como PDF">PDF</button>
@@ -403,7 +430,7 @@ function inventoryView() {
             <tr>
               <td class="num mono">${i + 1}</td>
               <td>${thumb(p)}</td>
-              <td><strong>${hl(p.name)}</strong></td>
+              <td><strong>${hl(p.name)}</strong>${p.barcode ? `<div class="hint mono">▦ ${esc(p.barcode)}</div>` : ""}</td>
               <td class="mono r">${qty(p.stockInicial)}</td>
               <td class="mono r"><span class="stock ${p.stockActual <= 0 ? "out" : p.stockActual <= p.minStock ? "low" : "ok"}">${qty(p.stockActual)}</span></td>
               ${multi ? `<td class="mono r"><span class="stock ${store.stockIn(p, wh?.id) <= 0 ? "out" : store.stockIn(p, wh?.id) <= p.minStock ? "low" : "ok"}">${qty(store.stockIn(p, wh?.id))}</span></td>` : ""}
@@ -433,7 +460,7 @@ function hl(text) {
 function movementViewRows() {
   return store.activeMovements().filter((m) =>
     (ui.filter === "TODOS" || m.type === ui.filter) && (!ui.movDate || m.date === ui.movDate) &&
-    (!ui.q || has(m.productName, ui.q) || has(m.center, ui.q) || has(m.notes || "", ui.q) || has(m.type, ui.q)))
+    (!ui.q || has(m.productName, ui.q) || has(m.center, ui.q) || has(m.notes || "", ui.q) || has(m.type, ui.q) || has(m.customerName || "", ui.q)))
     .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
 }
 
@@ -962,7 +989,7 @@ function backupView() {
       <tbody>${b.list.map((x) => `<tr><td class="mono">${esc(x.name)}</td><td><span class="tag ${x.kind === "auto" ? "entrada" : "mov"}">${x.name.includes("pre-restore") ? "antes de restaurar" : x.kind}</span></td><td class="hint">${new Date(x.createdAt * 1000).toLocaleString("es-CU")}</td><td>${kb(x.size)}</td>
         ${isAdmin ? `<td class="row nowrap"><button class="btn ghost small" data-bk-dl="${esc(x.name)}">Descargar</button><button class="btn ghost small danger-t" data-bk-restore="${esc(x.name)}">Restaurar</button></td>` : ""}</tr>`).join("") || `<tr><td colspan="5" class="hint">Aún no hay copias. La primera se crea al arrancar el servidor.</td></tr>`}</tbody>
     </table></div>
-    <label class="card dropzone" id="dropzone" data-tip="Arrastra aquí CUADRE PINAR *.xlsx o haz clic" style="margin-top:14px">
+    <label class="card dropzone" id="dropzone" data-tip="Arrastra aquí tu libro diario NovaGest *.xlsx o haz clic" style="margin-top:14px">
       <div class="dz-ico">📥</div><b>Importar una hoja del Excel</b>
       <span class="hint">Arrastra el archivo .xlsx aquí o haz clic. Elige la hoja del día (p. ej. «26 9 26»).</span>
       <input type="file" id="xlsxFile" accept=".xlsx,.xls" hidden>
@@ -1010,13 +1037,18 @@ function licenseCard() {
           <div class="span-2 row"><button class="btn small" data-act="license-activate-inline">Activar</button><button type="button" class="btn ghost small" data-act="license-refresh">Verificar estado</button></div>
         </form>
       `}
+      <div class="card" style="margin-top:14px">
+        <div class="card-h"><span class="k">Renovar por WhatsApp</span><span class="tag mov">Por término</span></div>
+        ${licenseRequestCard(lic)}
+      </div>
       ${admin ? `
         <div class="card" style="margin-top:14px">
           <div class="card-h"><span class="k">Generar nueva licencia (Admin)</span></div>
           <form id="licenseGenForm" class="form-grid">
             <label>Cliente<input name="client_name" value="${esc(lic?.clientName || "NovaGest")}" required></label>
+            <label>Plazo (término)<select name="term" id="licGenTerm">${LicenseManager.serverTerms(lic).map((t) => `<option value="${t.id}" ${t.id === "ANIO" ? "selected" : ""}>${esc(t.label)}${t.days ? ` · ${t.days} días` : ""} · ${t.type}</option>`).join("")}</select></label>
             <label>Tipo<select name="type"><option>FULL</option><option>TRIAL</option><option>ENTERPRISE</option><option>LIFETIME</option></select></label>
-            <label>Días (0 = permanente)<input name="days" type="number" value="365"></label>
+            <label>Días (vacío = según plazo)<input name="days" type="number" placeholder="Automático"></label>
             <label>Max usuarios<input name="max_users" type="number" value="20"></label>
             <label>Max dispositivos<input name="max_devices" type="number" value="10"></label>
             <label><input type="checkbox" name="activate"> Activar al generar (desactiva otras)</label>
@@ -1126,10 +1158,104 @@ function settingsView() {
     </div>`;
 }
 
+/* ============================ CLIENTES Y FIADOS ============================ */
+function customersView() {
+  const canEdit = allowed("CUSTOMER_EDIT");
+  const customers = store.activeCustomers().filter((c) => !ui.q || has(c.name, ui.q) || has(c.phone || "", ui.q));
+  const credits = store.activeCredits().filter((c) => !ui.q || has(c.customerName, ui.q) || has(c.concept || "", ui.q))
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  const total = store.totalReceivable();
+  const overdue = credits.filter((c) => creditStatus(c) === "VENCIDO");
+  const overdueTotal = overdue.reduce((a, c) => a + creditPending(c), 0);
+  const withDebt = store.activeCustomers().filter((c) => store.customerBalance(c.id) > 0).length;
+  const tab = ui.custTab || "clientes";
+  return `
+    <div class="kpis">
+      ${kpi("Por cobrar (total)", usd(total), `${credits.filter((c) => creditPending(c) > 0).length} fiados abiertos`, total ? "gold" : "green")}
+      ${kpi("Clientes con deuda", String(withDebt), `de ${store.activeCustomers().length} clientes`, "blue")}
+      ${kpi("Vencidos", String(overdue.length), overdue.length ? `${usd(overdueTotal)} vencidos` : "ninguno vencido", overdue.length ? "red" : "green")}
+      ${kpi("Fiados registrados", String(credits.length), "contado aparte, en Venta rápida", "teal")}
+    </div>
+    <div class="chips" style="margin:14px 0">
+      <button class="chip ${tab === "clientes" ? "on" : ""}" data-cust-tab="clientes">🤝 Clientes</button>
+      <button class="chip ${tab === "fiados" ? "on" : ""}" data-cust-tab="fiados">🧾 Fiados y abonos</button>
+    </div>
+    ${tab === "fiados" ? `
+      <div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Concepto</th><th class="r">Total</th><th class="r">Abonado</th><th class="r">Pendiente</th><th>Estado</th><th>Vence</th>${canEdit ? "<th></th>" : ""}</tr></thead>
+      <tbody>${credits.map((c) => { const st = creditStatus(c); const pend = creditPending(c); return `<tr>
+        <td class="hint">${formatDate(c.date)}</td><td><strong>${esc(c.customerName)}</strong><div class="hint">${esc(c.origin === "POS" ? "Venta rápida" : "Manual")}</div></td>
+        <td>${esc(c.concept || "")}${c.payments?.length ? `<div class="hint">${c.payments.map((pay) => `${formatDate(pay.date)} · ${usd(pay.amountUsd)}${pay.method ? ` · ${esc(pay.method)}` : ""}`).join(" · ")}</div>` : ""}</td>
+        <td class="mono r">${usd(c.totalUsd)}</td><td class="mono r">${usd(c.paidUsd)}</td><td class="mono r"><b>${usd(pend)}</b></td>
+        <td><span class="tag ${st === "PAGADO" ? "entrada" : st === "VENCIDO" ? "salida" : "gestor"}">${st}</span></td>
+        <td class="hint">${c.dueDate ? formatDate(c.dueDate) : "—"}</td>
+        ${canEdit ? `<td class="nowrap">${pend > 0 ? `<button class="btn small" data-pay-credit="${c.id}">Abonar</button>` : ""} ${!(c.payments || []).length ? `<button class="icon-btn danger" data-del-credit="${c.id}" title="Eliminar fiado sin abonos">🗑</button>` : ""}</td>` : ""}
+      </tr>`; }).join("") || `<tr><td colspan="9" class="empty">Aún no hay fiados. Crea uno con «Nuevo fiado» o vende a fiado desde Venta rápida.</td></tr>`}</tbody></table></div>
+      ${canEdit ? `<div class="row" style="margin-top:12px"><button class="btn" data-act="new-credit">＋ Nuevo fiado manual</button><button class="btn ghost" data-act="export-credits">⬇ CSV de fiados</button></div>` : ""}
+    ` : `
+      <div class="toolbar"><div></div><div class="row">${canEdit ? `<button class="btn" data-act="new-customer">＋ Nuevo cliente</button><button class="btn ghost" data-act="new-credit">＋ Nuevo fiado</button>` : ""}<button class="btn ghost" data-act="export-customers">⬇ CSV clientes</button></div></div>
+      <div class="card table-wrap flush"><table><thead><tr><th>Cliente</th><th>Contacto</th><th class="r">Límite</th><th class="r">Debe</th><th>Estado</th>${canEdit ? "<th></th>" : ""}</tr></thead>
+      <tbody>${customers.map((c) => { const bal = store.customerBalance(c.id); const over = c.creditLimitUsd && bal > c.creditLimitUsd; return `<tr>
+        <td><strong>${esc(c.name)}</strong>${c.notes ? `<div class="hint">${esc(c.notes)}</div>` : ""}${c.address ? `<div class="hint">${esc(c.address)}</div>` : ""}</td>
+        <td class="hint">${esc(c.phone || "")}${c.email ? `<div>${esc(c.email)}</div>` : ""}</td>
+        <td class="mono r">${c.creditLimitUsd ? usd(c.creditLimitUsd) : "—"}</td>
+        <td class="mono r"><b>${usd(bal)}</b></td>
+        <td>${bal <= 0 ? `<span class="tag entrada">Al día</span>` : over ? `<span class="tag salida">Sobre el límite</span>` : `<span class="tag gestor">Con deuda</span>`}</td>
+        ${canEdit ? `<td class="nowrap"><button class="icon-btn" data-edit-customer="${c.id}" title="Editar cliente">✎</button><button class="btn ghost small" data-credit-for="${c.id}">Fiar</button><button class="icon-btn danger" data-del-customer="${c.id}" title="Eliminar (sin deuda)">🗑</button></td>` : ""}
+      </tr>`; }).join("") || `<tr><td colspan="6" class="empty">Aún no hay clientes. Crea el primero para vender a fiado.</td></tr>`}</tbody></table></div>
+      <p class="hint" style="margin-top:10px">El fiado de Venta rápida descuenta stock igual que el contado y crea aquí la deuda. Los abonos quedan con fecha, importe, forma de pago y quién los cobró. El total por cobrar también se ve en Venta rápida.</p>
+    `}`;
+}
+
+function customerModal(c = null) {
+  const x = c || { name: "", phone: "", email: "", address: "", notes: "", creditLimitUsd: 0 };
+  modal(c ? "Editar cliente" : "Nuevo cliente", `
+    <div class="form-grid">
+      <label class="span-2">Nombre o empresa <input name="name" value="${esc(x.name)}" required></label>
+      <label>Teléfono / WhatsApp <input name="phone" value="${esc(x.phone || "")}"></label>
+      <label>Correo <input name="email" type="email" value="${esc(x.email || "")}"></label>
+      <label class="span-2">Dirección <input name="address" value="${esc(x.address || "")}"></label>
+      <label>Límite de crédito <small>USD · 0 = sin límite</small><input name="creditLimitUsd" type="number" step="any" min="0" value="${x.creditLimitUsd || 0}"></label>
+      <label>Notas <input name="notes" value="${esc(x.notes || "")}"></label>
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "customerForm", `data-id="${c?.id || ""}"`);
+}
+
+function creditModal(customerId = "") {
+  const customers = store.activeCustomers();
+  if (!customers.length) { toast("Primero crea un cliente.", "err"); customerModal(null); return; }
+  modal("Nuevo fiado manual", `
+    <div class="form-grid">
+      <label class="span-2">Cliente<select name="customerId">${customers.map((c) => `<option value="${c.id}" ${c.id === customerId ? "selected" : ""}>${esc(c.name)} · debe ${usd(store.customerBalance(c.id))}</option>`).join("")}</select></label>
+      <label>Fecha<input name="date" type="date" value="${todayISO()}" max="${todayISO()}" required></label>
+      <label>Vence<input name="dueDate" type="date" value=""></label>
+      <label>Importe <small>USD</small><input name="totalUsd" type="number" step="any" min="0" required></label>
+      <label>Concepto<input name="concept" placeholder="Ej. Venta anotada, préstamo…"></label>
+      <label class="span-2">Notas<input name="notes" value=""></label>
+    </div>
+    <p class="hint">Fiado manual: no mueve inventario. Para fiar productos, usa Venta rápida → Cobro: Fiado.</p>
+    <div class="row" style="margin-top:14px"><button class="btn">Registrar fiado</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "creditForm");
+}
+
+function creditPaymentModal(credit) {
+  const pend = creditPending(credit);
+  modal(`Abonar · ${esc(credit.customerName)}`, `
+    <p class="hint">Pendiente: <b>${usd(pend)}</b> de ${usd(credit.totalUsd)} · ${esc(credit.concept || "")}</p>
+    <div class="form-grid">
+      <label>Fecha<input name="date" type="date" value="${todayISO()}" max="${todayISO()}" required></label>
+      <label>Importe <small>USD</small><input name="amountUsd" type="number" step="any" min="0" max="${pend}" value="${pend}" required></label>
+      <label>Forma de pago<select name="method"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>ZELLE</option><option>TARJETA</option><option>OTRO</option></select></label>
+      <label>Nota<input name="notes" value=""></label>
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn">Registrar abono</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "creditPayForm", `data-id="${credit.id}"`);
+}
+
 /* ============================ PUNTO DE VENTA ============================ */
 ui.cart = [];
 ui.posCat = "TODAS";
 ui.posCenter = "TIENDA";
+ui.posPayment = "CONTADO";
+ui.posCustomer = "";
+ui.posDue = "";
 function posView() {
   const all = store.activeProducts();
   const wid = store.activeWarehouseId();
@@ -1138,9 +1264,22 @@ function posView() {
   const cats = [...new Set(all.filter((p) => store.stockIn(p, wid) > 0).map((p) => p.category))].sort();
   const total = ui.cart.reduce((a, it) => a + it.qty * it.price, 0);
   const uds = ui.cart.reduce((a, it) => a + it.qty, 0);
+  const customers = allowed("CUSTOMER_VIEW") ? store.activeCustomers() : [];
+  const isFiado = ui.posPayment === "FIADO";
+  const pendingTotal = store.totalReceivable();
   return `
     <div class="pos">
       <div class="pos-left">
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-h"><span class="k">📷 Escáner de códigos de barras</span><span class="tag mov">Cámara · lector USB · teclado</span></div>
+          <div class="row">
+            <input id="barcodeInput" placeholder="Escanea o escribe el código y pulsa Enter…" autocomplete="off" style="flex:1" aria-label="Código de barras">
+            <button type="button" class="btn" data-act="scan-camera">📷 Escanear con cámara</button>
+            <button type="button" class="btn ghost" data-act="scan-stop" hidden id="scanStopBtn">Detener</button>
+          </div>
+          <video id="barcodeVideo" playsinline muted hidden style="width:100%;max-height:260px;border-radius:10px;margin-top:10px;background:#111"></video>
+          <p class="hint" id="scanHint">Con lector USB/Bluetooth solo escanea: el producto entra solo al carrito. Si el código no existe, podrás crearlo con ese código ya escrito.</p>
+        </div>
         <div class="chips" style="margin-bottom:12px">
           <button class="chip ${ui.posCat === "TODAS" ? "on" : ""}" data-poscat="TODAS">Todas</button>
           ${cats.map((c) => `<button class="chip ${ui.posCat === c ? "on" : ""}" data-poscat="${esc(c)}">${(CATEGORIES[c] || CATEGORIES.General).icon} ${esc(c)}</button>`).join("")}
@@ -1149,7 +1288,7 @@ function posView() {
           ${list.map((p) => {
             const inCart = ui.cart.find((x) => x.productId === p.id)?.qty || 0;
             const sw = store.stockIn(p, wid);
-            return `<button class="pcard ${inCart ? "in" : ""}" data-add-cart="${p.id}" data-tip="Clic para añadir 1 al carrito · ${qty(sw)} en ${esc(wname)}">
+            return `<button class="pcard ${inCart ? "in" : ""}" data-add-cart="${p.id}" data-tip="Clic para añadir 1 al carrito · ${qty(sw)} en ${esc(wname)}${p.barcode ? ` · Código ${esc(p.barcode)}` : ""}">
               ${inCart ? `<span class="badge">${inCart}</span>` : ""}
               ${thumb(p, null)}
               <div class="pname">${hl(p.name)}</div>
@@ -1163,26 +1302,104 @@ function posView() {
         <div class="cart-lines">
           ${ui.cart.map((it, i) => { const p = store.state.products.find((x) => x.id === it.productId); return `
             <div class="cl">
-              <div class="cl-n">${esc(p?.name)}</div>
+              <div class="cl-n">${esc(p?.name)}${p?.barcode ? `<div class="hint mono">${esc(p.barcode)}</div>` : ""}</div>
               <div class="cl-c">
                 <button class="icon-btn" data-cart-dec="${i}" aria-label="Quitar una unidad de ${esc(p?.name || "")}">−</button><b>${qty(it.qty)}</b><button class="icon-btn" data-cart-inc="${i}" aria-label="Añadir una unidad de ${esc(p?.name || "")}">+</button>
                 <input class="cell" type="number" step="any" data-cart-price="${i}" value="${it.price}" data-tip="Precio unitario USD (puedes rebajarlo)">
                 <b class="mono">${usd(it.qty * it.price)}</b>
               </div>
-            </div>`; }).join("") || `<div class="cart-empty">Toca un producto para empezar ✨</div>`}
+            </div>`; }).join("") || `<div class="cart-empty">Escanea un código o toca un producto para empezar ✨</div>`}
         </div>
         <div class="form-grid">
           <label>Fecha<input type="date" id="posDate" value="${ui.posDate || todayISO()}" max="${todayISO()}"></label>
           <label>Tipo<select id="posCenter">${["TIENDA", "GESTOR"].map((c) => `<option ${ui.posCenter === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
           <label class="span-2">Almacén<select id="posWh" data-tip="La venta descuenta del almacén elegido">${store.warehousesActive().map((w) => `<option value="${w.id}" ${w.id === wid ? "selected" : ""}>${esc(w.name)} · ${qty(store.warehouseStats(w).unidades)} uds</option>`).join("")}</select></label>
           <label class="span-2">Domicilio <small>CUP</small><input type="number" id="posDom" step="any" value="${ui.posDom || 0}"></label>
+          <label>Cobro<select id="posPayment"><option value="CONTADO" ${!isFiado ? "selected" : ""}>Contado</option><option value="FIADO" ${isFiado ? "selected" : ""} ${customers.length ? "" : "disabled"}>Fiado (por cobrar)</option></select></label>
+          <label>Vence <small>(fiado)</small><input type="date" id="posDue" value="${ui.posDue || ""}" ${isFiado ? "" : "disabled"}></label>
+          ${isFiado ? `<label class="span-2">Cliente del fiado<select id="posCustomer">${customers.map((c) => `<option value="${c.id}" ${ui.posCustomer === c.id ? "selected" : ""}>${esc(c.name)} · debe ${usd(store.customerBalance(c.id))}${c.creditLimitUsd ? ` / límite ${usd(c.creditLimitUsd)}` : ""}</option>`).join("")}</select></label>` : ""}
         </div>
+        ${pendingTotal ? `<p class="hint">🤝 Por cobrar hoy (todos los clientes): <b>${usd(pendingTotal)}</b> · <button type="button" class="btn ghost small" data-nav="customers">Ver clientes y fiados</button></p>` : ""}
         <div class="cart-total"><span>${qty(uds)} uds</span><b>${usd(total)}</b></div>
         <div class="hint" style="text-align:right">≈ ${cup(total * store.rateOn("USD", ui.posDate || todayISO()))}</div>
-        <button class="btn full big" data-act="checkout" ${ui.cart.length ? "" : "disabled"}>✔ Cobrar ${usd(total)}</button>
+        <button class="btn full big" data-act="checkout" ${ui.cart.length ? "" : "disabled"}>${isFiado ? "✔ Fiar" : "✔ Cobrar"} ${usd(total)}</button>
       </aside>
     </div>`;
 }
+
+/* ================= Escáner de códigos de barras (Web) ================= */
+let barcodeStream = null;
+let barcodeTimer = null;
+
+function stopBarcodeScanner() {
+  if (barcodeTimer) { clearInterval(barcodeTimer); barcodeTimer = null; }
+  if (barcodeStream) { barcodeStream.getTracks().forEach((t) => t.stop()); barcodeStream = null; }
+  const v = $("#barcodeVideo"); if (v) { v.hidden = true; v.srcObject = null; }
+  const b = $("#scanStopBtn"); if (b) b.hidden = true;
+}
+
+function handleScannedCode(rawCode, { goPos = true } = {}) {
+  const code = normalizeBarcode(rawCode);
+  if (!code) return;
+  const found = store.findByBarcode(code);
+  if (found) {
+    if (store.stockIn(found, store.activeWarehouseId()) <= 0 && ui.route === "pos") {
+      toast(`«${found.name}» no tiene existencia en «${store.warehouseName(store.activeWarehouseId())}».`, "err");
+    } else if (ui.route === "pos") {
+      addToCart(found.id);
+      toast(`📷 ${found.name} añadido · ${code}`, "ok");
+      return;
+    } else {
+      ui.q = found.name; navTo("inventory"); toast(`📷 ${found.name} · ${code}`, "ok"); return;
+    }
+    if (ui.route !== "pos") { ui.q = found.name; navTo("inventory"); }
+    return;
+  }
+  // Código nuevo: ofrece crear el producto con el código ya puesto.
+  toast(`Código ${code} no está en el inventario.`, "err");
+  if (allowed("INVENTORY_EDIT")) {
+    productModal(null, code);
+    render();
+  }
+}
+
+async function startBarcodeScanner() {
+  const video = $("#barcodeVideo");
+  const hint = $("#scanHint");
+  if (!("BarcodeDetector" in window)) {
+    if (hint) hint.textContent = "Este navegador no trae detector de códigos (BarcodeDetector). Usa Chrome/Edge en Android o conecta un lector USB/Bluetooth y escanea en el cuadro de arriba.";
+    toast("Cámara no soportada aquí: usa el lector USB o escribe el código.", "err");
+    $("#barcodeInput")?.focus();
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) { toast("Este dispositivo no permite abrir la cámara.", "err"); return; }
+  try {
+    stopBarcodeScanner();
+    barcodeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    if (!video) return;
+    video.srcObject = barcodeStream;
+    video.hidden = false;
+    await video.play();
+    const stopBtn = $("#scanStopBtn"); if (stopBtn) stopBtn.hidden = false;
+    const detector = new window.BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"] });
+    if (hint) hint.textContent = "Apunta la cámara al código de barras…";
+    let last = "", lastAt = 0;
+    barcodeTimer = setInterval(async () => {
+      try {
+        const codes = await detector.detect(video);
+        const value = codes?.[0]?.rawValue;
+        if (!value) return;
+        const now = Date.now();
+        if (value === last && now - lastAt < 2500) return;
+        last = value; lastAt = now;
+        handleScannedCode(value);
+      } catch {}
+    }, 350);
+  } catch (e) {
+    toast("No se pudo abrir la cámara. Revisa el permiso de cámara.", "err");
+  }
+}
+
 function addToCart(id) {
   const p = store.state.products.find((x) => x.id === id);
   const it = ui.cart.find((x) => x.productId === id);
@@ -1314,9 +1531,9 @@ async function handleExcel(file) {
 
     ui.xlsx = { XLSX, wb, fileName: file.name };
     const sheets = wb.SheetNames.filter((sheet) => !!parseSheet(XLSX, wb, sheet));
-    if (!sheets.length) return toast("No se reconocieron hojas diarias de CUADRE PINAR en este libro.", "err");
+    if (!sheets.length) return toast("No se reconocieron hojas diarias NovaGest en este libro.", "err");
     ui.xlsx.validSheets = sheets;
-    if (/CUADRE PINAR/i.test(file.name) && sheets.length > 1) {
+    if (/(NovaGest|CUADRE PINAR)/i.test(file.name) && sheets.length > 1) {
       const records = sheets.map((sheet) => ({
         ...parseSheet(XLSX, wb, sheet), selected: true,
         importKey: `${normName(file.name)}#${sheet}`, sourceFile: file.name, sourceFormat: "pinar",
@@ -1415,7 +1632,7 @@ function pinarImportModal() {
       <td class="mono r">${record.products.length}</td><td class="mono r">${qty(units)}</td><td class="mono r">${usd(amount)}</td><td class="mono r">${qty(record.rate || 0)}</td>
     </tr>`;
   }).join("");
-  modal("📥 Importación histórica CUADRE PINAR", `
+  modal("📥 Importación histórica NovaGest", `
     <p><b>${esc(pending.fileName)}</b> · ${records.length} hojas con fecha reconocida.</p>
     <p class="hint">Se importarán en orden cronológico. Los cambios de existencia que el libro registra sin entrada/salida explícita se conservarán como ajustes visibles en los movimientos.</p>
     ${closed.length ? `<div class="banner">⚠ No se puede modificar: ${closed.map((record) => `${esc(record.sheet)} (${formatDate(record.date)})`).join(", ")}. Excluye las hojas cerradas o pide que un administrador las reabra.</div>` : `<div class="banner info">Confirma el almacén y las fechas antes de aplicar todas las hojas seleccionadas.</div>`}
@@ -1449,7 +1666,7 @@ function importPinarSelected() {
   ui.modal = null;
   ui.pinarImport = null;
   ui.cuadreDate = selected.at(-1).date;
-  toast(`${selected.length} hojas CUADRE PINAR importadas${errors.length ? ` · Avisos: ${errors.slice(0, 2).join(" | ")}` : ""}`, errors.length ? "err" : "ok");
+  toast(`${selected.length} hojas NovaGest importadas${errors.length ? ` · Avisos: ${errors.slice(0, 2).join(" | ")}` : ""}`, errors.length ? "err" : "ok");
   render();
 }
 
@@ -1964,8 +2181,8 @@ function modal(title, body, id, extra = "") {
   ui.modal = `<div class="modal-back" data-act="close-modal"><form class="modal" id="${id}" role="dialog" aria-modal="true" ${extra}><div class="modal-h"><div class="h2">${title}</div><button type="button" class="icon-btn" data-act="close-modal" aria-label="Cerrar">✕</button></div>${body}</form></div>`;
 }
 
-function productModal(p = null) {
-  const x = p || { name: "", stockInicial: 0, precioVentaUsd: 0, precioVenta2Usd: 0, precioCostoUsd: 0, comisionCup: 0, minStock: 1, category: "General", observaciones: "" };
+function productModal(p = null, presetBarcode = "") {
+  const x = p || { name: "", stockInicial: 0, precioVentaUsd: 0, precioVenta2Usd: 0, precioCostoUsd: 0, comisionCup: 0, minStock: 1, category: "General", observaciones: "", barcode: presetBarcode };
   const cats = Object.keys(CATEGORIES);
   const wh = store.activeWarehouse();
   const whStock = p ? Number(p.stocksInicial?.[wh?.id] ?? p.stockInicial) : 0;
@@ -1982,6 +2199,7 @@ function productModal(p = null) {
       <label>P. COSTO <small>USD</small><input name="precioCostoUsd" type="number" step="any" min="0" value="${x.precioCostoUsd || 0}"></label>
       <label>COMISION <small>CUP</small><input name="comisionCup" type="number" step="any" min="0" value="${x.comisionCup}"></label>
       <label>Categoría<select name="category">${cats.map((c) => `<option ${x.category === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
+      <label>Código de barras <input name="barcode" value="${esc(x.barcode || "")}" placeholder="EAN / UPC / Code 128" autocomplete="off"></label>
       <label>Observaciones <input name="observaciones" value="${esc(x.observaciones || "")}"></label>
     </div>
     ${p && whList.length > 1 ? `<p class="hint">Existencias: ${whList.map((w) => `${esc(w.code || w.name)} <b>${qty(store.stockIn(p, w.id))}</b>`).join(" · ")} · total <b>${qty(p.stockActual)}</b></p>` : ""}
@@ -2065,7 +2283,7 @@ async function reloadLicensePanel() {
 
 /* ============================ RENDER ============================ */
 function page() {
-  const views = { pos: posView, analytics: analyticsView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
+  const views = { pos: posView, customers: customersView, analytics: analyticsView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
   return (views[ui.route] || homeView)();
 }
 
@@ -2159,6 +2377,7 @@ document.addEventListener("keydown", (e) => {
 
 function bindLicense() {
   ensureClicks();
+  $("#licReqName")?.addEventListener("input", (e) => { ui.license.reqName = e.target.value; });
   $("#licenseKey")?.addEventListener("input", (e) => {
     ui.license.key = e.target.value;
   });
@@ -2239,6 +2458,17 @@ function bindApp() {
   $("#posCenter")?.addEventListener("change", (e) => (ui.posCenter = e.target.value));
   $("#posDom")?.addEventListener("change", (e) => (ui.posDom = Number(e.target.value) || 0));
   $("#posWh")?.addEventListener("change", (e) => { store.setActiveWarehouse(e.target.value); ui.cart = []; render(); });
+  $("#posPayment")?.addEventListener("change", (e) => { ui.posPayment = e.target.value; render(); });
+  $("#posCustomer")?.addEventListener("change", (e) => { ui.posCustomer = e.target.value; });
+  $("#posDue")?.addEventListener("change", (e) => { ui.posDue = e.target.value; });
+  $("#barcodeInput")?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const code = e.target.value;
+    e.target.value = "";
+    handleScannedCode(code);
+  });
+  $("#licReqName")?.addEventListener("input", (e) => { ui.license.reqName = e.target.value; });
   document.querySelectorAll("[data-cart-price]").forEach((el) => el.addEventListener("change", () => { ui.cart[+el.dataset.cartPrice].price = Number(el.value) || 0; render(); }));
   $("#importSheet")?.addEventListener("change", (e) => { ui.importSheet = e.target.value; importModal(); render(); });
   $("#importWh")?.addEventListener("change", (e) => { ui.importWarehouseId = e.target.value; importModal(); render(); });
@@ -2347,7 +2577,7 @@ function bindApp() {
       stockInicial: Number(fd.get("stockInicial")) || 0, precioVentaUsd: Number(fd.get("precioVentaUsd")) || 0,
       precioVenta2Usd: Number(fd.get("precioVenta2Usd")) || 0, precioCostoUsd: Number(fd.get("precioCostoUsd")) || 0,
       comisionCup: Number(fd.get("comisionCup")) || 0, minStock: Number(fd.get("minStock")) || 0,
-      category: fd.get("category"), observaciones: fd.get("observaciones") || "",
+      category: fd.get("category"), observaciones: fd.get("observaciones") || "", barcode: fd.get("barcode") || "",
       warehouseId: store.activeWarehouseId(),
     };
     if (ui.pendingImage !== undefined) p.image = ui.pendingImage;
@@ -2367,6 +2597,27 @@ function bindApp() {
     });
     if (r.error) return toast(r.error, "err");
     ui.modal = null; toast(e.target.dataset.id ? "Movimiento modificado · stock recalculado" : "Movimiento registrado · stock actualizado", "ok");
+  });
+  $("#customerForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const r = store.saveCustomer({ id: e.target.dataset.id || undefined, name: fd.get("name"), phone: fd.get("phone"), email: fd.get("email"), address: fd.get("address"), notes: fd.get("notes"), creditLimitUsd: fd.get("creditLimitUsd") });
+    if (r.error) return toast(r.error, "err");
+    ui.modal = null; toast(e.target.dataset.id ? "Cliente actualizado" : "Cliente creado", "ok");
+  });
+  $("#creditForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const r = store.createCredit({ customerId: fd.get("customerId"), date: fd.get("date"), dueDate: fd.get("dueDate") || "", totalUsd: fd.get("totalUsd"), concept: fd.get("concept") || "", notes: fd.get("notes") || "" });
+    if (r.error) return toast(r.error, "err");
+    ui.modal = null; ui.custTab = "fiados"; toast(`Fiado registrado · ${usd(r.total)}`, "ok");
+  });
+  $("#creditPayForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const r = store.addCreditPayment(e.target.dataset.id, { date: fd.get("date"), amountUsd: fd.get("amountUsd"), method: fd.get("method"), notes: fd.get("notes") || "" });
+    if (r.error) return toast(r.error, "err");
+    ui.modal = null; toast(r.pending <= 0 ? "✔ Fiado cobrado por completo" : `Abono registrado · pendiente ${usd(r.pending)}`, "ok");
   });
   $("#userForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -2503,7 +2754,7 @@ function ensureClicks() {
 function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"); }
 
 function onClick(e) {
-  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh]");
+  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-cust-tab],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
@@ -2544,6 +2795,13 @@ function onClick(e) {
   else if (d.ivSelonly) { const st = ivState(); const want = d.ivSelonly === "sobrescribe" ? ["sobrescribe"] : ["nuevo", "nuevo_almacen"]; st.rows.forEach((r) => (r.sel = want.includes(r.status))); render(); }
   else if (d.ivConfirm) ivApply(d.ivConfirm);
   else if (d.gotoCuadre) { ui.cuadreDate = d.gotoCuadre; navTo("cuadre"); }
+  else if (d.licTerm) { ui.license.reqTerm = d.licTerm; render(); }
+  else if (d.custTab) { ui.custTab = d.custTab; render(); }
+  else if (d.editCustomer) { customerModal(store.customerById(d.editCustomer)); render(); }
+  else if (d.creditFor) { creditModal(d.creditFor); render(); }
+  else if (d.payCredit) { const cr = store.creditById(d.payCredit); if (cr) { creditPaymentModal(cr); render(); } }
+  else if (d.delCustomer) { const c = store.customerById(d.delCustomer); if (c) confirmModal(`¿Eliminar al cliente <b>${esc(c.name)}</b>? Solo se puede si no debe nada.`, () => result(store.deleteCustomer(c.id), "Cliente eliminado")); }
+  else if (d.delCredit) confirmModal("¿Eliminar este fiado? No tiene abonos registrados.", () => result(store.deleteCredit(d.delCredit), "Fiado eliminado"));
   else if (d.editProduct) { productModal(store.state.products.find((x) => x.id === d.editProduct)); render(); }
   else if (d.quickMov) { movementModal(null, d.quickMov); render(); }
   else if (d.delProduct) {
@@ -2578,10 +2836,12 @@ function onClick(e) {
   else if (act === "palette") openPalette(paletteCtx());
   else if (act === "cart-clear") { ui.cart = []; render(); }
   else if (act === "checkout") {
-    const r = store.posCheckout(ui.cart, { date: ui.posDate || todayISO(), center: ui.posCenter, domicilioCup: ui.posDom || 0, warehouseId: store.activeWarehouseId() });
+    const isFiado = ui.posPayment === "FIADO";
+    const customerId = $("#posCustomer")?.value || ui.posCustomer || store.activeCustomers()[0]?.id || "";
+    const r = store.posCheckout(ui.cart, { date: ui.posDate || todayISO(), center: ui.posCenter, domicilioCup: ui.posDom || 0, warehouseId: store.activeWarehouseId(), paymentType: ui.posPayment || "CONTADO", customerId, dueDate: ui.posDue || "" });
     if (r.error) return toast(r.error, "err");
     ui.cart = []; ui.posDom = 0;
-    confetti(`<b>¡Venta registrada!</b><span>${usd(r.total)}</span>`);
+    confetti(isFiado ? `<b>¡Fiado registrado!</b><span>${usd(r.total)} a ${esc(store.customerById(customerId)?.name || "cliente")}</span>` : `<b>¡Venta registrada!</b><span>${usd(r.total)}</span>`);
     const dd = ui.posDate || todayISO();
     const dayTotal = store.activeMovements().filter((m) => m.date === dd && m.type === "VENTA").reduce((a, m) => a + m.importeUsd, 0);
     const goal = store.state.settings.goalDaily;
@@ -2654,8 +2914,9 @@ function onClick(e) {
     const fd = new FormData(form);
     const body = {
       client_name: fd.get("client_name"),
+      term: fd.get("term") || undefined,
       type: fd.get("type"),
-      days: fd.get("days"),
+      days: fd.get("days") || undefined,
       max_users: fd.get("max_users"),
       max_devices: fd.get("max_devices"),
       activate: fd.get("activate") === "on",
@@ -2723,6 +2984,28 @@ function onClick(e) {
       }
     });
   }
+  else if (act === "license-whatsapp") {
+    const name = ($("#licReqName")?.value || ui.license.reqName || "").trim();
+    if (!name) { toast("Escribe tu nombre o empresa para solicitar la licencia.", "err"); $("#licReqName")?.focus(); return; }
+    ui.license.reqName = name;
+    LicenseManager.requestByWhatsApp({ name, term: ui.license.reqTerm || "MES", status: ui.license.status });
+    toast("Abriendo WhatsApp con tu solicitud…", "ok");
+  }
+  else if (act === "license-copy-device") {
+    const id = LicenseManager.deviceId();
+    if (navigator.clipboard) navigator.clipboard.writeText(id).then(() => toast("ID de dispositivo copiado", "ok")).catch(() => toast(id, ""));
+    else toast(id, "");
+  }
+  else if (act === "scan-camera") startBarcodeScanner();
+  else if (act === "scan-stop") stopBarcodeScanner();
+  else if (act === "scan-inventory") {
+    ui.route = "pos"; navTo("pos");
+    setTimeout(() => { $("#barcodeInput")?.focus(); startBarcodeScanner(); }, 60);
+  }
+  else if (act === "new-customer") { customerModal(null); render(); }
+  else if (act === "new-credit") { creditModal(ui.posCustomer || ""); render(); }
+  else if (act === "export-customers") exportCustomers();
+  else if (act === "export-credits") exportCredits();
   else if (act === "tour") startTour();
   else if (act === "drawer") { ui.drawer = !ui.drawer; render(); }
   else if (act === "clear-q") { ui.q = ""; render(); $("#globalSearch")?.focus(); }
@@ -2747,7 +3030,7 @@ function onClick(e) {
     if (t.tagName !== "DIV" || e.target === t) { ui.modal = null; render(); }
   }
   else if (act === "do-backup") { download("novagest-backup.json", store.exportBackup(), "application/json"); toast("Copia descargada", "ok"); }
-  else if (act === "reset") confirmModal("Esto reemplaza los datos del servidor (para todos) por CUADRE PINAR SEPT.xlsx (hoja 25 9 26). Crea antes una copia.", () => { store.resetDemo(); toast("Datos recargados desde el Excel", "ok"); });
+  else if (act === "reset") confirmModal("Esto reemplaza los datos del servidor (para todos) por los datos iniciales de NovaGest (hoja 25 9 26). Crea antes una copia.", () => { store.resetDemo(); toast("Datos recargados desde el Excel", "ok"); });
   else if (act === "export-csv") exportComprobacion();
   else if (act === "export-mov") exportMovements();
   else if (act === "export-inv") exportInventory();
@@ -2843,6 +3126,23 @@ function exportWeekly() {
   const L = [["INFORME SEMANAL", `${r.w.from} a ${r.w.to}`], ["VENTAS", r.ventas], ["(-)COSTO DE VENTA", r.costo], ["UTILIDAD BRUTA", r.bruta], ["(-)GASTOS FIJOS", r.fijos],
     ...FIJOS.map(([k, l]) => ["  " + l, r.saved[k] || 0]), ["(-)GASTOS VARIABLES", r.variables], ["  Transportación", r.transp], ["  Domicilios", r.dom], ["  Comisiones", r.com], ["  Gastos diarios", r.gastosDia], ["UTILIDAD NETA", r.neta]];
   download(`informe_semanal_${r.w.from}.csv`, "\uFEFF" + L.map((x) => x.map((v) => csv(typeof v === "number" ? round2(v) : v)).join(",")).join("\n"), "text/csv");
+}
+function exportCustomers() {
+  const lines = ["CLIENTE,TELEFONO,CORREO,DIRECCION,LIMITE USD,DEBE USD,FIADOS ABIERTOS,NOTAS"];
+  for (const c of store.activeCustomers()) {
+    const open = store.activeCredits().filter((x) => x.customerId === c.id && creditPending(x) > 0).length;
+    lines.push([c.name, c.phone || "", c.email || "", c.address || "", c.creditLimitUsd || 0, store.customerBalance(c.id), open, c.notes || ""].map(csv).join(","));
+  }
+  download("clientes.csv", "\uFEFF" + lines.join("\n"), "text/csv");
+  toast(`${store.activeCustomers().length} clientes exportados`, "ok");
+}
+function exportCredits() {
+  const lines = ["FECHA,CLIENTE,CONCEPTO,ORIGEN,TOTAL USD,ABONADO USD,PENDIENTE USD,ESTADO,VENCE,ABONOS"];
+  for (const c of store.activeCredits()) {
+    lines.push([c.date, c.customerName, c.concept || "", c.origin || "", c.totalUsd, c.paidUsd || 0, creditPending(c), creditStatus(c), c.dueDate || "", (c.payments || []).map((pay) => `${pay.date}:${pay.amountUsd}`).join(" · ")].map(csv).join(","));
+  }
+  download("fiados.csv", "\uFEFF" + lines.join("\n"), "text/csv");
+  toast(`${store.activeCredits().length} fiados exportados`, "ok");
 }
 function csv(v) { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }
 function download(name, content, mime) {

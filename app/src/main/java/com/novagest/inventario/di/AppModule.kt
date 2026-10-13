@@ -26,7 +26,7 @@ object AppModule {
     fun database(@ApplicationContext context: Context): AppDatabase {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         return Room.databaseBuilder(context, AppDatabase::class.java, "novagest.db")
-            .addMigrations(com.novagest.inventario.data.local.MIGRATION_3_4)
+            .addMigrations(com.novagest.inventario.data.local.MIGRATION_3_4, com.novagest.inventario.data.local.MIGRATION_4_5)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
