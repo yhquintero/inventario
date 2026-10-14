@@ -25,6 +25,7 @@ jobs:
           node tools/test_accesibilidad.mjs
           npm --prefix tools install --ignore-scripts
           node tools/test_axe.mjs
+          node tools/test_generador_ui.mjs
           node tools/test_almacenes.mjs
           node tools/test_customers_credits.mjs
           node tools/test_excel_sources.mjs

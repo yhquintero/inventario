@@ -8,8 +8,10 @@
      Windows) y crea el certificado mkcert con todas ellas.
   2) Crea la regla de Firewall de Windows para el puerto 8443 si no existe
      (la primera vez pide elevacion con UAC).
-  3) Imprime las URLs correctas de cada red y arranca el servidor en
-     https://0.0.0.0:8443 con registro en data\logs\servidor_AAAA-MM-DD.log.
+  3) Imprime las URLs correctas de cada red, arranca el servidor en
+     https://0.0.0.0:8443 con registro en data\logs\servidor_AAAA-MM-DD.log y
+     abre la Web en el navegador (https://localhost:8443) en cuanto el servidor
+     empieza a escuchar; omítelo con -AbrirNavegador $false.
   4) Inicia automáticamente el generador HTTPS en una ventana aparte (puerto
      8444 por defecto), reutilizando el certificado y la carpeta data del servidor.
 
@@ -22,11 +24,18 @@
 .PARAMETER SinGenerador
   No inicia automáticamente el generador HTTPS.
 
+.PARAMETER AbrirNavegador
+  Abre la Web (https://localhost:PUERTO) en el navegador en cuanto el servidor
+  empieza a escuchar. Por defecto sí. Usa -AbrirNavegador $false para no abrirla.
+
 .PARAMETER CrearReglaFirewall
   Uso interno: crea unicamente la regla de firewall (proceso elevado via UAC).
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1
+
+.EXAMPLE
+  powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1 -AbrirNavegador $false
 
 .NOTES
   Sustituye al arrancador anterior. Requiere Windows 10 o superior.
@@ -36,6 +45,7 @@ param(
     [int]$Puerto = 8443,
     [int]$PuertoGenerador = 8444,
     [switch]$SinGenerador,
+    [bool]$AbrirNavegador = $true,
     [switch]$CrearReglaFirewall
 )
 
@@ -179,7 +189,11 @@ Ok "Firewall: puerto $Puerto abierto (regla `"$nomRegla`")."
 
 # ----------------------------------- URLs -----------------------------------
 Write-Host ''
-Ok "Abre en esta laptop:   https://localhost:$Puerto"
+if ($AbrirNavegador) {
+    Ok "Abre en esta laptop:   https://localhost:$Puerto   (se abre sola al arrancar)"
+} else {
+    Ok "Abre en esta laptop:   https://localhost:$Puerto"
+}
 $hotspot = $null
 foreach ($ip in $ips) {
     Ok "Desde movil / otra PC: https://${ip}:$Puerto"
@@ -216,6 +230,23 @@ if (-not $ocupado) {
 if ($ocupado) {
     Write-Host ''
     Fallo "El puerto $Puerto ya esta en uso: cierra la otra ventana del servidor y vuelve a ejecutar este script."
+    # Si quien ocupa el puerto es el propio servidor de NovaGest, la Web ya esta
+    # sirviendo: se abre en el navegador (no hay que arrancar nada de nuevo).
+    $propio = $false
+    try {
+        $dueno = @(Get-NetTCPConnection -State Listen -LocalPort $Puerto -ErrorAction Stop |
+            Select-Object -First 1 -ExpandProperty OwningProcess)
+        if ($dueno) {
+            $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$dueno" -ErrorAction Stop).CommandLine
+            if ($cmdLine -and ($cmdLine -like '*novagest_server.py*' -or $cmdLine -like '*serve.py*')) { $propio = $true }
+        }
+    } catch { }
+    if ($propio) {
+        Ok "La Web ya esta sirviendo en https://localhost:$Puerto."
+        if ($AbrirNavegador) {
+            try { Start-Process "https://localhost:$Puerto" } catch { }
+        }
+    }
     exit 1
 }
 
@@ -271,6 +302,37 @@ if ($SinGenerador) {
 
 $hoy = Get-Date -Format 'yyyy-MM-dd'
 $log = Join-Path $logDir "servidor_$hoy.log"
+
+# ------------------- apertura automática de la Web en el navegador -------------------
+# Se lanza en segundo plano y abre https://localhost:PUERTO en cuanto el puerto
+# responde: si se abriera antes, el navegador llegaría antes que el servidor y
+# mostraría un error de conexión.
+$urlLocal = "https://localhost:$Puerto"
+if ($AbrirNavegador) {
+    try {
+        $null = Start-Job -ErrorAction Stop -ArgumentList $urlLocal, $Puerto -ScriptBlock {
+            param([string]$url, [int]$puerto)
+            $fin = (Get-Date).AddSeconds(60)   # margen para que el servidor escuche
+            while ((Get-Date) -lt $fin) {
+                $escucha = $false
+                try {
+                    $escucha = @(Get-NetTCPConnection -State Listen -LocalPort $puerto -ErrorAction SilentlyContinue).Count -gt 0
+                } catch { }
+                if (-not $escucha) {
+                    $escucha = [bool](netstat -ano | Select-String -Pattern ":$puerto\s.*LISTENING" | Select-Object -First 1)
+                }
+                if ($escucha) { break }
+                Start-Sleep -Milliseconds 400
+            }
+            Start-Sleep -Milliseconds 500
+            try { Start-Process $url } catch { }
+        }
+        Ok "El navegador abrirá la Web en $urlLocal en cuanto el servidor esté listo."
+    } catch {
+        Aviso "No se pudo programar la apertura del navegador: $($_.Exception.Message)"
+        Aviso "Ábrela manualmente en: $urlLocal"
+    }
+}
 
 Write-Host ''
 Write-Host "  Registro del servidor: $log"

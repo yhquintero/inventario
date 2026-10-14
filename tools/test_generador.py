@@ -11,6 +11,8 @@ Comprueba, sin tocar la Web ni el servidor HTTP de NovaGest:
   · genera claves con el mismo formato que verifica el servidor (HMAC-SHA256),
   · compone el mensaje de WhatsApp idéntico al de la Web y el enlace wa.me,
   · lista las solicitudes de la BD, crea su clave, la marca atendida y prepara el envío,
+  · importa la solicitud que el cliente envió por WhatsApp («📥 Copiar desde el WhatsApp»):
+    lee su mensaje, la añade a la lista, crea la clave con esos datos y la deja lista para reenviar,
   · controla las licencias emitidas: listar, activar, renovar, revocar, reactivar,
     quitar equipos, exportar a CSV y eliminar.
 """
@@ -156,6 +158,11 @@ def t_interfaz_propia():
         _check(policy in html, f"falta el enlace de {policy}")
     _check("api/legal" in html, "los textos legales deben poder leer los datos públicos de NovaGest")
     _check("Licencias y equipos" in html, "falta la pestaña de control de licencias")
+    _check('id="btn-import"' in html and "📥 Copiar desde el WhatsApp" in html, "falta el botón de importar desde WhatsApp")
+    _check('id="import-dialog"' in html and 'id="import-text"' in html, "falta el diálogo para pegar el mensaje de WhatsApp")
+    _check('id="import-term"' in html and 'id="import-name"' in html and 'id="import-phone"' in html,
+           "el diálogo debe permitir revisar usuario, plazo y teléfono antes de importar")
+    _check("api/requests/import" in html and "api/requests/parse" in html, "faltan las llamadas de importación")
     _check("acceso-datos" in html, "falta el panel de acceso y datos")
     _check("api/licenses" in html and "licenses.csv" in html, "faltan las llamadas de control (listar/exportar)")
     with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/favicon.svg", timeout=10) as r:
@@ -266,6 +273,144 @@ def t_solicitud_estado_y_borrado():
     code, d, _ = api(f"/api/requests/{row['id']}", method="DELETE")
     _check(code == 200 and d["ok"], "no pudo eliminar la solicitud")
     _check(srv.q("SELECT COUNT(*) AS c FROM license_requests", one=True)["c"] == 0, "la solicitud sigue en la BD")
+
+
+MENSAJES_WHATSAPP = {
+    "Tienda Nova": "\n".join([
+        "Hola, solicito activar mi Licencia de NovaGest.",
+        "",
+        "👤 Usuario: Tienda Nova",
+        "🆔 ID Dispositivo: web-hhsp9rqlmv5zhygs",
+        "📦 Producto: NovaGest v1.0.0",
+        "📅 Plan: 1 día (1 días) · FULL",
+        "🕒 Fecha Actual: 14/10/2026, 2:53:22 p.m.",
+    ]),
+    "Bodega El Sol": "\n".join([
+        "Hola, solicito activar mi Licencia de NovaGest.",
+        "",
+        "Usuario: Bodega El Sol",                      # sin emojis ni negritas
+        "ID Dispositivo: web-sol123",
+        "Producto: NovaGest v1.0.0",
+        "Plan: 3 meses (90 días) · FULL",
+        "Fecha Actual: 13/10/2026, 9:05:00 a. m.",
+    ]),
+    "Mi Negocio": "\n".join([
+        "*Hola, solicito activar mi Licencia de NovaGest.*",
+        "",
+        "*Usuario:* Mi Negocio",                       # marcado de WhatsApp
+        "*ID Dispositivo:* web-perm",
+        "*📦 Producto:* NovaGest v1.0.0",
+        "*📅 Plan:* Permanente · LIFETIME",
+        "*🕒 Fecha Actual:* 12/10/2026, 11:00:00 a.m.",
+        "Teléfono: +53 5 555 4444",
+    ]),
+}
+
+
+def t_lee_mensajes_de_whatsapp():
+    """El mensaje que llega al chat se entiende sin depender de emojis ni del orden."""
+    p = studio.parse_whatsapp_request(MENSAJES_WHATSAPP["Tienda Nova"])
+    _check(p["clientName"] == "Tienda Nova", f"usuario leído: {p['clientName']!r}")
+    _check(p["deviceId"] == "web-hhsp9rqlmv5zhygs", f"ID de dispositivo leído: {p['deviceId']!r}")
+    _check(p["term"] == "DIA" and p["days"] == 1 and p["type"] == "FULL", f"plazo leído: {p['term']} {p['type']}")
+    _check(p["product"] == "NovaGest" and p["version"] == "1.0.0", f"producto/versión: {p['product']!r} {p['version']!r}")
+    _check(p["warnings"] == [], f"no debía avisar de nada: {p['warnings']}")
+    _check(p["createdAt"] > 0, "no leyó la fecha del mensaje")
+
+    p2 = studio.parse_whatsapp_request(MENSAJES_WHATSAPP["Bodega El Sol"])
+    _check(p2["clientName"] == "Bodega El Sol" and p2["term"] == "TRIMESTRE" and p2["days"] == 90,
+           f"variante sin emojis mal leída: {p2}")
+    _check(studio.term_of(p2["term"])["label"] == "3 meses", "el plazo leído no es el del catálogo")
+
+    p3 = studio.parse_whatsapp_request(MENSAJES_WHATSAPP["Mi Negocio"])
+    _check(p3["term"] == "PERMANENTE" and p3["type"] == "LIFETIME" and p3["days"] == 0,
+           f"permanente mal leída: {p3['term']} {p3['type']}")
+    _check(p3["phone"].startswith("+5355554444"), f"teléfono del mensaje no leído: {p3['phone']!r}")
+
+    incompleto = studio.parse_whatsapp_request("Hola, quiero una licencia por favor")
+    _check(incompleto["clientName"] == "" and incompleto["term"] == "MES", "lo que no se reconoce debe quedar por defecto")
+    _check(len(incompleto["warnings"]) >= 2, "debe avisar de lo que no reconoció")
+    raro = studio.parse_whatsapp_request("Usuario: Otro\nID Dispositivo: web-1\nPlan: 45 días")
+    _check(raro["term"] == "MES" and any("no es uno de los 8" in w for w in raro["warnings"]),
+           f"un plazo no estándar debe avisarse: {raro['warnings']}")
+
+
+def t_importar_desde_whatsapp():
+    """«📥 Copiar desde el WhatsApp»: pegar el mensaje, importarlo, crear la clave y reenviarla."""
+    reset()
+    code, d, _ = api("/api/requests/parse", {"message": MENSAJES_WHATSAPP["Tienda Nova"]})
+    _check(code == 200 and d["ok"] and d["parsed"]["clientName"] == "Tienda Nova", f"no leyó el mensaje: {d}")
+    _check(d["parsed"]["deviceId"] == "web-hhsp9rqlmv5zhygs", "el diálogo no recibe el ID del dispositivo")
+
+    code, d, _ = api("/api/requests/import", {"message": MENSAJES_WHATSAPP["Tienda Nova"], "phone": "5351234567"})
+    _check(code == 200 and d["ok"] and d["savedToDb"] is True, f"no importó la solicitud: {d}")
+    req = d["request"]
+    _check(req["clientName"] == "Tienda Nova" and req["channel"] == "whatsapp", f"solicitud importada inesperada: {req}")
+    _check(req["term"] == "DIA" and req["days"] == 1 and req["type"] == "FULL", "no conservó el plazo del mensaje")
+    _check(req["status"] == "pendiente" and req["phone"] == "5351234567", "la solicitud no quedó pendiente con su teléfono")
+    code, s, _ = api("/api/requests")
+    _check(code == 200 and any(r["id"] == req["id"] for r in s["requests"]), "la solicitud importada no aparece en la lista")
+
+    code, dup, _ = api("/api/requests/import", {"message": MENSAJES_WHATSAPP["Tienda Nova"], "phone": "5351234567"})
+    _check(code == 200 and dup.get("duplicada") is True and dup["request"]["id"] == req["id"],
+           "pegar dos veces el mismo mensaje no debe duplicar la solicitud")
+
+    code, g, _ = api(f"/api/requests/{req['id']}/generate", {})
+    _check(code == 200 and g["ok"], f"no creó la clave de la solicitud importada: {g}")
+    _check(g["payload"]["client_name"] == "Tienda Nova" and g["payload"]["type"] == "FULL", "no usó los datos del mensaje")
+    _check(g["term"]["id"] == "DIA" and "📅 Plan: 1 día (1 días) · FULL" in g["message"], "no usó el plazo pedido")
+    _check(srv.verify_license_token(g["licenseKey"]) is not None, "la clave de la solicitud importada no verifica")
+    _check(g["whatsappUrl"].startswith("https://wa.me/5351234567?text="), "no prepara el reenvío al teléfono del cliente")
+    _check(g["request"]["status"] == "atendida", "la solicitud importada no quedó atendida")
+    r = srv.q("SELECT * FROM license_requests WHERE id=?", (req["id"],), one=True)
+    _check(r["status"] == "atendida" and r["handled_by"] == "license_studio.py", "la solicitud no quedó atendida en la BD")
+
+    code, d, _ = api("/api/requests/import", {"message": "Hola, quiero una licencia", "client_name": "Sin Nombre"})
+    _check(code == 200 and d["ok"] and d["request"]["clientName"] == "Sin Nombre",
+           "el nombre escrito a mano debe mandar sobre lo leído del mensaje")
+    _check(d["warnings"], "debe devolver los avisos de lo que no reconoció")
+    code, d, _ = api("/api/requests/import", {"message": "Hola, quiero una licencia"})
+    _check(code == 400 and not d["ok"], "sin usuario reconocido ni escrito debe rechazarse")
+    code, d, _ = api("/api/requests/import", {"message": "   "})
+    _check(code == 400, "un mensaje vacío debe rechazarse")
+    code, d, _ = api("/api/requests/parse", {})
+    _check(code == 400, "sin mensaje no hay nada que leer")
+
+
+def t_importar_sin_bd():
+    """Sin la base de datos del servidor la solicitud importada vive en la sesión y su clave se crea igual."""
+    reset()
+    original = studio.db_available
+    studio.db_available = lambda: False
+    try:
+        code, s, _ = api("/api/requests")
+        _check(code == 200 and s["dbAvailable"] is False and s["requests"] == [], "sin BD no debe inventar solicitudes")
+        code, d, _ = api("/api/requests/import", {"message": MENSAJES_WHATSAPP["Bodega El Sol"]})
+        _check(code == 200 and d["ok"] and d["savedToDb"] is False, f"sin BD la importación no quedó en memoria: {d}")
+        req = d["request"]
+        _check(req["mem"] is True and req["clientName"] == "Bodega El Sol", f"solicitud en memoria inesperada: {req}")
+        code, s, _ = api("/api/requests")
+        _check(len(s["requests"]) == 1 and s["requests"][0]["id"] == req["id"], "la solicitud en memoria no aparece en la lista")
+        code, dup, _ = api("/api/requests/import", {"message": MENSAJES_WHATSAPP["Bodega El Sol"]})
+        _check(dup.get("duplicada") is True and dup["request"]["id"] == req["id"],
+               "sin BD tampoco debe duplicarse el mismo mensaje pegado dos veces")
+        _check(len(api("/api/requests")[1]["requests"]) == 1, "la solicitud duplicada no debe añadirse a la lista")
+
+        code, g, _ = api(f"/api/requests/{req['id']}/generate", {})
+        _check(code == 200 and g["ok"] and g["savedToDb"] is False, f"no creó la clave sin BD: {g}")
+        _check(srv.verify_license_token(g["licenseKey"]) is not None, "la clave creada sin BD no verifica en el servidor")
+        _check(g["term"]["id"] == "TRIMESTRE" and g["request"]["status"] == "atendida", "no usó el plazo del mensaje o no la cerró")
+
+        code, d, _ = api(f"/api/requests/{req['id']}/estado", {"status": "pendiente"})
+        _check(code == 200 and d["ok"], "no pudo reabrir la solicitud en memoria")
+        code, d, _ = api(f"/api/requests/{req['id']}", method="DELETE")
+        _check(code == 200 and d["ok"], "no pudo eliminar la solicitud en memoria")
+        _check(api("/api/requests")[1]["requests"] == [], "la solicitud en memoria sigue en la lista")
+        code, d, _ = api("/api/requests/999999/estado", {"status": "pendiente"})
+        _check(code == 404, "una solicitud inexistente debe dar 404")
+    finally:
+        studio.db_available = original
+        studio.request_delete(studio._MEM_ID_BASE + 1)
 
 
 def t_control_de_licencias():
@@ -402,6 +547,9 @@ for nombre, fn in [
     ("mensaje de WhatsApp y enlace wa.me listos para enviar", t_mensaje_whatsapp),
     ("atender una solicitud recibida y enviarla por WhatsApp", t_solicitud_por_whatsapp),
     ("descartar, reabrir y eliminar solicitudes", t_solicitud_estado_y_borrado),
+    ("leer el mensaje que el cliente envió por WhatsApp", t_lee_mensajes_de_whatsapp),
+    ("copiar desde el WhatsApp: importar, crear y reenviar", t_importar_desde_whatsapp),
+    ("importar sin la base de datos del servidor (queda en la sesión)", t_importar_sin_bd),
     ("controlar licencias: listar, activar, renovar, revocar, eliminar", t_control_de_licencias),
     ("equipos de una licencia: listar y quitar", t_equipos_y_csv),
     ("exportar la hoja de control a CSV", t_exportar_csv),
