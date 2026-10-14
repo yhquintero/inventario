@@ -5,7 +5,7 @@
 .DESCRIPTION
   Comprobaciones automáticas del arranque visual de Windows:
 
-    1) Sintaxis: los tres scripts de PowerShell del arranque HTTPS pasan el
+    1) Sintaxis: los scripts de PowerShell del arranque HTTPS pasan el
        analizador oficial de PowerShell ([Parser]::ParseFile), sin errores.
     2) BOM UTF-8: los .ps1 con acentos llevan marca de orden de bytes, para que
        Windows PowerShell 5.1 no muestre «mojibake» («AutomÃ¡ticamente»).
@@ -21,7 +21,12 @@
 
   Se ejecuta en Windows (Windows PowerShell 5.1 o PowerShell 7+) y en Linux/macOS
   con PowerShell 7 (CI), porque no necesita Windows Forms: la interfaz gráfica
-  solo se carga cuando NO se usa -SoloFunciones.
+  solo se carga cuando NO se usa -SoloFunciones. En GitHub Actions cada fallo se
+  publica como anotación (::error::) para poder verlo sin abrir los registros.
+
+  Ojo con los comodines: en PowerShell -like trata [ ] como clases de caracteres,
+  así que los textos que llevan corchetes (por ejemplo [switch]$SinPanel) se
+  comprueban con .Contains().
 
 .EXAMPLE
   pwsh -NoProfile -File tools\test_panel_control.ps1
@@ -34,9 +39,20 @@ param()
 
 $ErrorActionPreference = 'Continue'
 
-$raiz  = Split-Path -Parent $PSScriptRoot
-$fallos = 0
-$pruebas = 0
+$raiz     = Split-Path -Parent $PSScriptRoot
+$fallos   = 0
+$pruebas  = 0
+$fallados = @()
+
+function Anotar {
+    # En GitHub Actions, publica el mensaje como anotación visible en el resumen
+    # del paso (la salida de consola de los registros no siempre es accesible).
+    param([string]$Mensaje)
+    if ($env:GITHUB_ACTIONS -eq 'true') {
+        $limpio = ($Mensaje -replace "`r?`n", ' · ')
+        Write-Host "::error::$limpio"
+    }
+}
 
 function Probar {
     param([string]$Nombre, [bool]$Condicion)
@@ -46,7 +62,18 @@ function Probar {
     } else {
         Write-Host "  [FALLO] $Nombre" -ForegroundColor Red
         $script:fallos++
+        $script:fallados += $Nombre
+        Anotar "Panel de Control Visual: falló «$Nombre»"
     }
+}
+
+function Fallar {
+    # Error inesperado (excepción): cuenta como fallo y lo publica como anotación.
+    param([string]$Contexto, [string]$Mensaje)
+    $script:fallos++
+    $script:fallados += "${Contexto}: $Mensaje"
+    Write-Host "  [FALLO] $Contexto → $Mensaje" -ForegroundColor Red
+    Anotar "Panel de Control Visual: $Contexto → $Mensaje"
 }
 
 function LeerTexto {
@@ -54,9 +81,10 @@ function LeerTexto {
     try { return [string](Get-Content -LiteralPath $Ruta -Raw -Encoding UTF8) } catch { return '' }
 }
 
-$panel      = Join-Path $raiz 'server/panel-control.ps1'
-$iniciador  = Join-Path $raiz 'server/iniciar-https.ps1'
-$generador  = Join-Path $raiz 'tools/iniciar-generador-https.ps1'
+$panel     = Join-Path $raiz 'server/panel-control.ps1'
+$iniciador = Join-Path $raiz 'server/iniciar-https.ps1'
+$generador = Join-Path $raiz 'tools/iniciar-generador-https.ps1'
+$delegado  = Join-Path $raiz 'tools/iniciar-generador.ps1'
 
 Write-Host ''
 Write-Host '  ===  NovaGest · pruebas del Panel de Control Visual  ===' -ForegroundColor Cyan
@@ -64,22 +92,28 @@ Write-Host ''
 
 # ---------------------------------------------------------------- 1) sintaxis
 Write-Host '  Sintaxis (analizador de PowerShell)' -ForegroundColor Cyan
-foreach ($ruta in @($panel, $iniciador, $generador)) {
+foreach ($ruta in @($panel, $iniciador, $generador, $delegado)) {
     $nombre = Split-Path -Leaf $ruta
     if (-not (Test-Path -LiteralPath $ruta)) {
         Probar "$nombre existe" $false
         continue
     }
-    $tokens  = $null
-    $errores = $null
-    [void][System.Management.Automation.Language.Parser]::ParseFile($ruta, [ref]$tokens, [ref]$errores)
-    if ($errores -and $errores.Count -gt 0) {
-        Probar "$nombre sin errores de sintaxis" $false
-        foreach ($e in ($errores | Select-Object -First 5)) {
-            Write-Host "         línea $($e.Extent.StartLineNumber): $($e.Message)" -ForegroundColor DarkGray
+    try {
+        $tokens  = $null
+        $errores = $null
+        [void][System.Management.Automation.Language.Parser]::ParseFile($ruta, [ref]$tokens, [ref]$errores)
+        if ($errores -and $errores.Count -gt 0) {
+            Probar "$nombre sin errores de sintaxis" $false
+            foreach ($e in ($errores | Select-Object -First 5)) {
+                $detalle = "línea $($e.Extent.StartLineNumber): $($e.Message)"
+                Write-Host "         $detalle" -ForegroundColor DarkGray
+                Anotar "$nombre · $detalle"
+            }
+        } else {
+            Probar "$nombre sin errores de sintaxis" $true
         }
-    } else {
-        Probar "$nombre sin errores de sintaxis" $true
+    } catch {
+        Fallar "$nombre · analizador de sintaxis" $_.Exception.Message
     }
 }
 
@@ -89,23 +123,25 @@ Write-Host '  Codificación UTF-8 con BOM (acentos correctos en Windows PowerShe
 foreach ($ruta in @($panel, $iniciador, $generador)) {
     $nombre = Split-Path -Leaf $ruta
     if (-not (Test-Path -LiteralPath $ruta)) { continue }
-    $texto = LeerTexto $ruta
-    if (-not [regex]::IsMatch($texto, '[^\x00-\x7F]')) {
-        Probar "$nombre (sin caracteres acentuados: no requiere BOM)" $true
-        continue
-    }
     try {
-        $bytes = [System.IO.File]::ReadAllBytes($ruta)
+        $texto = LeerTexto $ruta
+        if (-not [regex]::IsMatch($texto, '[^\x00-\x7F]')) {
+            Probar "$nombre (sin caracteres acentuados: no requiere BOM)" $true
+            continue
+        }
+        $bytes  = [System.IO.File]::ReadAllBytes($ruta)
         $conBom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
-    } catch { $conBom = $false }
-    Probar "$nombre empieza con BOM UTF-8" $conBom
+        Probar "$nombre empieza con BOM UTF-8" $conBom
+    } catch {
+        Fallar "$nombre · comprobación del BOM" $_.Exception.Message
+    }
 }
 
 # -------------------------------------------------- 3) funciones puras del panel
 Write-Host ''
 Write-Host '  Funciones del panel (sin interfaz gráfica)' -ForegroundColor Cyan
 if (-not (Test-Path -LiteralPath $panel)) {
-    Probar 'server\panel-control.ps1 existe' $false
+    Probar 'server/panel-control.ps1 existe' $false
 } else {
     try {
         . $panel -SoloFunciones
@@ -113,49 +149,60 @@ if (-not (Test-Path -LiteralPath $panel)) {
     } catch {
         Probar 'Las funciones del panel se cargan con -SoloFunciones' $false
         Write-Host "         $($_.Exception.Message)" -ForegroundColor DarkGray
+        Anotar "panel-control.ps1 -SoloFunciones: $($_.Exception.Message)"
     }
 
     if (Get-Command ConvertTo-ArgumentoComando -ErrorAction SilentlyContinue) {
-        Probar 'ConvertTo-ArgumentoComando deja igual un valor simple' ((ConvertTo-ArgumentoComando 'simple') -eq 'simple')
-        Probar 'ConvertTo-ArgumentoComando entrecomilla rutas con espacios' ((ConvertTo-ArgumentoComando 'C:\Program Files\novagest') -eq '"C:\Program Files\novagest"')
-        Probar 'ConvertTo-ArgumentoComando protege la cadena vacía' ((ConvertTo-ArgumentoComando '') -eq '""')
+        try {
+            Probar 'ConvertTo-ArgumentoComando deja igual un valor simple' ((ConvertTo-ArgumentoComando 'simple') -eq 'simple')
+            Probar 'ConvertTo-ArgumentoComando entrecomilla rutas con espacios' ((ConvertTo-ArgumentoComando 'C:\Program Files\novagest') -eq '"C:\Program Files\novagest"')
+            Probar 'ConvertTo-ArgumentoComando protege la cadena vacía' ((ConvertTo-ArgumentoComando '') -eq '""')
+        } catch { Fallar 'ConvertTo-ArgumentoComando' $_.Exception.Message }
     } else {
         Probar 'ConvertTo-ArgumentoComando está definida' $false
     }
 
     if (Get-Command Get-RutaLog -ErrorAction SilentlyContinue) {
-        $rutaServidor = Get-RutaLog '/tmp/novagest/logs' 'servidor' ([datetime]'2026-10-14')
-        Probar 'Get-RutaLog usa <nombre>_AAAA-MM-DD.log' ((Split-Path -Leaf $rutaServidor) -eq 'servidor_2026-10-14.log')
-        $rutaPanel = Get-RutaLog '/tmp/novagest/logs' 'panel' ([datetime]'2026-01-02')
-        Probar 'Get-RutaLog conserva el nombre del panel' ((Split-Path -Leaf $rutaPanel) -eq 'panel_2026-01-02.log')
+        try {
+            $rutaServidor = Get-RutaLog '/tmp/novagest/logs' 'servidor' ([datetime]'2026-10-14')
+            Probar 'Get-RutaLog usa <nombre>_AAAA-MM-DD.log' ((Split-Path -Leaf $rutaServidor) -eq 'servidor_2026-10-14.log')
+            $rutaPanel = Get-RutaLog '/tmp/novagest/logs' 'panel' ([datetime]'2026-01-02')
+            Probar 'Get-RutaLog conserva el nombre del panel' ((Split-Path -Leaf $rutaPanel) -eq 'panel_2026-01-02.log')
+        } catch { Fallar 'Get-RutaLog' $_.Exception.Message }
     } else {
         Probar 'Get-RutaLog está definida' $false
     }
 
     if (Get-Command Test-ComandoDelProyecto -ErrorAction SilentlyContinue) {
-        Probar 'Test-ComandoDelProyecto reconoce el servidor principal' (Test-ComandoDelProyecto 'python.exe -u C:\novagest\server\novagest_server.py')
-        Probar 'Test-ComandoDelProyecto reconoce el generador' (Test-ComandoDelProyecto 'powershell.exe -NoProfile -File C:\novagest\tools\iniciar-generador-https.ps1 -Puerto 8444')
-        Probar 'Test-ComandoDelProyecto reconoce el lanzador HTTPS' (Test-ComandoDelProyecto 'powershell.exe -File C:\novagest\server\iniciar-https.ps1 -SinPanel')
-        Probar 'Test-ComandoDelProyecto rechaza programas ajenos' (-not (Test-ComandoDelProyecto 'C:\otros\servidor-web.exe --port 8443'))
-        Probar 'Test-ComandoDelProyecto rechaza la cadena vacía' (-not (Test-ComandoDelProyecto ''))
+        try {
+            Probar 'Test-ComandoDelProyecto reconoce el servidor principal' (Test-ComandoDelProyecto 'python.exe -u C:\novagest\server\novagest_server.py')
+            Probar 'Test-ComandoDelProyecto reconoce el generador' (Test-ComandoDelProyecto 'powershell.exe -NoProfile -File C:\novagest\tools\iniciar-generador-https.ps1 -Puerto 8444')
+            Probar 'Test-ComandoDelProyecto reconoce el lanzador HTTPS' (Test-ComandoDelProyecto 'powershell.exe -File C:\novagest\server\iniciar-https.ps1 -SinPanel')
+            Probar 'Test-ComandoDelProyecto rechaza programas ajenos' (-not (Test-ComandoDelProyecto 'C:\otros\servidor-web.exe --port 8443'))
+            Probar 'Test-ComandoDelProyecto rechaza la cadena vacía' (-not (Test-ComandoDelProyecto ''))
+        } catch { Fallar 'Test-ComandoDelProyecto' $_.Exception.Message }
     } else {
         Probar 'Test-ComandoDelProyecto está definida' $false
     }
 
     if (Get-Command Get-NombreEstadoColor -ErrorAction SilentlyContinue) {
-        Probar 'Estado «En ejecución» se pinta en verde' ((Get-NombreEstadoColor 'En ejecución') -eq 'Verde')
-        Probar 'Estado «fuera del panel» se pinta en azul' ((Get-NombreEstadoColor 'En ejecución (fuera del panel)') -eq 'Azul')
-        Probar 'Estado «Arrancando…» se pinta en ámbar' ((Get-NombreEstadoColor 'Arrancando…') -eq 'Ambar')
-        Probar 'Estado «Sin respuesta» se pinta en rojo' ((Get-NombreEstadoColor 'Sin respuesta') -eq 'Rojo')
-        Probar 'Estado «Detenido» se pinta en gris' ((Get-NombreEstadoColor 'Detenido') -eq 'Gris')
+        try {
+            Probar 'Estado «En ejecución» se pinta en verde' ((Get-NombreEstadoColor 'En ejecución') -eq 'Verde')
+            Probar 'Estado «fuera del panel» se pinta en azul' ((Get-NombreEstadoColor 'En ejecución (fuera del panel)') -eq 'Azul')
+            Probar 'Estado «Arrancando…» se pinta en ámbar' ((Get-NombreEstadoColor 'Arrancando…') -eq 'Ambar')
+            Probar 'Estado «Sin respuesta» se pinta en rojo' ((Get-NombreEstadoColor 'Sin respuesta') -eq 'Rojo')
+            Probar 'Estado «Detenido» se pinta en gris' ((Get-NombreEstadoColor 'Detenido') -eq 'Gris')
+        } catch { Fallar 'Get-NombreEstadoColor' $_.Exception.Message }
     } else {
         Probar 'Get-NombreEstadoColor está definida' $false
     }
 
     if (Get-Command Get-TextoResumen -ErrorAction SilentlyContinue) {
-        Probar 'Resumen con todos los servicios activos' ((Get-TextoResumen 2 2) -eq 'Los 2 servicios están en ejecución')
-        Probar 'Resumen sin ningún servicio activo' ((Get-TextoResumen 0 2) -like 'Ningún servicio en ejecución*')
-        Probar 'Resumen parcial' ((Get-TextoResumen 1 2) -eq '1 de 2 servicios en ejecución')
+        try {
+            Probar 'Resumen con todos los servicios activos' ((Get-TextoResumen 2 2) -eq 'Los 2 servicios están en ejecución')
+            Probar 'Resumen sin ningún servicio activo' ((Get-TextoResumen 0 2) -like 'Ningún servicio en ejecución*')
+            Probar 'Resumen parcial' ((Get-TextoResumen 1 2) -eq '1 de 2 servicios en ejecución')
+        } catch { Fallar 'Get-TextoResumen' $_.Exception.Message }
     } else {
         Probar 'Get-TextoResumen está definida' $false
     }
@@ -183,17 +230,17 @@ Probar 'Gestiona el generador por HTTPS'                            ($textoPanel
 Probar 'No detiene procesos ajenos que ocupen el puerto'            ($textoPanel -like '*no se detiene por seguridad*')
 Probar 'Escribe su registro diario del panel'                       ($textoPanel -like "*Get-RutaLog*'panel'*")
 Probar 'Anuncia el arranque al lanzador (NOVAGEST-PANEL-LISTO)'      ($textoPanel -like '*NOVAGEST-PANEL-LISTO*')
-Probar 'Usa -SinNavegador con los servicios hijos ([bool] «False» por -File es $true)' ($textoPanel -like "*-SinNavegador'*")
 Probar 'Avisa si el panel ya estaba abierto (una sola instancia)'   ($textoPanel -like '*NOVAGEST-PANEL-YA-ABIERTO*')
+Probar 'Usa -SinNavegador con los servicios hijos ([bool] «False» por -File es $true)' ($textoPanel -like "*-SinNavegador'*")
 
 Write-Host ''
 Write-Host '  iniciar-https.ps1 abre el panel (y -SinPanel mantiene la consola)' -ForegroundColor Cyan
 $textoIniciador = LeerTexto $iniciador
 
 Probar 'iniciar-https.ps1 lanza server\panel-control.ps1'           ($textoIniciador -like '*panel-control.ps1*')
-Probar 'iniciar-https.ps1 acepta -SinPanel'                         ($textoIniciador -like '*[switch]$SinPanel*')
-Probar 'iniciar-https.ps1 acepta -Minimizado'                       ($textoIniciador -like '*[switch]$Minimizado*')
-Probar 'iniciar-https.ps1 acepta -SinNavegador'                     ($textoIniciador -like '*[switch]$SinNavegador*')
+Probar 'iniciar-https.ps1 acepta -SinPanel'                         ($textoIniciador.Contains('[switch]$SinPanel'))
+Probar 'iniciar-https.ps1 acepta -Minimizado'                       ($textoIniciador.Contains('[switch]$Minimizado'))
+Probar 'iniciar-https.ps1 acepta -SinNavegador'                     ($textoIniciador.Contains('[switch]$SinNavegador'))
 Probar 'El panel se lanza oculto (-WindowStyle Hidden)'             ($textoIniciador -like '*-WindowStyle Hidden*')
 Probar 'Espera la confirmación del panel antes de ceder el turno'   ($textoIniciador -like '*NOVAGEST-PANEL-LISTO*')
 Probar 'Si el panel falla, continúa en modo consola'                ($textoIniciador -like '*se continúa en modo consola*')
@@ -201,17 +248,19 @@ Probar 'El panel se lanza con -SinGenerador cuando se pide'         ($textoInici
 Probar 'Guarda la consola del panel en data\logs'                   ($textoIniciador -like '*consola-panel.log*')
 
 Write-Host ''
-Write-Host '  Generador de licencias: sigue aceptando -SinNavegador' -ForegroundColor Cyan
+Write-Host '  Generador de licencias: -SinNavegador también en su lanzador' -ForegroundColor Cyan
 $textoGenerador = LeerTexto $generador
-Probar 'iniciar-generador-https.ps1 acepta -SinNavegador'           ($textoGenerador -like '*[switch]$SinNavegador*')
-Probar 'iniciar-generador.ps1 delega con -SinNavegador'             ((LeerTexto (Join-Path $raiz 'tools/iniciar-generador.ps1')) -like "*-SinNavegador'*")
+Probar 'iniciar-generador-https.ps1 acepta -SinNavegador'           ($textoGenerador.Contains('[switch]$SinNavegador'))
+Probar 'iniciar-generador.ps1 delega con -SinNavegador'             ((LeerTexto $delegado) -like "*-SinNavegador'*")
 
 Write-Host ''
 if ($script:fallos -gt 0) {
-    Write-Host "  $script:fallos de $script:pruebas comprobaciones FALLARON." -ForegroundColor Red
+    Anotar ("Panel de Control Visual: $($script:fallos) de $($script:pruebas) comprobaciones fallaron → " + (($script:fallados | Select-Object -First 20) -join ' | '))
+    Write-Host "  $($script:fallos) de $($script:pruebas) comprobaciones FALLARON:" -ForegroundColor Red
+    foreach ($f in $script:fallados) { Write-Host "    · $f" -ForegroundColor Red }
     Write-Host ''
     exit 1
 }
-Write-Host "  Todas las comprobaciones pasaron ($script:pruebas)." -ForegroundColor Green
+Write-Host "  Todas las comprobaciones pasaron ($($script:pruebas))." -ForegroundColor Green
 Write-Host ''
 exit 0
