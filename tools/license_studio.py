@@ -276,6 +276,112 @@ def db_available():
     return listo
 
 
+# Tablas de licencias del servidor (mismo esquema que server/novagest_server.py · init_db;
+# tools/test_generador.py comprueba que no se desincronizan). Con ellas la herramienta
+# funciona aunque el servidor no haya arrancado nunca, y el servidor completa el resto
+# de tablas al arrancar sobre la misma base (CREATE TABLE IF NOT EXISTS).
+LICENSE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, ts INTEGER, user TEXT, action TEXT, details TEXT, ip TEXT);
+CREATE TABLE IF NOT EXISTS licenses(
+  id INTEGER PRIMARY KEY,
+  key TEXT UNIQUE,
+  client_name TEXT,
+  product TEXT,
+  type TEXT,
+  issued_at INTEGER,
+  expires_at INTEGER,
+  max_users INTEGER DEFAULT 10,
+  max_devices INTEGER DEFAULT 5,
+  features TEXT DEFAULT '[\"*\"]',
+  active INTEGER DEFAULT 1,
+  created_by TEXT,
+  created_at INTEGER,
+  last_verified INTEGER,
+  metadata TEXT);
+CREATE TABLE IF NOT EXISTS license_activations(
+  id INTEGER PRIMARY KEY,
+  license_key TEXT,
+  license_id INTEGER REFERENCES licenses(id) ON DELETE CASCADE,
+  device_id TEXT,
+  device_info TEXT,
+  ip TEXT,
+  activated_at INTEGER,
+  last_seen INTEGER,
+  active INTEGER DEFAULT 1);
+CREATE TABLE IF NOT EXISTS license_requests(
+  id INTEGER PRIMARY KEY,
+  client_name TEXT,
+  device_id TEXT,
+  device_info TEXT,
+  product TEXT,
+  version TEXT,
+  term TEXT,
+  term_label TEXT,
+  license_type TEXT,
+  days INTEGER,
+  phone TEXT,
+  message TEXT,
+  channel TEXT,
+  ip TEXT,
+  status TEXT DEFAULT 'pendiente',
+  handled_at INTEGER,
+  handled_by TEXT,
+  license_id INTEGER,
+  license_preview TEXT,
+  created_at INTEGER);
+CREATE INDEX IF NOT EXISTS license_requests_status ON license_requests(status, created_at DESC);
+CREATE TABLE IF NOT EXISTS legal_info(id INTEGER PRIMARY KEY CHECK(id=1), data TEXT, updated_at INTEGER, updated_by TEXT);
+"""
+
+# Qué hizo ensure_db() la última vez (se muestra en la interfaz y en la consola).
+DB_STATUS = {"created": False, "tablesAdded": False, "error": ""}
+
+
+def ensure_db():
+    """Garantiza una base de datos utilizable para solicitudes y licencias.
+
+    Usa la misma base que el servidor (gen.db_path(): data/novagest.db o la antigua
+    data/cuadre.db). Si no existe o le faltan las tablas de licencias (el servidor aún
+    no arrancó, o se borró), las crea con el esquema del servidor. Así la herramienta ya
+    no se queda «sin BD»: las licencias emitidas y las solicitudes importadas quedan
+    registradas, y el servidor las ve en cuanto arranca sobre esa misma carpeta data.
+    Devuelve True si la base queda disponible.
+    """
+    if db_available():
+        return True
+    ruta = gen.db_path()
+    try:
+        carpeta = os.path.dirname(ruta)
+        if carpeta:
+            os.makedirs(carpeta, exist_ok=True)
+        nueva = not os.path.exists(ruta) or os.path.getsize(ruta) == 0
+        con = sqlite3.connect(ruta, timeout=10)
+        try:
+            con.executescript(LICENSE_SCHEMA)
+            con.commit()
+        finally:
+            con.close()
+    except (sqlite3.Error, OSError) as e:
+        DB_STATUS.update(error=f"{type(e).__name__}: {e}")
+        return False
+    with _LOCK:
+        _DB_READY_CACHE.clear()
+    DB_STATUS.update(created=nueva, tablesAdded=not nueva, error="")
+    return db_available()
+
+
+def db_state():
+    """Estado de la base para /api/state (crea las tablas si faltan)."""
+    disponible = ensure_db()
+    return {
+        "dbPath": gen.db_path(),
+        "dbAvailable": disponible,
+        "dbCreated": bool(DB_STATUS.get("created")),
+        "dbTablesAdded": bool(DB_STATUS.get("tablesAdded")),
+        "dbError": DB_STATUS.get("error") or "",
+    }
+
+
 def legal_public_data():
     """Lee únicamente los datos legales públicos de NovaGest; nunca expone secretos."""
     if not db_available():
@@ -1566,8 +1672,13 @@ function loadState() {
     $("chip-proto").textContent = s.https ? "🔒 HTTPS activo" : "⚠ HTTP sin cifrar";
     $("chip-proto").className = "chip " + (s.https ? "ok" : "warn");
     $("chip-secret").textContent = "Secreto: " + s.secretSource;
-    $("chip-db").textContent = s.dbAvailable ? "BD conectada" : "sin BD";
+    $("chip-db").textContent = s.dbAvailable
+      ? (s.dbCreated ? "BD creada y conectada" : "BD conectada")
+      : "BD no disponible";
     $("chip-db").className = "chip " + (s.dbAvailable ? "ok" : "warn");
+    $("chip-db").title = s.dbAvailable
+      ? "Base de datos: " + (s.dbPath || "") + (s.dbCreated ? " (creada por el generador; el servidor la completa al arrancar)" : s.dbTablesAdded ? " (el generador añadió las tablas de licencias)" : "")
+      : "No se pudo crear la base de datos en " + (s.dbPath || "") + (s.dbError ? ": " + s.dbError : "");
     $("acceso-datos").innerHTML =
       `<span>Protocolo: <b>${s.https ? "HTTPS (cifrado)" : "HTTP (sin cifrar)"}</b></span>` +
       `<span>Clave de acceso: <b>${esc(s.accessKeySource || "—")}</b></span>` +
@@ -1671,10 +1782,9 @@ function loadRequests() {
     $("tab-req").innerHTML = pend ? `<span class="tag warn">${pend}</span>` : "";
     const aviso = REQ_FLASH ? `<p class="ok-msg">${REQ_FLASH}</p>` : "";
     const sinBd = s.dbAvailable === false
-      ? `<p class="hint">No hay una base de datos del servidor utilizable en <b>${esc(s.dbPath || "")}</b> (no existe todavía o el servidor
-         no la ha inicializado): las solicitudes enviadas desde la Web y la app Android no se pueden leer aquí. Arranque el servidor una vez
-         —o esta herramienta con <b>--data</b> apuntando a su carpeta <b>data</b>— para verlas. Mientras tanto, con
-         <b>📥 Copiar desde el WhatsApp</b> puede importar el mensaje que le llegó al chat y crear su clave igualmente
+      ? `<p class="hint">No se pudo crear ni abrir la base de datos en <b>${esc(s.dbPath || "")}</b>${s.dbError ? " (" + esc(s.dbError) + ")" : ""}:
+         revise que la carpeta <b>data</b> exista y se pueda escribir (o arranque esta herramienta con <b>--data</b> apuntando a ella).
+         Mientras tanto, con <b>📥 Copiar desde el WhatsApp</b> puede importar el mensaje que le llegó al chat y crear su clave igualmente
          (esas solicitudes quedan en esta sesión hasta que la base esté disponible).</p>`
       : "";
     if (!list.length) {
@@ -1865,7 +1975,7 @@ function renderLicenses() {
     : "";
   const box = $("licenses");
   if (!LICENSES.length) {
-    box.innerHTML = `<p class="hint">No hay licencias registradas en la base de datos${STATE && STATE.dbAvailable === false ? " (no se encontró la BD: arranque con --data apuntando a la carpeta data del servidor)" : ""}.</p>`;
+    box.innerHTML = `<p class="hint">No hay licencias registradas en la base de datos${STATE && STATE.dbAvailable === false ? " (no se pudo crear la BD: revise la carpeta data o arranque con --data apuntando a ella)" : ""}.</p>`;
     return;
   }
   if (!list.length) { box.innerHTML = `<p class="hint">Ninguna licencia coincide con el filtro.</p>`; return; }
@@ -2160,8 +2270,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                 "version": APP_VERSION,
                 "product": PRODUCT,
                 "secretSource": secret_source(),
-                "dbPath": gen.db_path(),
-                "dbAvailable": db_available(),
+                **db_state(),
                 "whatsapp": WHATSAPP_DEFAULT,
                 "terms": TERMS,
                 "https": self._secure(),
@@ -2449,6 +2558,8 @@ def main():
     # El secreto debe existir antes de firmar (se crea si hace falta, igual que la CLI)
     gen.get_secret()
     load_access_key(args.clave)
+    # Base de datos de solicitudes y licencias: se crea si falta (ya no queda «sin BD»).
+    ensure_db()
 
     scheme = "https" if args.ssl_cert else "http"
     try:
@@ -2465,10 +2576,14 @@ def main():
         print("      Para HTTPS:  tools\\iniciar-generador-https.ps1  (Windows)  ó  --ssl-cert / --ssl-key")
     print(f"  Clave de acceso: {ACCESS_KEY}   ({ACCESS_KEY_SOURCE})")
     print(f"  Secreto de firma: {secret_source()}")
-    print(f"  Base de datos: {gen.db_path()} "
-          + ("(solicitudes y licencias disponibles)" if db_available()
-             else "(no disponible — se generan claves y se pueden pegar solicitudes de WhatsApp;"
-                  " esas quedan en esta sesión)"))
+    if db_available():
+        nota = ("creada ahora por el generador; el servidor la completa al arrancar" if DB_STATUS.get("created")
+                else "se añadieron las tablas de licencias" if DB_STATUS.get("tablesAdded")
+                else "solicitudes y licencias disponibles")
+    else:
+        nota = ("NO DISPONIBLE: " + (DB_STATUS.get("error") or "no se pudo crear")
+                + " — se generan claves y se pueden pegar solicitudes de WhatsApp (quedan en esta sesión)")
+    print(f"  Base de datos: {gen.db_path()} ({nota})")
     print(f"  WhatsApp:      {'+' + WHATSAPP_DEFAULT if WHATSAPP_DEFAULT else 'selector de contacto (sin número fijo)'}")
     if args.host == "0.0.0.0":
         print("  ⚠️  Escucha en toda la red: es una herramienta privada del administrador (quien tenga la clave entra).")

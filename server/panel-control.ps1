@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   NovaGest - Panel de Control Visual: ventana de control + icono en la bandeja
   del sistema (junto al reloj) con menú al hacer clic derecho.

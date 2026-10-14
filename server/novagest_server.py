@@ -118,10 +118,36 @@ MOV_CORE = ("date", "productId", "type", "quantity", "unitPriceUsd", "unitCostUs
 WAREHOUSE_DEFAULT_ID = "w_principal"
 
 os.makedirs(BACKUPS, exist_ok=True)
-DB_PATH = os.path.join(DATA, "novagest.db")
-_legacy_db = os.path.join(DATA, "cuadre.db")
-if not os.path.exists(DB_PATH) and os.path.exists(_legacy_db):
-    DB_PATH = _legacy_db  # instalación existente: conserva su base de datos
+
+
+def _db_tiene_tablas(ruta):
+    """¿El archivo es una base SQLite con al menos una tabla? (un archivo vacío no cuenta)."""
+    try:
+        if not os.path.exists(ruta) or os.path.getsize(ruta) == 0:
+            return False
+        con = sqlite3.connect(ruta, timeout=10)  # existe: no se crea nada
+        try:
+            return con.execute("SELECT 1 FROM sqlite_master WHERE type='table' LIMIT 1").fetchone() is not None
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return False
+
+
+def resolve_db_path(data_dir):
+    """Base de datos de la instalación: data/novagest.db o, en instalaciones antiguas,
+    data/cuadre.db. Si novagest.db existe pero está vacía (sin tablas; p. ej. la creó
+    otra herramienta) y cuadre.db tiene datos, se sigue usando cuadre.db: así nunca se
+    «pierden» de vista los datos de una instalación existente. La misma regla la usan
+    tools/generate_license.py y el generador de licencias (license_studio.py)."""
+    nueva = os.path.join(data_dir, "novagest.db")
+    antigua = os.path.join(data_dir, "cuadre.db")
+    if os.path.exists(antigua) and (not os.path.exists(nueva) or (not _db_tiene_tablas(nueva) and _db_tiene_tablas(antigua))):
+        return antigua  # instalación existente: conserva su base de datos
+    return nueva
+
+
+DB_PATH = resolve_db_path(DATA)
 _lock = threading.RLock()
 
 
