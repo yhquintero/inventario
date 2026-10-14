@@ -2,6 +2,8 @@
 
 ## Arranque
 
+En Windows, `server\iniciar-https.ps1` abre el **Panel de Control Visual** (ventana con el estado de cada servicio e **icono en la bandeja del sistema**, junto al reloj) y arranca solo, en segundo plano, el servidor de la Web con la API (8443) y el generador de licencias (8444). Con el **botón derecho** sobre el icono está el menú: mostrar el panel, abrir la Web o el generador, iniciar todo, **detener los servicios web**, **detener el servidor principal**, **detener el generador (`iniciar-generador-https.ps1`)**, reiniciar todo y **salir**. Cerrar la ventana con la **X** solo oculta el panel en la bandeja: los servicios siguen funcionando. Para el arranque clásico en consola (servidor en primer plano) usa `server\iniciar-https.ps1 -SinPanel`.
+
 1. Entra con `admin` / `Admin123!`.
 2. En **Ajustes** activa biometría si el dispositivo lo permite.
 3. Cambia el tema con el botón del encabezado (claro / oscuro / sistema). En la Web y en
