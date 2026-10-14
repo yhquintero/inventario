@@ -725,6 +725,28 @@ tr.empty td::before { display: none; }
 .ficha-item label { min-width: 110px; }
 @media print { .consent, .legal-footer, .skip-link { display: none !important; } }
 
+/* ===== Tipografía unificada: el mismo estilo del Panel en todos los módulos =====
+   <main class="content dashboard-page"> y el título de la barra superior llevan estas
+   clases en TODAS las vistas (antes solo en el Panel). Aquí se completa el resto de
+   encabezados y cifras que seguían con la letra con serifa de la versión anterior. */
+body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4 { font-family: var(--font); letter-spacing: -.02em; }
+.tb-title h2 { font-family: var(--font); font-size: 20px; font-weight: 750; letter-spacing: -.025em; line-height: 1.25; }
+.k { letter-spacing: .09em; }
+.logo strong { font-family: var(--font); font-weight: 750; letter-spacing: -.03em; }
+.h2 { font-family: var(--font); font-weight: 750; letter-spacing: -.025em; }
+.kpi .v { font-family: var(--font); font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
+.ring b, .celebrate b, .cart-total b { font-family: var(--font); font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.wh-name, .tour-title { font-family: var(--font); font-weight: 750; letter-spacing: -.02em; }
+.login-hero h1 { font-family: var(--font); font-weight: 750; letter-spacing: -.035em; line-height: 1.08; }
+.legal-doc h1 { font-family: var(--font); font-weight: 750; letter-spacing: -.03em; }
+.dashboard-page { font-size: 14px; line-height: 1.5; }
+.dashboard-page h3 { font-weight: 700; }
+table td { font-variant-numeric: tabular-nums; }
+.mono { font-variant-numeric: tabular-nums; }
+.hint { line-height: 1.5; }
+.btn-wa:disabled { background: var(--surface-2); border-color: var(--line); color: var(--muted); opacity: .8; }
+
 /* Colores forzados de Windows (forced-colors): el sistema manda; se garantiza
    que botones, barras y focos sigan siendo distinguibles sin nuestros colores. */
 @media (forced-colors: active) {

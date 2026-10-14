@@ -71,7 +71,7 @@ let ui = {
   license: {
     status: null, loading: true, error: null, key: "", activating: false, info: null, infoLoaded: false,
     lastGenerated: null, tab: "estado", expand: false, infoTried: false,
-    requests: null, counts: null, reqFilter: "TODAS", reqName: "", reqPhone: "", reqTerm: "MES",
+    requests: null, counts: null, reqFilter: "TODAS", reqName: "", reqPhone: "", reqTerm: "MES", reqConsent: false,
     genClient: "", genPhone: "", genTerm: "ANIO", genRequest: null,
   },
   custTab: "clientes",
@@ -182,7 +182,7 @@ function shell(body) {
       <section class="main">
         <div class="topbar">
           <button class="btn ghost small menu-btn" data-act="drawer" aria-label="Abrir o cerrar el menú">☰</button>
-          <div class="tb-title"><h2 class="${ui.route === "home" ? "dashboard-page-title" : ""}">${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP ${ui.license.status?.valid ? `· 🔐 ${esc(ui.license.status.type)} ${ui.license.status.daysLeft === -1 ? "· Permanente" : `· ${ui.license.status.daysLeft}d`}` : ""}</span></div>
+          <div class="tb-title"><h2 class="dashboard-page-title">${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP ${ui.license.status?.valid ? `· 🔐 ${esc(ui.license.status.type)} ${ui.license.status.daysLeft === -1 ? "· Permanente" : `· ${ui.license.status.daysLeft}d`}` : ""}</span></div>
           ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" aria-label="Buscar en ${r.title.toLowerCase()}" />${ui.q ? `<button class="x" data-act="clear-q" aria-label="Borrar búsqueda">✕</button>` : ""}</div>` : `<div class="flex1"></div>`}
           ${whPicker()}
           <span class="sync-dot ${store.sync}" id="syncDot" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
@@ -191,7 +191,7 @@ function shell(body) {
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema" aria-label="Cambiar tema: claro, oscuro o automático">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
         </div>
-        <main class="content ${ui.route === "home" ? "dashboard-page" : ""}" id="contenido">${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
+        <main class="content dashboard-page" id="contenido">${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
       </section>
     </div>
     ${consentBanner()}
@@ -208,6 +208,7 @@ function licenseRequestCard(st) {
   const terms = LicenseManager.serverTerms(st);
   const device = LicenseManager.deviceId();
   const sel = ui.license.reqTerm || "MES";
+  const autorizado = !!ui.license.reqConsent;
   return `
     <div class="card lic-request mb12">
       <div class="card-h"><span class="k">1 · Solicitar licencia por WhatsApp</span><span class="tag mov">Por término</span></div>
@@ -220,10 +221,11 @@ function licenseRequestCard(st) {
         ${terms.map((t) => `<button type="button" class="chip ${sel === t.id ? "on" : ""}" data-lic-term="${t.id}">${t.icon || ""} ${esc(t.label)}</button>`).join("")}
       </div>
       <label class="consent-check lic-request-consent" for="licConsent">
-        <input id="licConsent" type="checkbox" aria-describedby="licConsentHelp">
+        <input id="licConsent" type="checkbox" aria-describedby="licConsentHelp" ${autorizado ? "checked" : ""}>
         <span id="licConsentHelp">Autorizo registrar los datos de esta solicitud para gestionar mi licencia. Consulta la <a href="#legal" data-legal-doc="privacidad">Política de privacidad</a>.</span>
       </label>
-      <button type="button" class="btn full btn-wa" data-act="license-whatsapp">💬 SOLICITAR POR WHATSAPP</button>
+      <button type="button" class="btn full btn-wa" id="licWaBtn" data-act="license-whatsapp" aria-describedby="licWaHelp" ${autorizado ? "" : "disabled"}>💬 SOLICITAR POR WHATSAPP</button>
+      <p class="hint mt8" id="licWaHelp" ${autorizado ? "hidden" : ""}>Marca primero la casilla de autorización: así se activa el botón y la solicitud puede enviarse por WhatsApp.</p>
       <p class="hint mt8">Se abre WhatsApp con tu nombre, ID de dispositivo y plazo ya escritos${st?.whatsapp ? " al número de NovaGest" : ""}. Si autorizas el registro, la solicitud también queda disponible para el administrador en <b>Gestionar → Solicitudes</b>.</p>
     </div>`;
 }
@@ -3188,6 +3190,13 @@ document.addEventListener("keydown", (e) => {
 function bindLicenseInputs() {
   $("#licReqName")?.addEventListener("input", (e) => { ui.license.reqName = e.target.value; });
   $("#licReqPhone")?.addEventListener("input", (e) => { ui.license.reqPhone = e.target.value; });
+  $("#licConsent")?.addEventListener("change", (e) => {
+    ui.license.reqConsent = e.target.checked;
+    const btn = $("#licWaBtn");
+    if (btn) btn.disabled = !e.target.checked;
+    const help = $("#licWaHelp");
+    if (help) help.hidden = e.target.checked;
+  });
 }
 
 function bindLicense() {

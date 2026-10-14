@@ -210,6 +210,25 @@ function Get-TextoResumen {
 }
 
 # --- pruebas y CI: definir las funciones y salir sin cargar la interfaz ---
+# Puertos en escucha: una sola lectura con la API de .NET. No lanza netstat ni
+# Get-NetTCPConnection (procesos externos que bloqueaban la ventana del panel).
+$script:puertosEnTick = $null
+
+function Get-PuertosEscuchando {
+    try {
+        $propiedades = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
+        return @($propiedades.GetActiveTcpListeners() | ForEach-Object { [int]$_.Port })
+    } catch { return @() }
+}
+
+function Test-PuertoEscuchando {
+    param([int]$Puerto)
+    # Dentro de un ciclo del temporizador se usa la lectura única de ese ciclo.
+    $lista = $script:puertosEnTick
+    if ($null -eq $lista) { $lista = Get-PuertosEscuchando }
+    return ($lista -contains $Puerto)
+}
+
 if ($SoloFunciones) { return }
 
 # =====================================================================
@@ -334,17 +353,6 @@ if ($script:servicios.Count -eq 0) {
 # =====================================================================
 #  Utilidades de Windows (puertos, procesos, IPs)
 # =====================================================================
-function Test-PuertoEscuchando {
-    param([int]$Puerto)
-    try {
-        if (@(Get-NetTCPConnection -State Listen -LocalPort $Puerto -ErrorAction Stop).Count -gt 0) { return $true }
-    } catch { }
-    try {
-        if (netstat -ano | Select-String -Pattern ":$Puerto\s.*LISTENING" | Select-Object -First 1) { return $true }
-    } catch { }
-    return $false
-}
-
 function Get-PidPuerto {
     param([int]$Puerto)
     try {
@@ -401,6 +409,54 @@ function Get-UltimasLineas {
     } catch {
         return "(no se pudo leer $Ruta): $($_.Exception.Message)"
     }
+}
+
+function Esperar-Pausa {
+    # Pausa que sigue atendiendo la ventana (clics, menú y repintados) mientras espera.
+    param([int]$Milisegundos)
+    $fin = (Get-Date).AddMilliseconds($Milisegundos)
+    while ((Get-Date) -lt $fin) {
+        [System.Windows.Forms.Application]::DoEvents()
+        Start-Sleep -Milliseconds 20
+    }
+}
+
+function Esperar-Mientras {
+    # Espera mientras la condición se cumpla, como máximo $Segundos.
+    # Devuelve $true si la condición dejó de cumplirse a tiempo.
+    param([int]$Segundos, [scriptblock]$Condicion)
+    $limite = (Get-Date).AddSeconds($Segundos)
+    while ((Get-Date) -lt $limite) {
+        if (-not (& $Condicion)) { return $true }
+        Esperar-Pausa -Milisegundos 250
+    }
+    return (-not (& $Condicion))
+}
+
+# Evita que dos órdenes de Iniciar/Detener se pisen mientras el panel espera
+# (con DoEvents la ventana sigue recibiendo clics).
+$script:accionEnCurso = ''
+
+function Invoke-Accion {
+    param([string]$Nombre, [scriptblock]$Accion)
+    if ($script:accionEnCurso) {
+        Escribir-Registro "Espera: todavía se está ejecutando «$($script:accionEnCurso)»." -Tipo 'Aviso'
+        return
+    }
+    $script:accionEnCurso = $Nombre
+    try { & $Accion }
+    finally { $script:accionEnCurso = '' }
+}
+
+# Cache de la última valor mostrado: solo se toca la interfaz si el valor cambió.
+$script:previoUi = @{}
+
+function Set-SiCambia {
+    param([hashtable]$Cache, [string]$Clave, $Valor, [scriptblock]$Aplicar)
+    $texto = "$Valor"
+    if ($Cache.ContainsKey($Clave) -and $Cache[$Clave] -ceq $texto) { return }
+    $Cache[$Clave] = $texto
+    & $Aplicar $Valor
 }
 
 function Detener-ArbolProceso {
@@ -520,8 +576,8 @@ function Detener-Servicio {
     Escribir-Registro "Deteniendo $($Srv.Nombre) (PID $($ids -join ', ')) …"
     foreach ($idProceso in $ids) { Detener-ArbolProceso $idProceso }
 
-    $limite = (Get-Date).AddSeconds(15)
-    while ((Get-Date) -lt $limite -and (Test-PuertoEscuchando $Srv.Puerto)) { Start-Sleep -Milliseconds 300 }
+    # Espera no bloqueante (la ventana sigue respondiendo) de hasta 15 s.
+    [void](Esperar-Mientras -Segundos 15 -Condicion { Test-PuertoEscuchando $Srv.Puerto })
 
     $Srv.Proceso = $null
     $Srv.PidLanzado = 0
@@ -540,7 +596,7 @@ function Reiniciar-Servicio {
     param($Srv)
     if (-not $Srv) { return }
     [void](Detener-Servicio -Srv $Srv -Silencioso -SinConfirmar)
-    Start-Sleep -Milliseconds 600
+    Esperar-Pausa -Milisegundos 600
     [void](Iniciar-Servicio -Srv $Srv)
 }
 
@@ -558,7 +614,7 @@ function Detener-Todos {
 
 function Reiniciar-Todos {
     foreach ($srv in $script:servicios) { [void](Detener-Servicio -Srv $srv -Silencioso -SinConfirmar) }
-    Start-Sleep -Milliseconds 800
+    Esperar-Pausa -Milisegundos 800
     foreach ($srv in $script:servicios) { [void](Iniciar-Servicio -Srv $srv -Silencioso) }
     Actualizar-Vista
 }
@@ -977,97 +1033,109 @@ function Set-TextoBandeja {
 }
 
 function Actualizar-Vista {
-    $total = $script:servicios.Count
-    $activos = 0
+    # Un ciclo del temporizador: los puertos se sondean UNA vez y las etiquetas,
+    # botones y el menú solo se actualizan si su valor cambió.
+    $script:puertosEnTick = Get-PuertosEscuchando
+    try {
+        $total = $script:servicios.Count
+        $activos = 0
+        $p = $script:previoUi
 
-    foreach ($srv in $script:servicios) {
-        $estado  = Actualizar-EstadoServicio $srv
-        $escucha = Test-PuertoEscuchando $srv.Puerto
-        if ($escucha) { $activos++ }
+        foreach ($srv in $script:servicios) {
+            $estado  = Actualizar-EstadoServicio $srv
+            $escucha = Test-PuertoEscuchando $srv.Puerto
+            if ($escucha) { $activos++ }
 
-        # Aviso de «listo» una sola vez por arranque del panel.
-        if ($escucha -and -not $srv.Avisado -and $srv.PidLanzado -gt 0) {
-            $srv.Avisado = $true
-            Escribir-Registro "$($srv.Nombre) en ejecución: https://localhost:$($srv.Puerto)"
-            Avisar-Bandeja 'NovaGest' "$($srv.Nombre) en ejecución (puerto $($srv.Puerto))." 'Info'
-        }
-        if (-not $escucha) { $srv.Avisado = $false }
+            # Aviso de «listo» una sola vez por arranque del panel.
+            if ($escucha -and -not $srv.Avisado -and $srv.PidLanzado -gt 0) {
+                $srv.Avisado = $true
+                Escribir-Registro "$($srv.Nombre) en ejecución: https://localhost:$($srv.Puerto)"
+                Avisar-Bandeja 'NovaGest' "$($srv.Nombre) en ejecución (puerto $($srv.Puerto))." 'Info'
+            }
+            if (-not $escucha) { $srv.Avisado = $false }
 
-        # Servicio estable: se reinicia el contador de reintentos automáticos.
-        if ($srv.Estado -eq 'En ejecución' -and $srv.HoraArranque) {
-            if (((Get-Date) - $srv.HoraArranque).TotalSeconds -gt 120) { $srv.Reintentos = 0 }
-        }
+            # Servicio estable: se reinicia el contador de reintentos automáticos.
+            if ($srv.Estado -eq 'En ejecución' -and $srv.HoraArranque) {
+                if (((Get-Date) - $srv.HoraArranque).TotalSeconds -gt 120) { $srv.Reintentos = 0 }
+            }
 
-        # Abrir en el navegador en cuanto escuche (petición pendiente).
-        if ($srv.AbrirAlEscuchar) {
-            if ($escucha) {
-                $srv.AbrirAlEscuchar = $false
-                try { Start-Process "https://localhost:$($srv.Puerto)" } catch { }
-            } elseif ($srv.LimiteAbrir -and (Get-Date) -gt $srv.LimiteAbrir) {
-                $srv.AbrirAlEscuchar = $false
-                Escribir-Registro "No se abrió el navegador de $($srv.Nombre): no llegó a escuchar en el puerto $($srv.Puerto)." -Tipo 'Aviso'
+            # Abrir en el navegador en cuanto escuche (petición pendiente).
+            if ($srv.AbrirAlEscuchar) {
+                if ($escucha) {
+                    $srv.AbrirAlEscuchar = $false
+                    try { Start-Process "https://localhost:$($srv.Puerto)" } catch { }
+                } elseif ($srv.LimiteAbrir -and (Get-Date) -gt $srv.LimiteAbrir) {
+                    $srv.AbrirAlEscuchar = $false
+                    Escribir-Registro "No se abrió el navegador de $($srv.Nombre): no llegó a escuchar en el puerto $($srv.Puerto)." -Tipo 'Aviso'
+                }
+            }
+
+            $color = Get-NombreEstadoColor $estado
+            if ($srv.Ui) {
+                $ui   = $srv.Ui
+                $id   = $srv.Id
+                $vivo = Test-ServicioVivo $srv
+                Set-SiCambia $p "$id|estado"    $estado { param($v) $ui.Estado.Text = $v }
+                Set-SiCambia $p "$id|fondo"     ($script:colores["$($color)Fondo"]) { param($v) $ui.Estado.BackColor = $v }
+                Set-SiCambia $p "$id|texto"     ($script:colores[$color]) { param($v) $ui.Estado.ForeColor = $v }
+                Set-SiCambia $p "$id|detalle"   "https://localhost:$($srv.Puerto)  ·  puerto $($srv.Puerto)" { param($v) $ui.Detalle.Text = $v }
+                Set-SiCambia $p "$id|iniciar"   (-not $vivo -and -not $escucha) { param($v) $ui.BotonIniciar.Enabled = $v }
+                Set-SiCambia $p "$id|detener"   ($vivo -or $escucha) { param($v) $ui.BotonDetener.Enabled = $v }
+                Set-SiCambia $p "$id|reiniciar" ($vivo -or $escucha) { param($v) $ui.BotonReiniciar.Enabled = $v }
             }
         }
 
-        $color = Get-NombreEstadoColor $estado
-        if ($srv.Ui) {
-            $srv.Ui.Estado.Text      = $estado
-            $srv.Ui.Estado.BackColor = $script:colores["$($color)Fondo"]
-            $srv.Ui.Estado.ForeColor = $script:colores[$color]
-            $srv.Ui.Detalle.Text     = "https://localhost:$($srv.Puerto)  ·  puerto $($srv.Puerto)"
-            $vivo = Test-ServicioVivo $srv
-            $srv.Ui.BotonIniciar.Enabled   = (-not $vivo -and -not $escucha)
-            $srv.Ui.BotonDetener.Enabled   = ($vivo -or $escucha)
-            $srv.Ui.BotonReiniciar.Enabled = ($vivo -or $escucha)
+        $resumen = Get-TextoResumen $activos $total
+        if ($script:lblCabecera)    { Set-SiCambia $p 'cabecera' "Estado: $resumen" { param($v) $script:lblCabecera.Text = $v } }
+        if ($script:lblBarraEstado) { Set-SiCambia $p 'barra' $resumen { param($v) $script:lblBarraEstado.Text = $v } }
+        if ($script:lblBarraUrls)   { Set-SiCambia $p 'urls' $script:textoUrls { param($v) $script:lblBarraUrls.Text = $v } }
+        Set-SiCambia $p 'bandeja' "NovaGest · $resumen" { param($v) Set-TextoBandeja $v }
+
+        # Menú de la bandeja: se habilita lo que tiene sentido en cada momento.
+        $hayServidor  = $null -ne (Get-ServicioPorId 'servidor')
+        $hayGenerador = $null -ne (Get-ServicioPorId 'generador')
+        $srvServidor  = Get-ServicioPorId 'servidor'
+        $srvGenerador = Get-ServicioPorId 'generador'
+        $activoServidor  = $hayServidor  -and (($null -ne $srvServidor)  -and (Test-ServicioVivo $srvServidor))
+        $activoGenerador = $hayGenerador -and (($null -ne $srvGenerador) -and (Test-ServicioVivo $srvGenerador))
+        $escuchaServidor  = $hayServidor  -and (Test-PuertoEscuchando $script:puerto)
+        $escuchaGenerador = $hayGenerador -and (Test-PuertoEscuchando $script:puertoGen)
+
+        $m = $script:menu
+        if ($m) {
+            Set-SiCambia $p 'menu.estado' "Estado: $resumen" { param($v) $script:menu.Estado.Text = $v }
+            if ($m.IniciarTodo)   { Set-SiCambia $p 'menu.iniciarTodo'   ($activos -lt $total) { param($v) $script:menu.IniciarTodo.Enabled = $v } }
+            if ($m.ReiniciarTodo) { Set-SiCambia $p 'menu.reiniciarTodo' ($activos -gt 0) { param($v) $script:menu.ReiniciarTodo.Enabled = $v } }
+            if ($m.DetenerTodo)   { Set-SiCambia $p 'menu.detenerTodo'   ($activos -gt 0) { param($v) $script:menu.DetenerTodo.Enabled = $v } }
+            if ($m.DetenerServidor) {
+                Set-SiCambia $p 'menu.detenerServidor'    ($activoServidor -or $escuchaServidor) { param($v) $script:menu.DetenerServidor.Enabled = $v }
+                Set-SiCambia $p 'menu.detenerServidor.v'  $hayServidor { param($v) $script:menu.DetenerServidor.Visible = $v }
+            }
+            if ($m.IniciarServidor) {
+                Set-SiCambia $p 'menu.iniciarServidor'    ($hayServidor -and -not $activoServidor -and -not $escuchaServidor) { param($v) $script:menu.IniciarServidor.Enabled = $v }
+                Set-SiCambia $p 'menu.iniciarServidor.v'  $hayServidor { param($v) $script:menu.IniciarServidor.Visible = $v }
+            }
+            if ($m.DetenerGenerador) {
+                Set-SiCambia $p 'menu.detenerGenerador'   ($activoGenerador -or $escuchaGenerador) { param($v) $script:menu.DetenerGenerador.Enabled = $v }
+                Set-SiCambia $p 'menu.detenerGenerador.v' $hayGenerador { param($v) $script:menu.DetenerGenerador.Visible = $v }
+            }
+            if ($m.IniciarGenerador) {
+                Set-SiCambia $p 'menu.iniciarGenerador'   ($hayGenerador -and -not $activoGenerador -and -not $escuchaGenerador) { param($v) $script:menu.IniciarGenerador.Enabled = $v }
+                Set-SiCambia $p 'menu.iniciarGenerador.v' $hayGenerador { param($v) $script:menu.IniciarGenerador.Visible = $v }
+            }
+            if ($m.AbrirWeb)      { Set-SiCambia $p 'menu.abrirWeb' "Abrir la Web (https://localhost:$($script:puerto))" { param($v) $script:menu.AbrirWeb.Text = $v } }
+            if ($m.AbrirGenerador) { Set-SiCambia $p 'menu.abrirGen' "Abrir el generador (https://localhost:$($script:puertoGen))" { param($v) $script:menu.AbrirGenerador.Text = $v } }
         }
+
+        if ($script:btnIniciarTodo)   { Set-SiCambia $p 'btn.iniciarTodo'   ($activos -lt $total) { param($v) $script:btnIniciarTodo.Enabled = $v } }
+        if ($script:btnReiniciarTodo) { Set-SiCambia $p 'btn.reiniciarTodo' ($activos -gt 0) { param($v) $script:btnReiniciarTodo.Enabled = $v } }
+        if ($script:btnDetenerTodo)   { Set-SiCambia $p 'btn.detenerTodo'   ($activos -gt 0) { param($v) $script:btnDetenerTodo.Enabled = $v } }
+        if ($script:btnAbrirWeb)      { Set-SiCambia $p 'btn.abrirWeb'      $hayServidor { param($v) $script:btnAbrirWeb.Enabled = $v } }
+        if ($script:btnAbrirGen)      { Set-SiCambia $p 'btn.abrirGen'      $hayGenerador { param($v) $script:btnAbrirGen.Enabled = $v } }
     }
-
-    $resumen = Get-TextoResumen $activos $total
-    if ($script:lblCabecera) { $script:lblCabecera.Text = "Estado: $resumen" }
-    if ($script:lblBarraEstado) { $script:lblBarraEstado.Text = $resumen }
-    if ($script:lblBarraUrls) { $script:lblBarraUrls.Text = $script:textoUrls }
-    Set-TextoBandeja "NovaGest · $resumen"
-
-    # Menú de la bandeja: se habilita lo que tiene sentido en cada momento.
-    $hayServidor  = $null -ne (Get-ServicioPorId 'servidor')
-    $hayGenerador = $null -ne (Get-ServicioPorId 'generador')
-    $srvServidor  = Get-ServicioPorId 'servidor'
-    $srvGenerador = Get-ServicioPorId 'generador'
-    $activoServidor  = $hayServidor  -and (($null -ne $srvServidor)  -and (Test-ServicioVivo $srvServidor))
-    $activoGenerador = $hayGenerador -and (($null -ne $srvGenerador) -and (Test-ServicioVivo $srvGenerador))
-    $escuchaServidor  = $hayServidor  -and (Test-PuertoEscuchando $script:puerto)
-    $escuchaGenerador = $hayGenerador -and (Test-PuertoEscuchando $script:puertoGen)
-
-    if ($script:menu) {
-        $script:menu.Estado.Text = "Estado: $resumen"
-        if ($script:menu.IniciarTodo)   { $script:menu.IniciarTodo.Enabled   = ($activos -lt $total) }
-        if ($script:menu.ReiniciarTodo) { $script:menu.ReiniciarTodo.Enabled = ($activos -gt 0) }
-        if ($script:menu.DetenerTodo)   { $script:menu.DetenerTodo.Enabled   = ($activos -gt 0) }
-        if ($script:menu.DetenerServidor) {
-            $script:menu.DetenerServidor.Enabled = ($activoServidor -or $escuchaServidor)
-            $script:menu.DetenerServidor.Visible = $hayServidor
-        }
-        if ($script:menu.IniciarServidor) {
-            $script:menu.IniciarServidor.Enabled = ($hayServidor -and -not $activoServidor -and -not $escuchaServidor)
-            $script:menu.IniciarServidor.Visible = $hayServidor
-        }
-        if ($script:menu.DetenerGenerador) {
-            $script:menu.DetenerGenerador.Enabled = ($activoGenerador -or $escuchaGenerador)
-            $script:menu.DetenerGenerador.Visible = $hayGenerador
-        }
-        if ($script:menu.IniciarGenerador) {
-            $script:menu.IniciarGenerador.Enabled = ($hayGenerador -and -not $activoGenerador -and -not $escuchaGenerador)
-            $script:menu.IniciarGenerador.Visible = $hayGenerador
-        }
-        if ($script:menu.AbrirWeb) { $script:menu.AbrirWeb.Text = "Abrir la Web (https://localhost:$script:puerto)" }
-        if ($script:menu.AbrirGenerador) { $script:menu.AbrirGenerador.Text = "Abrir el generador (https://localhost:$script:puertoGen)" }
+    finally {
+        $script:puertosEnTick = $null
     }
-
-    if ($script:btnIniciarTodo)   { $script:btnIniciarTodo.Enabled   = ($activos -lt $total) }
-    if ($script:btnReiniciarTodo) { $script:btnReiniciarTodo.Enabled = ($activos -gt 0) }
-    if ($script:btnDetenerTodo)   { $script:btnDetenerTodo.Enabled   = ($activos -gt 0) }
-    if ($script:btnAbrirWeb)      { $script:btnAbrirWeb.Enabled      = $hayServidor }
-    if ($script:btnAbrirGen)      { $script:btnAbrirGen.Enabled      = $hayGenerador }
 }
 
 function Registrar-CaidasPendientes {
@@ -1098,6 +1166,18 @@ function Mostrar-Panel {
         if ($script:form.WindowState -eq 'Minimized') { $script:form.WindowState = 'Normal' }
         $script:form.Activate()
         $script:form.BringToFront()
+    } catch { }
+}
+
+function Mostrar-MenuBandeja {
+    # Clic derecho en el icono: se activa una ventana propia antes de mostrar el
+    # menú. Sin ese paso Windows no muestra el menú o lo cierra al primer clic.
+    try {
+        if (-not $script:menuPrincipal) { return }
+        if ($script:ventanaOculta -and $script:ventanaOculta.IsHandleCreated) {
+            try { [void][NovaGest.NativoVentana]::SetForegroundWindow($script:ventanaOculta.Handle) } catch { }
+        }
+        $script:menuPrincipal.Show([System.Windows.Forms.Cursor]::Position)
     } catch { }
 }
 
@@ -1176,6 +1256,30 @@ if ($script:ipsLocales.Count -gt 0) {
 $script:form = New-VentanaPanel
 
 # ------------------------- icono de la bandeja + menú -------------------------
+if (-not ('NovaGest.NativoVentana' -as [type])) {
+    try {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+namespace NovaGest {
+    public static class NativoVentana {
+        [DllImport("user32.dll")]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+    }
+}
+'@
+    } catch { }
+}
+
+# Ventana oculta propietaria: da el foco a la aplicación antes de mostrar el menú.
+$script:ventanaOculta = New-Object System.Windows.Forms.Form
+$script:ventanaOculta.ShowInTaskbar = $false
+$script:ventanaOculta.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
+$script:ventanaOculta.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+$script:ventanaOculta.Location = New-Object System.Drawing.Point -ArgumentList (-32000), (-32000)
+$script:ventanaOculta.Size = New-Object System.Drawing.Size -ArgumentList 1, 1
+$null = $script:ventanaOculta.Handle
+
 $script:bandeja = New-Object System.Windows.Forms.NotifyIcon
 $script:bandeja.Icon = $script:icono
 $script:bandeja.Text = 'NovaGest · Panel de Control Visual'
@@ -1222,7 +1326,6 @@ foreach ($item in @($script:menu.DetenerTodo, $script:menu.DetenerServidor, $scr
 [void]$menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
 [void]$menu.Items.Add($script:menu.Salir)
 
-$script:bandeja.ContextMenuStrip = $menu
 $script:menuPrincipal = $menu
 
 # --------------------------- manejadores del icono ---------------------------
@@ -1231,16 +1334,23 @@ $script:bandeja.Add_MouseDoubleClick({
     if ($e.Button -eq [System.Windows.Forms.MouseButtons]::Left) { Mostrar-Panel }
 })
 
+# El menú no se asigna a ContextMenuStrip del icono (Windows lo mostraba mal);
+# el clic derecho lo abre Mostrar-MenuBandeja.
+$script:bandeja.Add_MouseUp({
+    param($sender, $e)
+    if ($e.Button -eq [System.Windows.Forms.MouseButtons]::Right) { Mostrar-MenuBandeja }
+})
+
 $script:menu.Mostrar.Add_Click({ Mostrar-Panel })
 $script:menu.AbrirWeb.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'servidor') })
 $script:menu.AbrirGenerador.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'generador') })
-$script:menu.IniciarTodo.Add_Click({ Iniciar-Todos })
-$script:menu.IniciarServidor.Add_Click({ Iniciar-Servicio (Get-ServicioPorId 'servidor'); Actualizar-Vista })
-$script:menu.IniciarGenerador.Add_Click({ Iniciar-Servicio (Get-ServicioPorId 'generador'); Actualizar-Vista })
-$script:menu.DetenerTodo.Add_Click({ Detener-Todos })
-$script:menu.DetenerServidor.Add_Click({ Detener-Servicio (Get-ServicioPorId 'servidor'); Actualizar-Vista })
-$script:menu.DetenerGenerador.Add_Click({ Detener-Servicio (Get-ServicioPorId 'generador'); Actualizar-Vista })
-$script:menu.ReiniciarTodo.Add_Click({ Reiniciar-Todos })
+$script:menu.IniciarTodo.Add_Click({ Invoke-Accion 'iniciar todos' { Iniciar-Todos } })
+$script:menu.IniciarServidor.Add_Click({ Invoke-Accion 'iniciar el servidor' { Iniciar-Servicio (Get-ServicioPorId 'servidor'); Actualizar-Vista } })
+$script:menu.IniciarGenerador.Add_Click({ Invoke-Accion 'iniciar el generador' { Iniciar-Servicio (Get-ServicioPorId 'generador'); Actualizar-Vista } })
+$script:menu.DetenerTodo.Add_Click({ Invoke-Accion 'detener los servicios web' { Detener-Todos } })
+$script:menu.DetenerServidor.Add_Click({ Invoke-Accion 'detener el servidor' { Detener-Servicio (Get-ServicioPorId 'servidor'); Actualizar-Vista } })
+$script:menu.DetenerGenerador.Add_Click({ Invoke-Accion 'detener el generador' { Detener-Servicio (Get-ServicioPorId 'generador'); Actualizar-Vista } })
+$script:menu.ReiniciarTodo.Add_Click({ Invoke-Accion 'reiniciar todos' { Reiniciar-Todos } })
 $script:menu.CarpetaLogs.Add_Click({ Abrir-CarpetaRegistros })
 $script:menu.Salir.Add_Click({ Salir-Panel })
 
@@ -1250,21 +1360,27 @@ foreach ($srv in $script:servicios) {
     if (-not $ui) { continue }
     $ui.BotonIniciar.Add_Click({
         param($sender, $e)
-        $srv = Get-ServicioPorId $sender.Tag
-        [void](Iniciar-Servicio -Srv $srv)
-        Actualizar-Vista
+        Invoke-Accion 'iniciar el servicio' {
+            $srv = Get-ServicioPorId $sender.Tag
+            [void](Iniciar-Servicio -Srv $srv)
+            Actualizar-Vista
+        }
     })
     $ui.BotonDetener.Add_Click({
         param($sender, $e)
-        $srv = Get-ServicioPorId $sender.Tag
-        [void](Detener-Servicio -Srv $srv)
-        Actualizar-Vista
+        Invoke-Accion 'detener el servicio' {
+            $srv = Get-ServicioPorId $sender.Tag
+            [void](Detener-Servicio -Srv $srv)
+            Actualizar-Vista
+        }
     })
     $ui.BotonReiniciar.Add_Click({
         param($sender, $e)
-        $srv = Get-ServicioPorId $sender.Tag
-        Reiniciar-Servicio -Srv $srv
-        Actualizar-Vista
+        Invoke-Accion 'reiniciar el servicio' {
+            $srv = Get-ServicioPorId $sender.Tag
+            Reiniciar-Servicio -Srv $srv
+            Actualizar-Vista
+        }
     })
     $ui.BotonAbrir.Add_Click({
         param($sender, $e)
@@ -1276,9 +1392,9 @@ foreach ($srv in $script:servicios) {
     })
 }
 
-$script:btnIniciarTodo.Add_Click({ Iniciar-Todos })
-$script:btnDetenerTodo.Add_Click({ Detener-Todos })
-$script:btnReiniciarTodo.Add_Click({ Reiniciar-Todos })
+$script:btnIniciarTodo.Add_Click({ Invoke-Accion 'iniciar todos' { Iniciar-Todos } })
+$script:btnDetenerTodo.Add_Click({ Invoke-Accion 'detener los servicios web' { Detener-Todos } })
+$script:btnReiniciarTodo.Add_Click({ Invoke-Accion 'reiniciar todos' { Reiniciar-Todos } })
 $script:btnAbrirWeb.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'servidor') })
 $script:btnAbrirGen.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'generador') })
 $script:btnRegistros.Add_Click({ Abrir-CarpetaRegistros })
@@ -1313,7 +1429,7 @@ $script:temporizador.Add_Tick({
             [void](Iniciar-Servicio -Srv (Get-ServicioPorId $id) -Silencioso)
         }
         Actualizar-Vista
-        Registrar-CaidasPendientes
+        if (-not $script:accionEnCurso) { Registrar-CaidasPendientes }
     } catch {
         $script:erroresVista++
         if ($script:erroresVista -le 3) {
@@ -1376,6 +1492,7 @@ try { [Console]::Out.Flush() } catch { }
 try { $script:temporizador.Stop() } catch { }
 try { if ($script:bandeja) { $script:bandeja.Visible = $false; $script:bandeja.Dispose() } } catch { }
 try { if ($script:menuPrincipal) { $script:menuPrincipal.Dispose() } } catch { }
+try { if ($script:ventanaOculta) { $script:ventanaOculta.Dispose() } } catch { }
 
 Write-Host ''
 foreach ($srv in $script:servicios) {

@@ -291,6 +291,14 @@ test("el Panel muestra totales por categoría y por almacén", () => {
   assert.doesNotMatch(html, /inventory-value-alert/);
 });
 
+test("todos los módulos usan la misma tipografía que el Panel", () => {
+  for (const ruta of ["inventory", "cuadre", "settings"]) {
+    const html = go(ruta);
+    assert.match(html, /<main class="content dashboard-page" id="contenido">/, ruta);
+    assert.match(html, /<h2 class="dashboard-page-title">/, ruta);
+  }
+});
+
 test("el gráfico del Panel cambia período, indicador y tipo sin navegar", () => {
   const html = go("home");
   assert.match(html, /id="dashboardRange"/);
@@ -549,6 +557,7 @@ test("La tarjeta de Ajustes explica la verificación previa y ofrece Gestionar/V
   assert.match(html, /data-act="license-refresh"/);
   assert.match(html, /data-act="license-whatsapp"/);
   assert.match(html, /id="licConsent" type="checkbox"/);
+  assert.match(html, /id="licWaBtn"[^>]*disabled/);
   assert.match(html, /data-legal-doc="privacidad"/);
 });
 
@@ -653,6 +662,21 @@ await atest("La solicitud no se envía si no se autoriza el registro", async () 
   assert.equal(fetchCalls.some((c) => c.url.endsWith("/api/license/request")), false);
   assert.equal(openedUrls.length, 0);
   assert.match(app.innerHTML, /Marca primero la casilla de privacidad/);
+});
+
+await atest("El botón de WhatsApp solo se activa al marcar la casilla de autorización", async () => {
+  click({ licTab: "estado" });
+  await flush();
+  assert.match(app.innerHTML, /id="licWaBtn"[^>]*disabled/);
+  const casilla = getEl("licConsent");
+  casilla.checked = true;
+  casilla.dispatch("change", { target: casilla });
+  assert.equal(getEl("licWaBtn").disabled, false);
+  assert.equal(getEl("licWaHelp").hidden, true);
+  casilla.checked = false;
+  casilla.dispatch("change", { target: casilla });
+  assert.equal(getEl("licWaBtn").disabled, true);
+  assert.equal(getEl("licWaHelp").hidden, false);
 });
 
 await atest("Solicitar por WhatsApp registra la solicitud en el servidor y abre WhatsApp", async () => {

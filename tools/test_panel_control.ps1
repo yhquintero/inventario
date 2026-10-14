@@ -208,6 +208,28 @@ if (-not (Test-Path -LiteralPath $panel)) {
     }
 }
 
+# ----------------------------------- 3b) sondeo de puertos sin procesos externos
+Write-Host ''
+Write-Host '  Panel de Control Visual: sondeo de puertos' -ForegroundColor Cyan
+if (Get-Command Test-PuertoEscuchando -ErrorAction SilentlyContinue) {
+    $oyente = $null
+    try {
+        $oyente = New-Object System.Net.Sockets.TcpListener -ArgumentList ([System.Net.IPAddress]::Loopback), 0
+        $oyente.Start()
+        $puertoOcupado = ([System.Net.IPEndPoint]$oyente.LocalEndpoint).Port
+        Probar 'Test-PuertoEscuchando detecta un puerto en escucha' (Test-PuertoEscuchando $puertoOcupado)
+        $oyente.Stop()
+        $oyente = $null
+        Probar 'Test-PuertoEscuchando deja de verlo al cerrarlo' (-not (Test-PuertoEscuchando $puertoOcupado))
+    } catch {
+        Fallar 'Test-PuertoEscuchando' $_.Exception.Message
+    } finally {
+        if ($oyente) { try { $oyente.Stop() } catch { } }
+    }
+} else {
+    Probar 'Test-PuertoEscuchando está definida' $false
+}
+
 # ------------------------------------------- 4) características del panel visual
 Write-Host ''
 Write-Host '  Panel de Control Visual: icono de bandeja y menú' -ForegroundColor Cyan
@@ -223,6 +245,27 @@ Probar 'El menú incluye «Detener el generador (iniciar-generador-https.ps1)»'
 Probar 'El menú incluye «Iniciar todos los servicios»'              ($textoPanel -like '*Iniciar todos los servicios*')
 Probar 'El menú incluye «Reiniciar todos los servicios»'            ($textoPanel -like '*Reiniciar todos los servicios*')
 Probar 'Doble clic en el icono abre el panel'                       ($textoPanel -like '*Add_MouseDoubleClick*')
+Probar 'Clic derecho en el icono abre el menú a mano (MouseUp)'   ($textoPanel -like '*Add_MouseUp*' -and $textoPanel -like '*Mostrar-MenuBandeja*')
+Probar 'Activa una ventana propia antes de mostrar el menú'        ($textoPanel -like '*SetForegroundWindow*' -and $textoPanel -like '*ventanaOculta*')
+
+# Cuerpos de funciones concretas (para comprobar que no bloquean la ventana).
+$ini = $textoPanel.IndexOf('function Test-PuertoEscuchando {')
+$fin = if ($ini -ge 0) { $textoPanel.IndexOf('if ($SoloFunciones)', $ini) } else { -1 }
+$cuerpoSondeo = if ($ini -ge 0 -and $fin -gt $ini) { $textoPanel.Substring($ini, $fin - $ini) } else { '' }
+Probar 'El sondeo de puertos usa IPGlobalProperties (sin netstat)' ($cuerpoSondeo.Contains('GetActiveTcpListeners') -and -not $cuerpoSondeo.Contains('netstat') -and -not $cuerpoSondeo.Contains('Get-NetTCPConnection'))
+
+$ini = $textoPanel.IndexOf('function Detener-Servicio {')
+$fin = $textoPanel.IndexOf('function Reiniciar-Servicio {')
+$cuerpoDetener = if ($ini -ge 0 -and $fin -gt $ini) { $textoPanel.Substring($ini, $fin - $ini) } else { '' }
+Probar 'Detener-Servicio espera sin Start-Sleep (Esperar-Mientras)' ($cuerpoDetener.Contains('Esperar-Mientras') -and -not $cuerpoDetener.Contains('Start-Sleep'))
+
+$ini = $textoPanel.IndexOf('function Actualizar-Vista {')
+$fin = $textoPanel.IndexOf('function Registrar-CaidasPendientes {')
+$cuerpoVista = if ($ini -ge 0 -and $fin -gt $ini) { $textoPanel.Substring($ini, $fin - $ini) } else { '' }
+Probar 'Actualizar-Vista sondea los puertos una sola vez por ciclo' ($cuerpoVista.Contains('$script:puertosEnTick = Get-PuertosEscuchando'))
+Probar 'Actualizar-Vista cambia la interfaz solo si el valor cambió' ($cuerpoVista.Contains('Set-SiCambia') -and -not $cuerpoVista.Contains('.Text = $estado'))
+Probar 'Las esperas atienden la ventana mientras esperan (DoEvents)' ($textoPanel -like '*DoEvents*' -and $textoPanel -like '*function Esperar-Pausa*')
+Probar 'Impide dos operaciones a la vez (Invoke-Accion)'          ($textoPanel -like '*function Invoke-Accion*' -and $textoPanel -like '*Invoke-Accion ''detener*')
 Probar 'Cerrar la ventana oculta el panel en la bandeja'            ($textoPanel -like '*Add_FormClosing*' -and $textoPanel -like '*Ocultar-Panel*')
 Probar 'Arranca los servicios automáticamente (cola de arranque)'   ($textoPanel -like '*colaArranque*' -and $textoPanel -like '*Arranque automático de servicios*')
 Probar 'Gestiona el servidor principal por HTTPS'                   ($textoPanel -like '*iniciar-https.ps1*')
