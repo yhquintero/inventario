@@ -93,5 +93,13 @@ jobs:
               grep -A 45 'What went wrong' gradle.log | grep -v '^\s*at ' | head -60
             } | sed -e 's/%/%25/g' -e 's/\r//g' | awk 'BEGIN { ORS = "%0A" } { print }')"
             echo "::error::Gradle falló:%0A${resumen}"
+            if grep -q 'checking AAR metadata' gradle.log; then
+              # Diagnóstico: ¿qué dependencia arrastra las versiones que exigen otro AGP?
+              for dep in androidx.compose.foundation:foundation-android androidx.lifecycle:lifecycle-runtime-compose-android; do
+                gradle -q :app:dependencyInsight --configuration debugRuntimeClasspath --dependency "$dep" > insight.log 2>&1 || true
+                cuerpo="$(grep -v '^\s*$' insight.log | head -70 | sed -e 's/%/%25/g' -e 's/\r//g' | awk 'BEGIN { ORS = "%0A" } { print }')"
+                echo "::error::dependencyInsight $dep:%0A${cuerpo}"
+              done
+            fi
             exit 1
           fi
