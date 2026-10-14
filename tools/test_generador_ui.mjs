@@ -32,7 +32,7 @@ const DATOS = mkdtempSync(join(tmpdir(), "novagest-gen-ui-"));
 const MENSAJE = `Hola, solicito activar mi Licencia de NovaGest.
 
 👤 Usuario: Tienda Nova
-🆔 ID Dispositivo: web-hhsp9rqlmv5zhygs
+🆔 ID Dispositivo: WEB-HHSP-QRQL-MV5Z-HYGS-ABCD
 📦 Producto: NovaGest v1.0.0
 📅 Plan: 1 día (1 días) · FULL
 🕒 Fecha Actual: 14/10/2026, 2:53:22 p.m.`;
@@ -50,7 +50,7 @@ const puertoLibre = () => new Promise((listo, fallo) => {
 const python = process.env.PYTHON || "python3";
 const PUERTO = await puertoLibre();
 // Sin búfer: el anuncio de la interfaz llega al instante (los lanzadores usan PYTHONUNBUFFERED=1).
-const hijo = spawn(python, ["-u", join(here, "license_studio.py"), "--host", "127.0.0.1", "--port", String(PUERTO),
+const hijo = spawn(python, ["-u", join(here, "studio_de_prueba.py"), "--host", "127.0.0.1", "--port", String(PUERTO),
   "--clave", CLAVE, "--data", DATOS], { cwd: root, env: { ...process.env, PYTHONUNBUFFERED: "1" } });
 
 let salida = "";

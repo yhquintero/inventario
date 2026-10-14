@@ -13,8 +13,11 @@
   «Licencias y equipos» permite controlar todas las licencias emitidas
   (activar, renovar, revocar, reactivar, eliminar y exportar a CSV).
 
-  La clave se firma con el MISMO secreto que la instalación del cliente
-  (LICENSE_SECRET o data\license.key), así que solo verifica en ese servidor.
+  Licencias v2: cada clave se firma con la llave PRIVADA del emisor
+  (%USERPROFILE%\.novagest-emisor\license-signing-key.pem; se crea una vez con
+  «python tools\generate_license.py --init-keys» o con el botón de «Acceso y
+  datos») y se emite para UN dispositivo (el ID WEB-… o AND-… que el cliente ve
+  en su pantalla de licencia): 4 usuarios (uno por rol) y 1 dispositivo.
 
   Con -Https delega en tools\iniciar-generador-https.ps1, que sirve la
   herramienta por HTTPS con mkcert y abre el firewall (recomendado si la vas a
@@ -24,7 +27,7 @@
   Puerto de la herramienta. Por defecto 8777 (HTTP) o 8444 con -Https.
 
 .PARAMETER Datos
-  Carpeta data del servidor del cliente (secreto y solicitudes). Por defecto
+  Carpeta data del servidor (base de datos de solicitudes y licencias). Por defecto
   la del propio repositorio (data\).
 
 .PARAMETER Clave

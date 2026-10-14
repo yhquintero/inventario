@@ -25,10 +25,13 @@ Acceso:
   --clave / LICENSE_ADMIN_KEY / NOVAGEST_ADMIN_KEY / LICENSE_STUDIO_KEY o del
   archivo data/licencia-acceso.txt (se crea solo la primera vez).
 
-La clave se firma con el MISMO secreto que la instalación del cliente
-(LICENSE_SECRET / LICENSE_KEY / BACKUP_KEY o data/license.key), así que solo
-verifica en ese servidor: para generar desde otra máquina exporte el mismo
-LICENSE_SECRET o apunte --data a la carpeta data del servidor del cliente.
+Licencias v2: cada clave se FIRMA con la llave privada del emisor (ECDSA P-256, en
+~/.novagest-emisor/license-signing-key.pem o NOVAGEST_SIGNING_KEY; se crea una vez con
+«python tools/generate_license.py --init-keys» o con el botón de la pestaña «Acceso y
+datos») y se emite para UN dispositivo: el ID que el cliente ve en su pantalla de
+licencia (WEB-… en la Web, AND-… en Android). Cubre 4 usuarios (uno por rol) y 1
+dispositivo. Los servidores y la app solo tienen la llave PÚBLICA: verifican, pero no
+pueden fabricar licencias.
 
 Si encuentra data/novagest.db lista las solicitudes de licencia recibidas por
 WhatsApp (Web y Android), crea su clave en un clic con el nombre y el plazo
@@ -70,6 +73,8 @@ sys.path.insert(0, TOOLS)
 
 # Mismo plazo y firma que la Web, el servidor y tools/generate_license.py
 import generate_license as gen  # noqa: E402
+import novagest_license as lic2  # noqa: E402  (server/ ya está en sys.path gracias a generate_license)
+from novagest_license import LicenseError  # noqa: E402
 
 PRODUCT = os.environ.get("LICENSE_PRODUCT", "NovaGest")
 APP_VERSION = "1.0.0"
@@ -234,13 +239,11 @@ def login_ok(ip):
 
 # ------------------------------------------------------------------ secreto y base de datos
 def secret_source():
-    """Describe de dónde sale el secreto de firma (NUNCA muestra el valor)."""
-    for env_key in ("LICENSE_SECRET", "LICENSE_KEY", "BACKUP_KEY"):
-        if os.environ.get(env_key):
-            return f"variable de entorno {env_key}"
-    if os.path.exists(gen.LICENSE_FILE):
-        return f"archivo {gen.LICENSE_FILE}"
-    return f"se creará uno nuevo en {gen.LICENSE_FILE}"
+    """Describe la llave de firma del emisor (NUNCA muestra la llave)."""
+    st = gen.signing_status()
+    if st["ok"]:
+        return f"llave del emisor {st['path']} (kid {st['kid']})"
+    return "FALTA la llave de firma del emisor: " + st["error"]
 
 
 def db_available():
@@ -297,7 +300,9 @@ CREATE TABLE IF NOT EXISTS licenses(
   created_by TEXT,
   created_at INTEGER,
   last_verified INTEGER,
-  metadata TEXT);
+  metadata TEXT,
+  device_id TEXT,
+  platform TEXT);
 CREATE TABLE IF NOT EXISTS license_activations(
   id INTEGER PRIMARY KEY,
   license_key TEXT,
@@ -348,6 +353,7 @@ def ensure_db():
     Devuelve True si la base queda disponible.
     """
     if db_available():
+        migrate_license_columns()
         return True
     ruta = gen.db_path()
     try:
@@ -367,7 +373,26 @@ def ensure_db():
     with _LOCK:
         _DB_READY_CACHE.clear()
     DB_STATUS.update(created=nueva, tablesAdded=not nueva, error="")
-    return db_available()
+    disponible = db_available()
+    if disponible:
+        migrate_license_columns()
+    return disponible
+
+
+def migrate_license_columns():
+    """Bases anteriores a las licencias v2: añade el dispositivo a la tabla de licencias."""
+    try:
+        con = sqlite3.connect(gen.db_path(), timeout=10)
+        try:
+            cols = {r[1] for r in con.execute("PRAGMA table_info(licenses)")}
+            for col in ("device_id", "platform"):
+                if cols and col not in cols:
+                    con.execute(f"ALTER TABLE licenses ADD COLUMN {col} TEXT")
+            con.commit()
+        finally:
+            con.close()
+    except sqlite3.Error as e:
+        print(f"[GENERADOR] No se pudo actualizar la tabla de licencias: {e}", flush=True)
 
 
 def db_state():
@@ -601,8 +626,8 @@ def parse_whatsapp_request(texto, phone=""):
     texto = str(texto or "").strip()
     avisos = []
     client = _wa_campo(texto, "usuario", "cliente", "nombre", "empresa", "negocio")[:120]
-    device = _wa_campo(texto, "id dispositivo", "id de dispositivo", "id del dispositivo", "device id",
-                       "iddispositivo", "dispositivo", "id equipo", "id del equipo")[:120]
+    device = lic2.normalize_device_id(_wa_campo(texto, "id dispositivo", "id de dispositivo", "id del dispositivo", "device id",
+                                                "iddispositivo", "dispositivo", "id equipo", "id del equipo")[:120])
     producto = _wa_campo(texto, "producto", "app", "aplicacion", "aplicación")
     version = ""
     m = re.search(r"\bv?(\d+\.\d+(?:\.\d+)?)\b", producto)
@@ -617,7 +642,11 @@ def parse_whatsapp_request(texto, phone=""):
     if not client:
         avisos.append("No se reconoció el usuario: escriba «👤 Usuario: …» en el mensaje o rellene el campo Usuario.")
     if not device:
-        avisos.append("No se reconoció el ID del dispositivo: se creará uno nuevo al importar la solicitud.")
+        avisos.append("No se reconoció el ID del dispositivo: pida al cliente que copie el ID de su pantalla de licencia "
+                      "(WEB-… o AND-…). Sin él no se puede emitir la licencia.")
+    elif not lic2.valid_device_id(device):
+        avisos.append(f"El ID del dispositivo «{device}» es del formato anterior: pida al cliente que actualice la página "
+                      "(o la app) y vuelva a enviar la solicitud con su ID seguro (WEB-… o AND-…).")
     if not creado:
         avisos.append("No se reconoció la fecha del mensaje: se usará la fecha de la importación.")
         creado = int(time.time())
@@ -687,7 +716,10 @@ def import_request(datos, ip=""):
                          "o copie el mensaje completo del cliente.")
     term = term_of(datos.get("term"))
     tipo = str(datos.get("type") or "").strip().upper()
-    device = str(datos.get("deviceId") or "").strip()[:120] or f"wa-{secrets.token_hex(4)}"
+    device = lic2.normalize_device_id(datos.get("deviceId") or "")
+    if not lic2.valid_device_id(device):
+        raise ValueError("El mensaje no trae un ID de dispositivo válido (WEB-XXXX-… o AND-XXXX-…). Cada licencia se emite "
+                         "para un dispositivo: pida al cliente que copie el ID de su pantalla de licencia.")
     phone = re.sub(r"[^\d+]", "", str(datos.get("phone") or ""))[:24]
     creado = int(datos.get("createdAt") or time.time())
     datos.update({"clientName": client, "deviceId": device, "phone": phone,
@@ -734,14 +766,15 @@ def save_license_row(payload, token, term_id=None):
         try:
             con.execute(
                 "INSERT INTO licenses(key, client_name, product, type, issued_at, expires_at, max_users,"
-                " max_devices, features, active, created_by, created_at, last_verified, metadata)"
-                " VALUES(?,?,?,?,?,?,?,?,?,0,?,?,?,?)",
+                " max_devices, features, active, created_by, created_at, last_verified, metadata, device_id, platform)"
+                " VALUES(?,?,?,?,?,?,?,?,?,0,?,?,?,?,?,?)",
                 (token, payload["client_name"], payload["product"], payload["type"],
                  payload["issued_at"], payload["expires_at"], payload["max_users"], payload["max_devices"],
                  json.dumps(payload["features"], ensure_ascii=False), "license_studio.py",
                  int(time.time()), int(time.time()),
                  json.dumps({"generated_by": "license_studio.py", "license_id": payload["license_id"],
-                             "term": term_id or ""}, ensure_ascii=False)))
+                             "term": term_id or "", "kid": payload.get("kid", "")}, ensure_ascii=False),
+                 payload["device_id"], payload["platform"]))
             con.commit()
             row = con.execute("SELECT id FROM licenses WHERE key=?", (token,)).fetchone()
             return row["id"] if row else None
@@ -754,8 +787,7 @@ def save_license_row(payload, token, term_id=None):
 
 def close_request(req_id, token, license_row_id):
     """Marca la solicitud como atendida (BD del servidor o la importada sin BD)."""
-    pretty = f"NG-{token}"
-    preview = pretty[:18] + "…" + pretty[-8:] if len(pretty) > 30 else pretty
+    preview = token[:14] + "…" + token[-8:] if len(token) > 30 else token
     mem = memory_get(req_id)
     if mem is not None:
         mem.update({"status": "atendida", "handledAt": int(time.time()),
@@ -787,27 +819,22 @@ def fmt_date_long(ts):
     return time.strftime("%d/%m/%Y, %I:%M:%S %p", time.localtime(ts)) if ts else "—"
 
 
-def build_license(client, term_id, ltype=None, users=20, devices=10, features="*"):
-    """Crea el payload firmado con el MISMO formato que el servidor acepta."""
+def build_license(client, term_id, ltype=None, device_id="", features="*"):
+    """Emite la licencia v2 (firma del emisor, ligada a `device_id`, 4 usuarios · 1 dispositivo).
+
+    Lanza LicenseError si falta la llave de firma o el ID del dispositivo no es válido.
+    """
     term = term_of(term_id)
     ltype = str(ltype or term["type"] or "FULL").upper()
     if ltype not in LICENSE_TYPES:
         ltype = term["type"] if term["days"] == 0 else "FULL"
-    issued = int(time.time())
-    expires = 0 if term["days"] == 0 else issued + term["days"] * 86400
-    payload = {
-        "license_id": secrets.token_hex(8).upper(),
-        "client_name": str(client or "").strip()[:120] or "NovaGest",
-        "product": PRODUCT,
-        "type": ltype,
-        "issued_at": issued,
-        "expires_at": expires,
-        "max_users": int(users or 20),
-        "max_devices": int(devices or 10),
-        "features": [f.strip() for f in str(features or "*").split(",") if f.strip()] or ["*"],
-        "version": 1,
-    }
-    token = gen.create_token(payload)
+    if isinstance(features, str):
+        try:
+            features = json.loads(features) if features.strip().startswith("[") else features.split(",")
+        except ValueError:
+            features = features.split(",")
+    feats = [str(f).strip() for f in (features or []) if str(f).strip()] or ["*"]
+    payload, token = gen.issue(str(client or "").strip()[:120] or "NovaGest", device_id, term["days"], ltype, PRODUCT, feats)
     return term, payload, token
 
 
@@ -822,8 +849,10 @@ def key_message(client_name, key, term, payload):
         f"👤 Usuario: {str(client_name or '').strip()}",
         f"📅 Plan: {plan}",
         f"⏳ Vigencia: {vigencia}",
+        f"🆔 Dispositivo: {payload.get('device_id', '')}",
+        "👥 4 usuarios (uno por rol) · 1 dispositivo",
         "",
-        "Pega esta clave en la App en «Licencia de uso → Activar licencia»:",
+        "Pega esta clave en la App en «Licencia de uso → Activar licencia» (solo funciona en ese dispositivo):",
         "",
         str(key or "").strip(),
     ])
@@ -836,13 +865,14 @@ def whatsapp_url(message, phone=""):
     return f"https://wa.me/{num}?text={text}" if num else f"https://api.whatsapp.com/send?text={text}"
 
 
-def generate_result(client, phone, term_id, ltype=None, users=20, devices=10, features="*", request=None):
+def generate_result(client, phone, term_id, ltype=None, device_id="", features="*", request=None):
     """Genera la licencia, la registra si hay BD y devuelve todo listo para WhatsApp."""
     if request:
         client = request.get("clientName") or client
         term_id = request.get("term") or term_id
         phone = phone or request.get("phone") or ""
-    term, payload, token = build_license(client, term_id, ltype, users, devices, features)
+        device_id = device_id or request.get("deviceId") or ""
+    term, payload, token = build_license(client, term_id, ltype, device_id, features)
     msg = key_message(payload["client_name"], token, term, payload)
     row_id = save_license_row(payload, token, term["id"])
     if request:
@@ -850,7 +880,7 @@ def generate_result(client, phone, term_id, ltype=None, users=20, devices=10, fe
     return {
         "ok": True,
         "licenseKey": token,
-        "formattedKey": f"NG-{token}",
+        "formattedKey": token,
         "payload": payload,
         "term": term,
         "message": msg,
@@ -865,21 +895,8 @@ def generate_result(client, phone, term_id, ltype=None, users=20, devices=10, fe
 
 # ------------------------------------------------------------------ control de licencias emitidas
 def token_payload(token):
-    """Verifica la firma de una clave con el secreto local y devuelve su payload (o None)."""
-    try:
-        t = str(token or "").strip().replace(" ", "").replace("\n", "").replace("\r", "")
-        for pref in ("NG-", "CP-"):
-            if t.upper().startswith(pref):
-                t = t[len(pref):]
-                break
-        if "." not in t:
-            return None
-        b64, sig = t.rsplit(".", 1)
-        if not hmac.compare_digest(gen.sign(b64), sig):
-            return None
-        return json.loads(base64.urlsafe_b64decode(b64 + "=" * (-len(b64) % 4)))
-    except Exception:
-        return None
+    """Verifica la firma del emisor de una clave y devuelve su contenido (o None)."""
+    return gen.verify(token)
 
 
 def activation_public(a):
@@ -911,10 +928,10 @@ def license_public(row, activations, ts=None):
         estado, etiqueta = "revocada", "⛔ Revocada"
     elif exp and exp < ts:
         estado, etiqueta = "vencida", "⌛ Vencida" + ("" if activa else " (sin activar)")
+    elif not firma:
+        estado, etiqueta = "firma", "⚠ Clave no válida (formato anterior o de otro emisor)"
     elif not activa:
         estado, etiqueta = "emitida", "🔑 Emitida · sin activar"
-    elif not firma:
-        estado, etiqueta = "firma", "⚠ Firma no coincide"
     else:
         estado, etiqueta = "vigente", "✔ Vigente · en uso"
     dias = None if exp == 0 else max(0, int((exp - ts + 86399) // 86400))
@@ -939,6 +956,8 @@ def license_public(row, activations, ts=None):
         "stateLabel": etiqueta,
         "signatureOk": firma,
         "licenseId": (payload or {}).get("license_id") or "",
+        "deviceId": (payload or {}).get("device_id") or (row["device_id"] if "device_id" in row.keys() else "") or "",
+        "platform": (payload or {}).get("platform") or "",
         "maxUsers": row["max_users"],
         "maxDevices": row["max_devices"],
         "features": row["features"] or '["*"]',
@@ -947,8 +966,8 @@ def license_public(row, activations, ts=None):
         "lastVerified": row["last_verified"],
         "term": meta.get("term") or (term_by_days((exp - int(row["issued_at"] or 0)) // 86400)["id"] if exp else "PERMANENTE"),
         "key": row["key"] or "",
-        "formattedKey": f"NG-{row['key']}" if row["key"] and not str(row["key"]).upper().startswith(("NG-", "CP-")) else (row["key"] or ""),
-        "preview": (f"NG-{row['key']}"[:18] + "…" + f"NG-{row['key']}"[-8:]) if row["key"] and len(str(row["key"])) > 30 else (row["key"] or ""),
+        "formattedKey": row["key"] or "",
+        "preview": (str(row["key"])[:14] + "…" + str(row["key"])[-8:]) if row["key"] and len(str(row["key"])) > 30 else (row["key"] or ""),
         "devices": [a for a in activations],
         "devicesActive": len([a for a in activations if a["active"]]),
         "message": mensaje,
@@ -1028,7 +1047,9 @@ def activate_only(lic_id):
         row = con.execute("SELECT * FROM licenses WHERE id=?", (int(lic_id),)).fetchone()
         if not row:
             return None
-        con.execute("UPDATE licenses SET active=0 WHERE product=? AND id<>?", (row["product"], int(lic_id)))
+        # Un dispositivo = una licencia activa (las de otros dispositivos no se tocan).
+        if row["device_id"]:
+            con.execute("UPDATE licenses SET active=0 WHERE device_id=? AND id<>?", (row["device_id"], int(lic_id)))
         con.execute("UPDATE licenses SET active=1 WHERE id=?", (int(lic_id),))
         _set_revoked_flag(con, lic_id, False)
         con.commit()
@@ -1106,12 +1127,12 @@ def csv_licenses():
     w = csv.writer(buf, delimiter=";", lineterminator="\r\n")
     w.writerow(["Nº", "Cliente", "Producto", "Tipo", "Emitida", "Expira", "Días restantes",
                 "Estado", "Activa", "Usuarios", "Dispositivos", "Equipos", "Equipos activos",
-                "ID licencia", "Creada por", "Clave"])
+                "ID licencia", "Creada por", "ID dispositivo", "Clave"])
     for l in licencias:
         w.writerow([l["id"], l["clientName"], l["product"], l["type"], fmt_date(l["issuedAt"]),
                     l["expiresText"], l["daysLeft"] if l["daysLeft"] is not None else "∞",
                     l["stateLabel"], "Sí" if l["active"] else "No", l["maxUsers"], l["maxDevices"],
-                    len(l["devices"]), l["devicesActive"], l["licenseId"], l["createdBy"], l["formattedKey"]])
+                    len(l["devices"]), l["devicesActive"], l["licenseId"], l["createdBy"], l["deviceId"], l["formattedKey"]])
     return buf.getvalue()
 
 
@@ -1120,11 +1141,15 @@ def renew_result(lic_id, term_id, phone=""):
     row = license_row(lic_id)
     if not row:
         return None
+    anterior = token_payload(row["key"]) or {}
+    dispositivo = anterior.get("device_id") or row["device_id"] or ""
+    if not lic2.valid_device_id(dispositivo):
+        raise LicenseError("DEVICE_ID", "Esta licencia es del formato anterior y no indica dispositivo: emita una nueva "
+                                        "con el ID del dispositivo del cliente.")
     term, payload, token = build_license(
         row["client_name"], term_id,
         ltype=(row["type"] if term_of(term_id)["days"] == 0 else "FULL"),
-        users=row["max_users"] or 20, devices=row["max_devices"] or 10,
-        features=row["features"] or "*")
+        device_id=dispositivo, features=row["features"] or "*")
     msg = key_message(payload["client_name"], token, term, payload)
     nuevo_id = save_license_row(payload, token, term["id"])
     set_license_active(lic_id, False)
@@ -1134,7 +1159,7 @@ def renew_result(lic_id, term_id, phone=""):
         "ok": True,
         "action": "renew",
         "licenseKey": token,
-        "formattedKey": f"NG-{token}",
+        "formattedKey": token,
         "payload": payload,
         "term": term,
         "message": msg,
@@ -1330,6 +1355,9 @@ INDEX_HTML = r"""<!doctype html>
         <label>Nombre del cliente o empresa *
           <input id="client" required maxlength="120" placeholder="Ej: Mi Tienda" autocomplete="off">
         </label>
+        <label>ID del dispositivo del cliente *
+          <input id="device" required maxlength="40" placeholder="WEB-XXXX-XXXX-XXXX-XXXX-XXXX o AND-XXXX-…" autocomplete="off" spellcheck="false">
+        </label>
         <label>Teléfono de WhatsApp (opcional)
           <input id="phone" maxlength="24" placeholder="Ej: 5351234567 (con código de país)" autocomplete="off">
         </label>
@@ -1338,7 +1366,7 @@ INDEX_HTML = r"""<!doctype html>
         </label>
       </div>
       <details class="adv">
-        <summary>Opciones avanzadas (tipo, límites)</summary>
+        <summary>Opciones avanzadas (tipo)</summary>
         <div class="grid" style="margin-top:10px">
           <label>Tipo
             <select id="type">
@@ -1349,8 +1377,7 @@ INDEX_HTML = r"""<!doctype html>
               <option value="LIFETIME">LIFETIME (permanente)</option>
             </select>
           </label>
-          <label>Usuarios máximos <input id="users" type="number" min="1" max="9999" value="20"></label>
-          <label>Dispositivos máximos <input id="devices" type="number" min="1" max="9999" value="10"></label>
+          <p class="hint">Límites fijos de toda licencia: <b>4 usuarios (uno por rol) · 1 dispositivo</b>. La clave queda firmada para el ID indicado y no funciona en ningún otro equipo.</p>
         </div>
       </details>
       <div class="row">
@@ -1364,7 +1391,7 @@ INDEX_HTML = r"""<!doctype html>
       <div class="tags" id="result-tags"></div>
       <p class="hint" id="result-req"></p>
       <div class="keybox" id="result-key"></div>
-      <p class="hint">También es válida con el prefijo <b>NG-</b> delante (el servidor la acepta igual).</p>
+      <p class="hint">Clave v2 (empieza por <b>NG2-</b>): firmada con la llave del emisor y válida solo en el dispositivo indicado.</p>
       <div class="row">
         <button class="btn small" id="btn-copy">📋 Copiar clave</button>
         <button class="btn small" id="btn-dl">⬇ Descargar .txt</button>
@@ -1421,6 +1448,14 @@ INDEX_HTML = r"""<!doctype html>
   <section class="card" data-panel="acceso" hidden>
     <h2>🔑 Acceso y datos</h2>
     <div class="status" id="acceso-datos" style="margin-bottom:12px"></div>
+    <div class="warn" id="firma-box" hidden>
+      🔏 <b>Falta la llave de firma del emisor.</b> Sin ella no se pueden emitir licencias. Se crea una sola vez
+      en este equipo (perfil de su usuario) y su llave PÚBLICA se escribe en <code>server/license_public_keys.pem</code>
+      y en la app Android: después distribuya el servidor y recompile el APK. Haga copia de seguridad de la llave privada
+      y no la copie nunca a los equipos de los clientes.
+      <div class="row" style="margin-top:8px"><button class="btn primary small" type="button" id="btn-firma">🔏 Crear llave de firma</button>
+        <span class="hint" id="firma-msg"></span></div>
+    </div>
     <form id="key-form">
       <label>Nueva clave de acceso (mínimo 6 caracteres)
         <input id="key-new" type="text" autocomplete="new-password" placeholder="Ej: licencias-2026">
@@ -1666,12 +1701,16 @@ function loadState() {
   jget("api/state").then((s) => {
     STATE = s;
     $("status").innerHTML =
-      `<span>🔑 Secreto: <b>${esc(s.secretSource)}</b></span>` +
+      `<span>🔏 Firma: <b>${esc(s.secretSource)}</b></span>` +
       `<span>🗄️ Base de datos: <b>${esc(s.dbPath || "no encontrada")}</b></span>` +
       `<span>💬 WhatsApp: <b>${esc(s.whatsapp ? "+" + s.whatsapp : "selector de contacto")}</b></span>`;
     $("chip-proto").textContent = s.https ? "🔒 HTTPS activo" : "⚠ HTTP sin cifrar";
     $("chip-proto").className = "chip " + (s.https ? "ok" : "warn");
-    $("chip-secret").textContent = "Secreto: " + s.secretSource;
+    const firma = s.signing || {};
+    $("chip-secret").textContent = firma.ok ? "Firma del emisor: kid " + firma.kid : "Sin llave de firma";
+    $("chip-secret").className = "chip " + (firma.ok ? "ok" : "warn");
+    $("chip-secret").title = firma.ok ? "Llave privada: " + (firma.path || "") : (firma.error || "");
+    $("firma-box").hidden = !!firma.ok;
     $("chip-db").textContent = s.dbAvailable
       ? (s.dbCreated ? "BD creada y conectada" : "BD conectada")
       : "BD no disponible";
@@ -1682,7 +1721,8 @@ function loadState() {
     $("acceso-datos").innerHTML =
       `<span>Protocolo: <b>${s.https ? "HTTPS (cifrado)" : "HTTP (sin cifrar)"}</b></span>` +
       `<span>Clave de acceso: <b>${esc(s.accessKeySource || "—")}</b></span>` +
-      `<span>Secreto de firma: <b>${esc(s.secretSource)}</b></span>` +
+      `<span>Firma de licencias: <b>${esc(s.secretSource)}</b></span>` +
+      `<span>Límites de cada licencia: <b>4 usuarios (uno por rol) · 1 dispositivo</b></span>` +
       `<span>Base de datos: <b>${esc(s.dbPath || "—")}</b></span>` +
       `<span>Sesiones activas: <b>${esc(s.sessions)}</b></span>`;
     const sel = $("term");
@@ -1712,7 +1752,7 @@ function showResult(d) {
     ? `Solicitud <b>#${esc(d.request.id)}</b> de <b>${esc(d.request.clientName)}</b> · ${esc(d.request.termLabel || "")} — marcada como <b>atendida</b>.`
     : (d.renewedFrom
         ? `Renovada la licencia <b>#${esc(d.renewedFrom.id)}</b> de <b>${esc(d.renewedFrom.clientName)}</b> (vencía el ${esc(d.renewedFrom.expiresText)}) — quedó <b>revocada</b> y esta es la nueva.`
-        : `Cliente: <b>${esc(p.client_name || "")}</b> · Usuarios: ${esc(p.max_users)} · Dispositivos: ${esc(p.max_devices)}`);
+        : `Cliente: <b>${esc(p.client_name || "")}</b> · Dispositivo: <b>${esc(p.device_id || "")}</b> · ${esc(p.max_users)} usuarios (uno por rol) · ${esc(p.max_devices)} dispositivo`);
   $("result-key").textContent = d.licenseKey || "";
   $("result-msg").textContent = d.message || "";
   $("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1726,8 +1766,7 @@ $("gen-form").addEventListener("submit", async (ev) => {
     phone: $("phone").value.trim(),
     term: $("term").value,
     type: $("type").value,
-    max_users: Number($("users").value || 20),
-    max_devices: Number($("devices").value || 10),
+    device_id: $("device").value.trim(),
   }).catch(() => ({ ok: false, error: "Error de conexión con la herramienta." }));
   $("form-msg").innerHTML = d.ok
     ? `<span class="ok-msg">✔ Licencia generada — envíela por WhatsApp al cliente.</span>`
@@ -1750,9 +1789,8 @@ function downloadTxt() {
     `Licencia de ${p.product || "NovaGest"} — ${p.client_name || ""}`,
     `Tipo: ${p.type || ""} · Plan: ${(LAST.term || {}).label || ""}`,
     `Emitida: ${fmtDate(p.issued_at)} · Expira: ${fmtDate(p.expires_at)}`,
-    `ID: ${p.license_id || ""} · Usuarios: ${p.max_users} · Dispositivos: ${p.max_devices}`,
+    `ID: ${p.license_id || ""} · Dispositivo: ${p.device_id || ""} · ${p.max_users} usuarios (uno por rol) · ${p.max_devices} dispositivo`,
     "", "--- Clave (copiar completa) ---", LAST.licenseKey || "",
-    "", "--- Con prefijo NG- ---", LAST.formattedKey || "",
     "", "--- Mensaje para el cliente ---", LAST.message || "",
   ].join("\n");
   const a = document.createElement("a");
@@ -1763,6 +1801,15 @@ function downloadTxt() {
 }
 $("btn-dl").addEventListener("click", downloadTxt);
 $("btn-wa").addEventListener("click", () => { if (LAST) window.open(LAST.whatsappUrl, "_blank", "noopener"); });
+
+$("btn-firma").addEventListener("click", async () => {
+  $("firma-msg").textContent = "Creando la llave…";
+  const d = await jpost("api/signing-key/init", {}).catch(() => ({ ok: false, error: "Error de conexión con la herramienta." }));
+  $("firma-msg").innerHTML = d.ok
+    ? `<span class="ok-msg">✔ Llave ${d.created ? "creada" : "ya existente"} (kid ${esc(d.kid)}) en ${esc(d.path)}. Llave pública: ${esc(d.publicKeysFile)}</span>`
+    : `<span class="err-msg">✖ ${esc(d.error || "No se pudo crear la llave.")}</span>`;
+  if (d.ok) loadState();
+});
 $("btn-copy-wa").addEventListener("click", async () => {
   if (!LAST) return;
   await navigator.clipboard.writeText(LAST.whatsappUrl || "");
@@ -2001,7 +2048,7 @@ function renderLicenses() {
         ${l.signatureOk ? "" : `<span class="tag danger">⚠ firma no coincide con este servidor</span>`}
       </div>
       <div class="meta" style="margin-top:6px">
-        ID: ${esc(l.licenseId || "—")} · Usuarios: ${esc(l.maxUsers)} · Dispositivos: ${esc(l.maxDevices)}
+        ID: ${esc(l.licenseId || "—")} · Dispositivo: <b>${esc(l.deviceId || "—")}</b> · ${esc(l.maxUsers)} usuarios · ${esc(l.maxDevices)} dispositivo
         · Creada por: ${esc(l.createdBy || "—")} · Equipos: ${esc(l.devices.length)} (${esc(l.devicesActive)} activos)
         ${l.lastVerified ? " · Última verificación: " + esc(fmtDateTime(l.lastVerified)) : ""}
       </div>
@@ -2079,7 +2126,7 @@ $("licenses").addEventListener("click", async (ev) => {
       `Licencia de ${l.product} — ${l.clientName}`,
       `Tipo: ${l.type} · Estado: ${l.stateLabel}`,
       `Emitida: ${fmtDate(l.issuedAt)} · Expira: ${l.expiresText}`,
-      `ID: ${l.licenseId || "—"} · Usuarios: ${l.maxUsers} · Dispositivos: ${l.maxDevices}`,
+      `ID: ${l.licenseId || "—"} · Dispositivo: ${l.deviceId || "—"} · ${l.maxUsers} usuarios · ${l.maxDevices} dispositivo`,
       "", "--- Clave (copiar completa) ---", l.key || "",
     ].join("\n");
     const a = document.createElement("a");
@@ -2270,6 +2317,8 @@ class StudioHandler(BaseHTTPRequestHandler):
                 "version": APP_VERSION,
                 "product": PRODUCT,
                 "secretSource": secret_source(),
+                "signing": gen.signing_status(),
+                "limits": {"maxUsers": lic2.MAX_USERS, "maxDevices": lic2.MAX_DEVICES, "roles": list(lic2.ROLES)},
                 **db_state(),
                 "whatsapp": WHATSAPP_DEFAULT,
                 "terms": TERMS,
@@ -2341,12 +2390,16 @@ class StudioHandler(BaseHTTPRequestHandler):
             if not client:
                 self._json(400, {"ok": False, "error": "Indique el nombre o la empresa del cliente."})
                 return
-            d = generate_result(
-                client, str(b.get("phone") or ""), str(b.get("term") or "MES"),
-                ltype=str(b.get("type") or "") or None,
-                users=b.get("max_users") or 20, devices=b.get("max_devices") or 10,
-                features=str(b.get("features") or "*"),
-            )
+            try:
+                d = generate_result(
+                    client, str(b.get("phone") or ""), str(b.get("term") or "MES"),
+                    ltype=str(b.get("type") or "") or None,
+                    device_id=str(b.get("device_id") or b.get("deviceId") or ""),
+                    features=str(b.get("features") or "*"),
+                )
+            except LicenseError as e:
+                self._json(400, {"ok": False, "error": e.message, "code": e.code})
+                return
             db_audit("LICENSE_GENERATE_STUDIO",
                      f"Licencia generada desde el generador · {d['payload']['license_id']} · {client} · {d['term']['label']}",
                      self.ip())
@@ -2386,6 +2439,19 @@ class StudioHandler(BaseHTTPRequestHandler):
                              "warnings": datos.get("warnings") or [], "parsed": datos})
             return
 
+        if path == "/api/signing-key/init":
+            # Crea (una vez) la llave de firma del emisor en el perfil de este usuario y publica
+            # su llave pública para el servidor y para Android.
+            try:
+                kid, ruta, creada = gen.init_keys()
+            except Exception as e:  # noqa: BLE001
+                self._json(500, {"ok": False, "error": f"No se pudo crear la llave de firma: {e}"})
+                return
+            db_audit("LICENSE_SIGNING_KEY", f"Llave de firma del emisor {'creada' if creada else 'ya existente'} · kid {kid}", self.ip())
+            self._json(200, {"ok": True, "kid": kid, "path": ruta, "created": creada, "signing": gen.signing_status(),
+                             "publicKeysFile": lic2.PUBLIC_KEYS_FILE, "androidFile": lic2.ANDROID_KEYS_FILE})
+            return
+
         if path == "/api/access-key":
             ok, msg = save_access_key(b.get("key"))
             if ok:
@@ -2403,7 +2469,11 @@ class StudioHandler(BaseHTTPRequestHandler):
             if (req.get("status") or "pendiente") != "pendiente":
                 self._json(400, {"ok": False, "error": f"La solicitud #{req_id} ya está {req.get('status')}."})
                 return
-            d = generate_result("", str(b.get("phone") or ""), "", request=req)
+            try:
+                d = generate_result("", str(b.get("phone") or ""), "", request=req)
+            except LicenseError as e:
+                self._json(400, {"ok": False, "error": e.message, "code": e.code})
+                return
             d["request"] = request_by_id(req_id) or req      # ya marcada como atendida
             db_audit("LICENSE_REQUEST_DONE",
                      f"Solicitud #{req_id} atendida desde el generador con la licencia {d['payload']['license_id']}", self.ip())
@@ -2454,7 +2524,11 @@ class StudioHandler(BaseHTTPRequestHandler):
             if term not in [t["id"] for t in TERMS]:
                 self._json(400, {"ok": False, "error": "Plazo no válido."})
                 return
-            d = renew_result(lic_id, term, str(b.get("phone") or ""))
+            try:
+                d = renew_result(lic_id, term, str(b.get("phone") or ""))
+            except LicenseError as e:
+                self._json(400, {"ok": False, "error": e.message, "code": e.code})
+                return
             if not d:
                 self._json(404, {"ok": False, "error": f"No existe la licencia #{lic_id}."})
                 return
@@ -2544,9 +2618,8 @@ def main():
 
     if args.data:
         os.environ["DATA_DIR"] = os.path.abspath(args.data)
-        # generate_license leyó DATA_DIR al importarlo: apunta también su ruta de secreto
+        # generate_license leyó DATA_DIR al importarlo: apunta también su carpeta de datos
         gen.DATA = os.environ["DATA_DIR"]
-        gen.LICENSE_FILE = os.path.join(gen.DATA, "license.key")
     if args.whatsapp:
         WHATSAPP_DEFAULT = re.sub(r"\D", "", args.whatsapp)
 
@@ -2555,8 +2628,6 @@ def main():
     if args.ssl_cert and not (os.path.exists(args.ssl_cert) and os.path.exists(args.ssl_key)):
         sys.exit(f"No se encontró el certificado/llave: {args.ssl_cert} · {args.ssl_key}")
 
-    # El secreto debe existir antes de firmar (se crea si hace falta, igual que la CLI)
-    gen.get_secret()
     load_access_key(args.clave)
     # Base de datos de solicitudes y licencias: se crea si falta (ya no queda «sin BD»).
     ensure_db()
@@ -2575,7 +2646,10 @@ def main():
         print("  ⚠️  Sin HTTPS: la clave de acceso y las claves de licencia viajan sin cifrar en la red.")
         print("      Para HTTPS:  tools\\iniciar-generador-https.ps1  (Windows)  ó  --ssl-cert / --ssl-key")
     print(f"  Clave de acceso: {ACCESS_KEY}   ({ACCESS_KEY_SOURCE})")
-    print(f"  Secreto de firma: {secret_source()}")
+    print(f"  Firma:         {secret_source()}")
+    if not gen.signing_status()["ok"]:
+        print("  ⚠️  Sin llave de firma no se pueden emitir licencias. Créela una vez con:")
+        print("        python tools/generate_license.py --init-keys   (o el botón de «Acceso y datos»)")
     if db_available():
         nota = ("creada ahora por el generador; el servidor la completa al arrancar" if DB_STATUS.get("created")
                 else "se añadieron las tablas de licencias" if DB_STATUS.get("tablesAdded")

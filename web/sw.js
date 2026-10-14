@@ -7,12 +7,13 @@
    v12: Dashboard interactivo y nuevos recursos de categorías (renueva el caché del cliente).
    v13: solicitud de licencia con consentimiento visible y accesible en el flujo de WhatsApp.
    v14: aviso de activación explícita; ya no se ofrece una prueba automática.
-  v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos. */
-const CACHE = "novagest-v15";
+  v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos.
+  v16: licencias v2 ligadas al dispositivo (device.js: llave no exportable y pruebas firmadas). */
+const CACHE = "novagest-v16";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/ux.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
-  "./js/excel-import.js", "./js/license.js", "./js/seed-data.js",
+  "./js/excel-import.js", "./js/license.js", "./js/device.js", "./js/seed-data.js",
   "./vendor/qrcode.mjs", "./vendor/xlsx.full.min.js",
   "./public/icon-app.png", "./public/icon-192.png", "./public/icon-512.png",
 ];

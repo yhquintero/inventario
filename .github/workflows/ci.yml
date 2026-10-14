@@ -49,7 +49,7 @@ jobs:
       - name: Pruebas Python y sintaxis del servidor
         run: |
           set -e
-          bash tools/ci_paso.sh python3 -m py_compile server/novagest_server.py tools/license_studio.py
+          bash tools/ci_paso.sh python3 -m py_compile server/novagest_server.py server/novagest_license.py tools/license_studio.py tools/generate_license.py
           bash tools/ci_paso.sh python3 -m pip install -r requirements.txt
           bash tools/ci_paso.sh python3 tools/test_licencia.py
           bash tools/ci_paso.sh python3 tools/test_generador.py

@@ -8,7 +8,8 @@ Comprueba, sin tocar la Web ni el servidor HTTP de NovaGest:
   · la herramienta arranca sola y responde en su propia interfaz (/ y /api/session),
   · la CLAVE DE ACCESO protege todo: sin sesión no se ve ni se genera nada,
   · sirve por HTTPS cuando se le pasan certificado y llave (cookie Secure),
-  · genera claves con el mismo formato que verifica el servidor (HMAC-SHA256),
+  · genera claves v2 que verifica el servidor (firma ECDSA del emisor, ligadas a UN
+    dispositivo, 4 usuarios · 1 dispositivo) y exige la llave privada del emisor,
   · compone el mensaje de WhatsApp idéntico al de la Web y el enlace wa.me,
   · lista las solicitudes de la BD, crea su clave, la marca atendida y prepara el envío,
   · importa la solicitud que el cliente envió por WhatsApp («📥 Copiar desde el WhatsApp»):
@@ -28,14 +29,22 @@ import urllib.error
 import urllib.request
 
 os.environ["DATA_DIR"] = os.environ.get("DATA_DIR") or tempfile.mkdtemp(prefix="novagest-gen-")
+os.environ["NOVAGEST_NET_TIME"] = "0"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 sys.path.insert(0, os.path.join(ROOT, "server"))
 
 import novagest_server as srv  # noqa: E402  (necesita DATA_DIR antes de importar)
 import license_studio as studio  # noqa: E402
+import novagest_license as L  # noqa: E402
+from licencia_pruebas import Dispositivo, Emisor  # noqa: E402
 
 srv.init_db()
+EMISOR = Emisor().instalar()          # llave de firma de pruebas (de confianza solo en memoria)
+PC = Dispositivo("web")
+MOVIL = Dispositivo("android")
+# IDs fijos (formato v2 válido) para los mensajes de WhatsApp de ejemplo
+ID_NOVA, ID_SOL, ID_PERM = "WEB-HHSP-QRQL-MV5Z-HYGS-ABCD", "WEB-SOLA-BCDE-FGHI-JKLM-NOPQ", "AND-PERM-ANEN-TEAB-CDEF-GHIJ"
 
 ok = 0
 fail = 0
@@ -164,6 +173,9 @@ def t_interfaz_propia():
            "el diálogo debe permitir revisar usuario, plazo y teléfono antes de importar")
     _check("api/requests/import" in html and "api/requests/parse" in html, "faltan las llamadas de importación")
     _check("acceso-datos" in html, "falta el panel de acceso y datos")
+    _check('id="device"' in html and 'id="users"' not in html and 'id="devices"' not in html,
+           "el formulario debe pedir el ID del dispositivo (y ya no máximos de usuarios/dispositivos)")
+    _check('id="btn-firma"' in html and "api/signing-key/init" in html, "falta el botón para crear la llave de firma")
     _check("api/licenses" in html and "licenses.csv" in html, "faltan las llamadas de control (listar/exportar)")
     with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/favicon.svg", timeout=10) as r:
         _check(r.status == 200 and "image/svg+xml" in (r.headers.get("Content-Type") or ""), "el favicon no responde como SVG")
@@ -214,27 +226,47 @@ def t_https_protegido():
 
 
 def t_genera_y_verifica():
-    code, d, _ = api("/api/generate", {"client_name": "Tienda Nova", "term": "ANIO", "phone": "5351234567"})
+    code, d, _ = api("/api/generate", {"client_name": "Tienda Nova", "term": "ANIO", "phone": "5351234567", "device_id": PC.id})
     _check(code == 200 and d["ok"], f"no generó: {d}")
-    payload = srv.verify_license_token(d["licenseKey"])
-    _check(payload is not None, "el servidor NO reconoce la firma de la clave generada")
+    payload = L.parse_license(d["licenseKey"])
     _check(payload["client_name"] == "Tienda Nova" and payload["type"] == "FULL", "payload incorrecto")
+    _check(payload["device_id"] == PC.id and payload["platform"] == "web", "la clave no quedó ligada al dispositivo")
+    _check(payload["max_users"] == 4 and payload["max_devices"] == 1 and payload["roles"] == list(L.ROLES), "límites incorrectos")
     _check(payload["expires_at"] == payload["issued_at"] + 365 * 86400, "vencimiento no coincide con el plazo ANIO")
-    _check(d["formattedKey"] == "NG-" + d["licenseKey"], "falta el prefijo NG-")
+    _check(d["licenseKey"].startswith("NG2-") and d["formattedKey"] == d["licenseKey"], "formato de clave inesperado")
     _check(d["savedToDb"] is True, "no registró la clave en la BD")
+    row = srv.q("SELECT device_id, platform FROM licenses WHERE key=?", (d["licenseKey"],), one=True)
+    _check(row["device_id"] == PC.id and row["platform"] == "web", "la BD no guarda el dispositivo de la licencia")
+    # Sin ID de dispositivo (o con uno del formato anterior) no se emite
+    for malo in ("", "web-hhsp9rqlmv5zhygs"):
+        code, e, _ = api("/api/generate", {"client_name": "Tienda Nova", "term": "MES", "device_id": malo})
+        _check(code == 400 and e.get("code") == "DEVICE_ID", f"se emitió sin un dispositivo válido ({malo!r}): {e}")
+    # Sin la llave privada del emisor tampoco
+    ruta = os.environ["NOVAGEST_SIGNING_KEY"]
+    os.environ["NOVAGEST_SIGNING_KEY"] = os.path.join(tempfile.mkdtemp(), "no-existe.pem")
+    try:
+        code, e, _ = api("/api/generate", {"client_name": "Tienda Nova", "term": "MES", "device_id": PC.id})
+        _check(code == 400 and e.get("code") == "SIGNING_KEY_MISSING", f"se emitió sin la llave del emisor: {e}")
+        code, st, _ = api("/api/state")
+        _check(st["signing"]["ok"] is False and "FALTA" in st["secretSource"], "el estado debe avisar de que falta la llave")
+    finally:
+        os.environ["NOVAGEST_SIGNING_KEY"] = ruta
+    code, st, _ = api("/api/state")
+    _check(st["signing"]["ok"] is True and st["signing"]["kid"] == EMISOR.kid, f"estado de la firma: {st['signing']}")
 
 
 def t_mensaje_whatsapp():
-    code, d, _ = api("/api/generate", {"client_name": "Mi Tienda", "term": "MES", "phone": "5351234567"})
+    code, d, _ = api("/api/generate", {"client_name": "Mi Tienda", "term": "MES", "phone": "5351234567", "device_id": PC.id})
     _check(code == 200 and d["ok"], "no generó")
     msg = d["message"]
     _check(msg.startswith("🔐 Tu Licencia de NovaGest ya está lista."), "encabezado del mensaje incorrecto")
     _check("👤 Usuario: Mi Tienda" in msg and "📅 Plan: 1 mes (30 días) · FULL" in msg, "cuerpo del mensaje incorrecto")
     _check("⏳ Vigencia: hasta el" in msg, "falta la vigencia")
+    _check(f"🆔 Dispositivo: {PC.id}" in msg and "👥 4 usuarios (uno por rol) · 1 dispositivo" in msg, "falta el dispositivo/límites")
     _check(msg.strip().endswith(d["licenseKey"]), "el mensaje no termina con la clave")
     _check("«Licencia de uso → Activar licencia»" in msg, "falta la instrucción de activación")
     _check(d["whatsappUrl"].startswith("https://wa.me/5351234567?text="), f"enlace wa.me incorrecto: {d['whatsappUrl'][:40]}")
-    code, d2, _ = api("/api/generate", {"client_name": "Sin Tel", "term": "PERMANENTE"})
+    code, d2, _ = api("/api/generate", {"client_name": "Sin Tel", "term": "PERMANENTE", "device_id": MOVIL.id})
     _check("permanente" in d2["message"] and "LIFETIME" in d2["message"], "mensaje de permanente incorrecto")
     _check(d2["payload"]["expires_at"] == 0, "una permanente no debe expirar")
     _check(d2["whatsappUrl"].startswith("https://api.whatsapp.com/send?text="), "sin teléfono debe abrir el selector de contacto")
@@ -243,7 +275,7 @@ def t_mensaje_whatsapp():
 def t_solicitud_por_whatsapp():
     reset()
     row, dup = srv.register_license_request(
-        {"client_name": "Cliente WA", "device_id": "web-abc123", "term": "TRIMESTRE", "phone": "+53 5 555 4444"},
+        {"client_name": "Cliente WA", "device_id": MOVIL.id, "term": "TRIMESTRE", "phone": "+53 5 555 4444"},
         "127.0.0.1", "prueba")
     _check(not dup, "la solicitud no debía duplicarse")
     code, s, _ = api("/api/requests")
@@ -253,17 +285,17 @@ def t_solicitud_por_whatsapp():
     _check(d["request"]["id"] == row["id"] and d["payload"]["client_name"] == "Cliente WA", "no usó el nombre de la solicitud")
     _check("📅 Plan: 3 meses (90 días) · FULL" in d["message"], "no usó el plazo de la solicitud")
     _check(d["whatsappUrl"].startswith("https://wa.me/5355554444?text="), f"no respondió al teléfono de la solicitud: {d['whatsappUrl'][:40]}")
-    _check(srv.verify_license_token(d["licenseKey"]) is not None, "firma inválida en la clave de la solicitud")
+    _check(L.parse_license(d["licenseKey"])["device_id"] == MOVIL.id, "la clave no es para el dispositivo de la solicitud")
     r = srv.q("SELECT * FROM license_requests WHERE id=?", (row["id"],), one=True)
     _check(r["status"] == "atendida" and r["handled_by"] == "license_studio.py", "la solicitud no quedó atendida")
-    _check((r["license_preview"] or "").startswith("NG-"), "falta la vista previa de la clave")
+    _check((r["license_preview"] or "").startswith("NG2-"), "falta la vista previa de la clave")
     code, d2, _ = api(f"/api/requests/{row['id']}/generate", {})
     _check(code == 400, "no debe regenerar una solicitud ya atendida")
 
 
 def t_solicitud_estado_y_borrado():
     reset()
-    row, _ = srv.register_license_request({"client_name": "Estado", "device_id": "web-estado", "term": "MES"}, "127.0.0.1", "t")
+    row, _ = srv.register_license_request({"client_name": "Estado", "device_id": PC.id, "term": "MES"}, "127.0.0.1", "t")
     code, d, _ = api(f"/api/requests/{row['id']}/estado", {"status": "descartada"})
     _check(code == 200 and d["ok"], "no pudo descartar la solicitud")
     code, d, _ = api(f"/api/requests/{row['id']}/estado", {"status": "pendiente"})
@@ -280,7 +312,7 @@ MENSAJES_WHATSAPP = {
         "Hola, solicito activar mi Licencia de NovaGest.",
         "",
         "👤 Usuario: Tienda Nova",
-        "🆔 ID Dispositivo: web-hhsp9rqlmv5zhygs",
+        f"🆔 ID Dispositivo: {ID_NOVA}",
         "📦 Producto: NovaGest v1.0.0",
         "📅 Plan: 1 día (1 días) · FULL",
         "🕒 Fecha Actual: 14/10/2026, 2:53:22 p.m.",
@@ -289,7 +321,7 @@ MENSAJES_WHATSAPP = {
         "Hola, solicito activar mi Licencia de NovaGest.",
         "",
         "Usuario: Bodega El Sol",                      # sin emojis ni negritas
-        "ID Dispositivo: web-sol123",
+        f"ID Dispositivo: {ID_SOL.lower()}",          # en minúsculas: se normaliza
         "Producto: NovaGest v1.0.0",
         "Plan: 3 meses (90 días) · FULL",
         "Fecha Actual: 13/10/2026, 9:05:00 a. m.",
@@ -298,7 +330,7 @@ MENSAJES_WHATSAPP = {
         "*Hola, solicito activar mi Licencia de NovaGest.*",
         "",
         "*Usuario:* Mi Negocio",                       # marcado de WhatsApp
-        "*ID Dispositivo:* web-perm",
+        f"*ID Dispositivo:* {ID_PERM}",
         "*📦 Producto:* NovaGest v1.0.0",
         "*📅 Plan:* Permanente · LIFETIME",
         "*🕒 Fecha Actual:* 12/10/2026, 11:00:00 a.m.",
@@ -311,7 +343,7 @@ def t_lee_mensajes_de_whatsapp():
     """El mensaje que llega al chat se entiende sin depender de emojis ni del orden."""
     p = studio.parse_whatsapp_request(MENSAJES_WHATSAPP["Tienda Nova"])
     _check(p["clientName"] == "Tienda Nova", f"usuario leído: {p['clientName']!r}")
-    _check(p["deviceId"] == "web-hhsp9rqlmv5zhygs", f"ID de dispositivo leído: {p['deviceId']!r}")
+    _check(p["deviceId"] == ID_NOVA, f"ID de dispositivo leído: {p['deviceId']!r}")
     _check(p["term"] == "DIA" and p["days"] == 1 and p["type"] == "FULL", f"plazo leído: {p['term']} {p['type']}")
     _check(p["product"] == "NovaGest" and p["version"] == "1.0.0", f"producto/versión: {p['product']!r} {p['version']!r}")
     _check(p["warnings"] == [], f"no debía avisar de nada: {p['warnings']}")
@@ -320,6 +352,7 @@ def t_lee_mensajes_de_whatsapp():
     p2 = studio.parse_whatsapp_request(MENSAJES_WHATSAPP["Bodega El Sol"])
     _check(p2["clientName"] == "Bodega El Sol" and p2["term"] == "TRIMESTRE" and p2["days"] == 90,
            f"variante sin emojis mal leída: {p2}")
+    _check(p2["deviceId"] == ID_SOL, f"el ID en minúsculas no se normalizó: {p2['deviceId']!r}")
     _check(studio.term_of(p2["term"])["label"] == "3 meses", "el plazo leído no es el del catálogo")
 
     p3 = studio.parse_whatsapp_request(MENSAJES_WHATSAPP["Mi Negocio"])
@@ -333,6 +366,7 @@ def t_lee_mensajes_de_whatsapp():
     raro = studio.parse_whatsapp_request("Usuario: Otro\nID Dispositivo: web-1\nPlan: 45 días")
     _check(raro["term"] == "MES" and any("no es uno de los 8" in w for w in raro["warnings"]),
            f"un plazo no estándar debe avisarse: {raro['warnings']}")
+    _check(any("formato anterior" in w for w in raro["warnings"]), f"un ID antiguo debe avisarse: {raro['warnings']}")
 
 
 def t_importar_desde_whatsapp():
@@ -340,7 +374,7 @@ def t_importar_desde_whatsapp():
     reset()
     code, d, _ = api("/api/requests/parse", {"message": MENSAJES_WHATSAPP["Tienda Nova"]})
     _check(code == 200 and d["ok"] and d["parsed"]["clientName"] == "Tienda Nova", f"no leyó el mensaje: {d}")
-    _check(d["parsed"]["deviceId"] == "web-hhsp9rqlmv5zhygs", "el diálogo no recibe el ID del dispositivo")
+    _check(d["parsed"]["deviceId"] == ID_NOVA, "el diálogo no recibe el ID del dispositivo")
 
     code, d, _ = api("/api/requests/import", {"message": MENSAJES_WHATSAPP["Tienda Nova"], "phone": "5351234567"})
     _check(code == 200 and d["ok"] and d["savedToDb"] is True, f"no importó la solicitud: {d}")
@@ -359,16 +393,20 @@ def t_importar_desde_whatsapp():
     _check(code == 200 and g["ok"], f"no creó la clave de la solicitud importada: {g}")
     _check(g["payload"]["client_name"] == "Tienda Nova" and g["payload"]["type"] == "FULL", "no usó los datos del mensaje")
     _check(g["term"]["id"] == "DIA" and "📅 Plan: 1 día (1 días) · FULL" in g["message"], "no usó el plazo pedido")
-    _check(srv.verify_license_token(g["licenseKey"]) is not None, "la clave de la solicitud importada no verifica")
+    _check(L.parse_license(g["licenseKey"])["device_id"] == ID_NOVA, "la clave de la solicitud importada no es para su dispositivo")
     _check(g["whatsappUrl"].startswith("https://wa.me/5351234567?text="), "no prepara el reenvío al teléfono del cliente")
     _check(g["request"]["status"] == "atendida", "la solicitud importada no quedó atendida")
     r = srv.q("SELECT * FROM license_requests WHERE id=?", (req["id"],), one=True)
     _check(r["status"] == "atendida" and r["handled_by"] == "license_studio.py", "la solicitud no quedó atendida en la BD")
 
-    code, d, _ = api("/api/requests/import", {"message": "Hola, quiero una licencia", "client_name": "Sin Nombre"})
+    code, d, _ = api("/api/requests/import", {"message": f"Hola, quiero una licencia\nID Dispositivo: {ID_SOL}", "client_name": "Sin Nombre"})
     _check(code == 200 and d["ok"] and d["request"]["clientName"] == "Sin Nombre",
            "el nombre escrito a mano debe mandar sobre lo leído del mensaje")
     _check(d["warnings"], "debe devolver los avisos de lo que no reconoció")
+    code, d, _ = api("/api/requests/import", {"message": "Hola, quiero una licencia", "client_name": "Sin Dispositivo"})
+    _check(code == 400 and "ID de dispositivo" in d["error"], f"sin ID de dispositivo no debe importarse: {d}")
+    code, d, _ = api("/api/requests/import", {"message": "Usuario: Viejo\nID Dispositivo: web-hhsp9rqlmv5zhygs"})
+    _check(code == 400 and "ID de dispositivo" in d["error"], f"un ID del formato anterior no debe importarse: {d}")
     code, d, _ = api("/api/requests/import", {"message": "Hola, quiero una licencia"})
     _check(code == 400 and not d["ok"], "sin usuario reconocido ni escrito debe rechazarse")
     code, d, _ = api("/api/requests/import", {"message": "   "})
@@ -398,7 +436,7 @@ def t_importar_sin_bd():
 
         code, g, _ = api(f"/api/requests/{req['id']}/generate", {})
         _check(code == 200 and g["ok"] and g["savedToDb"] is False, f"no creó la clave sin BD: {g}")
-        _check(srv.verify_license_token(g["licenseKey"]) is not None, "la clave creada sin BD no verifica en el servidor")
+        _check(L.parse_license(g["licenseKey"])["device_id"] == ID_SOL, "la clave creada sin BD no verifica en el servidor")
         _check(g["term"]["id"] == "TRIMESTRE" and g["request"]["status"] == "atendida", "no usó el plazo del mensaje o no la cerró")
 
         code, d, _ = api(f"/api/requests/{req['id']}/estado", {"status": "pendiente"})
@@ -421,15 +459,14 @@ def _con_datos_en(carpeta):
     """Apunta temporalmente el generador a otra carpeta data (y la deja como estaba)."""
     class _Ctx:
         def __enter__(self):
-            self.prev = (studio.gen.DATA, studio.gen.LICENSE_FILE)
+            self.prev = studio.gen.DATA
             studio.gen.DATA = carpeta
-            studio.gen.LICENSE_FILE = os.path.join(carpeta, "license.key")
             with studio._LOCK:
                 studio._DB_READY_CACHE.clear()
             return self
 
         def __exit__(self, *exc):
-            studio.gen.DATA, studio.gen.LICENSE_FILE = self.prev
+            studio.gen.DATA = self.prev
             with studio._LOCK:
                 studio._DB_READY_CACHE.clear()
             return False
@@ -458,7 +495,7 @@ def t_crea_la_bd_si_falta():
         finally:
             con.close()
         # Con la BD creada se registran las licencias emitidas y las solicitudes importadas.
-        code, g, _ = api("/api/generate", {"client_name": "Tienda Nueva", "term": "MES"})
+        code, g, _ = api("/api/generate", {"client_name": "Tienda Nueva", "term": "MES", "device_id": PC.id})
         _check(code == 200 and g["ok"] and g.get("savedToDb") is not False, f"la licencia no quedó registrada en la BD nueva: {g}")
         code, lic, _ = api("/api/licenses")
         _check(lic["dbAvailable"] is True and any(x["clientName"] == "Tienda Nueva" for x in lic["licenses"]),
@@ -502,7 +539,7 @@ def t_bd_antigua_cuadre():
 
 def t_control_de_licencias():
     reset()
-    code, g, _ = api("/api/generate", {"client_name": "Control SL", "term": "SEMANA"})
+    code, g, _ = api("/api/generate", {"client_name": "Control SL", "term": "SEMANA", "device_id": PC.id})
     _check(code == 200 and g["ok"], "no generó la licencia de control")
     lid = g["licenseRowId"]
     _check(lid, "no registró la licencia en la BD")
@@ -519,11 +556,11 @@ def t_control_de_licencias():
     _check(code == 200 and d["ok"], "no pudo poner la licencia como activa")
     lic = next(l for l in api("/api/licenses")[1]["licenses"] if l["id"] == lid)
     _check(lic["active"] is True and lic["state"] == "vigente", "la licencia activada no figura vigente")
-    _check(srv.get_active_license_info()["valid"] is True, "el servidor no la reconoce como licencia activa")
+    _check(srv.check_device_license(PC.id)["valid"] is True, "el servidor no la reconoce como licencia activa del dispositivo")
 
     code, r, _ = api(f"/api/licenses/{lid}/renew", {"term": "DOS_ANIOS"})
     _check(code == 200 and r["ok"] and r["action"] == "renew", f"no renovó: {r}")
-    _check(srv.verify_license_token(r["licenseKey"]) is not None, "la clave renovada no verifica en el servidor")
+    _check(L.parse_license(r["licenseKey"])["device_id"] == PC.id, "la clave renovada no es para el mismo dispositivo")
     _check(r["payload"]["expires_at"] > g["payload"]["expires_at"], "la renovación no alarga la vigencia")
     _check(r["renewedFrom"]["id"] == lid, "la renovación no indica de qué licencia viene")
     vieja = next(l for l in api("/api/licenses")[1]["licenses"] if l["id"] == lid)
@@ -547,16 +584,16 @@ def t_control_de_licencias():
 
 def t_equipos_y_csv():
     reset()
-    code, g, _ = api("/api/generate", {"client_name": "Equipos SL", "term": "MES"})
+    code, g, _ = api("/api/generate", {"client_name": "Equipos SL", "term": "MES", "device_id": MOVIL.id})
     lid = g["licenseRowId"]
     api(f"/api/licenses/{lid}/activate", {})
     # El cliente activa la clave desde la Web/Android: el servidor registra el equipo
     srv.q("INSERT INTO license_activations(license_key, license_id, device_id, device_info, ip, activated_at, last_seen, active)"
-          " VALUES(?,?,?,?,?,?,?,1)", (g["licenseKey"], lid, "web-equipo1", "Chrome", "192.168.1.20",
+          " VALUES(?,?,?,?,?,?,?,1)", (g["licenseKey"], lid, MOVIL.id, "Android", "192.168.1.20",
                                        int(time.time()), int(time.time())))
     lic = next(l for l in api("/api/licenses")[1]["licenses"] if l["id"] == lid)
     _check(len(lic["devices"]) == 1 and lic["devicesActive"] == 1, "no lista el equipo que activó la licencia")
-    _check(lic["devices"][0]["deviceId"] == "web-equipo1", "el equipo listado no es el esperado")
+    _check(lic["devices"][0]["deviceId"] == MOVIL.id and lic["deviceId"] == MOVIL.id, "el equipo listado no es el esperado")
     act_id = lic["devices"][0]["id"]
     code, d, _ = api(f"/api/activations/{act_id}/revoke", {})
     _check(code == 200 and d["ok"], "no pudo quitar el equipo")
@@ -576,6 +613,45 @@ def t_exportar_csv():
     _check(texto.splitlines()[0].startswith("Nº;Cliente;Producto;Tipo"), f"cabeceras del CSV inesperadas: {texto[:60]}")
     _check("Equipos SL" in texto, "el CSV no incluye la licencia generada")
     _check(texto.count("\n") >= 2, "el CSV no trae filas")
+
+
+def t_llave_de_firma():
+    """El botón «Crear llave de firma» crea la llave del emisor y publica la pública (rutas temporales)."""
+    carpeta = tempfile.mkdtemp(prefix="novagest-firma-")
+    prev = (os.environ["NOVAGEST_SIGNING_KEY"], L.PUBLIC_KEYS_FILE, L.ANDROID_KEYS_FILE, dict(L.PUBLIC_KEYS))
+    os.environ["NOVAGEST_SIGNING_KEY"] = os.path.join(carpeta, "emisor", "license-signing-key.pem")
+    L.PUBLIC_KEYS_FILE = os.path.join(carpeta, "license_public_keys.pem")
+    L.ANDROID_KEYS_FILE = os.path.join(carpeta, "LicensePublicKeys.kt")
+    try:
+        code, st, _ = api("/api/state")
+        _check(st["signing"]["ok"] is False, "sin llave el estado debe avisar")
+        code, d, _ = api("/api/signing-key/init", {})
+        _check(code == 200 and d["ok"] and d["created"] is True, f"no creó la llave: {d}")
+        _check(os.path.exists(os.environ["NOVAGEST_SIGNING_KEY"]), "no escribió la llave privada")
+        _check(d["kid"] in L.load_public_keys(L.PUBLIC_KEYS_FILE), "no publicó la llave pública para el servidor")
+        _check(d["kid"] in open(L.ANDROID_KEYS_FILE, encoding="utf-8").read(), "no publicó la llave pública para Android")
+        code, st, _ = api("/api/state")
+        _check(st["signing"]["ok"] is True and st["signing"]["kid"] == d["kid"], f"la llave nueva no quedó activa: {st['signing']}")
+        code, g, _ = api("/api/generate", {"client_name": "Con llave nueva", "term": "MES", "device_id": PC.id})
+        _check(code == 200 and L.parse_license(g["licenseKey"])["kid"] == d["kid"], f"no firmó con la llave nueva: {g}")
+        code, d2, _ = api("/api/signing-key/init", {})
+        _check(code == 200 and d2["created"] is False and d2["kid"] == d["kid"], "repetir no debe cambiar la llave")
+    finally:
+        os.environ["NOVAGEST_SIGNING_KEY"], L.PUBLIC_KEYS_FILE, L.ANDROID_KEYS_FILE, llaves = prev
+        L.PUBLIC_KEYS.clear()
+        L.PUBLIC_KEYS.update(llaves)
+
+
+def t_solicitud_antigua():
+    """Una solicitud con el ID del formato anterior no se puede atender: hay que pedir una nueva."""
+    reset()
+    srv.q("INSERT INTO license_requests(client_name, device_id, term, term_label, license_type, days, status, created_at)"
+          " VALUES('Antigua','web-hhsp9rqlmv5zhygs','MES','1 mes','FULL',30,'pendiente',?)", (int(time.time()),))
+    rid = srv.q("SELECT id FROM license_requests WHERE client_name='Antigua'", one=True)["id"]
+    code, d, _ = api(f"/api/requests/{rid}/generate", {})
+    _check(code == 400 and d.get("code") == "DEVICE_ID", f"se emitió para un ID antiguo: {d}")
+    _check(srv.q("SELECT status FROM license_requests WHERE id=?", (rid,), one=True)["status"] == "pendiente",
+           "la solicitud no debe cerrarse si no se emitió")
 
 
 def t_clave_de_acceso_cambiable():
@@ -630,7 +706,7 @@ login()  # a partir de aquí se prueba todo con sesión de administrador
 for nombre, fn in [
     ("sin sesión no se genera, no se revoca y no se exporta", t_fuera_de_sesion_no_toca_nada),
     ("sirve por HTTPS y la cookie de sesión es Secure", t_https_protegido),
-    ("genera claves que el servidor verifica (misma firma)", t_genera_y_verifica),
+    ("genera claves v2 que el servidor verifica (firma del emisor, ligadas al dispositivo)", t_genera_y_verifica),
     ("mensaje de WhatsApp y enlace wa.me listos para enviar", t_mensaje_whatsapp),
     ("atender una solicitud recibida y enviarla por WhatsApp", t_solicitud_por_whatsapp),
     ("descartar, reabrir y eliminar solicitudes", t_solicitud_estado_y_borrado),
@@ -643,6 +719,8 @@ for nombre, fn in [
     ("equipos de una licencia: listar y quitar", t_equipos_y_csv),
     ("exportar la hoja de control a CSV", t_exportar_csv),
     ("cambiar la clave de acceso", t_clave_de_acceso_cambiable),
+    ("crear la llave de firma del emisor desde la interfaz", t_llave_de_firma),
+    ("una solicitud con un ID del formato anterior no se atiende", t_solicitud_antigua),
 ]:
     test(nombre, fn)
 

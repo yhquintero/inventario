@@ -87,13 +87,17 @@ globalThis.fetch = async (url, opts = {}) => {
   try { if (opts.body) sent = JSON.parse(opts.body); } catch { sent = opts.body; }
   fetchCalls.push({ url: u, method: (opts.method || "GET").toUpperCase(), body: sent });
   let data = {};
-  if (u.includes("/api/license/status")) {
-    data = { valid: true, hasLicense: true, clientName: "Prueba", product: "NovaGest", type: "FULL", daysLeft: -1, whatsapp: "5355551234", terms: [{ id: "MES", label: "1 mes", days: 30, type: "FULL" }, { id: "ANIO", label: "1 año", days: 365, type: "FULL" }, { id: "PERMANENTE", label: "Permanente", days: 0, type: "LIFETIME" }] };
+  if (u.includes("/api/license/challenge")) {
+    data = { nonce: "desafio-" + fetchCalls.length, expiresIn: 120, serverTime: Date.now() };
+  } else if (u.includes("/api/license/proof")) {
+    data = { ok: true, proofMaxAge: 900 };
+  } else if (u.includes("/api/license/status")) {
+    data = { valid: true, hasLicense: true, clientName: "Prueba", product: "NovaGest", type: "FULL", daysLeft: -1, maxUsers: 4, maxDevices: 1, platform: "web", deviceId: opts.headers?.["X-NG-Device"] || "", whatsapp: "5355551234", terms: [{ id: "MES", label: "1 mes", days: 30, type: "FULL" }, { id: "ANIO", label: "1 año", days: 365, type: "FULL" }, { id: "PERMANENTE", label: "Permanente", days: 0, type: "LIFETIME" }] };
   } else if (u.includes("/api/license/info")) {
     data = {
       licenses: [
-        { id: 1, key: "CP-AAAA.BBBB", keyPreview: "CP-AAAA...BBBB", client_name: "Cliente Uno", product: "NovaGest", type: "ENTERPRISE", issued_at: 1700000000, expires_at: 0, active: 1, max_users: 20, max_devices: 10 },
-        { id: 2, key: "CP-CCCC.DDDD", keyPreview: "CP-CCCC...DDDD", client_name: "Cliente Dos", product: "NovaGest", type: "TRIAL", issued_at: 1700000000, expires_at: 4102444800, active: 0, max_users: 5, max_devices: 3 },
+        { id: 1, key: "NG2-AAAA.BBBB", keyPreview: "NG2-AAAA…BBBB", client_name: "Cliente Uno", product: "NovaGest", type: "ENTERPRISE", issued_at: 1700000000, expires_at: 0, active: 1, max_users: 4, max_devices: 1, device_id: "WEB-AAAA-BBBB-CCCC-DDDD-EEEE", platform: "web", signatureValid: true },
+        { id: 2, key: "NG2-CCCC.DDDD", keyPreview: "NG2-CCCC…DDDD", client_name: "Cliente Dos", product: "NovaGest", type: "TRIAL", issued_at: 1700000000, expires_at: 4102444800, active: 0, max_users: 4, max_devices: 1, device_id: "AND-AAAA-BBBB-CCCC-DDDD-EEEE", platform: "android", signatureValid: true },
       ],
       activations: [
         { id: 1, license_id: 1, device_id: "web-hhsp9rqlmv5zhygs", device_info: "Mozilla/5.0 Chrome", ip: "10.0.0.5", activated_at: 1791855857, last_seen: 1791855999, active: 1 },
@@ -112,8 +116,8 @@ globalThis.fetch = async (url, opts = {}) => {
   } else if (/\/api\/license\/requests\/\d+$/.test(u)) {
     data = { ok: true, deleted: 1, counts: { pendiente: 0, atendida: 1, descartada: 0, total: 1 }, requests: [] };
   } else if (/\/api\/license\/generate$/.test(u)) {
-    data = { ok: true, license_key: "eyJjbGllbnQifQ.firma", formattedKey: "NG-eyJjbGllbnQifQ.firma", requestId: sent?.request_id || null,
-      payload: { license_id: "ABCD1234EFGH5678", client_name: sent?.client_name || "Tienda Nova", product: "NovaGest", type: sent?.type || "FULL", issued_at: 1791855900, expires_at: 1794447900, max_users: 20, max_devices: 10 },
+    data = { ok: true, license_key: "NG2-eyJjbGllbnQifQ.firma", formattedKey: "NG2-eyJjbGllbnQifQ.firma", requestId: sent?.request_id || null,
+      payload: { license_id: "ABCD1234EFGH5678", client_name: sent?.client_name || "Tienda Nova", product: "NovaGest", type: sent?.type || "FULL", issued_at: 1791855900, expires_at: 1794447900, max_users: 4, max_devices: 1, device_id: "WEB-HHSP-QRQL-MV5Z-HYGS-ABCD", platform: "web" },
       request: { id: 7, clientName: "Tienda Nova", termLabel: "1 mes", term: "MES", phone: "5351234567", status: "atendida" } };
   } else if (u.includes("/api/license/delete-all")) {
     data = { ok: true, deleted: 2, activations: 0 };
@@ -132,6 +136,9 @@ globalThis.URL.revokeObjectURL = () => {};
 /* ----------------------------- estado de prueba ----------------------------- */
 const { store } = await import(pathToFileURL(join(tmp, "js/store.js")).href);
 const { LicenseManager } = await import(pathToFileURL(join(tmp, "js/license.js")).href);
+// La identidad del dispositivo (WebCrypto) se crea antes de cargar la app, como al abrir la Web.
+const { initDevice } = await import(pathToFileURL(join(tmp, "js/device.js")).href);
+await initDevice();
 const state = {
   products: [
     { id: "p1", name: "PANEL SOLAR 500W", category: "Solar / Energía", stockInicial: 15, stockActual: 15, stocks: { w1: 12, w2: 3 }, stocksInicial: { w1: 15, w2: 0 }, precioVentaUsd: 100, precioVenta2Usd: 0, precioCostoUsd: 60, comisionCup: 5, minStock: 1, observaciones: "", barcode: "7501234567890", deletedAt: null, createdAt: 1 },
@@ -541,7 +548,7 @@ console.log("\nWeb · Licencia de uso: Gestionar, solicitudes y claves\n");
 
 test("La activación no promete una prueba automática", () => {
   const source = readFileSync(join(root, "web/js/app.js"), "utf8");
-  assert.ok(source.includes("La licencia solo se activa al introducir arriba una clave válida proporcionada por un administrador."));
+  assert.ok(source.includes("La licencia solo se activa al introducir arriba esa clave"));
   assert.ok(!source.includes("Prueba automática:"), "no debe anunciarse una prueba que ya no se crea");
 });
 
@@ -593,7 +600,8 @@ await atest("El panel lista las licencias con Nº y las columnas Cliente/Tipo/Ex
   await flush();
   const html = app.innerHTML;
   assert.match(html, /Licencias creadas · 2/);
-  assert.match(html, /<th>Nº<\/th><th>Cliente<\/th><th>Tipo<\/th><th>Expira<\/th><th>Activa<\/th><th>Clave<\/th>/);
+  assert.match(html, /<th>Nº<\/th><th>Cliente<\/th><th>Dispositivo<\/th><th>Tipo<\/th><th>Expira<\/th><th>Activa<\/th><th>Clave<\/th>/);
+  assert.match(html, /WEB-AAAA-BBBB-CCCC-DDDD-EEEE/);
   assert.match(html, />1<\/td>\s*<td>Cliente Uno</);
   assert.match(html, />2<\/td>\s*<td>Cliente Dos</);
   assert.match(html, /Equipos activados · 1/);
@@ -800,6 +808,67 @@ test("Licencia: solicitud por WhatsApp con plazos y paso de activación", () => 
   assert.match(html, /data-act="license-whatsapp"/);
   assert.match(html, /data-lic-term=/);
   assert.match(html, /Web v1\.0\.0/);
+});
+
+console.log("\nWeb · Licencias v2: 4 usuarios, 1 dispositivo y prueba del dispositivo\n");
+
+test("La licencia muestra los límites fijos (4 usuarios, 1 por rol · 1 dispositivo) y el ID seguro", () => {
+  const html = go("settings");
+  assert.match(html, /4 usuarios \(1 por rol\) · 1 dispositivo/);
+  assert.doesNotMatch(html, /Usuarios \/ Dispositivos/, "ya no se muestran los límites antiguos 20/10");
+  assert.match(html, /WEB-[A-Z2-7]{4}(-[A-Z2-7]{4}){4}/, "debe mostrarse el ID seguro de este dispositivo");
+});
+
+await atest("Generar exige el ID del dispositivo y ya no ofrece máximos de usuarios/dispositivos", async () => {
+  go("license");
+  click({ licTab: "generar" });
+  await flush();
+  const html = app.innerHTML;
+  assert.match(html, /name="device_id"/);
+  assert.doesNotMatch(html, /name="max_users"|name="max_devices"/);
+  assert.match(html, /Límites fijos de toda licencia/);
+});
+
+await atest("Usuarios: aviso de la licencia (4 activos, uno por rol) y marca de los sobrantes", async () => {
+  store.state.users = [
+    { id: 1, username: "admin", displayName: "Admin", role: "ADMINISTRADOR", active: 1 },
+    { id: 2, username: "jefe", displayName: "Jefe", role: "JEFE", active: 1 },
+    { id: 5, username: "jefe2", displayName: "Jefe 2", role: "JEFE", active: 1 },
+  ];
+  store.licenseLimit = { maxUsers: 4, perRole: 1, licensed: [1, 2], unlicensed: [5] };
+  const html = go("users");
+  assert.match(html, /4 usuarios activos, uno por rol/);
+  assert.match(html, /Fuera de licencia/);
+  assert.match(html, /1 usuario\(s\) fuera de la licencia/);
+});
+
+test("El mensaje con la clave indica el dispositivo y los límites", () => {
+  const msg = LicenseManager.keyMessage({ clientName: "Tienda", key: "NG2-x.y", term: "MES", expiresText: "hasta el 01/01/2027", device: "WEB-AAAA-BBBB-CCCC-DDDD-EEEE" });
+  assert.match(msg, /🆔 Dispositivo: WEB-AAAA-BBBB-CCCC-DDDD-EEEE/);
+  assert.match(msg, /👥 4 usuarios \(uno por rol\) · 1 dispositivo/);
+  assert.ok(msg.trim().endsWith("NG2-x.y"));
+});
+
+await atest("Entrar firma un desafío del servidor con la llave del dispositivo", async () => {
+  fetchCalls.length = 0;
+  await store.login("jefe", "Jefe123!");
+  const reto = fetchCalls.find((c) => c.url.endsWith("/api/license/challenge"));
+  const login = fetchCalls.find((c) => c.url.endsWith("/api/login"));
+  assert.ok(reto && reto.body.purpose === "login", `llamadas: ${JSON.stringify(fetchCalls.map((c) => c.url))}`);
+  assert.ok(login && login.body.deviceProof, "el login debe llevar la prueba del dispositivo");
+  const p = login.body.deviceProof;
+  assert.equal(p.purpose, "login");
+  assert.equal(p.nonce, "desafio-" + (fetchCalls.indexOf(reto) + 1), "debe firmar el desafío que dio el servidor");
+  assert.match(p.deviceId, /^WEB-[A-Z2-7]{4}(-[A-Z2-7]{4}){4}$/);
+  assert.ok(p.signature && p.spki && p.clientTime, "faltan la firma, la llave pública o la hora del dispositivo");
+});
+
+test("La API renueva la prueba del dispositivo (428) y repite la petición", () => {
+  const apiSrc = readFileSync(join(root, "web/js/api.js"), "utf8");
+  assert.match(apiSrc, /DEVICE_PROOF_REQUIRED/);
+  assert.match(apiSrc, /\/license\/proof/);
+  const dev = readFileSync(join(root, "web/js/device.js"), "utf8");
+  assert.match(dev, /generateKey\(\{ name: "ECDSA", namedCurve: "P-256" \}, false/, "la llave del dispositivo debe ser NO exportable");
 });
 
 console.log("\nWeb · PWA sin conexión y metadatos\n");

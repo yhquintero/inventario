@@ -204,9 +204,24 @@ function shell(body) {
   `;
 }
 
+/** Aviso sobre la identidad de este dispositivo (la licencia queda ligada a él). */
+function deviceNotice() {
+  const d = LicenseManager.deviceState();
+  if (d.error) return `<div class="banner">⛔ ${esc(d.error)}</div>`;
+  if (d.ephemeral) return `<div class="banner">⚠ Este navegador no permite guardar la identidad del dispositivo (¿modo privado o incógnito?). Abra NovaGest en una ventana normal: si no, el ID cambiará y la licencia dejará de funcionar.</div>`;
+  return `<p class="hint">🔒 La licencia queda ligada a <b>este navegador en esta PC</b> (4 usuarios, uno por rol · 1 dispositivo). No borre los datos de navegación de este sitio ni use el modo privado: el equipo tendría otro ID y necesitaría una licencia nueva.</p>`;
+}
+
+/** ¿ID seguro de dispositivo (licencias v2)? WEB-XXXX-XXXX-XXXX-XXXX-XXXX o AND-… */
+const validDeviceId = (id) => /^(WEB|AND)-[A-Z2-7]{4}(-[A-Z2-7]{4}){4}$/.test(String(id || ""));
+
+/** Texto fijo de los límites de toda licencia. */
+const LICENSE_LIMITS_TEXT = "4 usuarios (1 por rol) · 1 dispositivo";
+const platformLabel = (p) => (p === "android" ? "Android (teléfono/tableta)" : p === "web" ? "Web (navegador de la PC)" : "—");
+
 function licenseRequestCard(st) {
   const terms = LicenseManager.serverTerms(st);
-  const device = LicenseManager.deviceId();
+  const device = LicenseManager.deviceId() || "(identificando el dispositivo…)";
   const sel = ui.license.reqTerm || "MES";
   const autorizado = !!ui.license.reqConsent;
   return `
@@ -226,7 +241,8 @@ function licenseRequestCard(st) {
       </label>
       <button type="button" class="btn full btn-wa" id="licWaBtn" data-act="license-whatsapp" aria-describedby="licWaHelp" ${autorizado ? "" : "disabled"}>💬 SOLICITAR POR WHATSAPP</button>
       <p class="hint mt8" id="licWaHelp" ${autorizado ? "hidden" : ""}>Marca primero la casilla de autorización: así se activa el botón y la solicitud puede enviarse por WhatsApp.</p>
-      <p class="hint mt8">Se abre WhatsApp con tu nombre, ID de dispositivo y plazo ya escritos${st?.whatsapp ? " al número de NovaGest" : ""}. Si autorizas el registro, la solicitud también queda disponible para el administrador en <b>Gestionar → Solicitudes</b>.</p>
+      <p class="hint mt8">Se abre WhatsApp con tu nombre, ID de dispositivo y plazo ya escritos${st?.whatsapp ? " al número de NovaGest" : ""}. La clave que recibas solo funcionará en este dispositivo. Si autorizas el registro, la solicitud también queda disponible para el administrador en <b>Gestionar → Solicitudes</b>.</p>
+      ${deviceNotice()}
     </div>`;
 }
 
@@ -313,19 +329,18 @@ function licenseStatusTab() {
         ${kpi("Cliente", esc(st.clientName || "—"), esc(st.product || ""))}
         ${kpi("Plan", esc(st.type || "—"), days === -1 ? "Permanente" : `${days} día(s) restantes`)}
         ${kpi("Vence", expText, st.expiresAt ? LicenseManager.fmtDate(st.issuedAt) : "sin caducidad")}
-        ${kpi("Límites", `${st.maxUsers ?? "—"} / ${st.maxDevices ?? "—"}`, "usuarios / dispositivos")}
+        ${kpi("Límites", LICENSE_LIMITS_TEXT, platformLabel(st.platform))}
       </div>
-      <p class="hint mt10">ID de licencia · <b class="mono">${esc(st.licenseId || "")}</b> · comprobada ${st.offline ? "en la caché local (sin conexión)" : "en el servidor"}${st.checkedAt ? ` · ${new Date(st.checkedAt).toLocaleString("es-CU")}` : ""}</p>
-      <p class="hint">Este equipo · <b class="mono">${esc(LicenseManager.deviceId())}</b> <button type="button" class="btn ghost small" data-act="license-copy-device">Copiar</button> <span class="hint">(el ID identifica a este dispositivo en las activaciones)</span></p>
+      <p class="hint mt10">ID de licencia · <b class="mono">${esc(st.licenseId || "")}</b> · comprobada ${st.offline ? "en la caché local (sin conexión)" : "en el servidor (hora de confianza)"}${st.checkedAt ? ` · ${new Date(st.checkedAt).toLocaleString("es-CU")}` : ""}</p>
+      <p class="hint">Este dispositivo · <b class="mono">${esc(LicenseManager.deviceId())}</b> <button type="button" class="btn ghost small" data-act="license-copy-device">Copiar</button> <span class="hint">(la licencia se emitió para este ID y solo funciona aquí)</span></p>
       ${LicenseManager.isExpiringSoon(st) ? `<div class="banner">⚠ La licencia vence en ${days} días. Renuévela antes de que expire para no bloquear el acceso.</div>` : ""}
-    ` : `<div class="banner">⛔ No hay licencia válida. Active una clave para poder entrar al sistema.</div>`}
+    ` : `<div class="banner">⛔ ${esc(st.reason || "No hay licencia válida. Active una clave para poder entrar al sistema.")}</div>`}
     <form id="licenseFormInline" class="form-grid mt12">
-      <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="NG-…" class="mono-f break-all">${esc(ui.license.key || "")}</textarea></label>
+      <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="NG2-…" class="mono-f break-all">${esc(ui.license.key || "")}</textarea></label>
       <div class="span-2 row"><button type="button" class="btn small" data-act="license-activate-inline">${st.valid ? "Actualizar / renovar" : "Activar licencia"}</button>
         <button type="button" class="btn ghost small" data-act="license-refresh">↻ Verificar de nuevo</button></div>
     </form>
-    ${licenseRequestCard(st)}
-    ${ui.license.info?.active?.db_row?.key ? `<p class="hint">Clave activa en el servidor: <b class="mono break-all">${esc(ui.license.info.active.db_row.key)}</b> <button type="button" class="btn ghost small" data-act="license-copy">Copiar clave activa</button></p>` : ""}`;
+    ${licenseRequestCard(st)}`;
 }
 
 /** Pestaña «Solicitudes»: las peticiones de licencia recibidas (Web y Android). */
@@ -348,7 +363,7 @@ function licenseRequestsTab() {
           <td class="hint">${r.id}</td>
           <td class="hint">${esc(r.createdText || LicenseManager.fmtDate(r.createdAt))}</td>
           <td><b>${esc(r.clientName)}</b>${r.phone ? `<div class="hint">📱 ${esc(r.phone)}</div>` : ""}</td>
-          <td class="mono hint"><span title="${esc(r.deviceInfo || "")}">${esc(r.deviceId)}</span><div class="hint">${esc(r.channel || "web")}</div></td>
+          <td class="mono hint"><span title="${esc(r.deviceInfo || "")}">${esc(r.deviceId)}</span><div class="hint">${esc(r.channel || "web")}</div>${validDeviceId(r.deviceId) ? "" : `<div class="tag salida" title="Las licencias se emiten para el ID seguro del dispositivo (WEB-… o AND-…)">ID antiguo: pida una solicitud nueva</div>`}</td>
           <td>${esc(r.termLabel || "")}${r.days ? ` · ${r.days}d` : ""}<div><span class="tag mov">${esc(r.type || "")}</span></div></td>
           <td><span class="tag ${r.status === "atendida" ? "entrada" : r.status === "descartada" ? "salida" : "mov"}">${esc(r.status || "pendiente")}</span>${r.licensePreview ? `<div class="hint mono" title="${esc(r.licensePreview)}">${esc(String(r.licensePreview).slice(0, 14))}…</div>` : ""}</td>
           <td class="row nowrap">
@@ -368,16 +383,20 @@ function licenseGenerateTab() {
   const st = ui.license.status;
   const terms = LicenseManager.serverTerms(st);
   const sel = ui.license.genTerm || "ANIO";
+  if (ui.license.info && ui.license.info.canIssue === false) {
+    return `
+      <div class="banner">🔏 Este servidor no puede emitir licencias: solo el <b>emisor de NovaGest</b> tiene la llave privada de firma (y nunca se instala en los equipos de los clientes).</div>
+      <p class="hint">Para obtener o renovar una licencia, envíe la solicitud por WhatsApp desde la pestaña <b>Estado</b> con el ID de cada dispositivo. Cada licencia cubre ${LICENSE_LIMITS_TEXT}.</p>`;
+  }
   return `
     <form id="licenseGenForm" class="form-grid">
+      <label class="span-2">ID del dispositivo del cliente<input name="device_id" value="${esc(ui.license.genDevice || "")}" placeholder="WEB-XXXX-XXXX-XXXX-XXXX-XXXX o AND-XXXX-…" class="mono-f" required autocomplete="off"></label>
       <label>Cliente o tienda<input name="client_name" value="${esc(ui.license.genClient || st?.clientName || "NovaGest")}" required></label>
       <label>Teléfono WhatsApp del cliente (opcional)<input name="phone" value="${esc(ui.license.genPhone || "")}" placeholder="5351234567" inputmode="tel"></label>
       <label>Plazo<select name="term" id="licGenTerm">${terms.map((t) => `<option value="${t.id}" ${sel === t.id ? "selected" : ""}>${esc(t.label)}${t.days ? ` · ${t.days} días` : ""} · ${t.type}</option>`).join("")}</select></label>
       <label>Tipo<select name="type"><option>FULL</option><option>ENTERPRISE</option><option>TRIAL</option><option>LIFETIME</option></select></label>
       <label>Días (vacío = según el plazo)<input name="days" type="number" placeholder="Automático"></label>
-      <label>Máx. usuarios<input name="max_users" type="number" value="20"></label>
-      <label>Máx. dispositivos<input name="max_devices" type="number" value="10"></label>
-      <label><input type="checkbox" name="activate"> Activar al generar (reemplaza la licencia activa)</label>
+      <p class="span-2 hint">Límites fijos de toda licencia: <b>${LICENSE_LIMITS_TEXT}</b>. La clave queda firmada para ese ID de dispositivo y no funciona en ningún otro.</p>
       <div class="span-2 row"><button type="button" class="btn small" data-act="license-gen">🔑 Generar clave</button>
         <span class="hint">Los plazos son los mismos que el cliente ve al solicitarla por WhatsApp.</span></div>
     </form>
@@ -395,13 +414,14 @@ function keyBlock(res) {
     <div class="card mt14 bord-ok">
       <div class="card-h"><span class="k">✔ Clave generada · ${esc(p.client_name || "")}</span><span class="tag entrada">${esc(p.type || "")} · ${vigencia}</span></div>
       ${req ? `<p class="hint">Para la solicitud #${req.id} de <b>${esc(req.clientName)}</b> · ${esc(req.termLabel || "")}</p>` : ""}
+      <p class="hint">Dispositivo · <b class="mono">${esc(p.device_id || "")}</b> · ${esc(platformLabel(p.platform))} · ${LICENSE_LIMITS_TEXT}</p>
       <p class="mono key-box mono">${esc(key)}</p>
       <div class="row">
         <button type="button" class="btn ghost small" data-act="license-copy">📋 Copiar clave</button>
         <button type="button" class="btn ghost small" data-act="license-dl">⬇ Descargar .txt</button>
         <button type="button" class="btn small btn-wa" data-act="license-send-key">💬 Enviar por WhatsApp${phone ? ` a ${esc(phone)}` : " (elegir contacto)"}</button>
       </div>
-      <p class="hint">El cliente pega esta clave en <b>Licencia de uso → Activar licencia</b> (Web o App Android). La clave se verifica en el servidor, así que sirve en el equipo que la active.</p>
+      <p class="hint">El cliente pega esta clave en <b>Licencia de uso → Activar licencia</b> en ese mismo dispositivo. Está firmada por el emisor y ligada a su ID: en cualquier otro equipo se rechaza.</p>
     </div>`;
 }
 
@@ -415,10 +435,11 @@ function licenseLicensesTab() {
   return `
     <div class="card-h mt4"><span class="k">Licencias creadas${list.length ? ` · ${list.length}` : ""}</span>
       ${canDelete && list.length ? `<button type="button" class="btn danger small" data-act="license-del-all" title="Eliminar todas las licencias registradas">🗑 Eliminar todas las licencias</button>` : ""}</div>
-    ${list.length ? `<div class="table-wrap"><table><thead><tr><th>Nº</th><th>Cliente</th><th>Tipo</th><th>Expira</th><th>Activa</th><th>Clave</th>${canDelete ? "<th></th>" : ""}</tr></thead>
+    ${list.length ? `<div class="table-wrap"><table><thead><tr><th>Nº</th><th>Cliente</th><th>Dispositivo</th><th>Tipo</th><th>Expira</th><th>Activa</th><th>Clave</th>${canDelete ? "<th></th>" : ""}</tr></thead>
       <tbody>${list.map((l, i) => `<tr>
         <td class="hint">${i + 1}</td>
         <td>${esc(l.client_name)}</td>
+        <td class="mono hint">${esc(l.device_id || "—")}${l.signatureValid === false ? `<div class="tag salida" title="${esc(l.invalidReason || "")}">clave no válida</div>` : ""}</td>
         <td><span class="tag ${l.active ? "entrada" : "salida"}">${esc(l.type)}</span></td>
         <td>${l.expires_at ? LicenseManager.fmtDate(l.expires_at) : "Permanente"}${l.expires_at && l.expires_at < nowSec ? " · expirada" : ""}</td>
         <td>${l.active ? "✔" : "—"}</td>
@@ -462,6 +483,7 @@ function licenseGenerateFromRequest(id) {
   const r = (ui.license.requests || []).find((x) => String(x.id) === String(id));
   if (!r) return toast("Solicitud no encontrada.", "err");
   ui.license.genRequest = r.id;
+  ui.license.genDevice = r.deviceId || "";
   ui.license.genClient = r.clientName;
   ui.license.genPhone = r.phone || ui.license.genPhone;
   ui.license.genTerm = r.term || "MES";
@@ -516,6 +538,7 @@ function sendLicenseKeyByWhatsApp() {
     key: res.license_key,
     term: req?.term || ui.license.genTerm,
     expiresText: p.expires_at ? `hasta el ${LicenseManager.fmtDate(p.expires_at)}` : "permanente",
+    device: p.device_id || "",
     product: p.product || "NovaGest",
   });
   const phone = req?.phone || ui.license.genPhone || ui.license.status?.whatsapp || "";
@@ -539,7 +562,8 @@ function licenseView() {
         <div class="license-features">
           <div>✔ Licencia por término (día, semana, mes, año o permanente)</div>
           <div>✔ Solicitud por WhatsApp con tu ID de dispositivo</div>
-          <div>✔ Verificación criptográfica HMAC-SHA256</div>
+          <div>✔ ${LICENSE_LIMITS_TEXT}: la clave solo funciona en este equipo</div>
+          <div>✔ Firma digital del emisor (ECDSA P-256) y hora de confianza</div>
           <div>✔ Bloqueo total sin licencia</div>
         </div>
         <div class="hero-cats">${Object.values(CATEGORIES).filter((c) => c.img).slice(0, 6).map((c) => `<img src="./public/cat/${c.img}.jpg" alt="">`).join("")}</div>
@@ -558,8 +582,8 @@ function licenseView() {
             ${licenseRequestCard(st)}
             <form id="licenseForm">
               <div class="h2">2 · ${st?.valid ? "Cambiar / Renovar licencia" : "Activar licencia de uso"}</div>
-              <p class="hint">Pegue la clave de licencia completa (incluye el punto). Formato: <code>NG-XXXX-...XXXX.YYYY</code>. La clave es verificada criptográficamente en el servidor antes de permitir cualquier acceso.</p>
-              <label>Clave de licencia<textarea name="license_key" id="licenseKey" rows="4" placeholder="NG-...." required class="mono-f break-all">${esc(lic.key || "")}</textarea></label>
+              <p class="hint">Pegue la clave de licencia completa (incluye el punto). Formato: <code>NG2-XXXX….YYYY</code>. El servidor comprueba la firma del emisor y que se emitió para el ID de este dispositivo antes de permitir cualquier acceso.</p>
+              <label>Clave de licencia<textarea name="license_key" id="licenseKey" rows="4" placeholder="NG2-...." required class="mono-f break-all">${esc(lic.key || "")}</textarea></label>
               <div class="row mt12">
                 <button class="btn full" ${lic.activating ? "disabled" : ""}>${lic.activating ? "Verificando…" : st?.valid ? "Actualizar licencia" : "Activar licencia"}</button>
               </div>
@@ -572,8 +596,8 @@ function licenseView() {
               <p class="hint secure-note mt16">🔒 La licencia se valida primero en el servidor. Sin licencia válida no se puede iniciar sesión ni usar la App Web o Móvil.</p>
               <div class="demo">
                 <strong>¿Primera vez?</strong><br>
-                Solicita tu plazo por WhatsApp (paso 1) o pide a un administrador que genere la clave desde <code>Ajustes → Licencia</code>.<br>
-                La licencia solo se activa al introducir arriba una clave válida proporcionada por un administrador.
+                Solicita tu plazo por WhatsApp (paso 1): recibirás una clave emitida para el ID de <b>este</b> dispositivo.<br>
+                La licencia solo se activa al introducir arriba esa clave; cada licencia cubre ${LICENSE_LIMITS_TEXT}.
               </div>
               ${legalLinks("login-legal")}
             </form>
@@ -1543,13 +1567,18 @@ function usersView() {
   const canEdit = ["ADMINISTRADOR", "JEFE"].includes(role());
   if (!ui.usersLoaded) { ui.usersLoaded = true; store.loadUsers().then(render); }
   const ago = (t) => (t ? new Date(t * 1000).toLocaleString("es-CU") : "—");
+  const lim = store.licenseLimit || null;
+  const fuera = new Set(lim?.unlicensed || []);
+  const activos = store.state.users.filter((u) => u.active).length;
+  const lleno = activos >= (lim?.maxUsers || 4);
   return `
-    ${canEdit ? `<div class="row mb12"><button class="btn" data-act="new-user">＋ Nuevo usuario</button><span class="hint">Las cuentas se guardan en el servidor (contraseñas con PBKDF2, nunca en el navegador).</span></div>` : ""}
+    <div class="banner ${fuera.size ? "" : "ok"} mb12">🔐 La licencia permite <b>4 usuarios activos, uno por rol</b> (administrador, jefe, económico y almacenero) · activos ${activos}/${lim?.maxUsers || 4}${fuera.size ? ` · <b>${fuera.size} usuario(s) fuera de la licencia</b>: no pueden entrar hasta que desactive a los sobrantes de su rol.` : ""}</div>
+    ${canEdit ? `<div class="row mb12"><button class="btn" data-act="new-user" ${lleno ? 'title="Ya hay 4 usuarios activos: desactive uno para crear otro"' : ""}>＋ Nuevo usuario</button><span class="hint">Las cuentas se guardan en el servidor (contraseñas con PBKDF2, nunca en el navegador). Un usuario por rol.</span></div>` : ""}
     <div class="card table-wrap flush"><table>
       <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>2FA</th><th>Último acceso</th><th>Estado</th>${canEdit ? "<th></th>" : ""}</tr></thead>
       <tbody>${store.state.users.map((u) => `<tr><td><strong>${esc(u.displayName)}</strong><div class="hint">${esc(u.email || "")}</div></td><td class="mono">${esc(u.username)}</td><td><span class="tag mov">${u.role}</span></td>
         <td>${u.totpEnabled ? "<span class='tag entrada'>Activa</span>" : "<span class='hint'>No</span>"}</td><td class="hint">${ago(u.lastLogin)}</td>
-        <td>${u.active ? "<span class='tag entrada'>Activo</span>" : "<span class='tag salida'>Inactivo</span>"}</td>
+        <td>${u.active ? (fuera.has(u.id) ? "<span class='tag salida' title='Supera el límite de 1 usuario por rol de la licencia'>Fuera de licencia</span>" : "<span class='tag entrada'>Activo</span>") : "<span class='tag salida'>Inactivo</span>"}</td>
         ${canEdit ? `<td class="row nowrap"><button class="btn ghost small" data-edit-user="${u.id}">Editar</button><button class="btn ghost small" data-toggle-user="${u.id}">${u.active ? "Desactivar" : "Activar"}</button>${u.totpEnabled ? `<button class="btn ghost small" data-reset2fa="${u.id}">Quitar 2FA</button>` : ""}</td>` : ""}</tr>`).join("") || `<tr><td colspan="7" class="hint">Cargando…</td></tr>`}</tbody>
     </table></div>`;
 }
@@ -1635,7 +1664,7 @@ function licenseCard() {
           ${kpi("Cliente", esc(lic.clientName), esc(lic.product))}
           ${kpi("Tipo", esc(lic.type), `ID ${esc(lic.licenseId || "")}`)}
           ${kpi("Expira", LicenseManager.fmtDate(lic.expiresAt), lic.daysLeft === -1 ? "Permanente" : `${lic.daysLeft} días`)}
-          ${kpi("Usuarios / Dispositivos", `${lic.maxUsers} / ${lic.maxDevices}`, "límites")}
+          ${kpi("Límites", LICENSE_LIMITS_TEXT, platformLabel(lic.platform))}
         </div>
         ${LicenseManager.isExpiringSoon(lic) ? `<div class="banner">⚠ La licencia vence en ${lic.daysLeft} días. Renueve antes de que expire para no bloquear el acceso.</div>` : ""}
         <p class="hint">El acceso a todas las Apps (Web y Móvil) se verifica siempre primero por la licencia. Sin licencia válida no se puede iniciar sesión.</p>
@@ -2870,7 +2899,7 @@ function userModal(u = null) {
     <div class="form-grid">
       <label>Usuario <input name="username" required ${u ? `value="${esc(u.username)}" readonly` : ""}></label><label>Nombre <input name="displayName" required value="${esc(u?.displayName || "")}"></label>
       <label>Correo <input name="email" type="email" value="${esc(u?.email || "")}"></label>
-      <label>Rol<select name="role">${roles.map((r) => `<option ${u?.role === r ? "selected" : ""}>${r}</option>`).join("")}</select></label>
+      <label>Rol <small>(un usuario activo por rol)</small><select name="role">${roles.map((r) => `<option ${u?.role === r ? "selected" : ""}>${r}</option>`).join("")}</select></label>
       <label>${u ? "Nueva contraseña <small>(vacío = no cambiar)</small>" : "Contraseña"} <input name="password" type="password" ${u ? "" : "required"} autocomplete="new-password"></label>
       ${u ? "" : `<label>Pregunta <input name="securityQuestion" value="¿Ciudad de la tienda?"></label><label class="span-2">Respuesta <input name="answer"></label>`}
     </div>
@@ -3817,6 +3846,8 @@ function onClick(e) {
       `Licencia de Uso · ${p.product || "NovaGest"} v${APP_VERSION}`,
       `Cliente: ${p.client_name || ""}`,
       `Tipo: ${p.type || ""}`,
+      `Dispositivo: ${p.device_id || ""} (${platformLabel(p.platform)})`,
+      `Límites: ${LICENSE_LIMITS_TEXT}`,
       p.expires_at ? `Expira: ${LicenseManager.fmtDate(p.expires_at)}` : "Expira: Permanente",
       "",
       res.license_key,
@@ -3849,15 +3880,15 @@ function onClick(e) {
     const fd = new FormData(form);
     const body = {
       client_name: fd.get("client_name"),
+      device_id: String(fd.get("device_id") || "").trim(),
       phone: fd.get("phone"),
       term: fd.get("term") || undefined,
       type: fd.get("type"),
       days: fd.get("days") || undefined,
-      max_users: fd.get("max_users"),
-      max_devices: fd.get("max_devices"),
-      activate: fd.get("activate") === "on",
       request_id: ui.license.genRequest ? String(ui.license.genRequest) : undefined,
     };
+    if (!body.device_id) return toast("Indique el ID del dispositivo del cliente (WEB-… o AND-…).", "err");
+    ui.license.genDevice = body.device_id;
     ui.license.genClient = String(fd.get("client_name") || "");
     ui.license.genPhone = String(fd.get("phone") || "");
     ui.license.genTerm = String(fd.get("term") || ui.license.genTerm || "ANIO");
@@ -3871,7 +3902,7 @@ function onClick(e) {
     });
   }
   else if (act === "license-copy") {
-    const key = ui.license.lastGenerated?.license_key || ui.license.info?.active?.db_row?.key || ui.license.status?.formattedKey || "";
+    const key = ui.license.lastGenerated?.license_key || "";
     if (!key) return toast("No hay clave para copiar.", "err");
     if (navigator.clipboard) navigator.clipboard.writeText(key).then(() => toast("Clave copiada al portapapeles", "ok")).catch(() => toast(key, ""));
     else toast(key, "");
@@ -3950,6 +3981,7 @@ function onClick(e) {
   }
   else if (act === "license-copy-device") {
     const id = LicenseManager.deviceId();
+    if (!id) return toast(LicenseManager.deviceState().error || "Aún se está identificando este dispositivo.", "err");
     if (navigator.clipboard) navigator.clipboard.writeText(id).then(() => toast("ID de dispositivo copiado", "ok")).catch(() => toast(id, ""));
     else toast(id, "");
   }

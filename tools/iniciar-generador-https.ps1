@@ -25,7 +25,7 @@
   Puerto del generador. Por defecto 8444 (el servidor de NovaGest usa 8443).
 
 .PARAMETER Datos
-  Carpeta data del servidor del cliente (secreto de firma, solicitudes y
+  Carpeta data del servidor (solicitudes y
   licencias). Por defecto, la del propio repositorio (data\).
 
 .PARAMETER WhatsApp

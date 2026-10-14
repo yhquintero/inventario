@@ -13,9 +13,12 @@ Servidor de NovaGest: API + archivos estáticos.
 Variables: PORT, DATA_DIR, SSL_CERT, SSL_KEY, BACKUP_KEY, TRUST_PROXY (1), SESSION_IDLE_MIN (20),
 SESSION_MAX_HOURS (12), BACKUP_HOUR (2), BACKUP_KEEP (30).
 """
-import base64, datetime as dt, gzip, hashlib, hmac, json, os, re, secrets, sqlite3, struct, threading, time
+import base64, datetime as dt, gzip, hashlib, hmac, json, os, re, secrets, sqlite3, struct, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, quote
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import novagest_license as lic2  # noqa: E402  (licencias v2: firma del emisor + dispositivo)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, "web")
@@ -35,8 +38,10 @@ ADMINS = {"ADMINISTRADOR", "JEFE"}
 # ------------------------------------------------------------------ licencia de uso
 APP_VERSION = "1.0.0"
 LICENSE_PRODUCT = os.environ.get("LICENSE_PRODUCT", "NovaGest")
-LICENSE_FILE = os.path.join(DATA, "license.key")
-LICENSE_EXEMPT = {"/api/health", "/api/license/status", "/api/license/activate", "/api/license/verify", "/api/license/request", "/api/legal"}
+# Rutas sin la verificación global de licencia. /api/login comprueba la licencia
+# del dispositivo que entra; las rutas con sesión, la del dispositivo de la sesión.
+LICENSE_EXEMPT = {"/api/health", "/api/license/status", "/api/license/activate", "/api/license/verify",
+                  "/api/license/request", "/api/license/challenge", "/api/legal", "/api/login"}
 # Licencia por término (solicitud por WhatsApp, como en DrywallMaterialsCalculator):
 # el cliente elige un plazo, envía sus datos por WhatsApp y recibe la clave firmada.
 # Número destino configurable: LICENSE_WHATSAPP / NOVAGEST_WHATSAPP / WHATSAPP_NUMBER
@@ -174,207 +179,403 @@ def now():
     return int(time.time())
 
 
-# ------------------------------------------------------------------ licencia de uso
-def _b64url_encode(data: bytes) -> str:
-    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+# ------------------------------------------------------------------ licencia de uso (v2)
+# Firmada por el EMISOR (ECDSA) y ligada a UN dispositivo: ver novagest_license.py,
+# que comparten el servidor y el generador. Aquí vive lo que depende del servidor:
+# la hora de confianza (anti-manipulación del reloj), los desafíos de un solo uso,
+# la licencia de cada dispositivo y el límite de 4 usuarios (uno por rol).
+LICENSE_ROLES = lic2.ROLES
+PROOF_MAX_AGE = max(60, int(os.environ.get("LICENSE_PROOF_MAX_AGE", "900")))  # renovar la prueba cada 15 min
+NONCE_TTL = 120
+CLOCK_FILE = os.path.join(DATA, "license-clock.json")
+CLOCK_KEY_FILE = os.path.join(DATA, "license-clock.key")
+NET_TIME = os.environ.get("NOVAGEST_NET_TIME", "1") != "0"
+NET_TIME_URLS = ("https://www.google.com", "https://www.cloudflare.com", "https://www.microsoft.com", "https://www.apple.com")
+_NONCES = {}
+_NONCE_LOCK = threading.Lock()
 
 
-def _b64url_decode(s: str) -> bytes:
-    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+def issue_nonce(purpose):
+    """Desafío de un solo uso (2 min) que el dispositivo debe firmar con su llave."""
+    if purpose not in ("activate", "login", "proof"):
+        raise ValueError("Operación de seguridad no válida.")
+    t = time.monotonic()
+    with _NONCE_LOCK:
+        for k in [k for k, v in _NONCES.items() if v[1] < t]:
+            del _NONCES[k]
+        if len(_NONCES) > 5000:
+            raise ValueError("Demasiados desafíos de seguridad pendientes. Espere un minuto.")
+        nonce = secrets.token_urlsafe(24)
+        _NONCES[nonce] = (purpose, t + NONCE_TTL)
+    return nonce
 
 
-def get_license_secret() -> bytes:
-    # Prioridad: LICENSE_SECRET > LICENSE_KEY > BACKUP_KEY > archivo local > generado
-    for env_key in ("LICENSE_SECRET", "LICENSE_KEY", "BACKUP_KEY"):
-        v = os.environ.get(env_key)
-        if not v:
-            continue
-        v = v.strip()
-        # Si es una clave Fernet (44 chars base64), la usamos tal cual como secreto
+def consume_nonce(nonce, purpose):
+    with _NONCE_LOCK:
+        v = _NONCES.pop(str(nonce or ""), None)
+    if not v or v[0] != purpose or v[1] < time.monotonic():
+        raise lic2.LicenseError("DEVICE_PROOF_EXPIRED", "El desafío de seguridad caducó o ya se usó. Vuelva a intentarlo.")
+
+
+class TrustedClock:
+    """Hora de confianza para las licencias: no retrocede aunque se atrase el reloj.
+
+    · Marca de agua persistente (BD + archivo, firmadas con HMAC local) con la mayor hora
+      vista; también cuentan la última auditoría y la última sesión (huellas de uso).
+    · Reloj monotónico del proceso: detecta atrasos con el servidor en marcha.
+    · Hora de Internet (cabecera Date de sitios HTTPS con certificado verificado) cuando hay
+      conexión: manda sobre el reloj local y corrige una marca de agua errónea.
+    Si el reloj del servidor queda más de 10 min por detrás de la hora de confianza (y no hay
+    hora de Internet que lo desmienta) se considera manipulado: la licencia se bloquea.
+    """
+
+    def __init__(self):
+        self.lock = threading.RLock()
+        self.loaded = False
+        self.watermark = 0
+        self.anchor = (0.0, 0.0)   # (hora de confianza, monotónico) al cargar
+        self.net = None            # (hora de Internet, monotónico, url)
+        self.saved_at = -1e9
+        self._k = None
+
+    def _key(self):
+        if self._k:
+            return self._k
         try:
-            # Intenta decodificar como base64 urlsafe, si funciona y tiene 32 bytes, es Fernet key raw
-            raw = base64.urlsafe_b64decode(v + "=" * (-len(v) % 4))
-            if len(raw) == 32:
-                return raw
+            with open(CLOCK_KEY_FILE, "rb") as f:
+                k = f.read()
+            if len(k) >= 32:
+                self._k = k
+                return k
+        except OSError:
+            pass
+        k = secrets.token_bytes(32)
+        try:
+            os.makedirs(DATA, exist_ok=True)
+            with open(CLOCK_KEY_FILE, "wb") as f:
+                f.write(k)
+            os.chmod(CLOCK_KEY_FILE, 0o600)
+        except OSError:
+            pass
+        self._k = k
+        return k
+
+    def _mac(self, value):
+        return hmac.new(self._key(), f"novagest-clock|{int(value)}".encode(), hashlib.sha256).hexdigest()
+
+    def _load(self):
+        marcas = [0]
+        try:
+            r = q("SELECT watermark, mac FROM license_clock WHERE id=1", one=True)
+            if r and r["watermark"] and hmac.compare_digest(str(r["mac"] or ""), self._mac(r["watermark"])):
+                marcas.append(int(r["watermark"]))
         except Exception:
             pass
-        return v.encode()
-    # Archivo local
-    if os.path.exists(LICENSE_FILE):
         try:
-            data = open(LICENSE_FILE, "rb").read().strip()
-            # Si el archivo contiene base64 de 32 bytes, decodifica
+            with open(CLOCK_FILE, encoding="utf-8") as f:
+                d = json.load(f)
+            if hmac.compare_digest(str(d.get("mac") or ""), self._mac(int(d.get("watermark") or 0))):
+                marcas.append(int(d["watermark"]))
+        except Exception:
+            pass
+        # Si alguien borra la marca de agua, la auditoría y las sesiones siguen
+        # recordando la última fecha en que se usó el programa.
+        for sql in ("SELECT MAX(ts) AS m FROM audit", "SELECT MAX(last_seen) AS m FROM sessions",
+                    "SELECT MAX(last_seen) AS m FROM license_activations"):
             try:
-                raw = base64.urlsafe_b64decode(data + b"=" * (-len(data) % 4))
-                if len(raw) == 32:
-                    return raw
+                r = q(sql, one=True)
+                if r and r["m"]:
+                    marcas.append(int(r["m"]))
             except Exception:
                 pass
-            return data if isinstance(data, bytes) else data.encode()
+        self.watermark = max(marcas)
+        self.anchor = (max(time.time(), float(self.watermark)), time.monotonic())
+        self.loaded = True
+
+    def reset(self):
+        """Solo para pruebas: olvida lo cargado (se vuelve a leer de la BD y del archivo)."""
+        with self.lock:
+            self.loaded, self.net, self.saved_at = False, None, -1e9
+
+    def _save(self, value):
+        value = int(value)
+        mac = self._mac(value)
+        try:
+            q("INSERT OR REPLACE INTO license_clock(id, watermark, mac, updated_at) VALUES(1,?,?,?)", (value, mac, value))
         except Exception:
             pass
-    # Generar nuevo secreto
-    os.makedirs(DATA, exist_ok=True)
-    secret = secrets.token_bytes(32)
-    try:
-        with open(LICENSE_FILE, "wb") as f:
-            f.write(base64.urlsafe_b64encode(secret))
-        os.chmod(LICENSE_FILE, 0o600)
-    except Exception:
-        pass
-    return secret
+        try:
+            tmp = CLOCK_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump({"watermark": value, "mac": mac}, f)
+            os.replace(tmp, CLOCK_FILE)
+        except OSError:
+            pass
 
+    def set_network_time(self, ts, url=""):
+        with self.lock:
+            if not self.loaded:
+                self._load()
+            self.net = (float(ts), time.monotonic(), url)
+            # Internet manda: una marca de agua «del futuro» (reloj que estuvo adelantado) se corrige.
+            if self.watermark > ts + lic2.CLOCK_TOLERANCE:
+                self.watermark = int(ts)
+                self.anchor = (float(ts), time.monotonic())
+                self._save(self.watermark)
 
-def sign_license_payload(payload_b64: str) -> str:
-    secret = get_license_secret()
-    sig = hmac.new(secret, payload_b64.encode(), hashlib.sha256).digest()
-    return _b64url_encode(sig)
-
-
-def create_license_token(payload: dict) -> str:
-    # payload debe ser serializable
-    json_bytes = json.dumps(payload, separators=(",", ":"), ensure_ascii=False, sort_keys=True).encode()
-    b64 = _b64url_encode(json_bytes)
-    sig = sign_license_payload(b64)
-    return f"{b64}.{sig}"
-
-
-def verify_license_token(token: str):
-    try:
-        if not token:
-            return None
-        # Limpia solo espacios y prefijo (NG- actual, CP- heredado), conserva '-' y '_' válidos en base64url
-        t = token.strip().replace(" ", "").replace("\n", "").replace("\r", "").replace("\t", "")
-        for pref in ("NG-", "CP-"):
-            if t.upper().startswith(pref):
-                t = t[len(pref):]
-                break
-        # Si no tiene punto, intenta recuperar (últimos 43 chars son firma)
-        if "." not in t:
-            if len(t) > 50:
-                b64_part = t[:-43]
-                sig_part = t[-43:]
-                t = f"{b64_part}.{sig_part}"
+    def now(self):
+        """(hora_de_confianza: int, estado: dict)."""
+        with self.lock:
+            if not self.loaded:
+                self._load()
+            wall = time.time()
+            mono = time.monotonic()
+            est = self.anchor[0] + (mono - self.anchor[1])
+            rollback = False
+            if self.net and mono - self.net[1] < 24 * 3600:
+                fuente = "Internet"
+                trusted = self.net[0] + (mono - self.net[1])
+                skew = wall - trusted
+                tope = trusted + lic2.CLOCK_TOLERANCE
             else:
-                return None
-        if "." not in t:
-            return None
-        b64, sig = t.rsplit(".", 1)
-        # Solo permitimos caracteres base64url
-        def clean_b64url(s):
-            return "".join(c for c in s if c.isalnum() or c in "-_")
-        b64 = clean_b64url(b64)
-        sig = clean_b64url(sig)
-        if not b64 or not sig:
-            return None
-        expected = sign_license_payload(b64)
-        if not hmac.compare_digest(expected, sig):
-            return None
-        payload_json = _b64url_decode(b64)
-        payload = json.loads(payload_json)
-        return payload
-    except Exception:
-        return None
+                fuente = "reloj del servidor"
+                ref = max(est, float(self.watermark))
+                trusted = max(wall, ref)
+                skew = wall - ref
+                rollback = ref - wall > lic2.CLOCK_TOLERANCE
+                tope = est + lic2.CLOCK_TOLERANCE
+            # La marca de agua avanza al ritmo del reloj real: un adelanto accidental del
+            # reloj no la «envenena» (al corregirlo no se tomaría por un atraso).
+            nueva = int(min(trusted, tope))
+            if nueva > self.watermark and (nueva - self.watermark >= 60 or mono - self.saved_at > 300):
+                self.watermark = nueva
+                self.saved_at = mono
+                self._save(nueva)
+            return int(trusted), {"source": fuente, "rollback": rollback, "skewSeconds": int(skew),
+                                  "serverTime": int(wall), "trustedTime": int(trusted)}
 
 
-def format_license_key(token: str) -> str:
-    # Formato legible: NG-<token> con el token original intacto (no inserta guiones que rompan base64url)
-    # Para mostrar bonito, agrupa con espacios cada 4 chars solo visualmente, pero devuelve original con prefijo
+CLOCK = TrustedClock()
+
+
+def fetch_network_time(timeout=4.0):
+    """Hora de Internet (cabecera Date de un sitio HTTPS conocido, certificado verificado)."""
+    import email.utils
+    import ssl
+    import urllib.request
+    ctx = ssl.create_default_context()
+    for url in NET_TIME_URLS:
+        try:
+            req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "NovaGest-hora"})
+            t0 = time.monotonic()
+            with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
+                fecha = r.headers.get("Date")
+            if fecha:
+                return email.utils.parsedate_to_datetime(fecha).timestamp() + (time.monotonic() - t0) / 2, url
+        except Exception:
+            continue
+    return None, ""
+
+
+def network_time_loop():
+    while True:
+        ts, url = fetch_network_time()
+        if ts:
+            CLOCK.set_network_time(ts, url)
+        time.sleep(6 * 3600 if ts else 30 * 60)
+
+
+def clock_error(clock):
+    return lic2.LicenseError(
+        "CLOCK_ROLLBACK",
+        "La fecha y la hora de este servidor están atrasadas respecto de la última hora de confianza "
+        f"(unos {max(1, abs(int(clock.get('skewSeconds') or 0)) // 60)} min). Por seguridad, la licencia queda bloqueada hasta "
+        "que se corrijan: ponga la fecha y la hora correctas (automáticas) o conecte el servidor a Internet un momento.")
+
+
+def license_fmt_day(ts):
+    return dt.datetime.fromtimestamp(int(ts)).strftime("%d/%m/%Y")
+
+
+def check_device_license(device_id, touch=False):
+    """Licencia activa y vigente del dispositivo `device_id` (con el motivo si no la hay)."""
+    trusted, clock = CLOCK.now()
+    base = {"valid": False, "deviceId": device_id or "", "clock": clock, "trustedTime": trusted, "payload": None, "row": None}
+    if clock["rollback"]:
+        e = clock_error(clock)
+        return {**base, "code": e.code, "reason": e.message}
+    if not lic2.valid_device_id(device_id):
+        return {**base, "code": "DEVICE_REQUIRED", "reason": "Este dispositivo no está identificado. Actualice la página (o la app) y vuelva a intentarlo."}
     try:
-        raw = token.strip()
-        if raw.upper().startswith("NG-") or raw.upper().startswith("CP-"):
-            return raw
-        # Devuelve con prefijo NG- y el token original (preserva punto)
-        return f"NG-{raw}"
-    except Exception:
-        return token
-
-
-def format_license_pretty(token: str) -> str:
-    # Versión bonita con saltos para UI, pero no usar para verificación
-    try:
-        raw = token.strip()
-        for pref in ("NG-", "CP-"):
-            if raw.upper().startswith(pref):
-                raw = raw[len(pref):]
-                break
-        # Agrupa visualmente sin alterar el token real: usa espacios
-        def group(s):
-            return " ".join(s[i:i+4] for i in range(0, len(s), 4))
-        if "." in raw:
-            b64, sig = raw.split(".", 1)
-            return f"NG-{group(b64)} . {group(sig)}"
-        return "NG-" + group(raw)
-    except Exception:
-        return token
-
-
-def generate_license_payload(client_name="NovaGest", product=None, license_type="FULL", days=365, max_users=20, max_devices=10, features=None, license_id=None):
-    product = product or LICENSE_PRODUCT
-    issued = now()
-    expires = 0 if str(days).upper() in ("0", "NEVER", "LIFETIME", "PERMANENTE") else issued + int(days) * 86400
-    return {
-        "license_id": license_id or secrets.token_hex(8).upper(),
-        "client_name": client_name,
-        "product": product,
-        "type": license_type,
-        "issued_at": issued,
-        "expires_at": expires,
-        "max_users": int(max_users),
-        "max_devices": int(max_devices),
-        "features": features or ["*"],
-        "version": 1,
-    }
-
-
-def get_active_license_info():
-    try:
-        rows = q("SELECT * FROM licenses WHERE active=1 ORDER BY expires_at DESC, issued_at DESC")
+        rows = q("SELECT * FROM licenses WHERE active=1 AND device_id=? ORDER BY issued_at DESC, id DESC", (device_id,))
     except Exception:
         rows = []
-    ts = now()
+    code, reason = "LICENSE_REQUIRED", "Este dispositivo no tiene una licencia activa. Solicítela con el ID de dispositivo que aparece en la pantalla de licencia."
     for r in rows:
-        exp = r["expires_at"]
-        if exp != 0 and exp < ts:
-            continue
-        payload = verify_license_token(r["key"])
-        # Permitir licencias TRIAL- legacy sin firma si no expiraron
-        if not payload and not str(r["key"]).startswith("TRIAL-"):
-            # Firma inválida, posible cambio de secreto -> invalida
-            continue
-        # Si tiene payload, valida expiración del payload también
-        if payload:
-            p_exp = payload.get("expires_at", 0)
-            if p_exp != 0 and p_exp < ts:
-                continue
-        # Actualiza last_verified
         try:
-            q("UPDATE licenses SET last_verified=? WHERE id=?", (ts, r["id"]))
-        except Exception:
-            pass
-        return {
-            "valid": True,
-            "db_row": dict(r),
-            "payload": payload or {
-                "client_name": r["client_name"],
-                "product": r["product"],
-                "type": r["type"],
-                "issued_at": r["issued_at"],
-                "expires_at": r["expires_at"],
-                "max_users": r["max_users"],
-                "max_devices": r["max_devices"],
-                "features": json.loads(r["features"] or '["*"]'),
-                "license_id": r["key"][:16],
-            },
-        }
-    return {"valid": False, "reason": "No hay licencia activa válida", "db_row": None, "payload": None}
+            p = lic2.parse_license(r["key"])
+        except lic2.LicenseError as e:
+            code, reason = e.code, e.message
+            continue
+        if p["device_id"] != device_id:
+            continue
+        estado = lic2.license_time_state(p, trusted)
+        if estado == "not_yet":
+            code, reason = "CLOCK_BEHIND", (f"La fecha de este servidor es anterior a la emisión de la licencia ({license_fmt_date(p['issued_at'])}). "
+                                            "Corrija la fecha y la hora para continuar.")
+            continue
+        if estado == "expired":
+            code, reason = "LICENSE_EXPIRED", f"La licencia de este dispositivo caducó el {license_fmt_day(p['expires_at'])}. Solicite una renovación."
+            continue
+        if touch:
+            q("UPDATE licenses SET last_verified=? WHERE id=?", (now(), r["id"]))
+        return {**base, "valid": True, "code": "OK", "reason": "", "payload": p, "row": dict(r)}
+    return {**base, "code": code, "reason": reason}
 
 
-def check_license_active():
-    info = get_active_license_info()
-    if info["valid"]:
-        return info
-    return {"valid": False, "reason": info.get("reason", "Licencia no válida"), "db_row": None, "payload": None}
+def any_valid_license():
+    """¿Hay alguna licencia vigente en este servidor? (rutas sin sesión, salud y métricas)."""
+    try:
+        devs = [r["device_id"] for r in q("SELECT DISTINCT device_id FROM licenses WHERE active=1 AND device_id IS NOT NULL AND device_id<>''")]
+    except Exception:
+        devs = []
+    ultimo = None
+    for d in devs:
+        st = check_device_license(d)
+        if st["valid"]:
+            return st
+        ultimo = st
+    if ultimo:
+        return ultimo
+    trusted, clock = CLOCK.now()
+    if clock["rollback"]:
+        e = clock_error(clock)
+        return {"valid": False, "code": e.code, "reason": e.message, "payload": None, "row": None, "clock": clock, "trustedTime": trusted, "deviceId": ""}
+    return {"valid": False, "code": "LICENSE_REQUIRED", "reason": "No hay ninguna licencia activa en este servidor.",
+            "payload": None, "row": None, "clock": clock, "trustedTime": trusted, "deviceId": ""}
+
+
+def license_key_preview(key):
+    key = str(key or "")
+    return key[:14] + "…" + key[-8:] if len(key) > 30 else key
+
+
+def license_status_public(st):
+    """Estado de la licencia para las apps (nunca incluye la clave completa)."""
+    p = st.get("payload") or {}
+    out = {
+        "valid": bool(st.get("valid")),
+        "code": st.get("code") or "",
+        "reason": st.get("reason") or "",
+        "deviceId": st.get("deviceId") or "",
+        "clock": st.get("clock"),
+        "serverTime": int(st.get("trustedTime") or now()) * 1000,
+        "hasLicense": bool(p),
+        "maxUsers": lic2.MAX_USERS,
+        "maxDevices": lic2.MAX_DEVICES,
+        "roles": list(LICENSE_ROLES),
+        "publicKeys": lic2.public_keys_status(),
+    }
+    if p:
+        out.update({
+            "clientName": p["client_name"], "product": p["product"], "type": p["type"],
+            "issuedAt": p["issued_at"], "expiresAt": p["expires_at"],
+            "daysLeft": lic2.days_left(p, int(st.get("trustedTime") or now())),
+            "platform": p["platform"], "licenseDevice": p["device_id"], "licenseId": p["license_id"],
+            "features": p.get("features") or ["*"],
+            "keyPreview": license_key_preview((st.get("row") or {}).get("key")),
+        })
+    return out
+
+
+# ---- límite de usuarios de la licencia: 4 (uno por rol)
+def licensed_user_ids():
+    """Usuarios que cubre la licencia: el más antiguo ACTIVO de cada rol (máximo 4)."""
+    ids, vistos = set(), set()
+    for r in q("SELECT id, role FROM users WHERE active=1 ORDER BY id"):
+        if r["role"] in LICENSE_ROLES and r["role"] not in vistos:
+            vistos.add(r["role"])
+            ids.add(r["id"])
+    return ids
+
+
+def user_limit_error(role, exclude_id=0):
+    """Mensaje si activar/crear un usuario con `role` superaría la licencia (4 usuarios, 1 por rol)."""
+    otro = q("SELECT username FROM users WHERE active=1 AND role=? AND id<>? ORDER BY id LIMIT 1", (role, exclude_id or 0), one=True)
+    if otro:
+        return ("La licencia permite un solo usuario por rol (4 en total: administrador, jefe, económico y almacenero). "
+                f"Ya existe el usuario activo «{otro['username']}» con el rol {role}: desactívelo o cámbielo de rol primero.")
+    n = q("SELECT COUNT(*) AS c FROM users WHERE active=1 AND id<>?", (exclude_id or 0,), one=True)["c"]
+    if n >= lic2.MAX_USERS:
+        return f"La licencia permite como máximo {lic2.MAX_USERS} usuarios activos (uno por rol)."
+    return None
+
+
+def license_limit_info():
+    ids = licensed_user_ids()
+    activos = [r["id"] for r in q("SELECT id FROM users WHERE active=1 ORDER BY id")]
+    return {"maxUsers": lic2.MAX_USERS, "perRole": 1, "roles": list(LICENSE_ROLES), "maxDevices": lic2.MAX_DEVICES,
+            "licensed": sorted(ids), "unlicensed": [i for i in activos if i not in ids]}
+
+
+# ---- prueba de posesión del dispositivo
+FINGERPRINT_WEIGHTS = {"platform": 2, "cores": 2, "memory": 2, "gpu": 2, "screen": 1, "timezone": 1, "languages": 1, "touch": 1}
+
+
+def fingerprint_score(old, new):
+    if not isinstance(old, dict) or not isinstance(new, dict):
+        return 0
+    return sum(w for k, w in FINGERPRINT_WEIGHTS.items() if k in old and k in new and str(old[k]) != str(new[k]))
+
+
+def verify_proof(b, purpose, extra=""):
+    """Comprueba la prueba firmada del dispositivo (desafío, llave y reloj del dispositivo).
+
+    Devuelve (device_id, platform, huella, llave_publica_b64). Lanza LicenseError.
+    """
+    proof = b.get("deviceProof") or b.get("proof")
+    device_id, platform, client_ms = lic2.verify_device_proof(proof, purpose, extra)
+    consume_nonce(proof.get("nonce"), purpose)
+    trusted, clock = CLOCK.now()
+    if clock["rollback"]:
+        raise clock_error(clock)
+    diff = client_ms / 1000 - trusted
+    if abs(diff) > lic2.CLOCK_TOLERANCE:
+        raise lic2.LicenseError(
+            "CLIENT_CLOCK",
+            f"La fecha y la hora de este dispositivo no son correctas: van {max(1, round(abs(diff) / 60))} min "
+            f"{'adelantadas' if diff > 0 else 'atrasadas'} respecto de la hora de confianza del servidor. "
+            "Active «fecha y hora automáticas» en el dispositivo y vuelva a intentarlo.",
+            serverTime=int(trusted * 1000))
+    fp = lic2.clean_fingerprint(proof.get("fingerprint")) if platform == "web" else {}
+    return device_id, platform, fp, str(proof.get("spki") or proof.get("publicKey") or "")[:400]
+
+
+def check_device_fingerprint(device_id, platform, fp, ip=""):
+    """En la Web, la huella del navegador debe parecerse a la registrada al activar."""
+    row = q("SELECT * FROM license_devices WHERE device_id=?", (device_id,), one=True)
+    if not row:
+        return
+    nueva = None
+    if platform == "web" and fp:
+        try:
+            vieja = json.loads(row["fingerprint"] or "{}")
+        except ValueError:
+            vieja = {}
+        puntos = fingerprint_score(vieja, fp)
+        if puntos >= 4:
+            raise lic2.LicenseError(
+                "DEVICE_CHANGED",
+                "Este navegador no coincide con el equipo en el que se activó la licencia (cambiaron demasiadas "
+                "características del equipo). La licencia solo funciona en esa PC; si cambió de equipo, solicite una licencia nueva.")
+        if puntos <= 1:
+            nueva = json.dumps(fp, ensure_ascii=False, sort_keys=True)
+    q("UPDATE license_devices SET last_seen=?, last_ip=?, fingerprint=COALESCE(?, fingerprint) WHERE device_id=?",
+      (now(), ip, nueva, device_id))
+
+
+def license_error_response(h, e, status=400):
+    return h.send_json(status, {**e.as_dict(), "licenseError": True})
 
 
 # ------------------------------------------------------------------ solicitudes de licencia
@@ -437,10 +638,13 @@ def register_license_request(b, ip="", user_agent=""):
     if not name:
         raise ValueError("Indique el nombre o la empresa que solicita la licencia.")
     term = license_term(b.get("term") or b.get("term_id") or b.get("plan"))
-    device_id = str(b.get("device_id") or b.get("deviceId") or "").strip()[:120] or ip
+    device_id = lic2.normalize_device_id(b.get("device_id") or b.get("deviceId") or "")
+    if not lic2.valid_device_id(device_id):
+        raise ValueError("El ID de dispositivo no es válido. Actualice la página (o la app): las licencias se emiten para el "
+                         "ID seguro del dispositivo (WEB-XXXX-… en la Web, AND-XXXX-… en Android).")
     device_info = str(b.get("device_info") or b.get("deviceInfo") or user_agent or "")[:300]
     phone = re.sub(r"[^\d+]", "", str(b.get("phone") or b.get("telefono") or ""))[:24]
-    channel = str(b.get("channel") or ("android" if "Android" in device_info else "web")).strip().lower()[:20] or "web"
+    channel = lic2.platform_of(device_id) or "web"
     product = str(b.get("product") or LICENSE_PRODUCT).strip()[:60]
     version = str(b.get("version") or APP_VERSION).strip()[:20]
     ts = now()
@@ -508,7 +712,7 @@ def init_db():
       recovery TEXT DEFAULT '[]', created_at INTEGER, last_login INTEGER, pw_changed INTEGER);
     CREATE TABLE IF NOT EXISTS sessions(
       id TEXT PRIMARY KEY, token_hash TEXT UNIQUE, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-      created INTEGER, last_seen INTEGER, ip TEXT, ua TEXT);
+      created INTEGER, last_seen INTEGER, ip TEXT, ua TEXT, device_id TEXT, proof_at INTEGER);
     CREATE TABLE IF NOT EXISTS app_state(id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER, data TEXT, updated_at INTEGER, updated_by TEXT);
     CREATE TABLE IF NOT EXISTS closed_days(date TEXT PRIMARY KEY, closed_by TEXT, closed_at INTEGER, note TEXT, snapshot TEXT);
     CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, ts INTEGER, user TEXT, action TEXT, details TEXT, ip TEXT);
@@ -528,7 +732,9 @@ def init_db():
       created_by TEXT,
       created_at INTEGER,
       last_verified INTEGER,
-      metadata TEXT);
+      metadata TEXT,
+      device_id TEXT,
+      platform TEXT);
     CREATE TABLE IF NOT EXISTS license_activations(
       id INTEGER PRIMARY KEY,
       license_key TEXT,
@@ -563,8 +769,13 @@ def init_db():
     CREATE INDEX IF NOT EXISTS license_requests_status ON license_requests(status, created_at DESC);
     CREATE TABLE IF NOT EXISTS legal_info(id INTEGER PRIMARY KEY CHECK(id=1), data TEXT, updated_at INTEGER, updated_by TEXT);
     CREATE TABLE IF NOT EXISTS rate_hits(k TEXT PRIMARY KEY, hits TEXT);
+    CREATE TABLE IF NOT EXISTS license_devices(
+      device_id TEXT PRIMARY KEY, platform TEXT, public_key TEXT, fingerprint TEXT,
+      first_seen INTEGER, last_seen INTEGER, last_ip TEXT, info TEXT);
+    CREATE TABLE IF NOT EXISTS license_clock(id INTEGER PRIMARY KEY CHECK(id=1), watermark INTEGER, mac TEXT, updated_at INTEGER);
     """)
     CON.commit()
+    migrate_license_schema()
     # No se activa ninguna licencia durante el arranque. La primera activación
     # debe llegar explícitamente a /api/license/activate con una clave válida.
     if not q("SELECT 1 FROM users LIMIT 1", one=True):
@@ -591,6 +802,28 @@ def init_db():
         audit(None, "BOOTSTRAP", "Usuarios iniciales creados (cambie las contraseñas de demostración)")
     if not q("SELECT 1 FROM app_state", one=True):
         q("INSERT INTO app_state(id,version,data,updated_at) VALUES(1,0,NULL,?)", (now(),))
+
+
+def ensure_column(table, column, decl):
+    """Añade una columna que falte en una base de datos antigua (SQLite: ALTER TABLE ADD COLUMN)."""
+    with _lock:
+        cols = {r[1] for r in CON.execute(f"PRAGMA table_info({table})")}
+        if cols and column not in cols:
+            CON.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+            CON.commit()
+
+
+def migrate_license_schema():
+    """Bases de datos anteriores a las licencias v2: dispositivo en licencias y sesiones."""
+    ensure_column("licenses", "device_id", "TEXT")
+    ensure_column("licenses", "platform", "TEXT")
+    ensure_column("sessions", "device_id", "TEXT")
+    ensure_column("sessions", "proof_at", "INTEGER")
+    with _lock:
+        CON.execute("CREATE INDEX IF NOT EXISTS licenses_device ON licenses(device_id, active)")
+        CON.commit()
+    # Las sesiones anteriores no están ligadas a un dispositivo: deben volver a entrar.
+    q("DELETE FROM sessions WHERE device_id IS NULL OR device_id=''")
 
 
 def audit(user, action, details="", ip=""):
@@ -787,6 +1020,8 @@ RATE_LIMITS = {
     ("POST", "/api/login"): (30, 60),
     ("POST", "/api/recover"): (10, 3600),
     ("POST", "/api/license/request"): (10, 3600),
+    ("POST", "/api/license/challenge"): (120, 60),
+    ("POST", "/api/license/activate"): (20, 600),
 }
 # 2FA obligatoria para ADMINISTRADOR (con vía de activación: ver route()).
 REQUIRE_ADMIN_TOTP = os.environ.get("REQUIRE_ADMIN_TOTP", "1") == "1"
@@ -877,10 +1112,13 @@ class Api(BaseHTTPRequestHandler):
         if not path.startswith("/api/"):
             return self.static(path) if method == "GET" else self.err(405, "Método no permitido")
         # --- LICENCIA DE USO: verificación obligatoria siempre primero ---
+        # Aquí, que exista alguna licencia vigente en el servidor; las rutas con sesión
+        # exigen además la licencia del DISPOSITIVO de la sesión (ver route()).
         if path not in LICENSE_EXEMPT and not path.startswith("/api/license/"):
-            lic = check_license_active()
+            lic = any_valid_license()
             if not lic["valid"]:
-                return self.send_json(402, {"error": "Licencia no válida o expirada. Active una licencia para continuar.", "licenseError": True, "reason": lic.get("reason", ""), "code": "LICENSE_REQUIRED"})
+                return self.send_json(402, {"error": "Licencia no válida o expirada. Active una licencia para continuar.", "licenseError": True,
+                                            "reason": lic.get("reason", ""), "code": lic.get("code") or "LICENSE_REQUIRED"})
         # CSRF: toda petición que modifica exige la cabecera X-CP (un formulario de otro sitio no puede ponerla)
         if method != "GET" and self.headers.get("X-CP") != "1":
             return self.err(403, "Falta cabecera anti-CSRF")
@@ -940,6 +1178,36 @@ class Api(BaseHTTPRequestHandler):
 ROUTES = {}
 
 
+# Rutas con sesión que no exigen una prueba reciente del dispositivo.
+PROOF_EXEMPT_PATHS = {"/api/logout", "/api/license/proof"}
+
+
+def session_license_gate(h, u):
+    """Licencia del dispositivo de la sesión, usuario cubierto por la licencia y prueba reciente.
+
+    Devuelve None si todo está en orden o ya respondió con el error.
+    """
+    req_path = urlparse(h.path).path
+    dev = u["device_id"] if "device_id" in u.keys() else None
+    if not dev:
+        q("DELETE FROM sessions WHERE id=?", (u["sid"],))
+        h.send_json(401, {"error": "La sesión no está ligada a este dispositivo. Vuelva a entrar.", "code": "DEVICE_REQUIRED"})
+        return False
+    st = check_device_license(dev)
+    if not st["valid"]:
+        h.send_json(402, {"error": st["reason"] or "Licencia no válida o expirada.", "licenseError": True,
+                          "reason": st["reason"], "code": st["code"], "deviceId": dev})
+        return False
+    if u["user_id"] not in licensed_user_ids():
+        h.send_json(403, {"error": "Este usuario no está cubierto por la licencia (4 usuarios: uno por rol). "
+                                   "El administrador debe desactivar los usuarios sobrantes de su rol.", "code": "USER_NOT_LICENSED"})
+        return False
+    if req_path not in PROOF_EXEMPT_PATHS and now() - int(u["proof_at"] or 0) > PROOF_MAX_AGE:
+        h.send_json(428, {"error": "Confirme la identidad del dispositivo.", "code": "DEVICE_PROOF_REQUIRED"})
+        return False
+    return True
+
+
 def route(method, path, need=True, roles=None):
     def deco(fn):
         def wrap(h, ident):
@@ -947,6 +1215,7 @@ def route(method, path, need=True, roles=None):
             if need:
                 u = h.auth()
                 if not u: return h.err(401, "Sesión caducada. Vuelve a entrar.")
+                if not session_license_gate(h, u): return None
                 if roles and u["role"] not in roles: return h.err(403, "No tienes permiso.")
                 # 2FA obligatoria para ADMINISTRADOR: sin activarla solo puede
                 # entrar, ver sus datos, cambiar contraseña y activar el 2FA.
@@ -964,61 +1233,65 @@ def route(method, path, need=True, roles=None):
 # ------------------------------------------------------------------ licencia de uso (verificación obligatoria primero)
 @route("GET", "/api/license/status", need=False)
 def license_status(h, _, __):
-    info = get_active_license_info()
-    if info["valid"]:
-        p = info["payload"]
-        db_row = info["db_row"]
-        exp = p.get("expires_at", 0) if p else db_row["expires_at"]
-        days_left = -1
-        if exp != 0:
-            days_left = max(0, (exp - now()) // 86400)
-        h.send_json(200, {
-            "valid": True,
-            "hasLicense": True,
-            "clientName": p.get("client_name", db_row["client_name"]) if p else db_row["client_name"],
-            "product": p.get("product", db_row["product"]) if p else db_row["product"],
-            "type": p.get("type", db_row["type"]) if p else db_row["type"],
-            "issuedAt": p.get("issued_at", db_row["issued_at"]) if p else db_row["issued_at"],
-            "expiresAt": exp,
-            "daysLeft": days_left,
-            "maxUsers": p.get("max_users", db_row["max_users"]) if p else db_row["max_users"],
-            "maxDevices": p.get("max_devices", db_row["max_devices"]) if p else db_row["max_devices"],
-            "features": p.get("features", json.loads(db_row["features"] or '["*"]')) if p else json.loads(db_row["features"] or '["*"]'),
-            "licenseId": p.get("license_id", "") if p else db_row["key"][:12],
-            "formattedKey": format_license_key(db_row["key"]) if db_row else "",
-            **license_public_config(),
-        })
+    """Estado de la licencia de ESTE dispositivo (cabecera X-NG-Device; solo informativo)."""
+    dev = lic2.normalize_device_id(h.headers.get("X-NG-Device") or parse_qs(urlparse(h.path).query).get("device", [""])[0])
+    if lic2.valid_device_id(dev):
+        st = check_device_license(dev)
     else:
-        # Verifica si hay licencias expiradas para dar más contexto
-        rows = q("SELECT * FROM licenses ORDER BY expires_at DESC LIMIT 1")
-        last = dict(rows[0]) if rows else None
-        h.send_json(200, {
-            "valid": False,
-            "hasLicense": bool(last),
-            "reason": info.get("reason", "Sin licencia"),
-            "lastLicense": {
-                "clientName": last["client_name"],
-                "type": last["type"],
-                "expiresAt": last["expires_at"],
-                "expired": last["expires_at"] != 0 and last["expires_at"] < now(),
-            } if last else None,
-            **license_public_config(),
-        })
+        st = any_valid_license()
+        st = {**st, "valid": False, "deviceId": "", "code": st.get("code") if not st.get("valid") else "DEVICE_REQUIRED",
+              "reason": st.get("reason") if not st.get("valid") else "Identifique este dispositivo para comprobar su licencia.",
+              "payload": None, "row": None}
+    h.send_json(200, {**license_status_public(st), **license_public_config()})
+
+
+@route("POST", "/api/license/challenge", need=False)
+def license_challenge(h, _, __):
+    """Desafío de un solo uso que el dispositivo firma con su llave (activar, entrar, renovar)."""
+    b = h.body()
+    purpose = str(b.get("purpose") or "").strip().lower()
+    trusted, clock = CLOCK.now()
+    h.send_json(200, {"nonce": issue_nonce(purpose), "purpose": purpose, "expiresIn": NONCE_TTL,
+                      "serverTime": trusted * 1000, "clock": clock, "proofMaxAge": PROOF_MAX_AGE})
+
+
+@route("POST", "/api/license/proof")
+def license_proof(h, u, _):
+    """Renueva la prueba de posesión del dispositivo de la sesión (cada 15 min como máximo)."""
+    b = h.body()
+    try:
+        dev, platform, fp, _spki = verify_proof(b, "proof")
+        if dev != u["device_id"]:
+            raise lic2.LicenseError("DEVICE_MISMATCH", "Esta sesión pertenece a otro dispositivo. Vuelva a entrar.")
+        check_device_fingerprint(dev, platform, fp, h.ip())
+    except lic2.LicenseError as e:
+        if e.code in ("DEVICE_MISMATCH", "DEVICE_CHANGED"):
+            q("DELETE FROM sessions WHERE id=?", (u["sid"],))
+            audit(u["username"], "DEVICE_PROOF_FAIL", f"{e.code} · sesión cerrada · {h.ip()}", h.ip())
+            return h.send_json(401, {**e.as_dict(), "licenseError": True})
+        return license_error_response(h, e)
+    q("UPDATE sessions SET proof_at=? WHERE id=?", (now(), u["sid"]))
+    h.send_json(200, {"ok": True, "deviceId": dev, "proofMaxAge": PROOF_MAX_AGE})
 
 
 @route("POST", "/api/license/verify", need=False)
 def license_verify(h, _, __):
+    """Comprueba una clave sin activarla (firma, contenido, caducidad y dispositivo)."""
     b = h.body()
-    key = str(b.get("license_key") or b.get("key") or "").strip()
-    if not key:
-        return h.err(400, "Debe proporcionar la clave de licencia.")
-    payload = verify_license_token(key)
-    if not payload:
-        return h.send_json(200, {"valid": False, "error": "Clave de licencia no válida o firma incorrecta."})
-    exp = payload.get("expires_at", 0)
-    if exp != 0 and exp < now():
-        return h.send_json(200, {"valid": False, "error": "La licencia está expirada.", "expired": True, "payload": payload})
-    h.send_json(200, {"valid": True, "payload": payload, "formattedKey": format_license_key(key)})
+    try:
+        payload = lic2.parse_license(b.get("license_key") or b.get("key"))
+    except lic2.LicenseError as e:
+        return h.send_json(200, {"valid": False, **e.as_dict()})
+    trusted, clock = CLOCK.now()
+    estado = lic2.license_time_state(payload, trusted)
+    dev = lic2.normalize_device_id(b.get("device_id") or b.get("deviceId") or h.headers.get("X-NG-Device") or "")
+    out = {"valid": estado == "ok", "payload": payload, "expired": estado == "expired", "notYet": estado == "not_yet",
+           "daysLeft": lic2.days_left(payload, trusted), "serverTime": trusted * 1000}
+    if dev:
+        out["deviceMatches"] = dev == payload["device_id"]
+    if estado == "expired":
+        out["error"] = f"La licencia caducó el {license_fmt_day(payload['expires_at'])}."
+    h.send_json(200, out)
 
 
 @route("POST", "/api/license/request", need=False)
@@ -1121,102 +1394,119 @@ def license_request_delete(h, u, ident):
 
 @route("POST", "/api/license/activate", need=False)
 def license_activate(h, _, __):
+    """Activa una licencia en ESTE dispositivo: la clave debe estar firmada por el emisor,
+    emitida para el ID del dispositivo y acompañada de su prueba firmada (desafío)."""
     b = h.body()
-    raw_key = str(b.get("license_key") or b.get("key") or "").strip()
-    if not raw_key:
-        return h.err(400, "Debe proporcionar la clave de licencia.")
-    # Limpieza: permite formato con guiones y prefijo (NG- o CP- heredado)
-    key = raw_key.strip()
-    payload = verify_license_token(key)
-    if not payload:
-        audit("anon", "LICENSE_FAIL", f"Intento de activación fallido: firma inválida · {h.ip()}", h.ip())
-        return h.err(400, "Clave de licencia no válida. Verifique que la copió completa (incluyendo el punto).")
-    exp = payload.get("expires_at", 0)
-    if exp != 0 and exp < now():
-        return h.err(400, f"La licencia expiró el {dt.datetime.fromtimestamp(exp).strftime('%d/%m/%Y')}.")
-    # Verifica si ya existe
+    key = lic2.clean_key(b.get("license_key") or b.get("key"))
+    device_info = str(b.get("device_info") or b.get("deviceInfo") or h.headers.get("User-Agent", ""))[:300]
+    try:
+        payload = lic2.parse_license(key)
+        dev, platform, fp, spki = verify_proof(b, "activate", hashlib.sha256(key.encode()).hexdigest()[:16])
+        if payload["device_id"] != dev:
+            raise lic2.LicenseError(
+                "LICENSE_OTHER_DEVICE",
+                f"Esta licencia se emitió para otro dispositivo ({payload['device_id']}). El ID de este dispositivo es {dev}: "
+                "solicite la licencia con ese ID. Una licencia solo funciona en el equipo para el que se emitió.",
+                deviceId=dev, licenseDevice=payload["device_id"])
+        if payload["platform"] != platform:
+            raise lic2.LicenseError("LICENSE_PLATFORM", "Esta licencia es para otra plataforma (Web/Android).")
+        trusted, clock = CLOCK.now()
+        estado = lic2.license_time_state(payload, trusted)
+        if estado == "not_yet":
+            raise lic2.LicenseError("CLOCK_BEHIND", f"La fecha de este servidor es anterior a la emisión de la licencia ({license_fmt_date(payload['issued_at'])}). "
+                                                    "Corrija la fecha y la hora para continuar.")
+        if estado == "expired":
+            raise lic2.LicenseError("LICENSE_EXPIRED", f"La licencia caducó el {license_fmt_day(payload['expires_at'])}.")
+    except lic2.LicenseError as e:
+        audit("anon", "LICENSE_FAIL", f"Activación rechazada · {e.code} · {h.ip()}", h.ip())
+        return license_error_response(h, e)
+    ts = now()
+    meta = json.dumps({"activated_from": h.ip(), "license_id": payload["license_id"], "kid": payload.get("kid")}, ensure_ascii=False)
     existing = q("SELECT * FROM licenses WHERE key=?", (key,), one=True)
     if existing:
-        # Reactiva si estaba inactiva
-        q("UPDATE licenses SET active=1, last_verified=?, client_name=?, product=?, type=?, issued_at=?, expires_at=?, max_users=?, max_devices=?, features=? WHERE id=?",
-          (now(), payload.get("client_name", existing["client_name"]), payload.get("product", existing["product"]),
-           payload.get("type", existing["type"]), payload.get("issued_at", existing["issued_at"]),
-           payload.get("expires_at", existing["expires_at"]), payload.get("max_users", existing["max_users"]),
-           payload.get("max_devices", existing["max_devices"]), json.dumps(payload.get("features", ["*"]), ensure_ascii=False),
-           existing["id"]))
+        q("UPDATE licenses SET active=1, last_verified=?, client_name=?, product=?, type=?, issued_at=?, expires_at=?, max_users=?, "
+          "max_devices=?, features=?, device_id=?, platform=? WHERE id=?",
+          (ts, payload["client_name"], payload["product"], payload["type"], payload["issued_at"], payload["expires_at"],
+           payload["max_users"], payload["max_devices"], json.dumps(payload.get("features") or ["*"], ensure_ascii=False),
+           dev, platform, existing["id"]))
         lic_id = existing["id"]
     else:
-        # Desactiva otras licencias del mismo producto si es FULL/ENTERPRISE (solo una activa a la vez)
-        if payload.get("type") in ("FULL", "ENTERPRISE", "LIFETIME"):
-            q("UPDATE licenses SET active=0 WHERE product=?", (payload.get("product", LICENSE_PRODUCT),))
-        q("INSERT INTO licenses(key, client_name, product, type, issued_at, expires_at, max_users, max_devices, features, active, created_by, created_at, last_verified, metadata) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-          (key, payload.get("client_name", "Cliente"), payload.get("product", LICENSE_PRODUCT), payload.get("type", "FULL"),
-           payload.get("issued_at", now()), payload.get("expires_at", 0), payload.get("max_users", 20), payload.get("max_devices", 10),
-           json.dumps(payload.get("features", ["*"]), ensure_ascii=False), 1, "activacion", now(), now(),
-           json.dumps({"activated_from": h.ip(), "license_id": payload.get("license_id")}, ensure_ascii=False)))
-        lic_row = q("SELECT * FROM licenses WHERE key=?", (key,), one=True)
-        lic_id = lic_row["id"] if lic_row else 0
-    # Registra activación de dispositivo
-    device_id = str(b.get("device_id") or b.get("deviceId") or "")[:100] or h.ip()
-    device_info = str(b.get("device_info") or b.get("deviceInfo") or h.headers.get("User-Agent", ""))[:300]
+        q("INSERT INTO licenses(key, client_name, product, type, issued_at, expires_at, max_users, max_devices, features, active, "
+          "created_by, created_at, last_verified, metadata, device_id, platform) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          (key, payload["client_name"], payload["product"], payload["type"], payload["issued_at"], payload["expires_at"],
+           payload["max_users"], payload["max_devices"], json.dumps(payload.get("features") or ["*"], ensure_ascii=False),
+           1, "activacion", ts, ts, meta, dev, platform))
+        lic_id = q("SELECT id FROM licenses WHERE key=?", (key,), one=True)["id"]
+    # Un dispositivo = una licencia activa: las anteriores de ESTE dispositivo se desactivan
+    # (las de otros dispositivos no se tocan).
+    q("UPDATE licenses SET active=0 WHERE device_id=? AND id<>?", (dev, lic_id))
+    viejo = q("SELECT * FROM license_devices WHERE device_id=?", (dev,), one=True)
+    if viejo:
+        q("UPDATE license_devices SET public_key=?, fingerprint=?, last_seen=?, last_ip=?, info=? WHERE device_id=?",
+          (spki, json.dumps(fp, ensure_ascii=False, sort_keys=True), ts, h.ip(), device_info, dev))
+    else:
+        q("INSERT INTO license_devices(device_id, platform, public_key, fingerprint, first_seen, last_seen, last_ip, info) VALUES(?,?,?,?,?,?,?,?)",
+          (dev, platform, spki, json.dumps(fp, ensure_ascii=False, sort_keys=True), ts, ts, h.ip(), device_info))
+    q("UPDATE license_activations SET active=0 WHERE device_id=?", (dev,))
     q("INSERT INTO license_activations(license_key, license_id, device_id, device_info, ip, activated_at, last_seen, active) VALUES(?,?,?,?,?,?,?,?)",
-      (key, lic_id, device_id, device_info, h.ip(), now(), now(), 1))
-    audit("sistema", "LICENSE_ACTIVATE", f"Licencia activada · {payload.get('license_id')} · {payload.get('client_name')} · tipo {payload.get('type')} · {h.ip()}", h.ip())
-    # La solicitud pendiente de este equipo queda atendida al activar su clave
-    try:
-        q("UPDATE license_requests SET status='atendida', handled_at=?, handled_by='activación' WHERE device_id=? AND status='pendiente'",
-          (now(), device_id))
-    except Exception as e:
-        print(f"[LICENCIA] No se pudo cerrar la solicitud del equipo {device_id}: {e}", flush=True)
-    # Respuesta con info completa
-    info = get_active_license_info()
-    p = info["payload"] if info["valid"] else payload
-    exp_final = p.get("expires_at", 0)
-    days_left = -1 if exp_final == 0 else max(0, (exp_final - now()) // 86400)
-    h.send_json(200, {
-        "ok": True,
-        "valid": True,
-        "clientName": p.get("client_name"),
-        "product": p.get("product"),
-        "type": p.get("type"),
-        "expiresAt": exp_final,
-        "daysLeft": days_left,
-        "licenseId": p.get("license_id"),
-        "formattedKey": format_license_key(key),
-        "message": f"Licencia activada correctamente para {p.get('client_name')}."
-    })
+      (key, lic_id, dev, device_info, h.ip(), ts, ts, 1))
+    audit("sistema", "LICENSE_ACTIVATE",
+          f"Licencia activada · {payload['license_id']} · {payload['client_name']} · {payload['type']} · {dev} · {h.ip()}", h.ip())
+    # La solicitud pendiente de este dispositivo queda atendida al activar su clave
+    q("UPDATE license_requests SET status='atendida', handled_at=?, handled_by='activación' WHERE device_id=? AND status='pendiente'", (ts, dev))
+    st = check_device_license(dev, touch=True)
+    h.send_json(200, {"ok": True, **license_status_public(st),
+                      "message": f"Licencia activada en este dispositivo para {payload['client_name']}."})
 
 
 @route("GET", "/api/license/info", roles=ADMINS)
 def license_info(h, u, _):
-    licenses = [dict(r) for r in q("SELECT * FROM licenses ORDER BY active DESC, expires_at DESC")]
-    activations = [dict(r) for r in q("SELECT * FROM license_activations ORDER BY last_seen DESC LIMIT 100")]
-    # Oculta parte de la clave por seguridad, muestra formateada parcial
+    licenses = [dict(r) for r in q("SELECT * FROM licenses ORDER BY active DESC, issued_at DESC, id DESC")]
+    trusted, clock = CLOCK.now()
     for lic in licenses:
-        lic["formattedKey"] = format_license_key(lic["key"])
-        lic["keyPreview"] = lic["key"][:20] + "..." + lic["key"][-10:] if len(lic["key"]) > 35 else lic["key"]
-        # No exponer clave completa a no-admin? Admin sí puede verla, pero la ocultamos parcialmente en listado
-        # Para admin completo, la clave completa se devuelve solo si se pide detalle
-    active = get_active_license_info()
+        lic["keyPreview"] = license_key_preview(lic["key"])
+        lic["formattedKey"] = lic["key"]
+        try:
+            p = lic2.parse_license(lic["key"])
+            lic["signatureValid"] = True
+            lic["timeState"] = lic2.license_time_state(p, trusted)
+        except lic2.LicenseError as e:
+            lic["signatureValid"] = False
+            lic["invalidReason"] = e.message
+            lic["timeState"] = "invalid"
+    activations = [dict(r) for r in q("SELECT * FROM license_activations ORDER BY last_seen DESC LIMIT 100")]
+    devices = [{k: v for k, v in dict(r).items() if k != "public_key"} for r in q("SELECT * FROM license_devices ORDER BY last_seen DESC LIMIT 100")]
+    active = check_device_license(u["device_id"])
     h.send_json(200, {
         "licenses": licenses,
         "activations": activations,
+        "devices": devices,
         "requests": license_requests_list(limit=100),
         "requestCounts": license_request_counts(),
         "active": {
             "valid": active["valid"],
             "payload": active.get("payload"),
-            "db_row": {k: v for k, v in (active["db_row"] or {}).items() if k != "key"} if active.get("db_row") else None,
+            "db_row": {k: v for k, v in (active.get("row") or {}).items() if k != "key"} if active.get("row") else None,
         },
+        "deviceId": u["device_id"],
+        "clock": clock,
+        "canIssue": lic2.signing_key_available(),
+        "limits": license_limit_info(),
         **license_public_config(),
     })
 
 
 @route("POST", "/api/license/generate", roles=ADMINS)
 def license_generate(h, u, _):
+    """Emite una licencia. Solo funciona en el equipo del EMISOR (donde está la llave privada
+    de firma): el servidor de un cliente no puede fabricarse licencias."""
     b = h.body()
+    try:
+        signing_key = lic2.load_signing_key()
+    except lic2.LicenseError as e:
+        return h.send_json(403, {**e.as_dict(), "licenseError": True})
     # Generar a partir de una solicitud recibida (panel «Gestionar → Solicitudes»):
-    # el cliente y el plazo salen de la propia solicitud.
+    # el cliente, el dispositivo y el plazo salen de la propia solicitud.
     req_row = None
     req_id = b.get("request_id") or b.get("requestId") or b.get("solicitud")
     if req_id not in (None, "", 0, "0"):
@@ -1226,49 +1516,41 @@ def license_generate(h, u, _):
             req_row = None
         if not req_row:
             return h.err(404, "La solicitud de licencia indicada no existe.")
-    client = str(b.get("client_name") or b.get("clientName") or (req_row["client_name"] if req_row else "") or "NovaGest").strip()[:120]
+    client = str(b.get("client_name") or b.get("clientName") or (req_row["client_name"] if req_row else "") or "").strip()[:120]
+    device_id = lic2.normalize_device_id(b.get("device_id") or b.get("deviceId") or (req_row["device_id"] if req_row else ""))
     # Licencia por término: si viene `term` (DIA/SEMANA/MES/…/PERMANENTE) manda sobre type/days.
     term = next((t for t in LICENSE_TERMS if t["id"] == str(b.get("term") or (req_row["term"] if req_row else "") or "").upper()), None)
     ltype = str(b.get("type") or (term["type"] if term else "FULL")).upper()
-    if ltype not in ("TRIAL", "FULL", "ENTERPRISE", "LIFETIME"):
-        ltype = "FULL"
     days = b.get("days")
     if days is None and term:
         days = term["days"]
     if days is None:
-        days = 365 if ltype != "LIFETIME" else 0
+        days = 0 if ltype == "LIFETIME" else 365
     try:
-        days_int = int(days)
-    except Exception:
-        if str(days).upper() in ("NEVER", "LIFETIME", "PERMANENTE", "0"):
-            days_int = 0
-        else:
-            days_int = 365
-    max_users = int(b.get("max_users") or b.get("maxUsers") or 20)
-    max_devices = int(b.get("max_devices") or b.get("maxDevices") or 10)
-    features = b.get("features") or ["*"]
-    payload = generate_license_payload(client_name=client, product=LICENSE_PRODUCT, license_type=ltype, days=days_int, max_users=max_users, max_devices=max_devices, features=features)
-    token = create_license_token(payload)
-    # Guarda como inactiva hasta que se active (o activa directamente si se pide)
-    auto_activate = bool(b.get("activate"))
-    q("INSERT INTO licenses(key, client_name, product, type, issued_at, expires_at, max_users, max_devices, features, active, created_by, created_at, last_verified, metadata) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        payload = lic2.build_payload(client, device_id, days, ltype, LICENSE_PRODUCT, b.get("features") or ["*"])
+        token = lic2.sign_license(payload, signing_key)
+        payload = lic2.parse_license(token)
+    except lic2.LicenseError as e:
+        return h.send_json(400, {**e.as_dict(), "licenseError": True})
+    q("INSERT INTO licenses(key, client_name, product, type, issued_at, expires_at, max_users, max_devices, features, active, created_by, "
+      "created_at, last_verified, metadata, device_id, platform) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
       (token, payload["client_name"], payload["product"], payload["type"], payload["issued_at"], payload["expires_at"],
        payload["max_users"], payload["max_devices"], json.dumps(payload["features"], ensure_ascii=False),
-       1 if auto_activate else 0, u["username"], now(), now(),
-       json.dumps({"generated_by": u["username"], "license_id": payload["license_id"]}, ensure_ascii=False)))
-    if auto_activate:
-        q("UPDATE licenses SET active=0 WHERE id<>? AND product=?", (q("SELECT id FROM licenses WHERE key=?", (token,), one=True)["id"], LICENSE_PRODUCT))
-    audit(u["username"], "LICENSE_GENERATE", f"Licencia generada · {payload['license_id']} · {client} · {ltype} · {days_int}d", h.ip())
+       0, u["username"], now(), now(),
+       json.dumps({"generated_by": u["username"], "license_id": payload["license_id"], "kid": payload["kid"]}, ensure_ascii=False),
+       payload["device_id"], payload["platform"]))
+    lic_id = q("SELECT id FROM licenses WHERE key=?", (token,), one=True)["id"]
+    dias = (payload["expires_at"] - payload["issued_at"]) // 86400 if payload["expires_at"] else 0
+    audit(u["username"], "LICENSE_GENERATE", f"Licencia generada · {payload['license_id']} · {payload['client_name']} · {payload['type']} · {dias}d · {payload['device_id']}", h.ip())
     # La solicitud que originó la clave queda marcada como atendida
     if req_row:
-        preview = f"{token[:18]}…{token[-8:]}" if len(token) > 30 else token
         q("UPDATE license_requests SET status='atendida', handled_at=?, handled_by=?, license_id=?, license_preview=? WHERE id=?",
-          (now(), u["username"], q("SELECT id FROM licenses WHERE key=?", (token,), one=True)["id"], preview, req_row["id"]))
+          (now(), u["username"], lic_id, license_key_preview(token), req_row["id"]))
         audit(u["username"], "LICENSE_REQUEST_DONE", f"Solicitud #{req_row['id']} atendida con la licencia {payload['license_id']}", h.ip())
     h.send_json(200, {
         "ok": True,
         "license_key": token,
-        "formattedKey": format_license_key(token),
+        "formattedKey": token,
         "payload": payload,
         "requestId": req_row["id"] if req_row else None,
         "request": license_request_public(q("SELECT * FROM license_requests WHERE id=?", (req_row["id"],), one=True)) if req_row else None,
@@ -1345,15 +1627,18 @@ def legal_put(h, u, _):
 
 @route("GET", "/api/health", need=False)
 def health(h, u, _):
-    lic = get_active_license_info()
-    h.send_json(200, {"ok": True, "app": "NovaGest", "version": APP_VERSION, "https": h.secure(), "time": now(), "licenseValid": lic["valid"], "licenseType": (lic["payload"] or {}).get("type") if lic["valid"] else None})
+    lic = any_valid_license()
+    h.send_json(200, {"ok": True, "app": "NovaGest", "version": APP_VERSION, "https": h.secure(), "time": now(),
+                      "trustedTime": lic.get("trustedTime"), "licenseValid": lic["valid"],
+                      "licenseType": (lic["payload"] or {}).get("type") if lic["valid"] else None})
 
 
-def new_session(h, user):
+def new_session(h, user, device_id):
     tok = secrets.token_urlsafe(32)
     sid = secrets.token_hex(8)
-    q("INSERT INTO sessions(id,token_hash,user_id,created,last_seen,ip,ua) VALUES(?,?,?,?,?,?,?)",
-      (sid, hashlib.sha256(tok.encode()).hexdigest(), user["id"], now(), now(), h.ip(), (h.headers.get("User-Agent") or "")[:200]))
+    q("INSERT INTO sessions(id,token_hash,user_id,created,last_seen,ip,ua,device_id,proof_at) VALUES(?,?,?,?,?,?,?,?,?)",
+      (sid, hashlib.sha256(tok.encode()).hexdigest(), user["id"], now(), now(), h.ip(), (h.headers.get("User-Agent") or "")[:200],
+       device_id, now()))
     q("UPDATE users SET last_login=? WHERE id=?", (now(), user["id"]))
     return tok
 
@@ -1366,6 +1651,20 @@ def login(h, _, __):
     f = q("SELECT * FROM fails WHERE k=?", (k,), one=True)
     if f and f["until"] > now():
         return h.err(429, f"Demasiados intentos. Espera {max(1, (f['until'] - now()) // 60)} min.")
+    # El dispositivo demuestra que es él (firma el desafío con su llave) y debe tener
+    # su propia licencia activa: copiar la sesión o la clave a otro equipo no sirve.
+    try:
+        dev, platform, fp, _spki = verify_proof(b, "login", username.lower())
+    except lic2.LicenseError as e:
+        return license_error_response(h, e, 428 if e.code in ("DEVICE_PROOF_REQUIRED", "DEVICE_PROOF_EXPIRED") else 400)
+    st = check_device_license(dev)
+    if not st["valid"]:
+        return h.send_json(402, {"error": st["reason"], "licenseError": True, "reason": st["reason"], "code": st["code"], "deviceId": dev})
+    try:
+        check_device_fingerprint(dev, platform, fp, h.ip())
+    except lic2.LicenseError as e:
+        audit(username, "DEVICE_CHANGED", f"{dev} · {h.ip()}", h.ip())
+        return license_error_response(h, e, 403)
     user = q("SELECT * FROM users WHERE username=?", (username,), one=True)
     if not user or not user["active"] or not check_pw(str(b.get("password", "")), user["pw_hash"]):
         n = (f["n"] if f else 0) + 1
@@ -1389,10 +1688,16 @@ def login(h, _, __):
                 q("INSERT OR REPLACE INTO fails(k,n,until) VALUES(?,?,?)", (k, 0 if n >= 5 else n, now() + 300 if n >= 5 else 0))
                 audit(username, "2FA_FAIL", "", h.ip())
                 return h.send_json(401, {"error": "Código de verificación incorrecto.", "need2fa": True})
+    if user["id"] not in licensed_user_ids():
+        audit(user["username"], "LOGIN_DENIED", "Usuario fuera del límite de la licencia (4 usuarios, 1 por rol)", h.ip())
+        return h.send_json(403, {"error": "Este usuario no está cubierto por la licencia: permite 4 usuarios, uno por rol "
+                                          "(administrador, jefe, económico y almacenero). El administrador debe desactivar los "
+                                          "usuarios sobrantes de su rol.", "code": "USER_NOT_LICENSED"})
     q("DELETE FROM fails WHERE k=?", (k,))
-    tok = new_session(h, user)
+    tok = new_session(h, user, dev)
     audit(user["username"], "LOGIN", h.headers.get("User-Agent", "")[:80], h.ip())
-    h.send_json(200, {"token": tok, "user": public_user(user), "idleMinutes": IDLE // 60}, cookies=[h.cookie(tok)])
+    h.send_json(200, {"token": tok, "user": public_user(user), "idleMinutes": IDLE // 60, "deviceId": dev,
+                      "proofMaxAge": PROOF_MAX_AGE, "license": license_status_public(st)}, cookies=[h.cookie(tok)])
 
 
 @route("POST", "/api/logout")
@@ -1508,7 +1813,7 @@ def tfa_disable(h, u, _):
 # ------------------------------------------------------------------ usuarios (admin)
 @route("GET", "/api/users")
 def users(h, u, _):
-    h.send_json(200, {"users": [public_user(r) for r in q("SELECT * FROM users ORDER BY id")]})
+    h.send_json(200, {"users": [public_user(r) for r in q("SELECT * FROM users ORDER BY id")], "licenseLimit": license_limit_info()})
 
 
 @route("POST", "/api/users", roles=ADMINS)
@@ -1519,6 +1824,8 @@ def user_create(h, u, _):
     e = pw_policy(b.get("password"))
     if e: return h.err(400, e)
     if q("SELECT 1 FROM users WHERE username=?", (b["username"],), one=True): return h.err(409, "Ese usuario ya existe.")
+    limite = user_limit_error(b["role"])
+    if limite: return h.send_json(409, {"error": limite, "code": "USER_LIMIT"})
     q("INSERT INTO users(username,display_name,email,role,pw_hash,question,answer_hash,created_at,pw_changed) VALUES(?,?,?,?,?,?,?,?,?)",
       (b["username"], b.get("displayName") or b["username"], b.get("email", ""), b["role"], hash_pw(b["password"]),
        b.get("securityQuestion") or "¿Ciudad de la tienda?", hash_pw(str(b.get("answer") or secrets.token_hex(8)).strip().lower()), now(), now()))
@@ -1537,6 +1844,9 @@ def user_update(h, u, ident):
     if usr["role"] == "ADMINISTRADOR" and (role != "ADMINISTRADOR" or not active):
         if not q("SELECT 1 FROM users WHERE role='ADMINISTRADOR' AND active=1 AND id<>?", (usr["id"],), one=True):
             return h.err(400, "No se puede quitar al último administrador.")
+    if active and (not usr["active"] or role != usr["role"]):
+        limite = user_limit_error(role, usr["id"])
+        if limite: return h.send_json(409, {"error": limite, "code": "USER_LIMIT"})
     q("UPDATE users SET display_name=?, email=?, role=?, active=? WHERE id=?",
       (b.get("displayName", usr["display_name"]), b.get("email", usr["email"]), role, active, usr["id"]))
     if b.get("password"):
@@ -1666,20 +1976,26 @@ def backups_restore(h, u, name):
             q("INSERT INTO closed_days(date,closed_by,closed_at,note,snapshot) VALUES(?,?,?,?,?)",
               (c["date"], c["closed_by"], c["closed_at"], c.get("note"), c.get("snapshot")))
         # Restaura licencias si el backup las contiene (no borra actuales, solo inserta/actualiza)
+        # (Cada clave se vuelve a verificar al usarse: una copia no puede «crear» licencias
+        # válidas; solo recupera las que ya estaban firmadas por el emisor.)
         if data.get("licenses"):
             for lic in data["licenses"]:
                 try:
-                    q("INSERT OR REPLACE INTO licenses(id,license_id,client_name,product,type,issued_at,expires_at,max_users,max_devices,features,token,status,activated_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                      (lic.get("id"), lic.get("license_id"), lic.get("client_name"), lic.get("product"), lic.get("type"),
-                       lic.get("issued_at"), lic.get("expires_at"), lic.get("max_users"), lic.get("max_devices"),
-                       lic.get("features"), lic.get("token"), lic.get("status"), lic.get("activated_at"), lic.get("created_at")))
-                except Exception:
-                    pass
+                    p = lic2.parse_license(lic.get("key"))
+                except lic2.LicenseError:
+                    continue
+                q("INSERT OR IGNORE INTO licenses(key, client_name, product, type, issued_at, expires_at, max_users, max_devices, features, "
+                  "active, created_by, created_at, last_verified, metadata, device_id, platform) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                  (lic["key"], p["client_name"], p["product"], p["type"], p["issued_at"], p["expires_at"], p["max_users"],
+                   p["max_devices"], json.dumps(p.get("features") or ["*"]), 1 if lic.get("active") else 0, "restauracion",
+                   lic.get("created_at") or now(), now(), lic.get("metadata") or "{}", p["device_id"], p["platform"]))
         if data.get("licenseActivations"):
             for act in data["licenseActivations"]:
                 try:
-                    q("INSERT OR IGNORE INTO license_activations(id,license_id,device_id,device_info,activated_at,last_seen) VALUES(?,?,?,?,?,?)",
-                      (act.get("id"), act.get("license_id"), act.get("device_id"), act.get("device_info"), act.get("activated_at"), act.get("last_seen")))
+                    q("INSERT OR IGNORE INTO license_activations(license_key, license_id, device_id, device_info, ip, activated_at, last_seen, active) "
+                      "VALUES(?,?,?,?,?,?,?,?)",
+                      (act.get("license_key"), act.get("license_id"), act.get("device_id"), act.get("device_info"), act.get("ip"),
+                       act.get("activated_at"), act.get("last_seen"), 1 if act.get("active") else 0))
                 except Exception:
                     pass
     audit(u["username"], "BACKUP_RESTORE", name, h.ip())
@@ -1712,7 +2028,7 @@ def metrics(h, u, _):
     st = json.loads(r["data"]) if r and r["data"] else {}
     conteos = {k: len(st.get(k) or []) for k in ("products", "movements", "customers", "credits", "fichas", "ipvControls", "warehouses")}
     copias = [f for f in os.listdir(BACKUPS) if f.endswith(".bak")] if os.path.isdir(BACKUPS) else []
-    lic = get_active_license_info()
+    lic = check_device_license(u["device_id"])
     h.send_json(200, {
         "appVersion": "1.0.0", "stateVersion": r["version"] if r else 0,
         "conteos": conteos,
@@ -1733,6 +2049,11 @@ def main():
     init_db()
     migrate_state()
     threading.Thread(target=backup_loop, daemon=True).start()
+    if NET_TIME:
+        threading.Thread(target=network_time_loop, daemon=True).start()
+    if not lic2.PUBLIC_KEYS:
+        print("[LICENCIA] Falta server/license_public_keys.pem (llave pública del emisor): ninguna licencia será válida. "
+              "El emisor debe ejecutar «python tools/generate_license.py --init-keys».", flush=True)
     port = int(os.environ.get("PORT", "8080"))
     httpd = ThreadingHTTPServer(("0.0.0.0", port), Api)
     if HTTPS:

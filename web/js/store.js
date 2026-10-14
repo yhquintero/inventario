@@ -1,5 +1,6 @@
 import { SEED } from "./seed-data.js";
 import { api, setToken, getToken, setUnauthorizedHandler } from "./api.js";
+import { deviceProof as proveDevice } from "./device.js";
 import {
   categorize, importeUsd, round2, stockFinal, todayISO, normName, CUADRE_FIELDS, can,
   classifyValueRow, rowFieldKeys, warehouseValues, WAREHOUSE_DEFAULT_ID,
@@ -322,7 +323,14 @@ class Store {
 
   /* ================= SESIÓN (servidor) ================= */
   async login(username, password, code) {
-    const r = await api("/login", { method: "POST", body: { username: username.trim(), password, code: code || undefined } });
+    // El dispositivo firma un desafío del servidor: la sesión queda ligada a este equipo.
+    let deviceProof;
+    try {
+      deviceProof = await proveDevice("login", username.trim().toLowerCase());
+    } catch (e) {
+      return { error: e?.message || "No se pudo identificar este dispositivo." };
+    }
+    const r = await api("/login", { method: "POST", body: { username: username.trim(), password, code: code || undefined, deviceProof } });
     if (r.need2fa && !r.token) return { need2fa: true, error: code ? r.error : null };
     if (!r.token) return { error: r.error };
     setToken(r.token);
@@ -1549,6 +1557,7 @@ class Store {
   async loadUsers() {
     const r = await api("/users");
     if (r.users) this.state.users = r.users;
+    if (r.licenseLimit) this.licenseLimit = r.licenseLimit;
     return this.state.users;
   }
   async saveUser(u, password, answer) {

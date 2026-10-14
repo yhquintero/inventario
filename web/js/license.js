@@ -1,33 +1,33 @@
 /**
  * Licencia de Uso - NovaGest
  * Verificación obligatoria siempre primero antes de cualquier acceso a la App.
- * - Almacenamiento local en localStorage
- * - Verificación remota contra /api/license/status y /api/license/verify
- * - Activación con clave firmada (HMAC)
- * - Cálculo de días restantes, expiración, estado
+ * - Licencias v2 (NG2-…): firmadas por el emisor (ECDSA P-256) y emitidas para UN
+ *   dispositivo: 4 usuarios (uno por rol) y 1 dispositivo.
+ * - El ID de este dispositivo sale de su llave no exportable (ver device.js) y cada
+ *   activación va firmada por esa llave sobre un desafío de un solo uso del servidor.
+ * - El servidor es la fuente de verdad (también de la hora: no sirve atrasar el reloj).
  */
+import { initDevice, currentDeviceId, deviceState, deviceProof, sha256Hex } from "./device.js";
 
 const LS_KEY = "novagest.license";
-const LS_DEVICE = "novagest.device_id";
-// Migra las claves heredadas de la marca anterior para no perder la licencia activa
+// Limpia restos de las versiones anteriores (ID aleatorio y caché de la marca previa)
 try {
-  for (const [oldK, newK] of [["cuadrepinar.license", LS_KEY], ["cuadrepinar.device_id", LS_DEVICE]]) {
-    const v = localStorage.getItem(oldK);
-    if (v && !localStorage.getItem(newK)) { localStorage.setItem(newK, v); localStorage.removeItem(oldK); }
-  }
+  for (const k of ["cuadrepinar.license", "cuadrepinar.device_id"]) localStorage.removeItem(k);
 } catch {}
 
+/** ID seguro de este dispositivo (WEB-XXXX-…); vacío hasta que se cargue la llave. */
 function deviceId() {
-  try {
-    let id = localStorage.getItem(LS_DEVICE);
-    if (!id) {
-      id = "web-" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-      localStorage.setItem(LS_DEVICE, id);
-    }
-    return id;
-  } catch {
-    return "web-" + Math.random().toString(36).slice(2, 8);
-  }
+  return currentDeviceId();
+}
+
+/** Limpia la clave pegada (espacios y saltos de línea de WhatsApp). */
+export function cleanLicenseKey(key) {
+  return String(key || "").replace(/\s+/g, "");
+}
+
+/** ¿Parece una clave v2? (la comprobación real, con firma, la hace el servidor) */
+export function looksLikeLicenseKey(key) {
+  return /^NG2-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/i.test(cleanLicenseKey(key));
 }
 
 function getStored() {
@@ -69,8 +69,14 @@ function daysLeft(exp) {
  * Es la fuente de verdad: si el servidor dice que no hay licencia válida, no se entra.
  */
 export async function fetchLicenseStatus() {
+  let dev = "";
   try {
-    const r = await fetch("/api/license/status", { headers: { "X-CP": "1" }, credentials: "same-origin" });
+    dev = (await initDevice()).id;
+  } catch (e) {
+    return { valid: false, hasLicense: false, code: "DEVICE_UNAVAILABLE", reason: e?.message || "No se pudo crear la identidad de este dispositivo." };
+  }
+  try {
+    const r = await fetch("/api/license/status", { headers: { "X-CP": "1", "X-NG-Device": dev }, credentials: "same-origin" });
     const data = await r.json().catch(() => ({}));
     if (r.status === 200) {
       // Guarda caché local para mostrar info incluso sin conexión después
@@ -83,16 +89,17 @@ export async function fetchLicenseStatus() {
           expiresAt: data.expiresAt,
           daysLeft: data.daysLeft,
           licenseId: data.licenseId,
+          deviceId: dev,
           checkedAt: Date.now(),
         });
       }
-      return data;
+      return { ...data, deviceId: data.deviceId || dev, checkedAt: Date.now() };
     }
     return { valid: false, hasLicense: false, reason: data.error || `Error ${r.status}` };
   } catch (e) {
     // Sin conexión: intenta usar caché local si no expiró
     const cached = getStored();
-    if (cached && cached.valid) {
+    if (cached && cached.valid && cached.deviceId === dev) {
       const exp = cached.expiresAt;
       if (!exp || exp > Math.floor(Date.now() / 1000)) {
         return { ...cached, offline: true, hasLicense: true };
@@ -106,10 +113,18 @@ export async function fetchLicenseStatus() {
  * Activa una licencia en el servidor.
  */
 export async function activateLicense(licenseKey) {
+  const key = cleanLicenseKey(licenseKey);
+  let proof;
+  try {
+    // La prueba firma también un resumen de la clave: no se puede reutilizar con otra.
+    proof = await deviceProof("activate", (await sha256Hex(key)).slice(0, 16));
+  } catch (e) {
+    return { ok: false, error: e?.message || "No se pudo firmar la activación en este dispositivo." };
+  }
   const body = {
-    license_key: licenseKey.trim(),
-    device_id: deviceId(),
-    device_info: navigator.userAgent.slice(0, 300),
+    license_key: key,
+    deviceProof: proof,
+    device_info: (navigator?.userAgent || "").slice(0, 300),
   };
   let res;
   try {
@@ -135,12 +150,12 @@ export async function activateLicense(licenseKey) {
       expiresAt: data.expiresAt,
       daysLeft: data.daysLeft,
       licenseId: data.licenseId,
-      formattedKey: data.formattedKey,
+      deviceId: data.deviceId,
       checkedAt: Date.now(),
     });
     return { ok: true, ...data };
   }
-  return { ok: false, error: data.error || `Error ${res.status}`, reason: data.reason };
+  return { ok: false, error: data.error || `Error ${res.status}`, reason: data.reason, code: data.code };
 }
 
 /**
@@ -152,7 +167,7 @@ export async function verifyLicenseFormat(licenseKey) {
       method: "POST",
       headers: { "X-CP": "1", "Content-Type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ license_key: licenseKey }),
+      body: JSON.stringify({ license_key: cleanLicenseKey(licenseKey), device_id: deviceId() }),
     });
     const data = await r.json().catch(() => ({}));
     return data;
@@ -217,7 +232,7 @@ export function licenseRequestMessage({ name, device, term, product = "NovaGest"
 }
 
 /** Mensaje con la clave ya generada, para enviársela al cliente. */
-export function licenseKeyMessage({ clientName, key, term, expiresText, product = "NovaGest" }) {
+export function licenseKeyMessage({ clientName, key, term, expiresText, device = "", product = "NovaGest" }) {
   const t = typeof term === "string" ? licenseTerm(term) : term;
   const plan = t ? `${t.label}${t.days ? ` (${t.days} días)` : ""} · ${t.type}` : "";
   const lines = [
@@ -227,7 +242,8 @@ export function licenseKeyMessage({ clientName, key, term, expiresText, product 
   ];
   if (plan) lines.push(`📅 Plan: ${plan}`);
   if (expiresText) lines.push(`⏳ Vigencia: ${expiresText}`);
-  lines.push("", "Pega esta clave en la App en «Licencia de uso → Activar licencia»:", "", String(key || "").trim());
+  if (device) lines.push(`🆔 Dispositivo: ${device}`, "👥 4 usuarios (uno por rol) · 1 dispositivo");
+  lines.push("", "Pega esta clave en la App en «Licencia de uso → Activar licencia» (solo funciona en ese dispositivo):", "", String(key || "").trim());
   return lines.join("\n");
 }
 
@@ -244,7 +260,10 @@ export function whatsappLicenseUrl(message, whatsapp = "") {
  */
 export async function submitLicenseRequest({ name, term, phone = "", status, channel = "web", message } = {}) {
   const t = typeof term === "string" ? licenseTerm(term) : term;
-  const device = deviceId();
+  let device = deviceId();
+  if (!device) {
+    try { device = (await initDevice()).id; } catch (e) { return { ok: false, error: e?.message || "Este dispositivo no tiene identidad segura." }; }
+  }
   const product = status?.product || "NovaGest";
   const version = status?.version || "1.0.0";
   const body = {
@@ -275,6 +294,7 @@ export async function submitLicenseRequest({ name, term, phone = "", status, cha
 
 export function requestLicenseByWhatsApp({ name, term, phone = "", status } = {}) {
   const t = typeof term === "string" ? licenseTerm(term) : term;
+  if (!deviceId()) return Promise.resolve({ ok: false, error: deviceState().error || "Espere a que se identifique este dispositivo y vuelva a intentarlo." });
   const msg = licenseRequestMessage({
     name, device: deviceId(), term: t,
     product: status?.product || "NovaGest", version: status?.version || "1.0.0",
@@ -293,6 +313,10 @@ export const LicenseManager = {
   getCached: getCachedLicense,
   clear: clearStored,
   deviceId,
+  deviceState,
+  initDevice,
+  cleanKey: cleanLicenseKey,
+  looksLikeKey: looksLikeLicenseKey,
   fmtDate,
   daysLeft,
   isExpiringSoon: isLicenseExpiringSoon,
