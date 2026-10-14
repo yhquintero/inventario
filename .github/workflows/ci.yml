@@ -30,28 +30,32 @@ jobs:
         # corre igual en Linux. Valida la sintaxis de iniciar-https.ps1 y
         # panel-control.ps1, el BOM UTF-8 de los .ps1 con acentos y las
         # funciones del panel.
+      # tools/ci_paso.sh ejecuta cada prueba y, si falla, publica el final de su
+      # salida como anotación (::error::): la causa se ve en el resumen del CI.
       - name: Pruebas Web e IPV
         run: |
-          node tools/test_ipv.mjs
-          node tools/test_calc.mjs
-          node tools/cobertura.mjs --min 80
-          node tools/test_accesibilidad.mjs
-          npm --prefix tools install --ignore-scripts
-          node tools/test_axe.mjs
-          node tools/test_generador_ui.mjs
-          node tools/test_almacenes.mjs
-          node tools/test_customers_credits.mjs
-          node tools/test_excel_sources.mjs
-          node tools/smoke_web.mjs
+          set -e
+          bash tools/ci_paso.sh node tools/test_ipv.mjs
+          bash tools/ci_paso.sh node tools/test_calc.mjs
+          bash tools/ci_paso.sh node tools/cobertura.mjs --min 80
+          bash tools/ci_paso.sh node tools/test_accesibilidad.mjs
+          bash tools/ci_paso.sh npm --prefix tools install --ignore-scripts
+          bash tools/ci_paso.sh node tools/test_axe.mjs
+          bash tools/ci_paso.sh node tools/test_generador_ui.mjs
+          bash tools/ci_paso.sh node tools/test_almacenes.mjs
+          bash tools/ci_paso.sh node tools/test_customers_credits.mjs
+          bash tools/ci_paso.sh node tools/test_excel_sources.mjs
+          bash tools/ci_paso.sh node tools/smoke_web.mjs
       - name: Pruebas Python y sintaxis del servidor
         run: |
-          python3 -m py_compile server/novagest_server.py tools/license_studio.py
-          python3 -m pip install -r requirements.txt
-          python3 tools/test_licencia.py
-          python3 tools/test_generador.py
-          python3 tools/test_seguridad_servidor.py
-          python3 tools/test_restauracion.py
-          python3 tools/test_carga.py --n 12
+          set -e
+          bash tools/ci_paso.sh python3 -m py_compile server/novagest_server.py tools/license_studio.py
+          bash tools/ci_paso.sh python3 -m pip install -r requirements.txt
+          bash tools/ci_paso.sh python3 tools/test_licencia.py
+          bash tools/ci_paso.sh python3 tools/test_generador.py
+          bash tools/ci_paso.sh python3 tools/test_seguridad_servidor.py
+          bash tools/ci_paso.sh python3 tools/test_restauracion.py
+          bash tools/ci_paso.sh python3 tools/test_carga.py --n 12
       - name: Inventario de pendientes no inventados (informativo)
         run: python3 tools/verificar_pendientes.py
         # No bloquea: lista [COMPLETAR], firmas y casillas que solo puede
@@ -84,11 +88,10 @@ jobs:
             # Publica la causa como anotaciones (visibles en el resumen del CI sin
             # abrir los registros): errores de Kotlin/Java, pruebas fallidas y el
             # bloque «What went wrong» de Gradle.
-            {
+            resumen="$({
               grep -E '^e: |error:|FAILED' gradle.log | head -40
-              grep -A 12 'What went wrong' gradle.log | head -40
-            } | sed -e 's/%/%25/g' | while IFS= read -r linea; do
-              [ -n "$linea" ] && echo "::error::$linea"
-            done
+              grep -A 45 'What went wrong' gradle.log | grep -v '^\s*at ' | head -60
+            } | sed -e 's/%/%25/g' -e 's/\r//g' | awk 'BEGIN { ORS = "%0A" } { print }')"
+            echo "::error::Gradle falló:%0A${resumen}"
             exit 1
           fi

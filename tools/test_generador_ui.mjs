@@ -144,10 +144,16 @@ try {
   check(String(win.__abierto || "").startsWith("https://wa.me/5351234567"), "abre WhatsApp con el mensaje listo para reenviar");
   check(/atendida/.test($("result-req").innerHTML), "la solicitud queda marcada como atendida");
   await esperar(400);
-  check(/solo en esta sesión \(sin BD\)/.test($("requests").innerHTML),
-        "sin base de datos del servidor avisa de que la solicitud vive en la sesión");
-  check(/no hay una base de datos del servidor utilizable/i.test($("requests").innerHTML),
-        "explica por qué no se ven las solicitudes de la Web/Android y cómo arreglarlo");
+  // La carpeta data de la prueba empezó vacía: el generador crea la base de datos
+  // al arrancar (ya no queda «sin BD») y la solicitud importada se guarda en ella.
+  check(/^BD creada y conectada$/.test($("chip-db").textContent.trim()),
+        `sin base de datos previa, el generador la crea y la conecta («${$("chip-db").textContent.trim()}»)`);
+  check(/creada por el generador/.test($("chip-db").title || ""),
+        "el indicador explica que la base la creó el generador (y dónde)");
+  check(!/sin BD/.test($("requests").innerHTML) && !/solo en esta sesión/.test($("requests").innerHTML),
+        "la solicitud importada queda guardada en la base de datos (no «solo en esta sesión»)");
+  check(!/No se pudo crear ni abrir la base de datos/.test($("requests").innerHTML),
+        "no muestra el aviso de base de datos no disponible");
 } catch (e) {
   mal.push(`la prueba no pudo completarse: ${e.message}`);
 } finally {
