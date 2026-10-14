@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   NovaGest - Panel de Control Visual: ventana de control + icono en la bandeja
   del sistema (junto al reloj) con menú al hacer clic derecho.
@@ -13,21 +13,26 @@
      8444). Los procesos hijos se lanzan con la ventana oculta y dejan su
      salida en data\logs\ (consola-servidor.log, consola-generador.log,
      servidor_AAAA-MM-DD.log, generador_AAAA-MM-DD.log y panel_AAAA-MM-DD.log).
-  2) El icono de la bandeja tiene menú con el botón DERECHO del ratón:
-     «Mostrar el Panel de Control Visual», «Abrir la Web», «Abrir el generador»,
-     «Iniciar todos los servicios», «Detener los servicios web» (todo),
-     «Detener el servidor principal», «Detener el generador
-     (iniciar-generador-https.ps1)», «Reiniciar todos los servicios»,
-     «Abrir la carpeta de registros» y «Salir». El doble clic izquierdo abre el
-     panel. Al cerrar la ventana con la X, el panel se OCULTA en la bandeja (los
-     servicios siguen en segundo plano) y solo «Salir» termina el programa.
-  3) Cada servicio se puede iniciar, detener, reiniciar, abrir en el navegador
+  2) La ventana NUNCA se bloquea: todo lo que puede tardar (arrancar y detener
+     procesos, esperar a que se libere un puerto, averiguar qué proceso ocupa un
+     puerto, abrir el navegador) lo hace un proceso de control en segundo plano
+     (runspace). La interfaz solo encola órdenes y pinta el estado.
+  3) El icono de la bandeja tiene menú con el botón DERECHO del ratón
+     (ContextMenuStrip del propio icono): «Mostrar el Panel de Control
+     Visual», «Abrir la Web», «Abrir el generador», «Iniciar todos los
+     servicios», «Detener los servicios web» (todo), «Detener el servidor
+     principal», «Detener el generador (iniciar-generador-https.ps1)»,
+     «Reiniciar todos los servicios», «Abrir la carpeta de registros» y
+     «Salir». El clic izquierdo (o el doble clic) abre el panel. Al cerrar la
+     ventana con la X, el panel se OCULTA en la bandeja (los servicios siguen en
+     segundo plano) y solo «Salir» termina el programa.
+  4) Cada servicio se puede iniciar, detener, reiniciar, abrir en el navegador
      y ver su registro. El panel también reconoce y puede detener servicios
      arrancados fuera de él (por ejemplo, desde una ventana de consola de
-     iniciar-https.ps1 o iniciar-generador-https.ps1) siempre que el proceso
-     del puerto sea de NovaGest; si el puerto lo ocupa otro programa, avisa y
-     no lo toca.
-  4) Opciones útiles: «Abrir la Web al iniciar los servicios», «Reiniciar
+     iniciar-https.ps1 o iniciar-generador-https.ps1, o los que quedaron vivos
+     tras cerrar el panel a la fuerza) siempre que el proceso del puerto sea de
+     NovaGest; si el puerto lo ocupa otro programa, avisa y no lo toca.
+  5) Opciones útiles: «Abrir la Web al iniciar los servicios», «Reiniciar
      automáticamente si un servicio se cae» (máximo 3 intentos seguidos) y
      «Al salir, detener los servicios».
 
@@ -51,7 +56,7 @@
   Abre el panel pero no arranca los servicios automáticamente.
 
 .PARAMETER Minimizado
-  Arranca oculto: solo el icono de la bandeja (se abre con doble clic).
+  Arranca oculto: solo el icono de la bandeja (se abre con un clic).
 
 .PARAMETER AbrirNavegador
   Abre la Web en el navegador en cuanto el servidor principal escucha
@@ -103,132 +108,722 @@ if ($SinNavegador) { $AbrirNavegador = $false }
 
 $ErrorActionPreference = 'Continue'
 
-# =====================================================================
-#  Utilidades de consola y de registro
-# =====================================================================
 function Ok($m)    { Write-Host "  [OK] $m" -ForegroundColor Green }
 function Aviso($m) { Write-Host "  [AVISO] $m" -ForegroundColor Yellow }
 function Fallo($m) { Write-Host "  [X] $m" -ForegroundColor Red }
 
-function Escribir-Registro {
-    # Escribe en la caja de registro del panel, en la consola y en
-    # data\logs\panel_AAAA-MM-DD.log (nunca falla si algo no está listo).
-    param([string]$Mensaje, [string]$Tipo = 'Info')
+# =====================================================================
+#  Funciones nativas de Windows (C#). Son instantáneas: sustituyen a netstat,
+#  Get-NetTCPConnection y WMI, que tardaban segundos y congelaban la ventana.
+#  Solo C# 5 (Windows PowerShell 5.1 compila con el csc del .NET Framework).
+# =====================================================================
+$script:CodigoNativo = @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
-    $hora = (Get-Date).ToString('HH:mm:ss')
-    $prefijo = "[$hora]"
-    if ($Tipo -eq 'Error') { $prefijo = "[$hora] [ERROR]" }
-    elseif ($Tipo -eq 'Aviso') { $prefijo = "[$hora] [AVISO]" }
-    $linea = "$prefijo $Mensaje"
+namespace NovaGest
+{
+    public static class PanelNativo
+    {
+        [DllImport("user32.dll")]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
 
-    try {
-        if ($script:txtRegistro) {
-            $script:txtRegistro.AppendText($linea + [Environment]::NewLine)
-            $script:txtRegistro.SelectionStart = $script:txtRegistro.TextLength
-            $script:txtRegistro.ScrollToCaret()
+        [DllImport("user32.dll")]
+        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("iphlpapi.dll", SetLastError = true)]
+        private static extern uint GetExtendedTcpTable(IntPtr pTcpTable, ref int pdwSize, bool bOrder, int ulAf, int tableClass, uint reserved);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr hObject);
+
+        [DllImport("ntdll.dll")]
+        private static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass, IntPtr processInformation, int processInformationLength, out int returnLength);
+
+        private const int AF_INET = 2;
+        private const int AF_INET6 = 23;
+        private const int TCP_TABLE_OWNER_PID_LISTENER = 3;
+        private const uint ERROR_INSUFFICIENT_BUFFER = 122;
+        private const int PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+        private const int PROCESS_COMMAND_LINE_INFORMATION = 60;
+
+        // Puertos TCP en escucha (IPv4 e IPv6) y el PID que es dueño de cada uno.
+        public static Dictionary<int, int> PuertosEnEscucha()
+        {
+            Dictionary<int, int> resultado = new Dictionary<int, int>();
+            LeerTabla(AF_INET, resultado);
+            LeerTabla(AF_INET6, resultado);
+            return resultado;
         }
-    } catch { }
 
-    try {
-        if ($script:carpetaLogs) {
-            if (-not (Test-Path -LiteralPath $script:carpetaLogs)) {
-                New-Item -ItemType Directory -Path $script:carpetaLogs -Force | Out-Null
+        private static void LeerTabla(int familia, Dictionary<int, int> resultado)
+        {
+            int tam = 0;
+            GetExtendedTcpTable(IntPtr.Zero, ref tam, false, familia, TCP_TABLE_OWNER_PID_LISTENER, 0);
+            for (int intento = 0; intento < 4 && tam > 0; intento++)
+            {
+                IntPtr buf = Marshal.AllocHGlobal(tam);
+                try
+                {
+                    uint res = GetExtendedTcpTable(buf, ref tam, false, familia, TCP_TABLE_OWNER_PID_LISTENER, 0);
+                    if (res == ERROR_INSUFFICIENT_BUFFER) { continue; }
+                    if (res != 0) { return; }
+                    int filas = Marshal.ReadInt32(buf);
+                    int tamFila = (familia == AF_INET) ? 24 : 56;
+                    int desplPuerto = (familia == AF_INET) ? 8 : 20;
+                    int desplPid = (familia == AF_INET) ? 20 : 52;
+                    for (int i = 0; i < filas; i++)
+                    {
+                        int fila = 4 + i * tamFila;
+                        int crudo = Marshal.ReadInt32(buf, fila + desplPuerto);
+                        int puerto = ((crudo & 0xFF) << 8) | ((crudo >> 8) & 0xFF);
+                        int pid = Marshal.ReadInt32(buf, fila + desplPid);
+                        if (!resultado.ContainsKey(puerto)) { resultado[puerto] = pid; }
+                    }
+                    return;
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(buf);
+                }
             }
-            Add-Content -LiteralPath (Get-RutaLog $script:carpetaLogs 'panel') -Value $linea -Encoding UTF8
         }
-    } catch { }
 
-    Write-Host "  $linea"
-}
-
-function Avisar-Bandeja {
-    # Globo de aviso del icono de la bandeja (Titulo y Texto cortos).
-    param([string]$Titulo, [string]$Texto, [string]$Clase = 'Info')
-
-    try {
-        if (-not $script:bandeja) { return }
-        if ($Titulo.Length -gt 60) { $Titulo = $Titulo.Substring(0, 60) }
-        if ($Texto.Length -gt 230)  { $Texto  = $Texto.Substring(0, 230) }
-        $icono = [System.Windows.Forms.ToolTipIcon]::Info
-        if ($Clase -eq 'Warning') { $icono = [System.Windows.Forms.ToolTipIcon]::Warning }
-        elseif ($Clase -eq 'Error') { $icono = [System.Windows.Forms.ToolTipIcon]::Error }
-        $script:bandeja.ShowBalloonTip(4000, $Titulo, $Texto, $icono)
-    } catch { }
-}
-
-# =====================================================================
-#  Funciones puras (las prueba tools\test_panel_control.ps1)
-# =====================================================================
-
-function ConvertTo-ArgumentoComando {
-    # Devuelve el valor listo para la línea de comandos: entrecomillado si
-    # tiene espacios (Start-Process no añade comillas por su cuenta).
-    param([string]$Valor)
-    if ([string]::IsNullOrEmpty($Valor)) { return '""' }
-    if ($Valor -match '[\s"]') { return '"' + ($Valor -replace '"', '\"') + '"' }
-    return $Valor
-}
-
-function Get-RutaLog {
-    # Ruta del registro diario: <carpeta>\<nombre>_AAAA-MM-DD.log
-    param([string]$Carpeta, [string]$Nombre, [datetime]$Fecha = (Get-Date))
-    return (Join-Path $Carpeta ("{0}_{1}.log" -f $Nombre, $Fecha.ToString('yyyy-MM-dd')))
-}
-
-function Test-ComandoDelProyecto {
-    # ¿La línea de comandos de un proceso es de NovaGest? (evita detener
-    # procesos ajenos que casualmente usen el mismo puerto).
-    param([string]$LineaComando)
-    if ([string]::IsNullOrEmpty($LineaComando)) { return $false }
-    $patrones = @('novagest_server.py', 'license_studio.py', 'iniciar-https.ps1',
-                  'iniciar-generador-https.ps1', 'iniciar-generador.ps1', 'panel-control.ps1')
-    foreach ($patron in $patrones) {
-        if ($LineaComando -like "*$patron*") { return $true }
+        // Línea de comandos de un proceso (Windows 8.1+), sin WMI. null si no se puede leer.
+        public static string LineaDeComandos(int pid)
+        {
+            IntPtr h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            if (h == IntPtr.Zero) { return null; }
+            try
+            {
+                int tam = 0;
+                NtQueryInformationProcess(h, PROCESS_COMMAND_LINE_INFORMATION, IntPtr.Zero, 0, out tam);
+                if (tam <= 0) { return null; }
+                IntPtr buf = Marshal.AllocHGlobal(tam);
+                try
+                {
+                    int estado = NtQueryInformationProcess(h, PROCESS_COMMAND_LINE_INFORMATION, buf, tam, out tam);
+                    if (estado != 0) { return null; }
+                    int largo = Marshal.ReadInt16(buf) & 0xFFFF;
+                    IntPtr texto = Marshal.ReadIntPtr(buf, IntPtr.Size);
+                    if (texto == IntPtr.Zero || largo == 0) { return ""; }
+                    return Marshal.PtrToStringUni(texto, largo / 2);
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(buf);
+                }
+            }
+            finally
+            {
+                CloseHandle(h);
+            }
+        }
     }
-    return $false
+}
+'@
+
+# =====================================================================
+#  Funciones comunes: las usa la interfaz y el proceso de control en segundo
+#  plano (que corre en otro runspace y recibe este mismo código). Las prueba
+#  tools\test_panel_control.ps1 con -SoloFunciones, también en Linux (CI).
+# =====================================================================
+$script:CodigoComun = {
+
+    function Test-EsWindows {
+        try { return ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) } catch { return $true }
+    }
+
+    function ConvertTo-ArgumentoComando {
+        # Devuelve el valor listo para la línea de comandos: entrecomillado si
+        # tiene espacios (Start-Process no añade comillas por su cuenta).
+        param([string]$Valor)
+        if ([string]::IsNullOrEmpty($Valor)) { return '""' }
+        if ($Valor -match '[\s"]') { return '"' + ($Valor -replace '"', '\"') + '"' }
+        return $Valor
+    }
+
+    function Get-RutaLog {
+        # Ruta del registro diario: <carpeta>\<nombre>_AAAA-MM-DD.log
+        param([string]$Carpeta, [string]$Nombre, [datetime]$Fecha = (Get-Date))
+        return (Join-Path $Carpeta ("{0}_{1}.log" -f $Nombre, $Fecha.ToString('yyyy-MM-dd')))
+    }
+
+    function Test-ComandoDelProyecto {
+        # ¿La línea de comandos de un proceso es de NovaGest? (evita detener
+        # procesos ajenos que casualmente usen el mismo puerto).
+        param([string]$LineaComando)
+        if ([string]::IsNullOrEmpty($LineaComando)) { return $false }
+        $patrones = @('novagest_server.py', 'license_studio.py', 'iniciar-https.ps1',
+                      'iniciar-generador-https.ps1', 'iniciar-generador.ps1', 'panel-control.ps1')
+        foreach ($patron in $patrones) {
+            if ($LineaComando -like "*$patron*") { return $true }
+        }
+        return $false
+    }
+
+    function Get-NombreEstadoColor {
+        # Nombre del color de la paleta que corresponde al estado del servicio.
+        param([string]$Estado)
+        if ([string]::IsNullOrEmpty($Estado)) { return 'Gris' }
+        if ($Estado -like '*fuera del panel*') { return 'Azul' }
+        if ($Estado -like 'En ejecución*')     { return 'Verde' }
+        if ($Estado -like 'Arrancando*')       { return 'Ambar' }
+        if ($Estado -like 'Deteniendo*')       { return 'Ambar' }
+        if ($Estado -like 'Procesando*')       { return 'Ambar' }
+        if ($Estado -like 'Sin respuesta*')    { return 'Rojo' }
+        if ($Estado -like 'Error*')            { return 'Rojo' }
+        return 'Gris'
+    }
+
+    function Get-TextoResumen {
+        # Texto del estado general (cabecera y barra inferior).
+        param([int]$EnEjecucion, [int]$Total)
+        if ($Total -le 0) { return 'Sin servicios configurados' }
+        if ($EnEjecucion -le 0) { return "Ningún servicio en ejecución (0 de $Total)" }
+        if ($EnEjecucion -ge $Total) { return "Los $Total servicios están en ejecución" }
+        return "$EnEjecucion de $Total servicios en ejecución"
+    }
+
+    function Get-MapaPuertos {
+        # Puertos TCP en escucha → PID dueño (0 si no se conoce). Una sola lectura
+        # y sin procesos externos: API nativa de Windows o, si no está disponible,
+        # IPGlobalProperties.GetActiveTcpListeners() (también en Linux).
+        $mapa = @{}
+        if ('NovaGest.PanelNativo' -as [type]) {
+            try {
+                $tabla = [NovaGest.PanelNativo]::PuertosEnEscucha()
+                foreach ($clave in $tabla.Keys) { $mapa[[int]$clave] = [int]$tabla[$clave] }
+                return $mapa
+            } catch { $mapa = @{} }
+        }
+        try {
+            $propiedades = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
+            foreach ($oyente in $propiedades.GetActiveTcpListeners()) { $mapa[[int]$oyente.Port] = 0 }
+        } catch { }
+        return $mapa
+    }
+
+    function Get-PuertosEscuchando {
+        # Lista de puertos TCP en escucha (una sola lectura del sistema).
+        return @((Get-MapaPuertos).Keys | ForEach-Object { [int]$_ })
+    }
+
+    function Test-PuertoEscuchando {
+        # ¿Hay algo escuchando en el puerto? Acepta un mapa ya leído en el ciclo.
+        param([int]$Puerto, $Mapa = $null)
+        if ($null -eq $Mapa) { $Mapa = Get-MapaPuertos }
+        return $Mapa.ContainsKey($Puerto)
+    }
+
+    function Get-PidPuerto {
+        # PID del proceso que escucha en el puerto (0 si no se sabe). Con
+        # -PermitirLento usa además Get-NetTCPConnection / netstat (o «ss» en
+        # Linux): SOLO desde el proceso de control, nunca desde la ventana.
+        param([int]$Puerto, $Mapa = $null, [switch]$PermitirLento)
+        if ($null -eq $Mapa) { $Mapa = Get-MapaPuertos }
+        if ($Mapa.ContainsKey($Puerto) -and [int]$Mapa[$Puerto] -gt 0) { return [int]$Mapa[$Puerto] }
+        if (-not $PermitirLento) { return 0 }
+        if (Test-EsWindows) {
+            try {
+                $conexion = @(Get-NetTCPConnection -State Listen -LocalPort $Puerto -ErrorAction Stop | Select-Object -First 1)
+                if ($conexion.Count -gt 0 -and $conexion[0].OwningProcess) { return [int]$conexion[0].OwningProcess }
+            } catch { }
+            try {
+                # Independiente del idioma (LISTENING / ESCUCHANDO): remoto 0.0.0.0:0 o [::]:0.
+                $patron = ":$Puerto\s+(?:0\.0\.0\.0:0|\[::\]:0)\s+\S+\s+(\d+)\s*$"
+                foreach ($linea in @(netstat -ano -p TCP) + @(netstat -ano -p TCPv6)) {
+                    if ("$linea" -match $patron) { return [int]$Matches[1] }
+                }
+            } catch { }
+        } else {
+            try {
+                $salida = (& ss -ltnpH 2>$null) -join "`n"
+                foreach ($linea in ($salida -split "`n")) {
+                    if ($linea -match "[:\]]$Puerto\s" -and $linea -match 'pid=(\d+)') { return [int]$Matches[1] }
+                }
+            } catch { }
+        }
+        return 0
+    }
+
+    function Get-LineaComandoProceso {
+        # Línea de comandos de un proceso: API nativa (instantánea); en Linux,
+        # /proc/<pid>/cmdline; con -PermitirLento, WMI con tiempo límite.
+        param([int]$IdProceso, [switch]$PermitirLento)
+        if ($IdProceso -le 0) { return '' }
+        if ('NovaGest.PanelNativo' -as [type]) {
+            try {
+                $linea = [NovaGest.PanelNativo]::LineaDeComandos($IdProceso)
+                if ($null -ne $linea) { return [string]$linea }
+            } catch { }
+        }
+        if (-not (Test-EsWindows)) {
+            try {
+                $ruta = "/proc/$IdProceso/cmdline"
+                if (Test-Path -LiteralPath $ruta) { return (([System.IO.File]::ReadAllText($ruta)) -replace "`0", ' ').Trim() }
+            } catch { }
+            return ''
+        }
+        if (-not $PermitirLento) { return '' }
+        try {
+            $p = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId=$IdProceso" -OperationTimeoutSec 5 -ErrorAction Stop
+            if ($p) { return [string]$p.CommandLine }
+        } catch { }
+        return ''
+    }
+
+    function Get-UltimasLineas {
+        # Últimas líneas de un registro sin bloquearlo (se lee como mucho el
+        # final del archivo y con permiso compartido, aunque otro lo escriba).
+        param([string]$Ruta, [int]$Cantidad = 400, [int]$MaxBytes = 262144)
+        try {
+            if (-not (Test-Path -LiteralPath $Ruta)) { return '' }
+            $compartir = [System.IO.FileShare]'ReadWrite, Delete'
+            $flujo = New-Object System.IO.FileStream -ArgumentList $Ruta, ([System.IO.FileMode]::Open), ([System.IO.FileAccess]::Read), $compartir
+            $desde = [long]0
+            $texto = ''
+            try {
+                $desde = [Math]::Max([long]0, [long]$flujo.Length - $MaxBytes)
+                [void]$flujo.Seek($desde, [System.IO.SeekOrigin]::Begin)
+                $lector = New-Object System.IO.StreamReader -ArgumentList $flujo, ([System.Text.Encoding]::UTF8), $true
+                $texto = $lector.ReadToEnd()
+            } finally {
+                $flujo.Dispose()
+            }
+            $lineas = @($texto.TrimEnd([char]13, [char]10) -split "`r?`n")
+            if ($desde -gt 0 -and $lineas.Count -gt 1) { $lineas = @($lineas[1..($lineas.Count - 1)]) }
+            if ($lineas.Count -gt $Cantidad) { $lineas = @($lineas[($lineas.Count - $Cantidad)..($lineas.Count - 1)]) }
+            return ($lineas -join [Environment]::NewLine)
+        } catch {
+            return "(no se pudo leer $Ruta): $($_.Exception.Message)"
+        }
+    }
+
+    function Test-ProcesoVivo {
+        param($Proceso)
+        if ($null -eq $Proceso) { return $false }
+        try { return (-not $Proceso.HasExited) } catch { return $false }
+    }
+
+    function Detener-ArbolProceso {
+        # Cierra el proceso y sus hijos (powershell -> python) con taskkill /T.
+        param([int]$IdProceso)
+        if ($IdProceso -le 0) { return }
+        if (Test-EsWindows) {
+            try {
+                $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+                if (Test-Path -LiteralPath $taskkill) {
+                    & $taskkill /PID $IdProceso /T /F *> $null
+                    return
+                }
+            } catch { }
+        }
+        try { Stop-Process -Id $IdProceso -Force -ErrorAction Stop } catch { }
+    }
+
+    # ------------------------- proceso de control (trabajador) -------------------------
+    function New-EstadoCompartido {
+        # Estado compartido entre la ventana y el proceso de control: colas de
+        # órdenes y mensajes y una foto del estado de cada servicio.
+        param([object[]]$Servicios, [string]$PsExe, [string]$Raiz)
+        $c = [hashtable]::Synchronized(@{})
+        $c.Comandos = New-Object 'System.Collections.Concurrent.ConcurrentQueue[object]'
+        $c.Mensajes = New-Object 'System.Collections.Concurrent.ConcurrentQueue[object]'
+        $c.Estados = [hashtable]::Synchronized(@{})
+        $c.Servicios = [hashtable]::Synchronized(@{})
+        $c.PsExe = $PsExe
+        $c.Raiz = $Raiz
+        $c.AutoReinicio = $false
+        $c.Salir = $false
+        $c.Ocupado = ''
+        $c.UltimoTerminado = 0
+        $c.Latido = Get-Date
+        foreach ($s in $Servicios) {
+            $c.Servicios[$s.Id] = [pscustomobject]@{
+                Id                  = [string]$s.Id
+                Nombre              = [string]$s.Nombre
+                Puerto              = [int]$s.Puerto
+                Guion               = [string]$s.Guion
+                ArgumentosExtra     = @($s.ArgumentosExtra)
+                CarpetaLogs         = [string]$s.CarpetaLogs
+                LogBase             = [string]$s.LogBase
+                RutaConsola         = [string]$s.RutaConsola
+                RutaConsolaError    = [string]$s.RutaConsolaError
+                Proceso             = $null
+                PidLanzado          = 0
+                HoraArranque        = $null
+                DetencionSolicitada = $false
+                Avisado             = $false
+                Reintentos          = 0
+                Ocupado             = ''
+                UltimoError         = ''
+                CachePid            = 0
+                CacheLinea          = ''
+                CacheNombre         = ''
+                HoraBusquedaPid     = [datetime]::MinValue
+            }
+            $c.Estados[$s.Id] = @{
+                Estado = 'Detenido'; Escucha = $false; Vivo = $false; PidLanzado = 0; PidPuerto = 0
+                Externo = $false; DelProyecto = $false; NombreProceso = ''; Ocupado = $false
+                RutaConsola = [string]$s.RutaConsola; RutaConsolaError = [string]$s.RutaConsolaError
+            }
+        }
+        return $c
+    }
+
+    function Add-MensajeTrabajador {
+        # Mensaje para el registro del panel (y, opcionalmente, un globo del icono).
+        param($C, [string]$Texto, [string]$Tipo = 'Info', [string]$Globo = '', [string]$ClaseGlobo = 'Info')
+        try {
+            $C.Mensajes.Enqueue(@{ Hora = (Get-Date); Texto = $Texto; Tipo = $Tipo; Globo = $Globo; ClaseGlobo = $ClaseGlobo })
+        } catch { }
+    }
+
+    function Get-ArgumentosServicio {
+        param($Srv)
+        $items = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+                   (ConvertTo-ArgumentoComando $Srv.Guion),
+                   '-Puerto', "$($Srv.Puerto)")
+        foreach ($a in $Srv.ArgumentosExtra) { $items += $a }
+        return $items
+    }
+
+    function Iniciar-ServicioTrabajador {
+        param($C, $Srv, [switch]$Silencioso)
+        if (-not $Srv) { return $false }
+        if (Test-ProcesoVivo $Srv.Proceso) {
+            if (-not $Silencioso) { Add-MensajeTrabajador $C "$($Srv.Nombre) ya está en ejecución (PID $($Srv.PidLanzado))." }
+            return $true
+        }
+        $mapa = Get-MapaPuertos
+        if ($mapa.ContainsKey([int]$Srv.Puerto)) {
+            $idPuerto = Get-PidPuerto -Puerto $Srv.Puerto -Mapa $mapa -PermitirLento
+            $linea = Get-LineaComandoProceso $idPuerto -PermitirLento
+            if ($idPuerto -le 0 -or (Test-ComandoDelProyecto $linea)) {
+                $quien = if ($idPuerto -gt 0) { "PID $idPuerto" } else { 'PID desconocido' }
+                Add-MensajeTrabajador $C "$($Srv.Nombre) ya estaba en ejecución (iniciado fuera del panel, $quien): se usa ese. Para controlarlo desde aquí, pulsa Reiniciar." 'Aviso'
+            } else {
+                Add-MensajeTrabajador $C "El puerto $($Srv.Puerto) lo ocupa otro programa (PID $idPuerto): no se puede iniciar $($Srv.Nombre)." 'Error' 'NovaGest' 'Error'
+            }
+            return $false
+        }
+        if (-not (Test-Path -LiteralPath $Srv.Guion)) {
+            Add-MensajeTrabajador $C "No se encontró el lanzador $($Srv.Guion)." 'Error'
+            return $false
+        }
+        try {
+            if ($Srv.CarpetaLogs -and -not (Test-Path -LiteralPath $Srv.CarpetaLogs)) {
+                New-Item -ItemType Directory -Path $Srv.CarpetaLogs -Force | Out-Null
+            }
+        } catch { }
+
+        $Srv.DetencionSolicitada = $false
+        $Srv.HoraArranque = Get-Date
+        $Srv.Avisado = $false
+        $Srv.UltimoError = ''
+        if (-not $Silencioso) { $Srv.Reintentos = 0 }
+        $Srv.Ocupado = 'Arrancando…'
+        try {
+            $parametros = @{
+                FilePath               = $C.PsExe
+                ArgumentList           = (Get-ArgumentosServicio $Srv)
+                WorkingDirectory       = $C.Raiz
+                PassThru               = $true
+                RedirectStandardOutput = $Srv.RutaConsola
+                RedirectStandardError  = $Srv.RutaConsolaError
+                ErrorAction            = 'Stop'
+            }
+            if (Test-EsWindows) { $parametros.WindowStyle = 'Hidden' }
+            $proceso = $null
+            try {
+                $proceso = Start-Process @parametros
+            } catch {
+                # El registro de consola puede seguir abierto por una copia anterior
+                # (p. ej. tras cerrar el panel a la fuerza): se usa otro archivo.
+                $sufijo = (Get-Date).ToString('HHmmss')
+                $Srv.RutaConsola = Join-Path $Srv.CarpetaLogs ("consola-{0}-{1}.log" -f $Srv.LogBase, $sufijo)
+                $Srv.RutaConsolaError = Join-Path $Srv.CarpetaLogs ("consola-{0}-{1}.err.log" -f $Srv.LogBase, $sufijo)
+                $parametros.RedirectStandardOutput = $Srv.RutaConsola
+                $parametros.RedirectStandardError = $Srv.RutaConsolaError
+                $proceso = Start-Process @parametros
+            }
+            $Srv.Proceso = $proceso
+            $Srv.PidLanzado = [int]$proceso.Id
+            Add-MensajeTrabajador $C "Iniciando $($Srv.Nombre) … (PID $($proceso.Id), puerto $($Srv.Puerto))"
+            return $true
+        } catch {
+            $Srv.Proceso = $null
+            $Srv.PidLanzado = 0
+            $Srv.UltimoError = $_.Exception.Message
+            Add-MensajeTrabajador $C "No se pudo iniciar $($Srv.Nombre): $($_.Exception.Message)" 'Error' 'NovaGest' 'Error'
+            return $false
+        } finally {
+            $Srv.Ocupado = ''
+        }
+    }
+
+    function Detener-ServicioTrabajador {
+        # Detiene el servicio. Un proceso de NovaGest arrancado FUERA del panel
+        # solo se detiene si la ventana confirmó ese PID (PidConfirmado); un
+        # programa ajeno que ocupe el puerto nunca se toca.
+        param($C, $Srv, [int]$PidConfirmado = 0, [switch]$Silencioso)
+        if (-not $Srv) { return $false }
+        $Srv.DetencionSolicitada = $true
+        $Srv.Ocupado = 'Deteniendo…'
+        try {
+            $ids = @()
+            $vivo = Test-ProcesoVivo $Srv.Proceso
+            if ($vivo) { $ids += [int]$Srv.PidLanzado }
+            $mapa = Get-MapaPuertos
+            if ($mapa.ContainsKey([int]$Srv.Puerto)) {
+                $idPuerto = Get-PidPuerto -Puerto $Srv.Puerto -Mapa $mapa -PermitirLento
+                if ($vivo) {
+                    if ($idPuerto -gt 0) { $ids += $idPuerto }
+                } else {
+                    if ($idPuerto -le 0) {
+                        Add-MensajeTrabajador $C "No se pudo averiguar qué proceso ocupa el puerto $($Srv.Puerto): ciérralo a mano." 'Error'
+                        $Srv.DetencionSolicitada = $false
+                        return $false
+                    }
+                    $linea = Get-LineaComandoProceso $idPuerto -PermitirLento
+                    # La identificación recién hecha actualiza la que ve la ventana.
+                    $Srv.CachePid = $idPuerto
+                    $Srv.CacheLinea = $linea
+                    if (-not (Test-ComandoDelProyecto $linea)) {
+                        Add-MensajeTrabajador $C "El puerto $($Srv.Puerto) lo ocupa otro programa (PID $idPuerto): no se detiene por seguridad." 'Error'
+                        $Srv.DetencionSolicitada = $false
+                        return $false
+                    }
+                    if ($PidConfirmado -ne $idPuerto) {
+                        Add-MensajeTrabajador $C "$($Srv.Nombre) se inició fuera del panel (PID $idPuerto): confirma la detención desde el panel." 'Aviso'
+                        $Srv.DetencionSolicitada = $false
+                        return $false
+                    }
+                    $ids += $idPuerto
+                }
+            }
+
+            $ids = @($ids | Where-Object { $_ -gt 0 } | Select-Object -Unique)
+            if ($ids.Count -eq 0) {
+                $Srv.Proceso = $null
+                $Srv.PidLanzado = 0
+                if (-not $Silencioso) { Add-MensajeTrabajador $C "$($Srv.Nombre) ya estaba detenido." }
+                return $true
+            }
+
+            Add-MensajeTrabajador $C "Deteniendo $($Srv.Nombre) (PID $($ids -join ', ')) …"
+            foreach ($idProceso in $ids) { Detener-ArbolProceso $idProceso }
+
+            # Espera (en este proceso de control, no en la ventana) a que se libere el puerto.
+            $limite = (Get-Date).AddSeconds(15)
+            $sigue = $true
+            while ((Get-Date) -lt $limite) {
+                $C.Latido = Get-Date
+                $sigue = (Get-MapaPuertos).ContainsKey([int]$Srv.Puerto)
+                if (-not $sigue -and -not (Test-ProcesoVivo $Srv.Proceso)) { break }
+                Start-Sleep -Milliseconds 250
+            }
+            $Srv.Proceso = $null
+            $Srv.PidLanzado = 0
+            $Srv.CachePid = 0
+            if ($sigue) {
+                Add-MensajeTrabajador $C "El puerto $($Srv.Puerto) sigue ocupado después de detener $($Srv.Nombre)." 'Error'
+                return $false
+            }
+            $Srv.Avisado = $false
+            Add-MensajeTrabajador $C "Detenido: $($Srv.Nombre)."
+            return $true
+        } finally {
+            $Srv.Ocupado = ''
+        }
+    }
+
+    function Update-EstadosTrabajador {
+        # Sondea puertos y procesos (una sola lectura del sistema) y publica una
+        # foto del estado de cada servicio para la ventana. Detecta caídas.
+        param($C)
+        $mapa = Get-MapaPuertos
+        $caidos = @()
+        foreach ($id in @($C.Servicios.Keys)) {
+            $srv = $C.Servicios[$id]
+            $vivo = Test-ProcesoVivo $srv.Proceso
+            $escucha = $mapa.ContainsKey([int]$srv.Puerto)
+            $idPuerto = 0
+            if ($escucha) { $idPuerto = [int]$mapa[[int]$srv.Puerto] }
+            $externo = ($escucha -and -not $vivo)
+
+            # Proceso externo: se identifica (PID y línea de comandos) una vez por PID.
+            if ($externo) {
+                if ($idPuerto -le 0) {
+                    if ([int]$srv.CachePid -gt 0) {
+                        $idPuerto = [int]$srv.CachePid
+                    } elseif (((Get-Date) - $srv.HoraBusquedaPid).TotalSeconds -ge 10) {
+                        # Sin API nativa: búsqueda lenta como mucho cada 10 s (y nunca en la ventana).
+                        $srv.HoraBusquedaPid = Get-Date
+                        $idPuerto = Get-PidPuerto -Puerto $srv.Puerto -Mapa $mapa -PermitirLento
+                    }
+                }
+                if ($idPuerto -gt 0 -and [int]$srv.CachePid -ne $idPuerto) {
+                    $srv.CachePid = $idPuerto
+                    $srv.CacheLinea = Get-LineaComandoProceso $idPuerto -PermitirLento
+                    $srv.CacheNombre = ''
+                    try { $srv.CacheNombre = [string](Get-Process -Id $idPuerto -ErrorAction Stop).ProcessName } catch { }
+                }
+            } elseif (-not $escucha) {
+                # Puerto libre: el próximo proceso que lo ocupe se identifica enseguida.
+                $srv.CachePid = 0
+                $srv.CacheLinea = ''
+                $srv.CacheNombre = ''
+                $srv.HoraBusquedaPid = [datetime]::MinValue
+            }
+
+            $estado = 'Detenido'
+            if ($srv.Ocupado) {
+                $estado = [string]$srv.Ocupado
+            } elseif ($vivo -and $escucha) {
+                $estado = 'En ejecución'
+            } elseif ($vivo) {
+                $segundos = 0
+                if ($srv.HoraArranque) { $segundos = ((Get-Date) - $srv.HoraArranque).TotalSeconds }
+                if ($segundos -lt 25) { $estado = 'Arrancando…' } else { $estado = 'Sin respuesta' }
+            } elseif ($escucha) {
+                $estado = 'En ejecución (fuera del panel)'
+            } else {
+                if ($srv.PidLanzado -gt 0 -and -not $srv.DetencionSolicitada) { $caidos += $srv }
+                $srv.Proceso = $null
+                $srv.PidLanzado = 0
+                if ($srv.UltimoError) { $estado = 'Error' }
+            }
+
+            # Aviso de «listo» una sola vez por arranque.
+            if ($vivo -and $escucha -and -not $srv.Avisado) {
+                $srv.Avisado = $true
+                Add-MensajeTrabajador $C "$($srv.Nombre) en ejecución: https://localhost:$($srv.Puerto)" 'Info' 'NovaGest' 'Info'
+            }
+            # Servicio estable: se reinicia el contador de reintentos automáticos.
+            if ($vivo -and $escucha -and $srv.HoraArranque -and ((Get-Date) - $srv.HoraArranque).TotalSeconds -gt 120) {
+                $srv.Reintentos = 0
+            }
+
+            $C.Estados[$id] = @{
+                Estado           = $estado
+                Escucha          = [bool]$escucha
+                Vivo             = [bool]$vivo
+                PidLanzado       = [int]$srv.PidLanzado
+                PidPuerto        = [int]$idPuerto
+                Externo          = [bool]$externo
+                DelProyecto      = [bool]($externo -and (Test-ComandoDelProyecto $srv.CacheLinea))
+                NombreProceso    = [string]$srv.CacheNombre
+                Ocupado          = [bool]($srv.Ocupado -ne '')
+                RutaConsola      = [string]$srv.RutaConsola
+                RutaConsolaError = [string]$srv.RutaConsolaError
+            }
+        }
+
+        foreach ($srv in $caidos) {
+            $detalle = ''
+            try {
+                $final = (Get-UltimasLineas $srv.RutaConsolaError 3).Trim()
+                if (-not $final) { $final = (Get-UltimasLineas $srv.RutaConsola 3).Trim() }
+                if ($final) { $detalle = " Últimas líneas: " + (($final -split "`r?`n") -join ' | ') }
+            } catch { }
+            Add-MensajeTrabajador $C "El servicio $($srv.Nombre) se detuvo por sí solo (revisa su registro).$detalle" 'Aviso' 'NovaGest' 'Warning'
+            if ($C.AutoReinicio) {
+                if ($srv.Reintentos -lt 3) {
+                    $srv.Reintentos++
+                    Add-MensajeTrabajador $C "Reintento automático $($srv.Reintentos) de 3 para $($srv.Nombre)."
+                    [void](Iniciar-ServicioTrabajador -C $C -Srv $srv -Silencioso)
+                } else {
+                    Add-MensajeTrabajador $C "No se reintenta $($srv.Nombre): se alcanzó el límite de 3 reintentos automáticos." 'Error'
+                }
+            }
+        }
+    }
+
+    function Invoke-ComandoTrabajador {
+        # Ejecuta UNA orden encolada por la ventana.
+        param($C, $Comando)
+        $tipo = [string]$Comando.Tipo
+        $srv = $null
+        if ($Comando.Id) { $srv = $C.Servicios[[string]$Comando.Id] }
+        $nombre = if ($srv) { $srv.Nombre } else { '' }
+        $C.Ocupado = "$tipo $nombre".Trim()
+        if ($tipo -eq 'iniciar') {
+            [void](Iniciar-ServicioTrabajador -C $C -Srv $srv -Silencioso:([bool]$Comando.Silencioso))
+        } elseif ($tipo -eq 'detener') {
+            [void](Detener-ServicioTrabajador -C $C -Srv $srv -PidConfirmado ([int]$Comando.PidConfirmado) -Silencioso:([bool]$Comando.Silencioso))
+        } elseif ($tipo -eq 'reiniciar') {
+            if (Detener-ServicioTrabajador -C $C -Srv $srv -PidConfirmado ([int]$Comando.PidConfirmado) -Silencioso) {
+                Start-Sleep -Milliseconds 600
+                [void](Iniciar-ServicioTrabajador -C $C -Srv $srv)
+            }
+        } elseif ($tipo -eq 'abrir') {
+            try { Start-Process ([string]$Comando.Url) -ErrorAction Stop }
+            catch { Add-MensajeTrabajador $C "No se pudo abrir $($Comando.Url): $($_.Exception.Message)" 'Aviso' }
+        } elseif ($tipo -eq 'carpeta') {
+            try {
+                if (-not (Test-Path -LiteralPath $Comando.Ruta)) { New-Item -ItemType Directory -Path $Comando.Ruta -Force | Out-Null }
+                Start-Process 'explorer.exe' -ArgumentList (ConvertTo-ArgumentoComando ([string]$Comando.Ruta)) -ErrorAction Stop
+            } catch { Add-MensajeTrabajador $C "No se pudo abrir la carpeta de registros: $($_.Exception.Message)" 'Aviso' }
+        } elseif ($tipo -eq 'verificar') {
+            try {
+                $py = Get-Command python -ErrorAction SilentlyContinue
+                if (-not $py) { $py = Get-Command py -ErrorAction SilentlyContinue }
+                if ($py) { Add-MensajeTrabajador $C "Python: $($py.Source)" }
+                else { Add-MensajeTrabajador $C 'No se encontró Python en el PATH: el servidor no podrá arrancar (https://www.python.org/downloads/).' 'Error' }
+                $mk = Get-Command mkcert -ErrorAction SilentlyContinue
+                if ($mk) { Add-MensajeTrabajador $C "mkcert: $($mk.Source)" }
+                else { Add-MensajeTrabajador $C 'mkcert no está en el PATH: revisa el certificado HTTPS (winget install FiloSottile.mkcert).' 'Aviso' }
+            } catch { }
+        } else {
+            Add-MensajeTrabajador $C "Orden desconocida: $tipo" 'Aviso'
+        }
+    }
+
+    function Start-BucleTrabajador {
+        # Bucle del proceso de control: atiende órdenes y sondea el estado.
+        param($C)
+        $ultimoSondeo = [datetime]::MinValue
+        $erroresSondeo = 0
+        while (-not $C.Salir) {
+            $C.Latido = Get-Date
+            $comando = $null
+            while ($C.Comandos.TryDequeue([ref]$comando)) {
+                try {
+                    Invoke-ComandoTrabajador -C $C -Comando $comando
+                } catch {
+                    Add-MensajeTrabajador $C "Error interno al ejecutar «$($comando.Tipo)»: $($_.Exception.Message)" 'Error'
+                } finally {
+                    $C.Ocupado = ''
+                    if ($comando.Seq) { $C.UltimoTerminado = [int]$comando.Seq }
+                }
+                try { Update-EstadosTrabajador -C $C } catch { }
+                $ultimoSondeo = Get-Date
+                $C.Latido = Get-Date
+                if ($C.Salir) { break }
+            }
+            if (((Get-Date) - $ultimoSondeo).TotalMilliseconds -ge 700) {
+                try {
+                    Update-EstadosTrabajador -C $C
+                } catch {
+                    $erroresSondeo++
+                    if ($erroresSondeo -le 3) { Add-MensajeTrabajador $C "Error al sondear el estado: $($_.Exception.Message)" 'Error' }
+                }
+                $ultimoSondeo = Get-Date
+            }
+            Start-Sleep -Milliseconds 150
+        }
+    }
 }
 
-function Get-NombreEstadoColor {
-    # Nombre del color de la paleta que corresponde al estado del servicio.
-    param([string]$Estado)
-    if ([string]::IsNullOrEmpty($Estado)) { return 'Gris' }
-    if ($Estado -like '*fuera del panel*') { return 'Azul' }
-    if ($Estado -like 'En ejecución*')     { return 'Verde' }
-    if ($Estado -like 'Arrancando*')       { return 'Ambar' }
-    if ($Estado -like 'Sin respuesta*')    { return 'Rojo' }
-    if ($Estado -like 'Error*')            { return 'Rojo' }
-    return 'Gris'
-}
-
-function Get-TextoResumen {
-    # Texto del estado general (cabecera y barra inferior).
-    param([int]$EnEjecucion, [int]$Total)
-    if ($Total -le 0) { return 'Sin servicios configurados' }
-    if ($EnEjecucion -le 0) { return "Ningún servicio en ejecución (0 de $Total)" }
-    if ($EnEjecucion -ge $Total) { return "Los $Total servicios están en ejecución" }
-    return "$EnEjecucion de $Total servicios en ejecución"
-}
+. $script:CodigoComun
 
 # --- pruebas y CI: definir las funciones y salir sin cargar la interfaz ---
-# Puertos en escucha: una sola lectura con la API de .NET. No lanza netstat ni
-# Get-NetTCPConnection (procesos externos que bloqueaban la ventana del panel).
-$script:puertosEnTick = $null
-
-function Get-PuertosEscuchando {
-    try {
-        $propiedades = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
-        return @($propiedades.GetActiveTcpListeners() | ForEach-Object { [int]$_.Port })
-    } catch { return @() }
-}
-
-function Test-PuertoEscuchando {
-    param([int]$Puerto)
-    # Dentro de un ciclo del temporizador se usa la lectura única de ese ciclo.
-    $lista = $script:puertosEnTick
-    if ($null -eq $lista) { $lista = Get-PuertosEscuchando }
-    return ($lista -contains $Puerto)
-}
-
 if ($SoloFunciones) { return }
 
 # =====================================================================
@@ -243,14 +838,16 @@ try {
     exit 1
 }
 
-try { chcp 65001 | Out-Null } catch { }
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 
 # ------------------- una sola instancia del panel a la vez -------------------
-$script:tengoTurno = $true
+# Si el panel anterior se cerró a la fuerza, el mutex queda «abandonado»: .NET lo
+# entrega igualmente (AbandonedMutexException) y este panel pasa a ser el dueño.
+$script:tengoTurno = $false
 try {
     $script:mutex = New-Object System.Threading.Mutex -ArgumentList $false, 'Local\NovaGestPanelControlVisual'
-    $script:tengoTurno = $script:mutex.WaitOne(0, $false)
+    try { $script:tengoTurno = $script:mutex.WaitOne(0, $false) }
+    catch [System.Threading.AbandonedMutexException] { $script:tengoTurno = $true }
 } catch { $script:tengoTurno = $true }
 if (-not $script:tengoTurno) {
     Write-Host ''
@@ -261,6 +858,19 @@ if (-not $script:tengoTurno) {
     exit 0
 }
 
+# Funciones nativas (puertos, procesos y foco de ventana). Si no compilan, el
+# panel sigue funcionando con las alternativas lentas, pero siempre fuera de la ventana.
+$script:nativoOk = $false
+try {
+    if (-not ('NovaGest.PanelNativo' -as [type])) { Add-Type -TypeDefinition $script:CodigoNativo -ErrorAction Stop }
+    $script:nativoOk = $true
+} catch {
+    $script:errorNativo = $_.Exception.Message
+}
+
+# Los errores no controlados de la interfaz se registran (sin ventanas de error de .NET).
+try { [System.Windows.Forms.Application]::SetUnhandledExceptionMode([System.Windows.Forms.UnhandledExceptionMode]::CatchException) } catch { }
+
 # ------------------------------- configuración -------------------------------
 $script:raiz         = Split-Path -Parent $PSScriptRoot
 $script:puerto       = $Puerto
@@ -269,9 +879,17 @@ $script:carpetaDatos = if ($Datos -ne '') { $Datos } else { Join-Path $script:ra
 $script:carpetaLogs  = Join-Path $script:carpetaDatos 'logs'
 $script:psExe        = (Get-Process -Id $PID).Path
 $script:saliendo     = $false
+$script:esperaSalida = $null
 $script:detenerAlSalir = [bool]$DetenerAlSalir
-$script:erroresVista = 0
-$script:colaArranque = @()
+$script:secuencia    = 0
+$script:pendientesUi = @{}
+$script:abrirAlEscuchar = @{}
+$script:previoUi     = @{}
+$script:erroresUi    = @{}
+$script:trabajador   = $null
+$script:contexto     = $null
+$script:reiniciosTrabajador = 0
+$script:avisoBandejaMostrado = $false
 
 $script:colores = @{
     Fondo      = [System.Drawing.Color]::FromArgb(245, 247, 251)
@@ -310,17 +928,9 @@ function New-Servicio {
         Guion            = $Guion
         ArgumentosExtra  = $ArgumentosExtra
         LogBase          = $LogBase
+        CarpetaLogs      = $script:carpetaLogs
         RutaConsola      = Join-Path $script:carpetaLogs ("consola-$LogBase.log")
         RutaConsolaError = Join-Path $script:carpetaLogs ("consola-$LogBase.err.log")
-        Proceso          = $null
-        PidLanzado       = 0
-        HoraArranque     = $null
-        Estado           = 'Detenido'
-        DetencionSolicitada = $false
-        Avisado          = $false
-        Reintentos       = 0
-        AbrirAlEscuchar  = $false
-        LimiteAbrir      = $null
         Ui               = $null
     }
 }
@@ -350,130 +960,96 @@ if ($script:servicios.Count -eq 0) {
     exit 1
 }
 
+$script:compartido = New-EstadoCompartido -Servicios $script:servicios -PsExe $script:psExe -Raiz $script:raiz
+
 # =====================================================================
-#  Utilidades de Windows (puertos, procesos, IPs)
+#  Registro, avisos y diálogos (solo en el hilo de la ventana)
 # =====================================================================
-function Get-PidPuerto {
-    param([int]$Puerto)
+function Escribir-Registro {
+    # Escribe en la caja de registro del panel, en la consola y en
+    # data\logs\panel_AAAA-MM-DD.log (nunca falla si algo no está listo).
+    param([string]$Mensaje, [string]$Tipo = 'Info', $Hora = $null)
+
+    if ($null -eq $Hora) { $Hora = Get-Date }
+    $prefijo = "[$($Hora.ToString('HH:mm:ss'))]"
+    if ($Tipo -eq 'Error') { $prefijo = "$prefijo [ERROR]" }
+    elseif ($Tipo -eq 'Aviso') { $prefijo = "$prefijo [AVISO]" }
+    $linea = "$prefijo $Mensaje"
+
     try {
-        $conexion = @(Get-NetTCPConnection -State Listen -LocalPort $Puerto -ErrorAction Stop | Select-Object -First 1)
-        if ($conexion -and $conexion.OwningProcess) { return [int]$conexion.OwningProcess }
-    } catch { }
-    try {
-        $linea = netstat -ano | Select-String -Pattern ":$Puerto\s.*LISTENING" | Select-Object -First 1
-        if ($linea -and ("$linea" -match '(\d+)\s*$')) { return [int]$Matches[1] }
-    } catch { }
-    return 0
-}
-
-function Get-LineaComandoProceso {
-    param([int]$IdProceso)
-    try {
-        $p = Get-CimInstance Win32_Process -Filter "ProcessId=$IdProceso" -ErrorAction Stop
-        if ($p) { return "$($p.CommandLine)" }
-    } catch { }
-    return ''
-}
-
-function Test-ServicioVivo {
-    param($Srv)
-    if ($Srv -and $Srv.Proceso) {
-        try { if (-not $Srv.Proceso.HasExited) { return $true } } catch { }
-    }
-    return $false
-}
-
-function Get-IpsLocales {
-    $ips = @()
-    try {
-        $ips = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
-            Where-Object { $_.IPAddress -ne '127.0.0.1' -and $_.IPAddress -notlike '169.254.*' } |
-            Select-Object -ExpandProperty IPAddress -Unique)
-    } catch { }
-    if (-not $ips) {
-        try {
-            $ips = @(ipconfig | ForEach-Object {
-                if ($_ -match 'IPv4[^:]*:\s*(\d{1,3}(?:\.\d{1,3}){3})') { $Matches[1] }
-            } | Where-Object { $_ -notlike '169.254.*' } | Select-Object -Unique)
-        } catch { }
-    }
-    return $ips
-}
-
-function Get-UltimasLineas {
-    param([string]$Ruta, [int]$Cantidad = 400)
-    try {
-        if (-not (Test-Path -LiteralPath $Ruta)) { return '' }
-        $lineas = @(Get-Content -LiteralPath $Ruta -Tail $Cantidad -ErrorAction Stop)
-        return ($lineas -join [Environment]::NewLine)
-    } catch {
-        return "(no se pudo leer $Ruta): $($_.Exception.Message)"
-    }
-}
-
-function Esperar-Pausa {
-    # Pausa que sigue atendiendo la ventana (clics, menú y repintados) mientras espera.
-    param([int]$Milisegundos)
-    $fin = (Get-Date).AddMilliseconds($Milisegundos)
-    while ((Get-Date) -lt $fin) {
-        [System.Windows.Forms.Application]::DoEvents()
-        Start-Sleep -Milliseconds 20
-    }
-}
-
-function Esperar-Mientras {
-    # Espera mientras la condición se cumpla, como máximo $Segundos.
-    # Devuelve $true si la condición dejó de cumplirse a tiempo.
-    param([int]$Segundos, [scriptblock]$Condicion)
-    $limite = (Get-Date).AddSeconds($Segundos)
-    while ((Get-Date) -lt $limite) {
-        if (-not (& $Condicion)) { return $true }
-        Esperar-Pausa -Milisegundos 250
-    }
-    return (-not (& $Condicion))
-}
-
-# Evita que dos órdenes de Iniciar/Detener se pisen mientras el panel espera
-# (con DoEvents la ventana sigue recibiendo clics).
-$script:accionEnCurso = ''
-
-function Invoke-Accion {
-    param([string]$Nombre, [scriptblock]$Accion)
-    if ($script:accionEnCurso) {
-        Escribir-Registro "Espera: todavía se está ejecutando «$($script:accionEnCurso)»." -Tipo 'Aviso'
-        return
-    }
-    $script:accionEnCurso = $Nombre
-    try { & $Accion }
-    finally { $script:accionEnCurso = '' }
-}
-
-# Cache de la última valor mostrado: solo se toca la interfaz si el valor cambió.
-$script:previoUi = @{}
-
-function Set-SiCambia {
-    param([hashtable]$Cache, [string]$Clave, $Valor, [scriptblock]$Aplicar)
-    $texto = "$Valor"
-    if ($Cache.ContainsKey($Clave) -and $Cache[$Clave] -ceq $texto) { return }
-    $Cache[$Clave] = $texto
-    & $Aplicar $Valor
-}
-
-function Detener-ArbolProceso {
-    # Cierra el proceso y sus hijos (powershell -> python) usando taskkill /T.
-    param([int]$IdProceso)
-    try {
-        $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
-        if (Test-Path -LiteralPath $taskkill) {
-            & $taskkill /PID $IdProceso /T /F *> $null
-            return
+        if ($script:txtRegistro) {
+            if ($script:txtRegistro.TextLength -gt 200000) {
+                $script:txtRegistro.Text = $script:txtRegistro.Text.Substring($script:txtRegistro.TextLength - 100000)
+            }
+            $script:txtRegistro.AppendText($linea + [Environment]::NewLine)
         }
     } catch { }
-    try { Stop-Process -Id $IdProceso -Force -ErrorAction Stop } catch { }
+
+    try {
+        if ($script:carpetaLogs) {
+            if (-not (Test-Path -LiteralPath $script:carpetaLogs)) {
+                New-Item -ItemType Directory -Path $script:carpetaLogs -Force | Out-Null
+            }
+            [System.IO.File]::AppendAllText((Get-RutaLog $script:carpetaLogs 'panel'), $linea + [Environment]::NewLine, [System.Text.Encoding]::UTF8)
+        }
+    } catch { }
+
+    try { Write-Host "  $linea" } catch { }
+}
+
+function Avisar-Bandeja {
+    # Globo de aviso del icono de la bandeja (Titulo y Texto cortos).
+    param([string]$Titulo, [string]$Texto, [string]$Clase = 'Info')
+    try {
+        if (-not $script:bandeja) { return }
+        if ($Titulo.Length -gt 60) { $Titulo = $Titulo.Substring(0, 60) }
+        if ($Texto.Length -gt 230)  { $Texto  = $Texto.Substring(0, 230) }
+        $icono = [System.Windows.Forms.ToolTipIcon]::Info
+        if ($Clase -eq 'Warning') { $icono = [System.Windows.Forms.ToolTipIcon]::Warning }
+        elseif ($Clase -eq 'Error') { $icono = [System.Windows.Forms.ToolTipIcon]::Error }
+        $script:bandeja.ShowBalloonTip(4000, $Titulo, $Texto, $icono)
+    } catch { }
+}
+
+function Mostrar-Panel {
+    # Muestra la ventana delante de todo (también si se lanzó oculta).
+    try {
+        if (-not $script:form) { return }
+        if (-not $script:form.Visible) { $script:form.Show() }
+        if ($script:form.WindowState -eq [System.Windows.Forms.FormWindowState]::Minimized) {
+            $script:form.WindowState = [System.Windows.Forms.FormWindowState]::Normal
+        }
+        if ($script:nativoOk) {
+            try {
+                [void][NovaGest.PanelNativo]::ShowWindow($script:form.Handle, 5)
+                [void][NovaGest.PanelNativo]::SetForegroundWindow($script:form.Handle)
+            } catch { }
+        }
+        $script:form.Activate()
+        $script:form.BringToFront()
+    } catch { }
+}
+
+function Ocultar-Panel {
+    try { if ($script:form) { $script:form.Hide() } } catch { }
+}
+
+function Mostrar-Pregunta {
+    # Pregunta con la ventana del panel como dueña: siempre queda delante y no
+    # puede quedar escondida detrás (lo que dejaba la ventana «congelada»).
+    param([string]$Texto, [string]$Botones = 'YesNo', [string]$Icono = 'Question')
+    Mostrar-Panel
+    $tipoBotones = [System.Windows.Forms.MessageBoxButtons]$Botones
+    $tipoIcono = [System.Windows.Forms.MessageBoxIcon]$Icono
+    try {
+        return [System.Windows.Forms.MessageBox]::Show($script:form, $Texto, 'NovaGest - Panel de Control Visual', $tipoBotones, $tipoIcono)
+    } catch {
+        return [System.Windows.Forms.MessageBox]::Show($Texto, 'NovaGest - Panel de Control Visual', $tipoBotones, $tipoIcono)
+    }
 }
 
 # =====================================================================
-#  Control de servicios
+#  Órdenes al proceso de control
 # =====================================================================
 function Get-ServicioPorId {
     param([string]$Id)
@@ -481,182 +1057,145 @@ function Get-ServicioPorId {
     return $null
 }
 
-function Get-ArgumentosServicio {
-    param($Srv)
-    $items = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
-               (ConvertTo-ArgumentoComando $Srv.Guion),
-               '-Puerto', "$($Srv.Puerto)")
-    foreach ($a in $Srv.ArgumentosExtra) { $items += $a }
-    return $items
+function Get-EstadoServicio {
+    param([string]$Id)
+    $e = $script:compartido.Estados[$Id]
+    if ($null -eq $e) { return @{} }
+    return $e
 }
 
-function Iniciar-Servicio {
-    param($Srv, [switch]$Silencioso)
-
-    if (-not $Srv) { return $false }
-    if (Test-ServicioVivo $Srv) { return $true }
-    if (Test-PuertoEscuchando $Srv.Puerto) {
-        Escribir-Registro "El puerto $($Srv.Puerto) ya está en uso: no se inicia otra copia de $($Srv.Nombre)." -Tipo 'Aviso'
-        return $false
+function Send-Comando {
+    # Encola una orden para el proceso de control y devuelve su número.
+    param([hashtable]$Comando)
+    $script:secuencia++
+    $Comando.Seq = $script:secuencia
+    $script:compartido.Comandos.Enqueue($Comando)
+    if ($Comando.Id) {
+        $script:pendientesUi[[string]$Comando.Id] = $script:secuencia
+        Disable-BotonesServicio ([string]$Comando.Id)
     }
-    if (-not (Test-Path -LiteralPath $Srv.Guion)) {
-        Escribir-Registro "No se encontró el lanzador $($Srv.Guion)." -Tipo 'Error'
-        return $false
-    }
+    return $script:secuencia
+}
 
+function Disable-BotonesServicio {
+    # Desactiva al momento los botones de la tarjeta (evita dobles clics) y
+    # obliga a repintarlos cuando el proceso de control publique el estado.
+    param([string]$Id)
+    $srv = Get-ServicioPorId $Id
+    if (-not $srv -or -not $srv.Ui) { return }
+    foreach ($clave in @('iniciar', 'detener', 'reiniciar')) { $script:previoUi.Remove("$Id|$clave") }
     try {
-        if (-not (Test-Path -LiteralPath $script:carpetaLogs)) {
-            New-Item -ItemType Directory -Path $script:carpetaLogs -Force | Out-Null
-        }
+        $srv.Ui.BotonIniciar.Enabled = $false
+        $srv.Ui.BotonDetener.Enabled = $false
+        $srv.Ui.BotonReiniciar.Enabled = $false
     } catch { }
-
-    $Srv.DetencionSolicitada = $false
-    $Srv.HoraArranque = Get-Date
-    $Srv.Estado = 'Arrancando…'
-    if (-not $Silencioso) { $Srv.Reintentos = 0 }
-
-    try {
-        $proceso = Start-Process -FilePath $script:psExe -ArgumentList (Get-ArgumentosServicio $Srv) `
-            -WorkingDirectory $script:raiz -WindowStyle Hidden -PassThru `
-            -RedirectStandardOutput $Srv.RutaConsola -RedirectStandardError $Srv.RutaConsolaError `
-            -ErrorAction Stop
-        $Srv.Proceso    = $proceso
-        $Srv.PidLanzado = [int]$proceso.Id
-        Escribir-Registro "Iniciando $($Srv.Nombre) … (PID $($proceso.Id), puerto $($Srv.Puerto))"
-        return $true
-    } catch {
-        $Srv.Proceso = $null
-        $Srv.PidLanzado = 0
-        $Srv.Estado = 'Error'
-        Escribir-Registro "No se pudo iniciar $($Srv.Nombre): $($_.Exception.Message)" -Tipo 'Error'
-        return $false
-    }
 }
 
-function Detener-Servicio {
-    param($Srv, [switch]$Silencioso, [switch]$SinConfirmar)
-
-    if (-not $Srv) { return $false }
-    $Srv.DetencionSolicitada = $true
-
-    $ids = @()
-    if (Test-ServicioVivo $Srv) { $ids += [int]$Srv.PidLanzado }
-
-    $idPuerto = Get-PidPuerto $Srv.Puerto
-    if ($idPuerto -gt 0 -and ($ids -notcontains $idPuerto)) {
-        # El puerto lo ocupa alguien que no lanzó el panel: puede ser otra
-        # ventana de iniciar-https.ps1 / iniciar-generador-https.ps1.
-        $linea = Get-LineaComandoProceso $idPuerto
-        if (-not (Test-ComandoDelProyecto $linea)) {
-            Escribir-Registro "El puerto $($Srv.Puerto) lo ocupa otro programa (PID $idPuerto): no se detiene por seguridad." -Tipo 'Error'
-            $Srv.DetencionSolicitada = $false
-            return $false
-        }
-        if (-not $SinConfirmar) {
-            $respuesta = [System.Windows.Forms.MessageBox]::Show(
-                "El puerto $($Srv.Puerto) lo ocupa un proceso de NovaGest iniciado fuera del panel (PID $idPuerto).`n`n¿Quieres detenerlo?",
-                'NovaGest - Panel de Control Visual',
-                [System.Windows.Forms.MessageBoxButtons]::YesNo,
-                [System.Windows.Forms.MessageBoxIcon]::Question)
-            if ($respuesta -ne [System.Windows.Forms.DialogResult]::Yes) {
-                $Srv.DetencionSolicitada = $false
-                return $false
-            }
-        }
-        $ids += $idPuerto
+function Test-ServicioOcupado {
+    param([string]$Id)
+    $e = Get-EstadoServicio $Id
+    if ($e.Ocupado) { return $true }
+    if ($script:pendientesUi.ContainsKey($Id)) {
+        if ([int]$script:compartido.UltimoTerminado -lt [int]$script:pendientesUi[$Id]) { return $true }
+        $script:pendientesUi.Remove($Id)
     }
-
-    $ids = @($ids | Where-Object { $_ -gt 0 } | Select-Object -Unique)
-    if ($ids.Count -eq 0) {
-        $Srv.Estado = 'Detenido'
-        if (-not $Silencioso) { Escribir-Registro "$($Srv.Nombre) ya estaba detenido." }
-        return $true
-    }
-
-    Escribir-Registro "Deteniendo $($Srv.Nombre) (PID $($ids -join ', ')) …"
-    foreach ($idProceso in $ids) { Detener-ArbolProceso $idProceso }
-
-    # Espera no bloqueante (la ventana sigue respondiendo) de hasta 15 s.
-    [void](Esperar-Mientras -Segundos 15 -Condicion { Test-PuertoEscuchando $Srv.Puerto })
-
-    $Srv.Proceso = $null
-    $Srv.PidLanzado = 0
-    if (Test-PuertoEscuchando $Srv.Puerto) {
-        $Srv.Estado = 'Error'
-        Escribir-Registro "El puerto $($Srv.Puerto) sigue ocupado después de detener $($Srv.Nombre)." -Tipo 'Error'
-        return $false
-    }
-    $Srv.Estado = 'Detenido'
-    $Srv.Avisado = $false
-    Escribir-Registro "Detenido: $($Srv.Nombre)."
-    return $true
+    return $false
 }
 
-function Reiniciar-Servicio {
-    param($Srv)
+function Get-PidConfirmado {
+    # Para detener/reiniciar: 0 = proceso del panel (o nada que detener),
+    # >0 = PID externo de NovaGest confirmado, -1 = no detener.
+    param($Srv, [switch]$SinPreguntar)
+    $e = Get-EstadoServicio $Srv.Id
+    if (-not $e.Externo) { return 0 }
+    $idPuerto = [int]$e.PidPuerto
+    if ($idPuerto -le 0) {
+        Escribir-Registro "Todavía se está identificando el proceso del puerto $($Srv.Puerto); vuelve a intentarlo en unos segundos." -Tipo 'Aviso'
+        return -1
+    }
+    if (-not $e.DelProyecto) {
+        $quien = if ($e.NombreProceso) { "$($e.NombreProceso), PID $idPuerto" } else { "PID $idPuerto" }
+        Escribir-Registro "El puerto $($Srv.Puerto) lo ocupa otro programa ($quien): no se detiene por seguridad." -Tipo 'Error'
+        if (-not $SinPreguntar) {
+            [void](Mostrar-Pregunta "El puerto $($Srv.Puerto) lo ocupa otro programa ($quien), no NovaGest.`n`nPor seguridad el panel no lo detiene." 'OK' 'Warning')
+        }
+        return -1
+    }
+    if ($SinPreguntar) { return $idPuerto }
+    $r = Mostrar-Pregunta "$($Srv.Nombre) se inició fuera del panel (puerto $($Srv.Puerto), PID $idPuerto).`n`n¿Quieres detenerlo?"
+    if ($r -eq [System.Windows.Forms.DialogResult]::Yes) { return $idPuerto }
+    return -1
+}
+
+function Ejecutar-Detener {
+    param($Srv, [string]$Tipo = 'detener')
     if (-not $Srv) { return }
-    [void](Detener-Servicio -Srv $Srv -Silencioso -SinConfirmar)
-    Esperar-Pausa -Milisegundos 600
-    [void](Iniciar-Servicio -Srv $Srv)
+    $confirmado = Get-PidConfirmado $Srv
+    if ($confirmado -lt 0) { return }
+    [void](Send-Comando @{ Tipo = $Tipo; Id = $Srv.Id; PidConfirmado = $confirmado })
 }
 
-function Iniciar-Todos {
-    foreach ($srv in $script:servicios) { [void](Iniciar-Servicio -Srv $srv -Silencioso) }
-    Actualizar-Vista
-}
-
-function Detener-Todos {
-    # «Detener los servicios web»: el servidor principal (Web + API) y el
-    # generador de licencias HTTPS (iniciar-generador-https.ps1).
-    foreach ($srv in $script:servicios) { [void](Detener-Servicio -Srv $srv -Silencioso -SinConfirmar) }
-    Actualizar-Vista
-}
-
-function Reiniciar-Todos {
-    foreach ($srv in $script:servicios) { [void](Detener-Servicio -Srv $srv -Silencioso -SinConfirmar) }
-    Esperar-Pausa -Milisegundos 800
-    foreach ($srv in $script:servicios) { [void](Iniciar-Servicio -Srv $srv -Silencioso) }
-    Actualizar-Vista
+function Ejecutar-Todos {
+    # Iniciar / Detener / Reiniciar todos (con una sola pregunta para los
+    # procesos de NovaGest arrancados fuera del panel).
+    param([string]$Tipo)
+    if ($Tipo -eq 'iniciar') {
+        foreach ($srv in $script:servicios) {
+            $e = Get-EstadoServicio $srv.Id
+            if (-not $e.Escucha -and -not $e.Vivo) { [void](Send-Comando @{ Tipo = 'iniciar'; Id = $srv.Id; Silencioso = $true }) }
+        }
+        return
+    }
+    $externos = @()
+    foreach ($srv in $script:servicios) {
+        $e = Get-EstadoServicio $srv.Id
+        if ($e.Externo -and $e.DelProyecto -and [int]$e.PidPuerto -gt 0) { $externos += "· $($srv.Nombre) (PID $($e.PidPuerto))" }
+    }
+    $permitirExternos = $true
+    if ($externos.Count -gt 0) {
+        $r = Mostrar-Pregunta ("Estos servicios de NovaGest se iniciaron fuera del panel:`n`n" + ($externos -join "`n") + "`n`n¿Detenerlos también?")
+        $permitirExternos = ($r -eq [System.Windows.Forms.DialogResult]::Yes)
+    }
+    foreach ($srv in $script:servicios) {
+        $e = Get-EstadoServicio $srv.Id
+        $confirmado = 0
+        if ($e.Externo) {
+            if (-not $permitirExternos) { continue }
+            $confirmado = Get-PidConfirmado $srv -SinPreguntar
+            if ($confirmado -lt 0) { continue }
+        }
+        if ($Tipo -eq 'detener' -and -not $e.Escucha -and -not $e.Vivo) { continue }
+        [void](Send-Comando @{ Tipo = $Tipo; Id = $srv.Id; PidConfirmado = $confirmado; Silencioso = $true })
+    }
 }
 
 function Abrir-Servicio {
     param($Srv)
     if (-not $Srv) { return }
     $url = "https://localhost:$($Srv.Puerto)"
-    if (Test-PuertoEscuchando $Srv.Puerto) {
-        try { Start-Process $url } catch { Escribir-Registro "No se pudo abrir $url : $($_.Exception.Message)" -Tipo 'Aviso' }
+    $e = Get-EstadoServicio $Srv.Id
+    if ($e.Escucha) {
+        [void](Send-Comando @{ Tipo = 'abrir'; Url = $url })
         return
     }
-    $respuesta = [System.Windows.Forms.MessageBox]::Show(
-        "$($Srv.Nombre) no está en ejecución.`n`n¿Iniciarlo y abrir $url ?",
-        'NovaGest - Panel de Control Visual',
-        [System.Windows.Forms.MessageBoxButtons]::YesNo,
-        [System.Windows.Forms.MessageBoxIcon]::Question)
-    if ($respuesta -eq [System.Windows.Forms.DialogResult]::Yes) {
-        if (Iniciar-Servicio -Srv $Srv) {
-            $Srv.AbrirAlEscuchar = $true
-            $Srv.LimiteAbrir = (Get-Date).AddSeconds(180)
-        }
+    $r = Mostrar-Pregunta "$($Srv.Nombre) no está en ejecución.`n`n¿Iniciarlo y abrir $url ?"
+    if ($r -eq [System.Windows.Forms.DialogResult]::Yes) {
+        $script:abrirAlEscuchar[$Srv.Id] = (Get-Date).AddSeconds(180)
+        [void](Send-Comando @{ Tipo = 'iniciar'; Id = $Srv.Id })
     }
-    Actualizar-Vista
 }
 
 function Abrir-CarpetaRegistros {
-    try {
-        if (-not (Test-Path -LiteralPath $script:carpetaLogs)) {
-            New-Item -ItemType Directory -Path $script:carpetaLogs -Force | Out-Null
-        }
-        Start-Process 'explorer.exe' -ArgumentList (ConvertTo-ArgumentoComando $script:carpetaLogs)
-    } catch {
-        Escribir-Registro "No se pudo abrir la carpeta de registros: $($_.Exception.Message)" -Tipo 'Aviso'
-    }
+    [void](Send-Comando @{ Tipo = 'carpeta'; Ruta = $script:carpetaLogs })
 }
 
 function Get-TextoRegistro {
     param($Srv)
+    $e = Get-EstadoServicio $Srv.Id
+    $consola = if ($e.RutaConsola) { [string]$e.RutaConsola } else { $Srv.RutaConsola }
+    $consolaError = if ($e.RutaConsolaError) { [string]$e.RutaConsolaError } else { $Srv.RutaConsolaError }
     $bloques = @()
-    $rutas = @($Srv.RutaConsola, $Srv.RutaConsolaError, (Get-RutaLog $script:carpetaLogs $Srv.LogBase))
-    foreach ($ruta in $rutas) {
+    foreach ($ruta in @($consola, $consolaError, (Get-RutaLog $script:carpetaLogs $Srv.LogBase))) {
         if ($ruta -and (Test-Path -LiteralPath $ruta)) {
             $bloques += "===== $ruta ====="
             $bloques += (Get-UltimasLineas $ruta 400)
@@ -725,6 +1264,24 @@ function Get-IconoPanel {
     return (New-IconoDibujado -Tam $tam)
 }
 
+function Get-IpsLocales {
+    # IPs IPv4 de esta laptop con .NET (instantáneo; sin Get-NetIPAddress ni ipconfig).
+    $ips = New-Object System.Collections.Generic.List[string]
+    try {
+        foreach ($interfaz in [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()) {
+            if ($interfaz.OperationalStatus -ne [System.Net.NetworkInformation.OperationalStatus]::Up) { continue }
+            if ($interfaz.NetworkInterfaceType -eq [System.Net.NetworkInformation.NetworkInterfaceType]::Loopback) { continue }
+            foreach ($u in $interfaz.GetIPProperties().UnicastAddresses) {
+                if ($u.Address.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork) { continue }
+                $texto = $u.Address.ToString()
+                if ($texto -like '169.254.*' -or $texto -eq '127.0.0.1') { continue }
+                if (-not $ips.Contains($texto)) { $ips.Add($texto) }
+            }
+        }
+    } catch { }
+    return $ips.ToArray()
+}
+
 function New-TarjetaServicio {
     param($Srv, [int]$Y)
 
@@ -755,10 +1312,10 @@ function New-TarjetaServicio {
     $detalle.Location = New-Object System.Drawing.Point -ArgumentList 16, 60
 
     $estado = New-Object System.Windows.Forms.Label
-    $estado.Text = 'Detenido'
+    $estado.Text = 'Comprobando…'
     $estado.TextAlign = 'MiddleCenter'
-    $estado.Size = New-Object System.Drawing.Size -ArgumentList 226, 26
-    $estado.Location = New-Object System.Drawing.Point -ArgumentList 566, 14
+    $estado.Size = New-Object System.Drawing.Size -ArgumentList 250, 26
+    $estado.Location = New-Object System.Drawing.Point -ArgumentList 542, 14
     $estado.Anchor = 'Top,Right'
     $estado.BackColor = $script:colores.GrisFondo
     $estado.ForeColor = $script:colores.Gris
@@ -773,16 +1330,13 @@ function New-TarjetaServicio {
     foreach ($b in @($botonIniciar, $botonDetener, $botonReiniciar, $botonAbrir, $botonRegistro)) {
         $b.Tag = $Srv.Id
     }
+    $botonIniciar.Enabled = $false
+    $botonDetener.Enabled = $false
+    $botonReiniciar.Enabled = $false
 
-    $tarjeta.Controls.Add($nombre)
-    $tarjeta.Controls.Add($descripcion)
-    $tarjeta.Controls.Add($detalle)
-    $tarjeta.Controls.Add($estado)
-    $tarjeta.Controls.Add($botonIniciar)
-    $tarjeta.Controls.Add($botonDetener)
-    $tarjeta.Controls.Add($botonReiniciar)
-    $tarjeta.Controls.Add($botonAbrir)
-    $tarjeta.Controls.Add($botonRegistro)
+    foreach ($control in @($nombre, $descripcion, $detalle, $estado, $botonIniciar, $botonDetener, $botonReiniciar, $botonAbrir, $botonRegistro)) {
+        $tarjeta.Controls.Add($control)
+    }
 
     $Srv.Ui = @{
         Tarjeta        = $tarjeta
@@ -800,18 +1354,27 @@ function New-TarjetaServicio {
 function New-VentanaPanel {
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'NovaGest · Panel de Control Visual'
-    $form.ClientSize = New-Object System.Drawing.Size -ArgumentList 840, 720
-    $form.MinimumSize = New-Object System.Drawing.Size -ArgumentList 800, 640
     $form.StartPosition = 'CenterScreen'
     $form.AutoScaleMode = 'None'
     $form.Font = New-Object System.Drawing.Font -ArgumentList 'Segoe UI', 9
     $form.BackColor = $script:colores.Fondo
     $form.Icon = $script:icono
 
+    # El tamaño final se fija ANTES de añadir los controles: los anclados abajo
+    # (registro y botones del pie) conservan así su sitio con 1 o 2 servicios.
+    $altoRegistro = 170
+    $y = 112
+    $yPie = $y + 128 * @($script:servicios).Count + 122 + $altoRegistro + 12
+    $form.ClientSize = New-Object System.Drawing.Size -ArgumentList 840, ($yPie + 28 + 12 + 26)
+    $form.MinimumSize = New-Object System.Drawing.Size -ArgumentList 760, 520
+
     # ---------------------------------- cabecera ----------------------------------
+    # Tres renglones con etiquetas de tamaño automático: el estado general tiene
+    # su propio renglón y nunca se corta («Estado: Los 2 servicios están en …»),
+    # tampoco con el escalado de pantalla al 125 % o 150 %.
     $cabecera = New-Object System.Windows.Forms.Panel
     $cabecera.Location = New-Object System.Drawing.Point -ArgumentList 0, 0
-    $cabecera.Size = New-Object System.Drawing.Size -ArgumentList 840, 80
+    $cabecera.Size = New-Object System.Drawing.Size -ArgumentList 840, 100
     $cabecera.BackColor = $script:colores.Encabezado
     $cabecera.Anchor = 'Top,Left,Right'
 
@@ -820,31 +1383,27 @@ function New-VentanaPanel {
     $titulo.Font = New-Object System.Drawing.Font -ArgumentList 'Segoe UI', 14, ([System.Drawing.FontStyle]::Bold)
     $titulo.ForeColor = [System.Drawing.Color]::White
     $titulo.AutoSize = $true
-    $titulo.Location = New-Object System.Drawing.Point -ArgumentList 18, 14
-
-    $subtitulo = New-Object System.Windows.Forms.Label
-    $subtitulo.Text = 'Los servicios se ejecutan en segundo plano; el icono de la bandeja (clic derecho) tiene el menú de control.'
-    $subtitulo.ForeColor = [System.Drawing.Color]::FromArgb(170, 186, 210)
-    $subtitulo.AutoSize = $true
-    $subtitulo.Location = New-Object System.Drawing.Point -ArgumentList 20, 48
+    $titulo.Location = New-Object System.Drawing.Point -ArgumentList 18, 10
 
     $script:lblCabecera = New-Object System.Windows.Forms.Label
-    $script:lblCabecera.Text = 'Estado: …'
+    $script:lblCabecera.Text = 'Estado: comprobando…'
     $script:lblCabecera.Font = New-Object System.Drawing.Font -ArgumentList 'Segoe UI', 10, ([System.Drawing.FontStyle]::Bold)
-    $script:lblCabecera.ForeColor = [System.Drawing.Color]::White
-    $script:lblCabecera.AutoSize = $false
-    $script:lblCabecera.TextAlign = 'MiddleRight'
-    $script:lblCabecera.Size = New-Object System.Drawing.Size -ArgumentList 268, 26
-    $script:lblCabecera.Location = New-Object System.Drawing.Point -ArgumentList 556, 26
-    $script:lblCabecera.Anchor = 'Top,Right'
+    $script:lblCabecera.ForeColor = [System.Drawing.Color]::FromArgb(203, 213, 225)
+    $script:lblCabecera.AutoSize = $true
+    $script:lblCabecera.Location = New-Object System.Drawing.Point -ArgumentList 20, 46
+
+    $subtitulo = New-Object System.Windows.Forms.Label
+    $subtitulo.Text = 'Los servicios se ejecutan en segundo plano. Icono de la bandeja: clic = abrir el panel · clic derecho = menú de control.'
+    $subtitulo.ForeColor = [System.Drawing.Color]::FromArgb(170, 186, 210)
+    $subtitulo.AutoSize = $true
+    $subtitulo.Location = New-Object System.Drawing.Point -ArgumentList 20, 74
 
     $cabecera.Controls.Add($titulo)
-    $cabecera.Controls.Add($subtitulo)
     $cabecera.Controls.Add($script:lblCabecera)
+    $cabecera.Controls.Add($subtitulo)
     $form.Controls.Add($cabecera)
 
     # --------------------------------- servicios ---------------------------------
-    $y = 92
     foreach ($srv in $script:servicios) {
         $form.Controls.Add((New-TarjetaServicio -Srv $srv -Y $y))
         $y += 128
@@ -856,39 +1415,36 @@ function New-VentanaPanel {
     $lblAcciones.Font = New-Object System.Drawing.Font -ArgumentList 'Segoe UI', 10, ([System.Drawing.FontStyle]::Bold)
     $lblAcciones.ForeColor = $script:colores.Texto
     $lblAcciones.AutoSize = $true
-    $lblAcciones.Location = New-Object System.Drawing.Point -ArgumentList 18, $($y + 6)
+    $lblAcciones.Location = New-Object System.Drawing.Point -ArgumentList 18, ($y + 6)
 
     $script:btnIniciarTodo   = New-Boton -Texto '▶  Iniciar todo' -X 18  -Y ($y + 30) -Ancho 128
-    $script:btnDetenerTodo   = New-Boton -Texto '■  Detener los servicios web' -X 154 -Y ($y + 30) -Ancho 190
-    $script:btnReiniciarTodo = New-Boton -Texto '↻  Reiniciar todo' -X 352 -Y ($y + 30) -Ancho 128
-    $script:btnAbrirWeb      = New-Boton -Texto 'Abrir la Web' -X 488 -Y ($y + 30) -Ancho 124
-    $script:btnAbrirGen      = New-Boton -Texto 'Abrir el generador' -X 620 -Y ($y + 30) -Ancho 140
+    $script:btnDetenerTodo   = New-Boton -Texto '■  Detener los servicios web' -X 154 -Y ($y + 30) -Ancho 196
+    $script:btnReiniciarTodo = New-Boton -Texto '↻  Reiniciar todo' -X 358 -Y ($y + 30) -Ancho 128
+    $script:btnAbrirWeb      = New-Boton -Texto 'Abrir la Web' -X 494 -Y ($y + 30) -Ancho 124
+    $script:btnAbrirGen      = New-Boton -Texto 'Abrir el generador' -X 626 -Y ($y + 30) -Ancho 150
 
-    $form.Controls.Add($lblAcciones)
-    $form.Controls.Add($script:btnIniciarTodo)
-    $form.Controls.Add($script:btnDetenerTodo)
-    $form.Controls.Add($script:btnReiniciarTodo)
-    $form.Controls.Add($script:btnAbrirWeb)
-    $form.Controls.Add($script:btnAbrirGen)
+    foreach ($control in @($lblAcciones, $script:btnIniciarTodo, $script:btnDetenerTodo, $script:btnReiniciarTodo, $script:btnAbrirWeb, $script:btnAbrirGen)) {
+        $form.Controls.Add($control)
+    }
 
     # --------------------------------- casillas ---------------------------------
     $script:chkAbrirWeb = New-Object System.Windows.Forms.CheckBox
     $script:chkAbrirWeb.Text = 'Abrir la Web al iniciar los servicios'
     $script:chkAbrirWeb.Checked = [bool]$AbrirNavegador
     $script:chkAbrirWeb.AutoSize = $true
-    $script:chkAbrirWeb.Location = New-Object System.Drawing.Point -ArgumentList 18, $($y + 68)
+    $script:chkAbrirWeb.Location = New-Object System.Drawing.Point -ArgumentList 18, ($y + 68)
 
     $script:chkAutoReinicio = New-Object System.Windows.Forms.CheckBox
     $script:chkAutoReinicio.Text = 'Reiniciar automáticamente si un servicio se cae'
     $script:chkAutoReinicio.Checked = $false
     $script:chkAutoReinicio.AutoSize = $true
-    $script:chkAutoReinicio.Location = New-Object System.Drawing.Point -ArgumentList 300, $($y + 68)
+    $script:chkAutoReinicio.Location = New-Object System.Drawing.Point -ArgumentList 290, ($y + 68)
 
     $script:chkDetenerAlSalir = New-Object System.Windows.Forms.CheckBox
     $script:chkDetenerAlSalir.Text = 'Al salir, detener los servicios'
     $script:chkDetenerAlSalir.Checked = [bool]$DetenerAlSalir
     $script:chkDetenerAlSalir.AutoSize = $true
-    $script:chkDetenerAlSalir.Location = New-Object System.Drawing.Point -ArgumentList 620, $($y + 68)
+    $script:chkDetenerAlSalir.Location = New-Object System.Drawing.Point -ArgumentList 610, ($y + 68)
 
     $form.Controls.Add($script:chkAbrirWeb)
     $form.Controls.Add($script:chkAutoReinicio)
@@ -900,7 +1456,7 @@ function New-VentanaPanel {
     $lblRegistro.Font = New-Object System.Drawing.Font -ArgumentList 'Segoe UI', 10, ([System.Drawing.FontStyle]::Bold)
     $lblRegistro.ForeColor = $script:colores.Texto
     $lblRegistro.AutoSize = $true
-    $lblRegistro.Location = New-Object System.Drawing.Point -ArgumentList 18, $($y + 100)
+    $lblRegistro.Location = New-Object System.Drawing.Point -ArgumentList 18, ($y + 100)
 
     $script:txtRegistro = New-Object System.Windows.Forms.TextBox
     $script:txtRegistro.Multiline = $true
@@ -908,27 +1464,27 @@ function New-VentanaPanel {
     $script:txtRegistro.ScrollBars = 'Vertical'
     $script:txtRegistro.BackColor = [System.Drawing.Color]::White
     $script:txtRegistro.Font = New-Object System.Drawing.Font -ArgumentList 'Consolas', 8.5
-    $script:txtRegistro.Location = New-Object System.Drawing.Point -ArgumentList 18, $($y + 122)
-    $script:txtRegistro.Size = New-Object System.Drawing.Size -ArgumentList 804, 152
+    $script:txtRegistro.Location = New-Object System.Drawing.Point -ArgumentList 18, ($y + 122)
+    $script:txtRegistro.Size = New-Object System.Drawing.Size -ArgumentList 804, $altoRegistro
     $script:txtRegistro.Anchor = 'Top,Bottom,Left,Right'
 
     $form.Controls.Add($lblRegistro)
     $form.Controls.Add($script:txtRegistro)
 
     # ------------------------------------ pie ------------------------------------
-    $script:btnRegistros = New-Boton -Texto 'Abrir la carpeta de registros' -X 18 -Y 632 -Ancho 200
-    $script:btnOcultar   = New-Boton -Texto 'Ocultar en la bandeja' -X 226 -Y 632 -Ancho 180
-    $script:btnSalir     = New-Boton -Texto 'Salir (detener y cerrar)' -X 414 -Y 632 -Ancho 200
-
-    $form.Controls.Add($script:btnRegistros)
-    $form.Controls.Add($script:btnOcultar)
-    $form.Controls.Add($script:btnSalir)
+    $script:btnRegistros = New-Boton -Texto 'Abrir la carpeta de registros' -X 18 -Y $yPie -Ancho 200
+    $script:btnOcultar   = New-Boton -Texto 'Ocultar en la bandeja' -X 226 -Y $yPie -Ancho 180
+    $script:btnSalir     = New-Boton -Texto 'Salir (detener y cerrar)' -X 414 -Y $yPie -Ancho 200
+    foreach ($b in @($script:btnRegistros, $script:btnOcultar, $script:btnSalir)) {
+        $b.Anchor = 'Bottom,Left'
+        $form.Controls.Add($b)
+    }
 
     # ------------------------------- barra de estado -------------------------------
     $barra = New-Object System.Windows.Forms.StatusStrip
     $barra.SizingGrip = $false
     $script:lblBarraEstado = New-Object System.Windows.Forms.ToolStripStatusLabel
-    $script:lblBarraEstado.Text = 'Estado: …'
+    $script:lblBarraEstado.Text = 'Estado: comprobando…'
     $script:lblBarraUrls = New-Object System.Windows.Forms.ToolStripStatusLabel
     $script:lblBarraUrls.Text = ''
     $script:lblBarraUrls.Spring = $true
@@ -936,6 +1492,13 @@ function New-VentanaPanel {
     [void]$barra.Items.Add($script:lblBarraEstado)
     [void]$barra.Items.Add($script:lblBarraUrls)
     $form.Controls.Add($barra)
+
+    # Pantallas pequeñas (p. ej. 1366×768 al 125 %): la ventana cabe en el área
+    # de trabajo; el registro se encoge y el pie sube (están anclados abajo).
+    try {
+        $area = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+        if ($form.Height -gt $area.Height) { $form.Height = [Math]::Max($form.MinimumSize.Height, $area.Height) }
+    } catch { }
 
     return $form
 }
@@ -968,7 +1531,10 @@ function Mostrar-RegistroServicio {
     $btnActualizar = New-Boton -Texto '↻  Actualizar' -X 14  -Y 496 -Ancho 130
     $btnCarpeta    = New-Boton -Texto 'Abrir la carpeta' -X 152 -Y 496 -Ancho 150
     $btnCerrar     = New-Boton -Texto 'Cerrar' -X 636 -Y 496 -Ancho 130
+    $btnActualizar.Anchor = 'Bottom,Left'
+    $btnCarpeta.Anchor = 'Bottom,Left'
     $btnCerrar.Anchor = 'Bottom,Right'
+    $dlg.CancelButton = $btnCerrar
 
     $script:txtRegistroServicio = $txt
     $script:dlgRegistro = $dlg
@@ -978,300 +1544,318 @@ function Mostrar-RegistroServicio {
     $dlg.Controls.Add($btnCarpeta)
     $dlg.Controls.Add($btnCerrar)
 
-    Add-ManejadoresRegistro $btnActualizar $btnCarpeta $btnCerrar
-    [void]$dlg.ShowDialog($script:form)
+    $btnActualizar.Add_Click({
+        try {
+            if ($script:srvRegistro -and $script:txtRegistroServicio) {
+                $script:txtRegistroServicio.Text = (Get-TextoRegistro $script:srvRegistro)
+            }
+        } catch { }
+    })
+    $btnCarpeta.Add_Click({ Abrir-CarpetaRegistros })
+    $btnCerrar.Add_Click({ try { if ($script:dlgRegistro) { $script:dlgRegistro.Close() } } catch { } })
+
+    Mostrar-Panel
+    try { [void]$dlg.ShowDialog($script:form) } catch { Escribir-Registro "No se pudo mostrar el registro: $($_.Exception.Message)" -Tipo 'Aviso' }
+    try { $dlg.Dispose() } catch { }
     $script:srvRegistro = $null
     $script:dlgRegistro = $null
     $script:txtRegistroServicio = $null
 }
 
-function Add-ManejadoresRegistro {
-    param($BtnActualizar, $BtnCarpeta, $BtnCerrar)
-    $BtnActualizar.Add_Click({
-        if ($script:srvRegistro -and $script:txtRegistroServicio) {
-            $script:txtRegistroServicio.Text = (Get-TextoRegistro $script:srvRegistro)
-        }
-    })
-    $BtnCarpeta.Add_Click({ Abrir-CarpetaRegistros })
-    $BtnCerrar.Add_Click({ if ($script:dlgRegistro) { $script:dlgRegistro.Close() } })
-}
-
 # =====================================================================
-#  Estado, refresco y bandeja
+#  Estado en pantalla (lo pinta el temporizador; nunca bloquea)
 # =====================================================================
-function Actualizar-EstadoServicio {
-    param($Srv)
-    $anterior = $Srv.Estado
-    $vivo     = Test-ServicioVivo $Srv
-    $escucha  = Test-PuertoEscuchando $Srv.Puerto
-
-    if ($vivo -and $escucha) {
-        $Srv.Estado = 'En ejecución'
-    } elseif ($vivo) {
-        $segundos = 0
-        if ($Srv.HoraArranque) { $segundos = ((Get-Date) - $Srv.HoraArranque).TotalSeconds }
-        if ($segundos -lt 25) { $Srv.Estado = 'Arrancando…' } else { $Srv.Estado = 'Sin respuesta' }
-    } elseif ($escucha) {
-        $Srv.Estado = 'En ejecución (fuera del panel)'
-    } else {
-        $Srv.Estado = 'Detenido'
-        if (-not $Srv.DetencionSolicitada -and $Srv.PidLanzado -gt 0 -and $anterior -ne 'Detenido' -and $anterior -ne 'Error') {
-            $script:avisosCaida += ,$Srv
+function Set-SiCambia {
+    # Asigna Objeto.Propiedad = Valor solo si cambió desde la última vez. Un
+    # fallo en una propiedad se registra una vez y no corta el resto del refresco.
+    param([hashtable]$Cache, [string]$Clave, $Objeto, [string]$Propiedad, $Valor)
+    if ($null -eq $Objeto) { return }
+    $texto = "$Valor"
+    if ($Cache.ContainsKey($Clave) -and $Cache[$Clave] -ceq $texto) { return }
+    try {
+        $Objeto.$Propiedad = $Valor
+        $Cache[$Clave] = $texto
+    } catch {
+        if (-not $script:erroresUi.ContainsKey($Clave)) {
+            $script:erroresUi[$Clave] = $true
+            Escribir-Registro "No se pudo actualizar «$Clave»: $($_.Exception.Message)" -Tipo 'Error'
         }
-        $Srv.Proceso = $null
-        $Srv.PidLanzado = 0
     }
-    return $Srv.Estado
 }
 
 function Set-TextoBandeja {
     param([string]$Texto)
     try {
         if ($Texto.Length -gt 62) { $Texto = $Texto.Substring(0, 62) }
-        $script:bandeja.Text = $Texto
+        if ($script:bandeja) { $script:bandeja.Text = $Texto }
     } catch { }
 }
 
 function Actualizar-Vista {
-    # Un ciclo del temporizador: los puertos se sondean UNA vez y las etiquetas,
-    # botones y el menú solo se actualizan si su valor cambió.
-    $script:puertosEnTick = Get-PuertosEscuchando
-    try {
-        $total = $script:servicios.Count
-        $activos = 0
-        $p = $script:previoUi
+    # Pinta la foto que publica el proceso de control. Solo toca la interfaz si
+    # un valor cambió: es rápido y no consulta puertos ni procesos.
+    $total = $script:servicios.Count
+    $activos = 0
+    $p = $script:previoUi
+    $hayOcupado = $false
 
-        foreach ($srv in $script:servicios) {
-            $estado  = Actualizar-EstadoServicio $srv
-            $escucha = Test-PuertoEscuchando $srv.Puerto
+    foreach ($srv in $script:servicios) {
+        try {
+            $id = $srv.Id
+            $e = Get-EstadoServicio $id
+            $escucha = [bool]$e.Escucha
+            $vivo = [bool]$e.Vivo
+            $ocupado = Test-ServicioOcupado $id
+            if ($ocupado) { $hayOcupado = $true }
             if ($escucha) { $activos++ }
 
-            # Aviso de «listo» una sola vez por arranque del panel.
-            if ($escucha -and -not $srv.Avisado -and $srv.PidLanzado -gt 0) {
-                $srv.Avisado = $true
-                Escribir-Registro "$($srv.Nombre) en ejecución: https://localhost:$($srv.Puerto)"
-                Avisar-Bandeja 'NovaGest' "$($srv.Nombre) en ejecución (puerto $($srv.Puerto))." 'Info'
-            }
-            if (-not $escucha) { $srv.Avisado = $false }
-
-            # Servicio estable: se reinicia el contador de reintentos automáticos.
-            if ($srv.Estado -eq 'En ejecución' -and $srv.HoraArranque) {
-                if (((Get-Date) - $srv.HoraArranque).TotalSeconds -gt 120) { $srv.Reintentos = 0 }
-            }
+            $estado = [string]$e.Estado
+            if (-not $estado) { $estado = 'Comprobando…' }
+            if ($ocupado -and -not $e.Ocupado) { $estado = 'Procesando…' }
 
             # Abrir en el navegador en cuanto escuche (petición pendiente).
-            if ($srv.AbrirAlEscuchar) {
+            if ($script:abrirAlEscuchar.ContainsKey($id)) {
                 if ($escucha) {
-                    $srv.AbrirAlEscuchar = $false
-                    try { Start-Process "https://localhost:$($srv.Puerto)" } catch { }
-                } elseif ($srv.LimiteAbrir -and (Get-Date) -gt $srv.LimiteAbrir) {
-                    $srv.AbrirAlEscuchar = $false
+                    $script:abrirAlEscuchar.Remove($id)
+                    [void](Send-Comando @{ Tipo = 'abrir'; Url = "https://localhost:$($srv.Puerto)" })
+                } elseif ((Get-Date) -gt $script:abrirAlEscuchar[$id]) {
+                    $script:abrirAlEscuchar.Remove($id)
                     Escribir-Registro "No se abrió el navegador de $($srv.Nombre): no llegó a escuchar en el puerto $($srv.Puerto)." -Tipo 'Aviso'
                 }
             }
 
-            $color = Get-NombreEstadoColor $estado
             if ($srv.Ui) {
-                $ui   = $srv.Ui
-                $id   = $srv.Id
-                $vivo = Test-ServicioVivo $srv
-                Set-SiCambia $p "$id|estado"    $estado { param($v) $ui.Estado.Text = $v }
-                Set-SiCambia $p "$id|fondo"     ($script:colores["$($color)Fondo"]) { param($v) $ui.Estado.BackColor = $v }
-                Set-SiCambia $p "$id|texto"     ($script:colores[$color]) { param($v) $ui.Estado.ForeColor = $v }
-                Set-SiCambia $p "$id|detalle"   "https://localhost:$($srv.Puerto)  ·  puerto $($srv.Puerto)" { param($v) $ui.Detalle.Text = $v }
-                Set-SiCambia $p "$id|iniciar"   (-not $vivo -and -not $escucha) { param($v) $ui.BotonIniciar.Enabled = $v }
-                Set-SiCambia $p "$id|detener"   ($vivo -or $escucha) { param($v) $ui.BotonDetener.Enabled = $v }
-                Set-SiCambia $p "$id|reiniciar" ($vivo -or $escucha) { param($v) $ui.BotonReiniciar.Enabled = $v }
+                $ui = $srv.Ui
+                $color = Get-NombreEstadoColor $estado
+                $detalle = "https://localhost:$($srv.Puerto)  ·  puerto $($srv.Puerto)"
+                if ($vivo -and [int]$e.PidLanzado -gt 0) { $detalle += "  ·  PID $($e.PidLanzado)" }
+                elseif ($e.Externo -and [int]$e.PidPuerto -gt 0) {
+                    $nombreProceso = if ($e.NombreProceso) { " ($($e.NombreProceso))" } else { '' }
+                    $detalle += "  ·  PID $($e.PidPuerto)$nombreProceso"
+                }
+                Set-SiCambia $p "$id|estado"    $ui.Estado 'Text' $estado
+                Set-SiCambia $p "$id|fondo"     $ui.Estado 'BackColor' ($script:colores["$($color)Fondo"])
+                Set-SiCambia $p "$id|texto"     $ui.Estado 'ForeColor' ($script:colores[$color])
+                Set-SiCambia $p "$id|detalle"   $ui.Detalle 'Text' $detalle
+                Set-SiCambia $p "$id|iniciar"   $ui.BotonIniciar 'Enabled' ((-not $ocupado) -and (-not $vivo) -and (-not $escucha))
+                Set-SiCambia $p "$id|detener"   $ui.BotonDetener 'Enabled' ((-not $ocupado) -and ($vivo -or $escucha))
+                Set-SiCambia $p "$id|reiniciar" $ui.BotonReiniciar 'Enabled' ((-not $ocupado) -and ($vivo -or $escucha))
+            }
+        } catch {
+            if (-not $script:erroresUi.ContainsKey("vista|$($srv.Id)")) {
+                $script:erroresUi["vista|$($srv.Id)"] = $true
+                Escribir-Registro "Error al refrescar $($srv.Nombre): $($_.Exception.Message)" -Tipo 'Error'
             }
         }
-
-        $resumen = Get-TextoResumen $activos $total
-        if ($script:lblCabecera)    { Set-SiCambia $p 'cabecera' "Estado: $resumen" { param($v) $script:lblCabecera.Text = $v } }
-        if ($script:lblBarraEstado) { Set-SiCambia $p 'barra' $resumen { param($v) $script:lblBarraEstado.Text = $v } }
-        if ($script:lblBarraUrls)   { Set-SiCambia $p 'urls' $script:textoUrls { param($v) $script:lblBarraUrls.Text = $v } }
-        Set-SiCambia $p 'bandeja' "NovaGest · $resumen" { param($v) Set-TextoBandeja $v }
-
-        # Menú de la bandeja: se habilita lo que tiene sentido en cada momento.
-        $hayServidor  = $null -ne (Get-ServicioPorId 'servidor')
-        $hayGenerador = $null -ne (Get-ServicioPorId 'generador')
-        $srvServidor  = Get-ServicioPorId 'servidor'
-        $srvGenerador = Get-ServicioPorId 'generador'
-        $activoServidor  = $hayServidor  -and (($null -ne $srvServidor)  -and (Test-ServicioVivo $srvServidor))
-        $activoGenerador = $hayGenerador -and (($null -ne $srvGenerador) -and (Test-ServicioVivo $srvGenerador))
-        $escuchaServidor  = $hayServidor  -and (Test-PuertoEscuchando $script:puerto)
-        $escuchaGenerador = $hayGenerador -and (Test-PuertoEscuchando $script:puertoGen)
-
-        $m = $script:menu
-        if ($m) {
-            Set-SiCambia $p 'menu.estado' "Estado: $resumen" { param($v) $script:menu.Estado.Text = $v }
-            if ($m.IniciarTodo)   { Set-SiCambia $p 'menu.iniciarTodo'   ($activos -lt $total) { param($v) $script:menu.IniciarTodo.Enabled = $v } }
-            if ($m.ReiniciarTodo) { Set-SiCambia $p 'menu.reiniciarTodo' ($activos -gt 0) { param($v) $script:menu.ReiniciarTodo.Enabled = $v } }
-            if ($m.DetenerTodo)   { Set-SiCambia $p 'menu.detenerTodo'   ($activos -gt 0) { param($v) $script:menu.DetenerTodo.Enabled = $v } }
-            if ($m.DetenerServidor) {
-                Set-SiCambia $p 'menu.detenerServidor'    ($activoServidor -or $escuchaServidor) { param($v) $script:menu.DetenerServidor.Enabled = $v }
-                Set-SiCambia $p 'menu.detenerServidor.v'  $hayServidor { param($v) $script:menu.DetenerServidor.Visible = $v }
-            }
-            if ($m.IniciarServidor) {
-                Set-SiCambia $p 'menu.iniciarServidor'    ($hayServidor -and -not $activoServidor -and -not $escuchaServidor) { param($v) $script:menu.IniciarServidor.Enabled = $v }
-                Set-SiCambia $p 'menu.iniciarServidor.v'  $hayServidor { param($v) $script:menu.IniciarServidor.Visible = $v }
-            }
-            if ($m.DetenerGenerador) {
-                Set-SiCambia $p 'menu.detenerGenerador'   ($activoGenerador -or $escuchaGenerador) { param($v) $script:menu.DetenerGenerador.Enabled = $v }
-                Set-SiCambia $p 'menu.detenerGenerador.v' $hayGenerador { param($v) $script:menu.DetenerGenerador.Visible = $v }
-            }
-            if ($m.IniciarGenerador) {
-                Set-SiCambia $p 'menu.iniciarGenerador'   ($hayGenerador -and -not $activoGenerador -and -not $escuchaGenerador) { param($v) $script:menu.IniciarGenerador.Enabled = $v }
-                Set-SiCambia $p 'menu.iniciarGenerador.v' $hayGenerador { param($v) $script:menu.IniciarGenerador.Visible = $v }
-            }
-            if ($m.AbrirWeb)      { Set-SiCambia $p 'menu.abrirWeb' "Abrir la Web (https://localhost:$($script:puerto))" { param($v) $script:menu.AbrirWeb.Text = $v } }
-            if ($m.AbrirGenerador) { Set-SiCambia $p 'menu.abrirGen' "Abrir el generador (https://localhost:$($script:puertoGen))" { param($v) $script:menu.AbrirGenerador.Text = $v } }
-        }
-
-        if ($script:btnIniciarTodo)   { Set-SiCambia $p 'btn.iniciarTodo'   ($activos -lt $total) { param($v) $script:btnIniciarTodo.Enabled = $v } }
-        if ($script:btnReiniciarTodo) { Set-SiCambia $p 'btn.reiniciarTodo' ($activos -gt 0) { param($v) $script:btnReiniciarTodo.Enabled = $v } }
-        if ($script:btnDetenerTodo)   { Set-SiCambia $p 'btn.detenerTodo'   ($activos -gt 0) { param($v) $script:btnDetenerTodo.Enabled = $v } }
-        if ($script:btnAbrirWeb)      { Set-SiCambia $p 'btn.abrirWeb'      $hayServidor { param($v) $script:btnAbrirWeb.Enabled = $v } }
-        if ($script:btnAbrirGen)      { Set-SiCambia $p 'btn.abrirGen'      $hayGenerador { param($v) $script:btnAbrirGen.Enabled = $v } }
     }
-    finally {
-        $script:puertosEnTick = $null
+
+    $resumen = Get-TextoResumen $activos $total
+    if ($script:esperaSalida) { $resumen = 'Deteniendo los servicios antes de salir…' }
+    Set-SiCambia $p 'cabecera' $script:lblCabecera 'Text' "Estado: $resumen"
+    $colorCabecera = [System.Drawing.Color]::FromArgb(203, 213, 225)
+    if ($total -gt 0 -and $activos -ge $total) { $colorCabecera = [System.Drawing.Color]::FromArgb(134, 239, 172) }
+    elseif ($activos -gt 0) { $colorCabecera = [System.Drawing.Color]::FromArgb(253, 224, 71) }
+    Set-SiCambia $p 'cabecera.color' $script:lblCabecera 'ForeColor' $colorCabecera
+    Set-SiCambia $p 'barra' $script:lblBarraEstado 'Text' $resumen
+    Set-SiCambia $p 'urls' $script:lblBarraUrls 'Text' $script:textoUrls
+    if (-not $p.ContainsKey('bandeja') -or $p['bandeja'] -cne "NovaGest · $resumen") {
+        $p['bandeja'] = "NovaGest · $resumen"
+        Set-TextoBandeja "NovaGest · $resumen"
     }
+
+    $libre = (-not $script:esperaSalida)
+    Set-SiCambia $p 'btn.iniciarTodo'   $script:btnIniciarTodo 'Enabled' ($libre -and $activos -lt $total)
+    Set-SiCambia $p 'btn.reiniciarTodo' $script:btnReiniciarTodo 'Enabled' ($libre -and $activos -gt 0)
+    Set-SiCambia $p 'btn.detenerTodo'   $script:btnDetenerTodo 'Enabled' ($libre -and $activos -gt 0)
+    Set-SiCambia $p 'btn.abrirWeb'      $script:btnAbrirWeb 'Enabled' ($null -ne (Get-ServicioPorId 'servidor'))
+    Set-SiCambia $p 'btn.abrirGen'      $script:btnAbrirGen 'Enabled' ($null -ne (Get-ServicioPorId 'generador'))
+    Set-SiCambia $p 'btn.salir'         $script:btnSalir 'Enabled' $libre
 }
 
-function Registrar-CaidasPendientes {
-    # Los servicios que se cayeron solos se avisan/relanzan desde el temporizador.
-    if (-not $script:avisosCaida -or $script:avisosCaida.Count -eq 0) { return }
-    $caidos = @($script:avisosCaida)
-    $script:avisosCaida = @()
-    foreach ($srv in $caidos) {
-        Escribir-Registro "El servicio $($srv.Nombre) se detuvo por sí solo (revisa su registro)." -Tipo 'Aviso'
-        Avisar-Bandeja 'NovaGest' "$($srv.Nombre) se detuvo. Revisa el registro en el panel." 'Warning'
-        if ($script:chkAutoReinicio -and $script:chkAutoReinicio.Checked) {
-            if ($srv.Reintentos -lt 3) {
-                $srv.Reintentos++
-                Escribir-Registro "Reintento automático $($srv.Reintentos) de 3 para $($srv.Nombre)."
-                [void](Iniciar-Servicio -Srv $srv -Silencioso)
-            } else {
-                Escribir-Registro "No se reintenta $($srv.Nombre): se alcanzó el límite de 3 reintentos automáticos." -Tipo 'Error'
-            }
-        }
-    }
-}
-
-function Mostrar-Panel {
+function Actualizar-MenuBandeja {
+    # Se llama justo antes de abrir el menú del icono: habilita lo que tiene sentido.
     try {
-        if (-not $script:form) { return }
-        $script:form.ShowInTaskbar = $true
-        $script:form.Show()
-        if ($script:form.WindowState -eq 'Minimized') { $script:form.WindowState = 'Normal' }
-        $script:form.Activate()
-        $script:form.BringToFront()
+        $m = $script:itemsMenu
+        $total = $script:servicios.Count
+        $activos = 0
+        foreach ($srv in $script:servicios) { if ((Get-EstadoServicio $srv.Id).Escucha) { $activos++ } }
+        $m.Estado.Text = "Estado: $(Get-TextoResumen $activos $total)"
+        $m.IniciarTodo.Enabled = ($activos -lt $total)
+        $m.DetenerTodo.Enabled = ($activos -gt 0)
+        $m.ReiniciarTodo.Enabled = ($activos -gt 0)
+        foreach ($par in @(@('servidor', $m.IniciarServidor, $m.DetenerServidor), @('generador', $m.IniciarGenerador, $m.DetenerGenerador))) {
+            $srv = Get-ServicioPorId $par[0]
+            $par[1].Visible = ($null -ne $srv)
+            $par[2].Visible = ($null -ne $srv)
+            if ($srv) {
+                $e = Get-EstadoServicio $srv.Id
+                $ocupado = Test-ServicioOcupado $srv.Id
+                $par[1].Enabled = (-not $ocupado) -and (-not $e.Escucha) -and (-not $e.Vivo)
+                $par[2].Enabled = (-not $ocupado) -and ($e.Escucha -or $e.Vivo)
+            }
+        }
+        $m.AbrirWeb.Visible = ($null -ne (Get-ServicioPorId 'servidor'))
+        $m.AbrirGenerador.Visible = ($null -ne (Get-ServicioPorId 'generador'))
+        $m.AbrirWeb.Text = "Abrir la Web (https://localhost:$($script:puerto))"
+        $m.AbrirGenerador.Text = "Abrir el generador (https://localhost:$($script:puertoGen))"
+        $m.Salir.Enabled = (-not $script:esperaSalida)
     } catch { }
 }
 
-function Mostrar-MenuBandeja {
-    # Clic derecho en el icono: se activa una ventana propia antes de mostrar el
-    # menú. Sin ese paso Windows no muestra el menú o lo cierra al primer clic.
-    try {
-        if (-not $script:menuPrincipal) { return }
-        if ($script:ventanaOculta -and $script:ventanaOculta.IsHandleCreated) {
-            try { [void][NovaGest.NativoVentana]::SetForegroundWindow($script:ventanaOculta.Handle) } catch { }
-        }
-        $script:menuPrincipal.Show([System.Windows.Forms.Cursor]::Position)
-    } catch { }
-}
-
-function Ocultar-Panel {
-    try {
-        if (-not $script:form) { return }
-        $script:form.Hide()
-        $script:form.ShowInTaskbar = $false
-    } catch { }
-}
-
-function Salir-Panel {
-    $detener = $false
-    if ($script:chkDetenerAlSalir) { $script:detenerAlSalir = [bool]$script:chkDetenerAlSalir.Checked }
-
-    if ($script:detenerAlSalir) {
-        $respuesta = [System.Windows.Forms.MessageBox]::Show(
-            "¿Detener los servicios antes de cerrar el Panel de Control?`n`nSí = detenerlos y salir · No = dejarlos en segundo plano · Cancelar = seguir en el panel",
-            'NovaGest - Panel de Control Visual',
-            [System.Windows.Forms.MessageBoxButtons]::YesNoCancel,
-            [System.Windows.Forms.MessageBoxIcon]::Question)
-        if ($respuesta -eq [System.Windows.Forms.DialogResult]::Cancel) { return }
-        if ($respuesta -eq [System.Windows.Forms.DialogResult]::Yes) { $detener = $true }
-    } else {
-        $respuesta = [System.Windows.Forms.MessageBox]::Show(
-            "Los servicios seguirán en segundo plano si cierras el panel.`n`n¿Cerrar de todas formas?",
-            'NovaGest - Panel de Control Visual',
-            [System.Windows.Forms.MessageBoxButtons]::YesNo,
-            [System.Windows.Forms.MessageBoxIcon]::Question)
-        if ($respuesta -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+function Leer-MensajesTrabajador {
+    # Pasa al registro (y a los globos) lo que publicó el proceso de control.
+    $mensaje = $null
+    $n = 0
+    while ($n -lt 100 -and $script:compartido.Mensajes.TryDequeue([ref]$mensaje)) {
+        $n++
+        Escribir-Registro ([string]$mensaje.Texto) -Tipo ([string]$mensaje.Tipo) -Hora $mensaje.Hora
+        if ($mensaje.Globo) { Avisar-Bandeja ([string]$mensaje.Globo) ([string]$mensaje.Texto) ([string]$mensaje.ClaseGlobo) }
     }
+}
 
-    if ($detener) { Detener-Todos }
+# =====================================================================
+#  Proceso de control en segundo plano (runspace)
+# =====================================================================
+function Start-Trabajador {
+    try {
+        $rs = [runspacefactory]::CreateRunspace()
+        $rs.ApartmentState = [System.Threading.ApartmentState]::MTA
+        $rs.ThreadOptions = [System.Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
+        $rs.Open()
+        $rs.SessionStateProxy.SetVariable('compartido', $script:compartido)
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+        $codigo = $script:CodigoComun.ToString() + [Environment]::NewLine + 'Start-BucleTrabajador -C $compartido'
+        [void]$ps.AddScript($codigo)
+        $script:trabajador = @{ Runspace = $rs; PowerShell = $ps; Async = $ps.BeginInvoke() }
+        return $true
+    } catch {
+        $script:trabajador = $null
+        Escribir-Registro "No se pudo iniciar el proceso de control en segundo plano: $($_.Exception.Message)" -Tipo 'Error'
+        return $false
+    }
+}
 
+function Stop-Trabajador {
+    param([int]$EsperaMs = 3000)
+    $t = $script:trabajador
+    if (-not $t) { return }
+    try { $script:compartido.Salir = $true } catch { }
+    try {
+        if (-not $t.Async.IsCompleted) { [void]$t.Async.AsyncWaitHandle.WaitOne($EsperaMs) }
+        if (-not $t.Async.IsCompleted) { [void]$t.PowerShell.BeginStop($null, $null) }
+    } catch { }
+    try { if ($t.Async.IsCompleted) { $t.PowerShell.Dispose(); $t.Runspace.Dispose() } } catch { }
+    $script:trabajador = $null
+}
+
+function Test-Trabajador {
+    # Si el proceso de control murió (error inesperado), se registra y se relanza.
+    $t = $script:trabajador
+    if ($script:saliendo) { return }
+    if (-not $t) {
+        # Modo de emergencia sin runspace: se atiende una orden por ciclo.
+        $comando = $null
+        if ($script:compartido.Comandos.TryDequeue([ref]$comando)) {
+            try { Invoke-ComandoTrabajador -C $script:compartido -Comando $comando } catch { }
+            $script:compartido.UltimoTerminado = [int]$comando.Seq
+        }
+        try { Update-EstadosTrabajador -C $script:compartido } catch { }
+        return
+    }
+    $estadoInv = $t.PowerShell.InvocationStateInfo.State
+    if ($estadoInv -eq [System.Management.Automation.PSInvocationState]::Running) { return }
+    $motivo = ''
+    try { if ($t.PowerShell.InvocationStateInfo.Reason) { $motivo = $t.PowerShell.InvocationStateInfo.Reason.Message } } catch { }
+    try { if (-not $motivo -and $t.PowerShell.Streams.Error.Count -gt 0) { $motivo = [string]$t.PowerShell.Streams.Error[0] } } catch { }
+    Escribir-Registro "El proceso de control se detuvo ($estadoInv). $motivo" -Tipo 'Error'
+    try { $t.PowerShell.Dispose(); $t.Runspace.Dispose() } catch { }
+    $script:trabajador = $null
+    $script:compartido.Salir = $false
+    $script:compartido.Ocupado = ''
+    if ($script:reiniciosTrabajador -lt 5) {
+        $script:reiniciosTrabajador++
+        if (Start-Trabajador) { Escribir-Registro "Proceso de control relanzado ($($script:reiniciosTrabajador) de 5)." -Tipo 'Aviso' }
+    }
+}
+
+# =====================================================================
+#  Salida
+# =====================================================================
+function Cerrar-Panel {
     $script:saliendo = $true
     try { $script:temporizador.Stop() } catch { }
     try { if ($script:bandeja) { $script:bandeja.Visible = $false } } catch { }
     try { if ($script:form) { $script:form.Close() } } catch { }
+    # El bucle de mensajes no depende de la ventana (que puede estar oculta en la
+    # bandeja): se termina explícitamente.
+    try { if ($script:contexto) { $script:contexto.ExitThread() } } catch { }
 }
 
-function Verificar-Requisitos {
-    try {
-        $py = Get-Command python -ErrorAction SilentlyContinue
-        if (-not $py) { $py = Get-Command py -ErrorAction SilentlyContinue }
-        if ($py) { Escribir-Registro "Python: $($py.Source)" }
-        else { Escribir-Registro 'No se encontró Python en el PATH: el servidor no podrá arrancar (https://www.python.org/downloads/).' -Tipo 'Error' }
-    } catch { }
-    try {
-        $mk = Get-Command mkcert -ErrorAction SilentlyContinue
-        if ($mk) { Escribir-Registro "mkcert: $($mk.Source)" }
-        else { Escribir-Registro 'mkcert no está en el PATH: revisa el certificado HTTPS (winget install FiloSottile.mkcert).' -Tipo 'Aviso' }
-    } catch { }
+function Salir-Panel {
+    if ($script:esperaSalida) { return }
+    $detener = $false
+    if ($script:chkDetenerAlSalir) { $script:detenerAlSalir = [bool]$script:chkDetenerAlSalir.Checked }
+
+    if ($script:detenerAlSalir) {
+        $respuesta = Mostrar-Pregunta "¿Detener los servicios antes de cerrar el Panel de Control?`n`nSí = detenerlos y salir · No = dejarlos en segundo plano · Cancelar = seguir en el panel" 'YesNoCancel'
+        if ($respuesta -eq [System.Windows.Forms.DialogResult]::Cancel) { return }
+        if ($respuesta -eq [System.Windows.Forms.DialogResult]::Yes) { $detener = $true }
+    } else {
+        $respuesta = Mostrar-Pregunta "Los servicios seguirán en segundo plano si cierras el panel.`n`n¿Cerrar de todas formas?"
+        if ($respuesta -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+    }
+
+    if (-not $detener) { Cerrar-Panel; return }
+
+    # Se piden las detenciones al proceso de control y la ventana sigue
+    # respondiendo mientras tanto; se cierra al terminar (o a los 45 s).
+    $ultimo = 0
+    foreach ($srv in $script:servicios) {
+        $e = Get-EstadoServicio $srv.Id
+        if (-not $e.Escucha -and -not $e.Vivo) { continue }
+        $confirmado = 0
+        if ($e.Externo) {
+            $confirmado = Get-PidConfirmado $srv -SinPreguntar
+            if ($confirmado -lt 0) { continue }
+        }
+        $ultimo = Send-Comando @{ Tipo = 'detener'; Id = $srv.Id; PidConfirmado = $confirmado; Silencioso = $true }
+    }
+    if ($ultimo -le 0) { Cerrar-Panel; return }
+    Escribir-Registro 'Deteniendo los servicios antes de salir…'
+    $script:esperaSalida = @{ Seq = $ultimo; Limite = (Get-Date).AddSeconds(45) }
 }
 
 # =====================================================================
 #  Construcción de la interfaz y arranque
 # =====================================================================
 [System.Windows.Forms.Application]::EnableVisualStyles()
-[System.Windows.Forms.Application]::SetCompatibleTextRenderingDefault($false)
+try { [System.Windows.Forms.Application]::SetCompatibleTextRenderingDefault($false) } catch { }
 
 $script:icono        = Get-IconoPanel
 $script:bandeja      = $null
 $script:temporizador = $null
-$script:menu         = @{}
-$script:avisosCaida  = @()
+$script:itemsMenu    = @{}
 $script:srvRegistro  = $null
 $script:dlgRegistro  = $null
 $script:txtRegistroServicio = $null
 
-$script:ipsLocales = Get-IpsLocales
+$script:ipsLocales = @(Get-IpsLocales)
 $script:textoUrls = "Web: https://localhost:$($script:puerto)  ·  Generador: https://localhost:$($script:puertoGen)"
 if ($script:ipsLocales.Count -gt 0) {
     $script:textoUrls += "  ·  móvil: https://$($script:ipsLocales[0]):$($script:puerto)"
 }
 
+[System.Windows.Forms.Application]::add_ThreadException({
+    param($origen, $evento)
+    try { Escribir-Registro "Error inesperado en la ventana: $($evento.Exception.Message)" -Tipo 'Error' } catch { }
+})
+
 $script:form = New-VentanaPanel
 
-# ------------------------- icono de la bandeja + menú -------------------------
-if (-not ('NovaGest.NativoVentana' -as [type])) {
-    try {
-        Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-namespace NovaGest {
-    public static class NativoVentana {
-        [DllImport("user32.dll")]
-        public static extern bool SetForegroundWindow(IntPtr hWnd);
-    }
-}
-'@
-    } catch { }
-}
-
-# Ventana oculta propietaria: da el foco a la aplicación antes de mostrar el menú.
+# Ventana auxiliar invisible: consume el «primer ShowWindow» de Windows, que
+# hereda el modo oculto con que el lanzador abrió este proceso (-WindowStyle
+# Hidden) y podía dejar la ventana del panel sin mostrarse.
 $script:ventanaOculta = New-Object System.Windows.Forms.Form
 $script:ventanaOculta.ShowInTaskbar = $false
 $script:ventanaOculta.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
@@ -1279,14 +1863,19 @@ $script:ventanaOculta.StartPosition = [System.Windows.Forms.FormStartPosition]::
 $script:ventanaOculta.Location = New-Object System.Drawing.Point -ArgumentList (-32000), (-32000)
 $script:ventanaOculta.Size = New-Object System.Drawing.Size -ArgumentList 1, 1
 $null = $script:ventanaOculta.Handle
+if ($script:nativoOk) { try { [void][NovaGest.PanelNativo]::ShowWindow($script:ventanaOculta.Handle, 0) } catch { } }
 
+# ------------------------- icono de la bandeja + menú -------------------------
 $script:bandeja = New-Object System.Windows.Forms.NotifyIcon
 $script:bandeja.Icon = $script:icono
 $script:bandeja.Text = 'NovaGest · Panel de Control Visual'
-$script:bandeja.Visible = $true
 
-$menu = New-Object System.Windows.Forms.ContextMenuStrip
-$menu.ShowImageMargin = $false
+# OJO: el menú va en $menuBandeja y sus opciones en $script:itemsMenu. Antes se
+# usaba $menu, que en el ámbito del script ES $script:menu: el menú pisaba la
+# tabla de opciones, el icono quedaba sin menú y el refresco fallaba con «La
+# propiedad 'Text' no se encuentra en este objeto».
+$menuBandeja = New-Object System.Windows.Forms.ContextMenuStrip
+$menuBandeja.ShowImageMargin = $false
 
 function New-ItemMenu {
     param([string]$Texto, [bool]$Negrita = $false, [switch]$Deshabilitado)
@@ -1298,141 +1887,141 @@ function New-ItemMenu {
     return $item
 }
 
-$script:menu.Mostrar      = New-ItemMenu -Texto 'Mostrar el Panel de Control Visual' -Negrita $true
-$script:menu.Estado       = New-ItemMenu -Texto 'Estado: …' -Deshabilitado
-$script:menu.AbrirWeb     = New-ItemMenu -Texto 'Abrir la Web'
-$script:menu.AbrirGenerador = New-ItemMenu -Texto 'Abrir el generador'
-$script:menu.IniciarTodo  = New-ItemMenu -Texto '▶  Iniciar todos los servicios'
-$script:menu.IniciarServidor  = New-ItemMenu -Texto '▶  Iniciar el servidor principal'
-$script:menu.IniciarGenerador = New-ItemMenu -Texto '▶  Iniciar el generador (iniciar-generador-https.ps1)'
-$script:menu.DetenerTodo  = New-ItemMenu -Texto '■  Detener los servicios web'
-$script:menu.DetenerServidor  = New-ItemMenu -Texto '■  Detener el servidor principal (Web + API)'
-$script:menu.DetenerGenerador = New-ItemMenu -Texto '■  Detener el generador (iniciar-generador-https.ps1)'
-$script:menu.ReiniciarTodo = New-ItemMenu -Texto '↻  Reiniciar todos los servicios'
-$script:menu.CarpetaLogs  = New-ItemMenu -Texto 'Abrir la carpeta de registros'
-$script:menu.Salir        = New-ItemMenu -Texto 'Salir (detener los servicios y cerrar)' -Negrita $true
+$script:itemsMenu.Mostrar          = New-ItemMenu -Texto 'Mostrar el Panel de Control Visual' -Negrita $true
+$script:itemsMenu.Estado           = New-ItemMenu -Texto 'Estado: …' -Deshabilitado
+$script:itemsMenu.AbrirWeb         = New-ItemMenu -Texto 'Abrir la Web'
+$script:itemsMenu.AbrirGenerador   = New-ItemMenu -Texto 'Abrir el generador'
+$script:itemsMenu.IniciarTodo      = New-ItemMenu -Texto '▶  Iniciar todos los servicios'
+$script:itemsMenu.IniciarServidor  = New-ItemMenu -Texto '▶  Iniciar el servidor principal'
+$script:itemsMenu.IniciarGenerador = New-ItemMenu -Texto '▶  Iniciar el generador (iniciar-generador-https.ps1)'
+$script:itemsMenu.DetenerTodo      = New-ItemMenu -Texto '■  Detener los servicios web'
+$script:itemsMenu.DetenerServidor  = New-ItemMenu -Texto '■  Detener el servidor principal (Web + API)'
+$script:itemsMenu.DetenerGenerador = New-ItemMenu -Texto '■  Detener el generador (iniciar-generador-https.ps1)'
+$script:itemsMenu.ReiniciarTodo    = New-ItemMenu -Texto '↻  Reiniciar todos los servicios'
+$script:itemsMenu.CarpetaLogs      = New-ItemMenu -Texto 'Abrir la carpeta de registros'
+$script:itemsMenu.Salir            = New-ItemMenu -Texto 'Salir (detener los servicios y cerrar)' -Negrita $true
 
-foreach ($item in @($script:menu.Mostrar, $script:menu.Estado)) { [void]$menu.Items.Add($item) }
-[void]$menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
-foreach ($item in @($script:menu.AbrirWeb, $script:menu.AbrirGenerador)) { [void]$menu.Items.Add($item) }
-[void]$menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
-foreach ($item in @($script:menu.IniciarTodo, $script:menu.IniciarServidor, $script:menu.IniciarGenerador)) { [void]$menu.Items.Add($item) }
-[void]$menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
-foreach ($item in @($script:menu.DetenerTodo, $script:menu.DetenerServidor, $script:menu.DetenerGenerador)) { [void]$menu.Items.Add($item) }
-[void]$menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
-[void]$menu.Items.Add($script:menu.ReiniciarTodo)
-[void]$menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
-[void]$menu.Items.Add($script:menu.CarpetaLogs)
-[void]$menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
-[void]$menu.Items.Add($script:menu.Salir)
+$grupos = @(
+    @($script:itemsMenu.Mostrar, $script:itemsMenu.Estado),
+    @($script:itemsMenu.AbrirWeb, $script:itemsMenu.AbrirGenerador),
+    @($script:itemsMenu.IniciarTodo, $script:itemsMenu.IniciarServidor, $script:itemsMenu.IniciarGenerador),
+    @($script:itemsMenu.DetenerTodo, $script:itemsMenu.DetenerServidor, $script:itemsMenu.DetenerGenerador),
+    @($script:itemsMenu.ReiniciarTodo),
+    @($script:itemsMenu.CarpetaLogs),
+    @($script:itemsMenu.Salir)
+)
+$primero = $true
+foreach ($grupo in $grupos) {
+    if (-not $primero) { [void]$menuBandeja.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator)) }
+    $primero = $false
+    foreach ($item in $grupo) { [void]$menuBandeja.Items.Add($item) }
+}
+$script:menuPrincipal = $menuBandeja
 
-$script:menuPrincipal = $menu
+# El propio icono gestiona el clic derecho (foco y posición del menú): es la
+# forma fiable en Windows. El clic izquierdo y el doble clic abren el panel.
+$script:bandeja.ContextMenuStrip = $menuBandeja
+$script:bandeja.Visible = $true
 
 # --------------------------- manejadores del icono ---------------------------
+$menuBandeja.Add_Opening({ Actualizar-MenuBandeja })
+$script:bandeja.Add_MouseClick({
+    param($origen, $evento)
+    if ($evento.Button -eq [System.Windows.Forms.MouseButtons]::Left) { Mostrar-Panel }
+})
 $script:bandeja.Add_MouseDoubleClick({
-    param($sender, $e)
-    if ($e.Button -eq [System.Windows.Forms.MouseButtons]::Left) { Mostrar-Panel }
+    param($origen, $evento)
+    if ($evento.Button -eq [System.Windows.Forms.MouseButtons]::Left) { Mostrar-Panel }
 })
+$script:bandeja.Add_BalloonTipClicked({ Mostrar-Panel })
 
-# El menú no se asigna a ContextMenuStrip del icono (Windows lo mostraba mal);
-# el clic derecho lo abre Mostrar-MenuBandeja.
-$script:bandeja.Add_MouseUp({
-    param($sender, $e)
-    if ($e.Button -eq [System.Windows.Forms.MouseButtons]::Right) { Mostrar-MenuBandeja }
-})
-
-$script:menu.Mostrar.Add_Click({ Mostrar-Panel })
-$script:menu.AbrirWeb.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'servidor') })
-$script:menu.AbrirGenerador.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'generador') })
-$script:menu.IniciarTodo.Add_Click({ Invoke-Accion 'iniciar todos' { Iniciar-Todos } })
-$script:menu.IniciarServidor.Add_Click({ Invoke-Accion 'iniciar el servidor' { Iniciar-Servicio (Get-ServicioPorId 'servidor'); Actualizar-Vista } })
-$script:menu.IniciarGenerador.Add_Click({ Invoke-Accion 'iniciar el generador' { Iniciar-Servicio (Get-ServicioPorId 'generador'); Actualizar-Vista } })
-$script:menu.DetenerTodo.Add_Click({ Invoke-Accion 'detener los servicios web' { Detener-Todos } })
-$script:menu.DetenerServidor.Add_Click({ Invoke-Accion 'detener el servidor' { Detener-Servicio (Get-ServicioPorId 'servidor'); Actualizar-Vista } })
-$script:menu.DetenerGenerador.Add_Click({ Invoke-Accion 'detener el generador' { Detener-Servicio (Get-ServicioPorId 'generador'); Actualizar-Vista } })
-$script:menu.ReiniciarTodo.Add_Click({ Invoke-Accion 'reiniciar todos' { Reiniciar-Todos } })
-$script:menu.CarpetaLogs.Add_Click({ Abrir-CarpetaRegistros })
-$script:menu.Salir.Add_Click({ Salir-Panel })
+$script:itemsMenu.Mostrar.Add_Click({ Mostrar-Panel })
+$script:itemsMenu.AbrirWeb.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'servidor') })
+$script:itemsMenu.AbrirGenerador.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'generador') })
+$script:itemsMenu.IniciarTodo.Add_Click({ Ejecutar-Todos 'iniciar' })
+$script:itemsMenu.IniciarServidor.Add_Click({ $s = Get-ServicioPorId 'servidor'; if ($s) { [void](Send-Comando @{ Tipo = 'iniciar'; Id = $s.Id }) } })
+$script:itemsMenu.IniciarGenerador.Add_Click({ $s = Get-ServicioPorId 'generador'; if ($s) { [void](Send-Comando @{ Tipo = 'iniciar'; Id = $s.Id }) } })
+$script:itemsMenu.DetenerTodo.Add_Click({ Ejecutar-Todos 'detener' })
+$script:itemsMenu.DetenerServidor.Add_Click({ Ejecutar-Detener (Get-ServicioPorId 'servidor') })
+$script:itemsMenu.DetenerGenerador.Add_Click({ Ejecutar-Detener (Get-ServicioPorId 'generador') })
+$script:itemsMenu.ReiniciarTodo.Add_Click({ Ejecutar-Todos 'reiniciar' })
+$script:itemsMenu.CarpetaLogs.Add_Click({ Abrir-CarpetaRegistros })
+$script:itemsMenu.Salir.Add_Click({ Salir-Panel })
 
 # --------------------------- manejadores del panel ---------------------------
-foreach ($srv in $script:servicios) {
-    $ui = $srv.Ui
+foreach ($srvUi in $script:servicios) {
+    $ui = $srvUi.Ui
     if (-not $ui) { continue }
     $ui.BotonIniciar.Add_Click({
-        param($sender, $e)
-        Invoke-Accion 'iniciar el servicio' {
-            $srv = Get-ServicioPorId $sender.Tag
-            [void](Iniciar-Servicio -Srv $srv)
-            Actualizar-Vista
-        }
+        param($origen, $evento)
+        [void](Send-Comando @{ Tipo = 'iniciar'; Id = [string]$origen.Tag })
     })
     $ui.BotonDetener.Add_Click({
-        param($sender, $e)
-        Invoke-Accion 'detener el servicio' {
-            $srv = Get-ServicioPorId $sender.Tag
-            [void](Detener-Servicio -Srv $srv)
-            Actualizar-Vista
-        }
+        param($origen, $evento)
+        Ejecutar-Detener (Get-ServicioPorId ([string]$origen.Tag)) 'detener'
     })
     $ui.BotonReiniciar.Add_Click({
-        param($sender, $e)
-        Invoke-Accion 'reiniciar el servicio' {
-            $srv = Get-ServicioPorId $sender.Tag
-            Reiniciar-Servicio -Srv $srv
-            Actualizar-Vista
-        }
+        param($origen, $evento)
+        Ejecutar-Detener (Get-ServicioPorId ([string]$origen.Tag)) 'reiniciar'
     })
     $ui.BotonAbrir.Add_Click({
-        param($sender, $e)
-        Abrir-Servicio (Get-ServicioPorId $sender.Tag)
+        param($origen, $evento)
+        Abrir-Servicio (Get-ServicioPorId ([string]$origen.Tag))
     })
     $ui.BotonRegistro.Add_Click({
-        param($sender, $e)
-        Mostrar-RegistroServicio (Get-ServicioPorId $sender.Tag)
+        param($origen, $evento)
+        Mostrar-RegistroServicio (Get-ServicioPorId ([string]$origen.Tag))
     })
 }
 
-$script:btnIniciarTodo.Add_Click({ Invoke-Accion 'iniciar todos' { Iniciar-Todos } })
-$script:btnDetenerTodo.Add_Click({ Invoke-Accion 'detener los servicios web' { Detener-Todos } })
-$script:btnReiniciarTodo.Add_Click({ Invoke-Accion 'reiniciar todos' { Reiniciar-Todos } })
+$script:btnIniciarTodo.Add_Click({ Ejecutar-Todos 'iniciar' })
+$script:btnDetenerTodo.Add_Click({ Ejecutar-Todos 'detener' })
+$script:btnReiniciarTodo.Add_Click({ Ejecutar-Todos 'reiniciar' })
 $script:btnAbrirWeb.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'servidor') })
 $script:btnAbrirGen.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'generador') })
 $script:btnRegistros.Add_Click({ Abrir-CarpetaRegistros })
-$script:btnOcultar.Add_Click({ Ocultar-Panel; Avisar-Bandeja 'NovaGest' 'El panel sigue disponible en el icono de la bandeja (clic derecho para el menú).' 'Info' })
+$script:btnOcultar.Add_Click({ Ocultar-Panel; Avisar-Bandeja 'NovaGest' 'El panel sigue disponible en el icono de la bandeja (clic: abrir · clic derecho: menú).' 'Info' })
 $script:btnSalir.Add_Click({ Salir-Panel })
+$script:chkAutoReinicio.Add_CheckedChanged({ $script:compartido.AutoReinicio = [bool]$script:chkAutoReinicio.Checked })
 
 $script:form.Add_FormClosing({
-    param($sender, $e)
+    param($origen, $evento)
     if ($script:saliendo) { return }
-    $e.Cancel = $true
+    # Apagado de Windows o cierre desde el Administrador de tareas: se deja cerrar.
+    if ($evento.CloseReason -eq [System.Windows.Forms.CloseReason]::WindowsShutDown -or
+        $evento.CloseReason -eq [System.Windows.Forms.CloseReason]::TaskManagerClosing) {
+        $script:saliendo = $true
+        try { $script:temporizador.Stop() } catch { }
+        try { if ($script:contexto) { $script:contexto.ExitThread() } } catch { }
+        return
+    }
+    $evento.Cancel = $true
     Ocultar-Panel
-    Avisar-Bandeja 'NovaGest sigue en segundo plano' 'El panel se ocultó en la bandeja: los servicios continúan. Doble clic en el icono para volver a abrirlo.' 'Info'
-})
-
-$script:form.Add_Resize({
-    param($sender, $e)
-    if ($script:form.WindowState -eq 'Minimized') { Ocultar-Panel }
+    if (-not $script:avisoBandejaMostrado) {
+        $script:avisoBandejaMostrado = $true
+        Avisar-Bandeja 'NovaGest sigue en segundo plano' 'El panel se ocultó en la bandeja: los servicios continúan. Clic en el icono para volver a abrirlo; para cerrarlo del todo usa «Salir».' 'Info'
+    }
 })
 
 # --------------------------------- temporizador ---------------------------------
 $script:temporizador = New-Object System.Windows.Forms.Timer
-$script:temporizador.Interval = 1200
+$script:temporizador.Interval = 400
 $script:temporizador.Add_Tick({
     try {
-        if ($script:colaArranque -and $script:colaArranque.Count -gt 0) {
-            $id = $script:colaArranque[0]
-            if ($script:colaArranque.Count -gt 1) {
-                $script:colaArranque = @($script:colaArranque[1..($script:colaArranque.Count - 1)])
-            } else {
-                $script:colaArranque = @()
-            }
-            [void](Iniciar-Servicio -Srv (Get-ServicioPorId $id) -Silencioso)
-        }
+        Leer-MensajesTrabajador
+        Test-Trabajador
         Actualizar-Vista
-        if (-not $script:accionEnCurso) { Registrar-CaidasPendientes }
+        if ($script:esperaSalida) {
+            $terminado = ([int]$script:compartido.UltimoTerminado -ge [int]$script:esperaSalida.Seq)
+            if ($terminado -or (Get-Date) -gt $script:esperaSalida.Limite) {
+                if (-not $terminado) { Escribir-Registro 'Se cierra el panel sin esperar más a los servicios.' -Tipo 'Aviso' }
+                Leer-MensajesTrabajador
+                Cerrar-Panel
+            }
+        }
     } catch {
-        $script:erroresVista++
-        if ($script:erroresVista -le 3) {
+        if (-not $script:erroresUi.ContainsKey('tick')) {
+            $script:erroresUi['tick'] = $true
             Escribir-Registro "Error al refrescar el estado: $($_.Exception.Message)" -Tipo 'Error'
         }
     }
@@ -1443,7 +2032,9 @@ Write-Host ''
 Write-Host '  ===  NovaGest · Panel de Control Visual  ==='
 Write-Host ''
 Escribir-Registro "Panel de Control Visual iniciado (servidor $($script:puerto), generador $($script:puertoGen))."
-Verificar-Requisitos
+if (-not $script:nativoOk) {
+    Escribir-Registro "Funciones nativas no disponibles ($($script:errorNativo)): se usan alternativas más lentas, siempre en segundo plano." -Tipo 'Aviso'
+}
 foreach ($srv in $script:servicios) {
     Escribir-Registro "Servicio gestionado: $($srv.Nombre) → puerto $($srv.Puerto) · $($srv.Guion)"
 }
@@ -1451,56 +2042,65 @@ if ($script:ipsLocales.Count -gt 0) {
     Escribir-Registro ("URLs de esta laptop: " + (($script:ipsLocales | ForEach-Object { "https://$_`:$($script:puerto)" }) -join '  '))
 }
 
-$contexto = New-Object System.Windows.Forms.ApplicationContext
-$contexto.MainForm = $script:form
+# El proceso de control publica el primer estado en menos de un segundo; hasta
+# entonces las tarjetas muestran «Comprobando…» (la ventana no espera a nada).
+[void](Start-Trabajador)
+[void](Send-Comando @{ Tipo = 'verificar' })
 
 if (-not $SinAutoInicio) {
     $ids = @()
-    if (Get-ServicioPorId 'servidor') {
-        $ids += 'servidor'
-        $srvid = Get-ServicioPorId 'servidor'
-        if ($script:chkAbrirWeb.Checked -and $AbrirNavegador) {
-            $srvid.AbrirAlEscuchar = $true
-            $srvid.LimiteAbrir = (Get-Date).AddSeconds(300)
-        }
+    foreach ($srv in $script:servicios) { $ids += $srv.Id }
+    if ((Get-ServicioPorId 'servidor') -and $script:chkAbrirWeb.Checked -and $AbrirNavegador) {
+        $script:abrirAlEscuchar['servidor'] = (Get-Date).AddSeconds(300)
     }
-    if (Get-ServicioPorId 'generador') { $ids += 'generador' }
-    $script:colaArranque = $ids
+    foreach ($id in $ids) { [void](Send-Comando @{ Tipo = 'iniciar'; Id = $id; Silencioso = $true }) }
     Escribir-Registro "Arranque automático de servicios: $($ids -join ', ')."
 } else {
     Escribir-Registro 'Arranque automático de servicios desactivado (-SinAutoInicio).'
 }
 
-$script:temporizador.Start()
+# Contexto SIN ventana principal: así el panel puede vivir solo en la bandeja
+# (-Minimizado o tras cerrar con la X) y únicamente «Salir» termina el bucle.
+$script:contexto = New-Object System.Windows.Forms.ApplicationContext
+
 Actualizar-Vista
+$script:temporizador.Start()
 
 if (-not $Minimizado) {
     $script:form.Show()
-    $script:form.Activate()
+    Mostrar-Panel
 } else {
-    $script:form.ShowInTaskbar = $false
-    Escribir-Registro 'El panel arrancó en la bandeja del sistema (doble clic en el icono para abrirlo).'
+    Escribir-Registro 'El panel arrancó en la bandeja del sistema (clic en el icono para abrirlo).'
 }
 
-Write-Host '  El panel está activo. Icono en la bandeja del sistema: clic derecho para el menú.'
+Write-Host '  El panel está activo. Icono en la bandeja del sistema: clic para abrirlo, clic derecho para el menú.'
 try { [Console]::Out.WriteLine('NOVAGEST-PANEL-LISTO') } catch { }
 try { [Console]::Out.Flush() } catch { }
 
-[System.Windows.Forms.Application]::Run($contexto)
+try {
+    [System.Windows.Forms.Application]::Run($script:contexto)
+} catch {
+    Escribir-Registro "La ventana del panel terminó con un error: $($_.Exception.Message)" -Tipo 'Error'
+}
 
 # ----------------------------------- limpieza -----------------------------------
 try { $script:temporizador.Stop() } catch { }
+Stop-Trabajador -EsperaMs 3000
 try { if ($script:bandeja) { $script:bandeja.Visible = $false; $script:bandeja.Dispose() } } catch { }
 try { if ($script:menuPrincipal) { $script:menuPrincipal.Dispose() } } catch { }
 try { if ($script:ventanaOculta) { $script:ventanaOculta.Dispose() } } catch { }
 
 Write-Host ''
 foreach ($srv in $script:servicios) {
-    if (Test-ServicioVivo $srv) {
-        Write-Host "  Sigue en segundo plano: $($srv.Nombre) (PID $($srv.PidLanzado), puerto $($srv.Puerto))." -ForegroundColor Yellow
+    $e = Get-EstadoServicio $srv.Id
+    if ($e.Vivo -or $e.Escucha) {
+        Write-Host "  Sigue en segundo plano: $($srv.Nombre) (puerto $($srv.Puerto))." -ForegroundColor Yellow
     }
 }
 Write-Host '  Panel de Control Visual cerrado.' -ForegroundColor Green
 
 try { if ($script:mutex -and $script:tengoTurno) { $script:mutex.ReleaseMutex() } } catch { }
 try { if ($script:mutex) { $script:mutex.Dispose() } } catch { }
+
+# Termina el proceso aunque quede algún hilo en segundo plano.
+[System.Environment]::Exit(0)

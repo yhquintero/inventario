@@ -95,6 +95,15 @@ function Ok($m)    { Write-Host "  [OK] $m" -ForegroundColor Green }
 function Aviso($m) { Write-Host "  [AVISO] $m" -ForegroundColor Yellow }
 function Fallo($m) { Write-Host "  [X] $m" -ForegroundColor Red }
 
+function Test-PuertoEnUso([int]$p) {
+    # ¿Algo escucha en el puerto? Con .NET (instantáneo y sin depender del idioma de
+    # Windows: netstat dice LISTENING en inglés y ESCUCHANDO en español).
+    try {
+        return (@([System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() |
+            Where-Object { $_.Port -eq $p }).Count -gt 0)
+    } catch { return $false }
+}
+
 # Consola UTF-8: acentos correctos y salida de Python sin "mojibake"
 try { chcp 65001 | Out-Null } catch { }
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
@@ -304,7 +313,7 @@ try {
     $ocupado = @(Get-NetTCPConnection -State Listen -LocalPort $Puerto -ErrorAction SilentlyContinue).Count -gt 0
 } catch { }
 if (-not $ocupado) {
-    $ocupado = [bool](netstat -ano | Select-String -Pattern ":$Puerto\s.*LISTENING" | Select-Object -First 1)
+    $ocupado = Test-PuertoEnUso $Puerto
 }
 if ($ocupado) {
     Write-Host ''

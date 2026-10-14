@@ -111,6 +111,15 @@ function Ok($m)    { Write-Host "  [OK] $m" -ForegroundColor Green }
 function Aviso($m) { Write-Host "  [AVISO] $m" -ForegroundColor Yellow }
 function Fallo($m) { Write-Host "  [X] $m" -ForegroundColor Red }
 
+function Test-PuertoEnUso([int]$p) {
+    # ¿Algo escucha en el puerto? Con .NET (instantáneo y sin depender del idioma de
+    # Windows: netstat dice LISTENING en inglés y ESCUCHANDO en español).
+    try {
+        return (@([System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() |
+            Where-Object { $_.Port -eq $p }).Count -gt 0)
+    } catch { return $false }
+}
+
 # -SinNavegador equivale a -AbrirNavegador $false (y sí funciona al invocar con -File)
 if ($SinNavegador) { $AbrirNavegador = $false }
 
@@ -290,13 +299,23 @@ if ($SinPanel) {
     } else {
         # Una sola instancia del panel: comparte el mutex con panel-control.ps1, así que
         # si ya está abierto no se lanza una segunda copia (y no se pisa su registro).
+        # Si el panel anterior se cerró a la fuerza (Administrador de tareas, apagado),
+        # el mutex queda «abandonado»: WaitOne lanza AbandonedMutexException pero ya
+        # concede la propiedad. Se trata como libre y se suelta enseguida; antes se
+        # quedaba retenido por este script y el panel nuevo creía que ya había otro
+        # abierto (NOVAGEST-PANEL-YA-ABIERTO), así que no aparecía ninguna ventana.
         $hayPanel = $false
+        $mtxPanel = $null
         try {
             $mtxPanel = New-Object System.Threading.Mutex -ArgumentList $false, 'Local\NovaGestPanelControlVisual'
-            $libre = $mtxPanel.WaitOne(0, $false)
+            $libre = $false
+            try { $libre = $mtxPanel.WaitOne(0, $false) }
+            catch [System.Threading.AbandonedMutexException] { $libre = $true }
             if ($libre) { try { $mtxPanel.ReleaseMutex() } catch { } } else { $hayPanel = $true }
-            try { $mtxPanel.Dispose() } catch { }
-        } catch { }
+        } catch {
+        } finally {
+            if ($mtxPanel) { try { $mtxPanel.Dispose() } catch { } }
+        }
 
         if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
         $consolaPanel    = Join-Path $logDir 'consola-panel.log'
@@ -397,7 +416,8 @@ try {
     $ocupado = @(Get-NetTCPConnection -State Listen -LocalPort $Puerto -ErrorAction SilentlyContinue).Count -gt 0
 } catch { }
 if (-not $ocupado) {
-    $ocupado = [bool](netstat -ano | Select-String -Pattern ":$Puerto\s.*LISTENING" | Select-Object -First 1)
+    # Sin depender del idioma de Windows (netstat dice LISTENING o ESCUCHANDO).
+    $ocupado = Test-PuertoEnUso $Puerto
 }
 if ($ocupado) {
     Write-Host ''
@@ -446,7 +466,7 @@ if ($SinGenerador) {
             $generadorOcupado = @(Get-NetTCPConnection -State Listen -LocalPort $PuertoGenerador -ErrorAction SilentlyContinue).Count -gt 0
         } catch { }
         if (-not $generadorOcupado) {
-            $generadorOcupado = [bool](netstat -ano | Select-String -Pattern ":$PuertoGenerador\s.*LISTENING" | Select-Object -First 1)
+            $generadorOcupado = Test-PuertoEnUso $PuertoGenerador
         }
         if ($generadorOcupado) {
             Aviso "El puerto $PuertoGenerador ya está en uso; no se inicia una segunda instancia del generador."
@@ -491,7 +511,10 @@ if ($AbrirNavegador) {
                     $escucha = @(Get-NetTCPConnection -State Listen -LocalPort $puerto -ErrorAction SilentlyContinue).Count -gt 0
                 } catch { }
                 if (-not $escucha) {
-                    $escucha = [bool](netstat -ano | Select-String -Pattern ":$puerto\s.*LISTENING" | Select-Object -First 1)
+                    try {
+                        $escucha = @([System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() |
+                            Where-Object { $_.Port -eq $puerto }).Count -gt 0
+                    } catch { }
                 }
                 if ($escucha) { break }
                 Start-Sleep -Milliseconds 400
