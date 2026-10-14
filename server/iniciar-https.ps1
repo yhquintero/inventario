@@ -10,9 +10,17 @@
      (la primera vez pide elevacion con UAC).
   3) Imprime las URLs correctas de cada red y arranca el servidor en
      https://0.0.0.0:8443 con registro en data\logs\servidor_AAAA-MM-DD.log.
+  4) Inicia automáticamente el generador HTTPS en una ventana aparte (puerto
+     8444 por defecto), reutilizando el certificado y la carpeta data del servidor.
 
 .PARAMETER Puerto
   Puerto del servidor. Por defecto 8443.
+
+.PARAMETER PuertoGenerador
+  Puerto del generador de licencias. Por defecto 8444.
+
+.PARAMETER SinGenerador
+  No inicia automáticamente el generador HTTPS.
 
 .PARAMETER CrearReglaFirewall
   Uso interno: crea unicamente la regla de firewall (proceso elevado via UAC).
@@ -26,6 +34,8 @@
 [CmdletBinding()]
 param(
     [int]$Puerto = 8443,
+    [int]$PuertoGenerador = 8444,
+    [switch]$SinGenerador,
     [switch]$CrearReglaFirewall
 )
 
@@ -217,6 +227,48 @@ $env:PORT               = "$Puerto"
 $env:DATA_DIR           = Join-Path $raiz 'data'
 $env:PYTHONUNBUFFERED   = '1'
 $env:PYTHONIOENCODING   = 'utf-8'
+
+# -------------------------- generador HTTPS complementario --------------------------
+if ($SinGenerador) {
+    Aviso 'Inicio automático del generador desactivado (-SinGenerador).'
+} elseif ($PuertoGenerador -eq $Puerto) {
+    Aviso "No se inicia el generador: debe usar un puerto distinto al servidor ($Puerto). Ajusta -PuertoGenerador."
+} else {
+    $generadorScript = Join-Path $raiz 'tools\iniciar-generador-https.ps1'
+    if (-not (Test-Path $generadorScript)) {
+        Aviso "No se encontró el lanzador del generador: $generadorScript"
+    } else {
+        $generadorOcupado = $false
+        try {
+            $generadorOcupado = @(Get-NetTCPConnection -State Listen -LocalPort $PuertoGenerador -ErrorAction SilentlyContinue).Count -gt 0
+        } catch { }
+        if (-not $generadorOcupado) {
+            $generadorOcupado = [bool](netstat -ano | Select-String -Pattern ":$PuertoGenerador\s.*LISTENING" | Select-Object -First 1)
+        }
+        if ($generadorOcupado) {
+            Aviso "El puerto $PuertoGenerador ya está en uso; no se inicia una segunda instancia del generador."
+        } else {
+            $psExe = (Get-Process -Id $PID).Path
+            $generadorArgs = @(
+                '-NoProfile',
+                '-ExecutionPolicy', 'Bypass',
+                '-File', "`"$generadorScript`"",
+                '-Puerto', "$PuertoGenerador",
+                '-Datos', "`"$env:DATA_DIR`"",
+                '-ReutilizarCert'
+            )
+            try {
+                $procesoGenerador = Start-Process -FilePath $psExe -ArgumentList $generadorArgs `
+                    -WorkingDirectory $raiz -PassThru -ErrorAction Stop
+                Ok "Generador HTTPS iniciado en una ventana aparte (puerto $PuertoGenerador, PID $($procesoGenerador.Id))."
+            } catch {
+                Aviso "No se pudo iniciar automáticamente el generador HTTPS: $($_.Exception.Message)"
+                Aviso 'El servidor principal seguirá iniciándose; puedes arrancar el generador manualmente desde tools\iniciar-generador-https.ps1.'
+            }
+        }
+    }
+}
+
 $hoy = Get-Date -Format 'yyyy-MM-dd'
 $log = Join-Path $logDir "servidor_$hoy.log"
 

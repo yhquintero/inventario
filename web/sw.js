@@ -4,8 +4,10 @@
    la primera vez que se usan.
    v10: panel «Gestionar licencia» (estado, solicitudes, claves y equipos) y registro de las
    solicitudes de licencia en el servidor.
-   v12: Dashboard interactivo y nuevos recursos de categorías (renueva el caché del cliente). */
-const CACHE = "novagest-v12";
+   v12: Dashboard interactivo y nuevos recursos de categorías (renueva el caché del cliente).
+   v13: solicitud de licencia con consentimiento visible y accesible en el flujo de WhatsApp.
+   v14: aviso de activación explícita; ya no se ofrece una prueba automática. */
+const CACHE = "novagest-v14";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/ux.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",

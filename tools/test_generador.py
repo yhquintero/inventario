@@ -114,8 +114,17 @@ def reset():
 
 
 def t_clave_de_acceso():
-    code, d, _ = api("/api/session")
+    code, d, headers = api("/api/session")
     _check(code == 200 and d["authenticated"] is False, "sin sesión debe decir que no está autenticado")
+    _check(headers.get("X-Content-Type-Options") == "nosniff" and headers.get("X-Frame-Options") == "DENY",
+           "faltan cabeceras básicas de protección HTTP")
+    _check("accessKeySource" not in d, "el endpoint público no debe revelar la ruta de la clave")
+    srv.q("INSERT OR REPLACE INTO legal_info(id,data,updated_at,updated_by) VALUES(1,?,?,?)",
+          (json.dumps({"razonSocial": "NovaGest Prueba"}), int(time.time()), "prueba"))
+    code, legal, _ = api("/api/legal")
+    _check(code == 200 and legal.get("ok") and legal.get("legal", {}).get("razonSocial") == "NovaGest Prueba",
+           "la información legal pública debe cargarse de la BD sin sesión")
+    srv.q("DELETE FROM legal_info WHERE id=1")
     _check(os.path.exists(ACCESS_KEY_FILE), "no se creó data/licencia-acceso.txt")
     _check(studio.ACCESS_KEY and len(studio.ACCESS_KEY) >= 10, "la clave de acceso generada es muy corta")
     code, d, _ = api("/api/state")
@@ -129,17 +138,29 @@ def t_clave_de_acceso():
     code, d, _ = api("/api/state")
     _check(code == 200 and d["ok"] and len(d["terms"]) == 8, "estado sin los 8 plazos tras entrar")
     _check(d["https"] is False, "por HTTP la herramienta lo debe indicar")
+    _check(bool(d.get("accessKeySource")), "la fuente de la clave solo debe mostrarse después de autenticar")
 
 
 def t_interfaz_propia():
     with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/", timeout=10) as r:
         html = r.read().decode()
     _check(r.status == 200 and "Generador de Licencias" in html, "la página propia no responde")
-    _check("aparte de la Web" in html, "falta el rótulo de herramienta independiente")
+    _check("NovaGest · Área privada" in html and "herramienta segura" in html, "falta la identidad privada de NovaGest")
     _check("Acceso del administrador" in html, "falta la pantalla de clave de acceso")
+    _check('<section id="login" aria-labelledby="login-title">' in html, "la pantalla de clave debe estar visible al entrar")
+    _check('<main id="app" hidden>' in html and "[hidden] { display: none !important; }" in html, "el panel debe permanecer oculto hasta autenticar (main tiene display:grid)")
+    _check('id="status" role="status" aria-live="polite"></div>' in html, "el panel no debe mostrar Cargando… antes del acceso")
+    _check("Cargando…</div>" not in html, "no debe aparecer Cargando… en la pantalla inicial")
+    _check('href="/favicon.svg"' in html, "falta el favicon de llave/seguridad")
+    for policy in ("Aviso legal", "Política de privacidad", "Términos y condiciones", "Política de cookies", "Política de reembolsos"):
+        _check(policy in html, f"falta el enlace de {policy}")
+    _check("api/legal" in html, "los textos legales deben poder leer los datos públicos de NovaGest")
     _check("Licencias y equipos" in html, "falta la pestaña de control de licencias")
     _check("acceso-datos" in html, "falta el panel de acceso y datos")
     _check("api/licenses" in html and "licenses.csv" in html, "faltan las llamadas de control (listar/exportar)")
+    with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/favicon.svg", timeout=10) as r:
+        _check(r.status == 200 and "image/svg+xml" in (r.headers.get("Content-Type") or ""), "el favicon no responde como SVG")
+        _check("<svg" in r.read().decode(), "el icono SVG está vacío")
 
 
 def t_https_protegido():

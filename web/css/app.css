@@ -720,6 +720,8 @@ tr.empty td::before { display: none; }
 .consent p { margin: 0 0 10px; line-height: 1.5; }
 .consent-check { flex-direction: row !important; align-items: flex-start; gap: 8px !important; color: var(--ink); font-weight: 500; line-height: 1.45; }
 .consent-check input { margin-top: 2px; width: 18px; height: 18px; flex: none; }
+.lic-request-consent { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.lic-request-consent a { font-weight: 700; }
 .ficha-item label { min-width: 110px; }
 @media print { .consent, .legal-footer, .skip-link { display: none !important; } }
 
