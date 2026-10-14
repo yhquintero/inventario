@@ -1,5 +1,18 @@
 # NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-14 (VI) · «Copiar desde el WhatsApp» en el generador
+
+- **Importar la solicitud que llegó al chat** (`tools/license_studio.py` → **📨 Solicitudes → 📥 Copiar desde el WhatsApp**): se pega el mensaje del cliente, **🔍 Leer mensaje** reconoce usuario, ID de dispositivo, producto/versión, plazo (`1 día`, `3 meses`, `un año`, `Permanente`…) y fecha —sin depender de los emojis, con o sin `*negritas*`, y avisando de lo que no reconoce— y **📥 Importar a la lista** la deja como solicitud pendiente (etiqueta *📥 importada de WhatsApp*, resaltada). Desde ahí, **🔑 Crear clave y enviar por WhatsApp** la genera con ese nombre y ese plazo, la marca atendida y abre `wa.me` con el mensaje listo para reenviárselo al cliente. El **teléfono** del cliente se puede indicar en el diálogo para que el reenvío vaya directo a su chat.
+- **Sin base de datos del servidor** (no existe o el servidor aún no la ha creado): la solicitud importada **queda en la sesión** —marcada *solo en esta sesión (sin BD)*— y su clave se crea y se envía igual; el aviso de la tarjeta explica cómo apuntar `--data` a la carpeta `data` del servidor para ver también las solicitudes de la Web y Android.
+- **Endurecido**: `db_available()` ya no se conforma con que el archivo exista —una base vacía o a medio inicializar (sin las tablas de solicitudes/licencias) se trata como no disponible—, así dejan de aparecer errores `no such table` al abrir la herramienta con una `data/novagest.db` recién creada por una conexión suelta; solicitudes, licencias y auditoría degradan a la sesión sin fallar.
+- **Pruebas**: `tools/test_generador.py` sube a **15** (lectura de mensajes de WhatsApp, importación con y sin BD, duplicados, reenvío) y nueva **`tools/test_generador_ui.mjs`** (jsdom contra el servidor real de la herramienta, **20 comprobaciones**) que recorre el botón entero: abrir el diálogo, pegar, leer, importar, ver la solicitud en la lista, crear la clave y comprobar el enlace de WhatsApp. Añadida al CI.
+
+## NovaGest v1.0.0 · revisión 2026-10-14 (V) · El arranque HTTPS abre la Web sola
+
+- **`server\iniciar-https.ps1` abre la Web automáticamente** en `https://localhost:8443` al arrancar, igual que `tools\iniciar-generador-https.ps1` con su interfaz: la apertura se hace en segundo plano y **espera a que el puerto responda** (sondeo de escucha con `Get-NetTCPConnection`/`netstat`, 60 s) para no abrir una pestaña con error de conexión. Parámetro nuevo `-AbrirNavegador $false` (por defecto sí) para desactivarlo.
+- Si al ejecutarlo **ya estaba corriendo el servidor** (puerto 8443 ocupado por el propio `novagest_server.py`, comprobado por el dueño del puerto), el lanzador no arranca una segunda copia pero **abre la Web igualmente** en vez de limitarse a avisar.
+- Documentado en el README (sección *Despliegue con HTTPS*) y en la ayuda del propio script.
+
 ## NovaGest v1.0.0 · revisión 2026-10-14 (IV) · Las 15 opciones de mejora continua
 
 - **Cobertura con puerta en CI** (`tools/test_calc.mjs` 10 pruebas, `tools/cobertura.mjs --min 80`: calc 98,5 %, ipv 97 %), **restauración automática probada** (`tools/test_restauracion.py`, nocturno) y **carga ligera** (`tools/test_carga.py`, p95).

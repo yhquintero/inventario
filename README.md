@@ -97,7 +97,13 @@ El servidor escucha en `http://localhost:8080` por defecto y sirve la interfaz W
 
 ### Despliegue con HTTPS
 
-Con un dominio apuntado al servidor y Docker instalado:
+**Windows (una laptop, con mkcert):** `server\iniciar-https.ps1` crea el certificado con mkcert para todas las IPs de la máquina (incluida `192.168.137.1` si está activa la Zona con cobertura inalámbrica móvil), abre la regla de Firewall del puerto 8443 (UAC la primera vez), imprime las URLs de cada red, arranca el servidor en `https://0.0.0.0:8443` y **abre la Web en el navegador** (`https://localhost:8443`) en cuanto el servidor está escuchando; también inicia el generador de licencias HTTPS en otra ventana (puerto 8444). Para no abrir el navegador: `-AbrirNavegador $false`; para omitir el generador: `-SinGenerador`. Si el servidor ya estaba corriendo (puerto 8443 ocupado por la propia copia), no arranca una segunda instancia pero abre la Web igualmente.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1
+```
+
+**Con un dominio apuntado al servidor y Docker instalado:**
 
 ```bash
 DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
@@ -147,6 +153,12 @@ python3 tools/license_studio.py --whatsapp 5351234567  # WhatsApp destino por de
 ```
 
 En Windows puede lanzarse con `powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador.ps1`. La interfaz ofrece: formulario con los **8 plazos** (día … permanente), tipo y límites; la clave generada con **Copiar**, **Descargar `.txt`** y **💬 Enviar por WhatsApp** (enlace `wa.me` con el mensaje listo); y, si encuentra `data/novagest.db`, la lista de **solicitudes recibidas por WhatsApp** (Web y Android) con «Crear clave y enviar por WhatsApp» en un clic, que las deja marcadas como atendidas. Usa el **mismo formato de clave** (HMAC-SHA256) y el mismo mensaje que el panel de la Web, así que las claves activan sin cambios.
+
+#### 📥 Copiar desde el WhatsApp (solicitudes que llegan al chat)
+
+Cuando el cliente escribe directo al WhatsApp —sin pasar por «Solicitar por WhatsApp» de la Web o de la app— el mensaje se puede pegar en la herramienta con el botón **📥 Copiar desde el WhatsApp** de la pestaña **📨 Solicitudes**: se copia su mensaje en WhatsApp, se pega en el diálogo y se pulsa **🔍 Leer mensaje**. La herramienta reconoce el **usuario**, el **ID del dispositivo**, el **producto/versión**, el **plazo** (`1 día`, `3 meses`, `un año`, `Permanente`…) y la **fecha** del mensaje, sin depender de los emojis ni del orden de las líneas; lo que no reconoce lo avisa y se puede escribir a mano (usuario, plazo en el desplegable y teléfono del cliente para el reenvío).
+
+Al pulsar **📥 Importar a la lista** la solicitud aparece en **📨 Solicitudes recibidas por WhatsApp** (con la etiqueta *📥 importada de WhatsApp*, pendiente y resaltada) y se repele igual que una de la Web: **🔑 Crear clave y enviar por WhatsApp** genera la clave con ese nombre y ese plazo, deja la solicitud **atendida** y abre `wa.me` con el mensaje listo para reenviárselo al cliente; **📋 Copiar clave sin enviar**, **🚫 Descartar**, **↩ Volver a pendiente** y **🗑 Eliminar** funcionan igual. Si la base del servidor no está disponible (no existe o aún no la ha creado el servidor), la solicitud importada **vive en la sesión** —marcada *solo en esta sesión (sin BD)*— y su clave se crea igualmente.
 
 #### 🔒 Por HTTPS en su propio puerto (Windows)
 
@@ -224,6 +236,7 @@ node tools/test_customers_credits.mjs # clientes, fiados, abonos y códigos de b
 node tools/smoke_web.mjs             # recorrido de pantallas Web con DOM simulado
 python3 tools/test_licencia.py       # solicitudes de licencia, plazos y texto del mensaje
 python3 tools/test_generador.py      # generador independiente: clave de acceso, HTTPS, claves firmadas, envío por WhatsApp y control de licencias
+node tools/test_generador_ui.mjs     # interfaz del generador con DOM simulado: pegar el mensaje de WhatsApp, importarlo, crear la clave y reenviarla
 ```
 
 Para ejecutar las pruebas unitarias Android, usa Android Studio o Gradle 8.9 desde la raíz:

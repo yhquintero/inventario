@@ -32,7 +32,12 @@ LICENSE_SECRET o apunte --data a la carpeta data del servidor del cliente.
 
 Si encuentra data/novagest.db lista las solicitudes de licencia recibidas por
 WhatsApp (Web y Android), crea su clave en un clic con el nombre y el plazo
-pedidos, la marca como atendida y prepara el mensaje para el cliente. Además,
+pedidos, la marca como atendida y prepara el mensaje para el cliente. Con
+«📥 Copiar desde el WhatsApp» se puede pegar el mensaje que el cliente envió al
+chat: se leen su usuario, su ID de dispositivo y su plazo, la solicitud se añade
+a la lista y desde ahí se crea la clave y se reenvía por WhatsApp (siempre que
+la base del servidor esté disponible; si no, la solicitud vive en la sesión).
+Además,
 la pestaña «Licencias y equipos» muestra TODAS las licencias emitidas con su
 estado, sus equipos activados y los botones para renovarlas, revocarlas,
 activarlas, eliminarlas o exportarlas a CSV.
@@ -176,6 +181,7 @@ def save_access_key(nueva):
 _SESSIONS = {}          # token -> último uso
 _FAILS = {}             # ip -> [fallos, bloqueado_hasta]
 _LOCK = threading.Lock()
+_DB_READY_CACHE = {}    # (ruta, mtime, tamaño) -> ¿la base ya tiene sus tablas?
 
 
 def session_new():
@@ -238,7 +244,36 @@ def secret_source():
 
 
 def db_available():
-    return os.path.exists(gen.db_path())
+    """¿La base del servidor sirve para solicitudes y licencias?
+
+    No basta con que el archivo exista: una base vacía o a medio inicializar (el servidor
+    aún no ha arrancado por primera vez) se trata como «no disponible», así la herramienta
+    genera claves y permite importar solicitudes sin errores de tablas.
+    """
+    ruta = gen.db_path()
+    if not os.path.exists(ruta):
+        return False
+    try:
+        clave = (ruta, os.path.getmtime(ruta), os.path.getsize(ruta))
+    except OSError:
+        return False
+    with _LOCK:
+        if clave in _DB_READY_CACHE:
+            return _DB_READY_CACHE[clave]
+    listo = False
+    try:
+        con = sqlite3.connect(ruta, timeout=10)
+        try:
+            tablas = {f[0] for f in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            listo = {"license_requests", "licenses"} <= tablas
+        finally:
+            con.close()
+    except sqlite3.Error:
+        listo = False
+    with _LOCK:
+        _DB_READY_CACHE.clear()
+        _DB_READY_CACHE[clave] = listo
+    return listo
 
 
 def legal_public_data():
@@ -301,14 +336,285 @@ def request_public(r):
 
 
 def list_requests(limit=100):
+    """Solicitudes: las de la BD del servidor + las pegadas desde WhatsApp (memoria de la sesión).
+
+    Las de la BD van primero (pendientes y más recientes arriba); las importadas sin BD se
+    añaden a la lista para poder crear su clave igualmente, marcadas con «mem».
+    """
+    filas = []
+    if db_available():
+        con = db_connect()
+        try:
+            rows = con.execute("SELECT * FROM license_requests ORDER BY created_at DESC, id DESC").fetchall()
+            filas = [dict(request_public(r), mem=False) for r in rows]
+        except sqlite3.Error as e:
+            # Archivo presente pero sin las tablas todavía (servidor sin arrancar): no es un error fatal.
+            print(f"[GENERADOR] La base de datos no tiene la tabla de solicitudes: {e}", flush=True)
+        finally:
+            con.close()
+    with _LOCK:
+        filas += [dict(r) for r in _MEM_REQUESTS]
+    filas.sort(key=lambda r: ((r.get("status") or "pendiente") != "pendiente",
+                              -int(r.get("createdAt") or 0), -int(r.get("id") or 0)))
+    return filas[:max(1, min(int(limit or 100), 500))]
+
+
+def request_by_id(req_id):
+    """Una solicitud del listado (BD o memoria) o None."""
+    for r in list_requests(500):
+        if int(r["id"]) == int(req_id):
+            return r
+    return None
+
+
+# ------------------------------------------------------------------ importar desde WhatsApp
+# El cliente escribe a WhatsApp (no siempre pasa por la Web/Android): el administrador copia
+# su mensaje y esta herramienta lo lee para rehacer la solicitud con los datos exactos.
+_WA_NUM = {"un": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6,
+           "siete": 7, "ocho": 8, "nueve": 9, "diez": 10}
+# Días de cada unidad escrita por el cliente (texto ya sin acentos: «años» → «anos»).
+_WA_UNIDAD_DIAS = {"permanente": 0, "vitalicia": 0, "lifetime": 0,
+                   "dia": 1, "dias": 1, "semana": 7, "semanas": 7, "mes": 30, "meses": 30,
+                   "trimestre": 90, "trimestres": 90, "semestre": 180, "semestres": 180,
+                   "ano": 365, "anos": 365}
+_MEM_ID_BASE = 900000000     # ids de las solicitudes importadas sin BD (no chocan con los de la BD)
+_MEM_REQUESTS = []
+_MEM_SEQ = 0
+
+
+def sin_acentos(txt):
+    tabla = str.maketrans("áéíóúüñÁÉÍÓÚÜÑ", "aeiouunAEIOUUN")
+    return str(txt or "").translate(tabla)
+
+
+def _wa_lineas(texto):
+    """Líneas del mensaje pegadas, sin los marcadores de WhatsApp (*negrita*, _cursiva_, ~tachado~)."""
+    return [re.sub(r"[*_~`]", "", l).strip() for l in re.split(r"\r\n|\r|\n", str(texto or ""))]
+
+
+def _wa_campo(texto, *etiquetas):
+    """Valor de «Etiqueta: valor» en el mensaje pegado (ignora emojis, mayúsculas y acentos)."""
+    patrones = [re.compile(rf"{re.escape(e)}\s*[:\-]\s*(.+)$", re.IGNORECASE) for e in etiquetas]
+    for linea in _wa_lineas(texto):
+        for patron in patrones:
+            m = patron.search(linea)
+            if m:
+                valor = m.group(1).strip(" .·-")
+                if valor:
+                    return valor
+    return ""
+
+
+def _wa_plazo(plano):
+    """Separa el plazo que escribió el cliente: devuelve (etiqueta, días o None, tipo).
+
+    Acepta «1 día (1 días) · FULL», «3 meses (90 días) · FULL», «Permanente · LIFETIME» y
+    variantes sin días («1 semana»).
+    """
+    partes = [p.strip() for p in re.split(r"\s*[·•|]\s*", plano or "") if p.strip()]
+    tipo = ""
+    if len(partes) > 1 and re.fullmatch(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{2,20}", partes[-1]):
+        tipo = sin_acentos(partes.pop().upper())
+    texto = " ".join(partes)
+    dias = None
+    m = re.search(r"\(\s*(\d+)\s*d[ií]as?\s*\)", texto, re.IGNORECASE)
+    if m:
+        dias = int(m.group(1))
+        texto = (texto[:m.start()] + texto[m.end():]).strip()
+    return texto.strip(" .·-"), dias, tipo
+
+
+def _wa_term(etiqueta, dias):
+    """Plazo del catálogo a partir del texto del cliente. Devuelve (term, aviso)."""
+    normal = sin_acentos((etiqueta or "").lower())
+    calculados = dias
+    if calculados is None:
+        if re.search(r"permanent|vitalic|lifetime", normal):
+            calculados = 0
+        else:
+            m = re.search(r"\b(?:(\d+)|(un|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez))\s*"
+                          r"(dias?|semanas?|mes(?:es)?|trimestres?|semestres?|anos?)\b", normal)
+            unidad = re.search(r"(dias?|semanas?|mes(?:es)?|trimestres?|semestres?|anos?)", normal)
+            if m:
+                cantidad = int(m.group(1)) if m.group(1) else _WA_NUM.get(m.group(2), 1)
+                base = _WA_UNIDAD_DIAS.get(m.group(3))
+                if base:
+                    calculados = cantidad * base
+            elif unidad:
+                calculados = _WA_UNIDAD_DIAS.get(unidad.group(1)) or None
+    if calculados is not None:
+        exacto = next((t for t in TERMS if t["days"] == calculados), None)
+        if exacto:
+            return exacto, ""
+        # Plazo no estándar (25 días, 45 días…): se usa el más cercano del catálogo.
+        cercano = min([t for t in TERMS if t["days"] or calculados == 0],
+                      key=lambda t: (abs(t["days"] - calculados), -t["days"]))
+        return cercano, (f"El plazo del mensaje («{etiqueta or calculados}») no es uno de los 8 del catálogo: "
+                         f"se usará «{cercano['label']}». Puede cambiarlo en el desplegable Plazo.")
+    return term_of("MES"), f"No se reconoció el plazo en el mensaje («{etiqueta or 'sin plan'}»): se usará «1 mes». " \
+                            "Puede cambiarlo en el desplegable Plazo."
+
+
+def _wa_fecha(texto):
+    """Timestamp de «Fecha Actual: dd/mm/aaaa, h:mm:ss a.m./p.m.» (o None si no es válida)."""
+    valor = _wa_campo(texto, "fecha actual", "fecha", "fecha de la solicitud")
+    if not valor:
+        return None
+    m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})\s*,?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*"
+                  r"([ap])\s*\.?\s*m\.?", valor, re.IGNORECASE)
+    if not m:
+        return None
+    dia, mes, anio, hora, minuto, segundo, ampm = m.groups()
+    hora = int(hora) % 12 + (12 if ampm.lower() == "p" else 0)
+    try:
+        ts = int(time.mktime((int(anio), int(mes), int(dia), hora, int(minuto), int(segundo or 0), 0, 0, -1)))
+    except (ValueError, OverflowError):
+        return None
+    # Reloj del equipo del cliente desajustado: se prefiere la fecha de la importación.
+    if ts > time.time() + 86400 or ts < time.time() - 3 * 365 * 86400:
+        return None
+    return ts
+
+
+def _wa_telefono(texto):
+    """Teléfono del cliente si lo escribió en el mensaje (WhatsApp no incluye el número)."""
+    valor = _wa_campo(texto, "telefono", "teléfono", "whatsapp", "contacto", "celular", "movil", "móvil")
+    if valor and not re.search(r"fijo|sin telefono|sin teléfono", sin_acentos(valor.lower())):
+        return valor
+    m = re.search(r"\+\d[\d\s().-]{6,18}\d", str(texto or ""))
+    return m.group(0).strip() if m else ""
+
+
+def parse_whatsapp_request(texto, phone=""):
+    """Lee el mensaje que el cliente envió por WhatsApp y arma los datos de la solicitud.
+
+    Es tolerante: no depende de los emojis, admite mayúsculas/acentos distintos, el marcado
+    de WhatsApp (*negrita*) y líneas en otro orden. Lo que no reconoce queda como aviso para
+    que el administrador lo revise (o lo escriba) antes de importar.
+    """
+    texto = str(texto or "").strip()
+    avisos = []
+    client = _wa_campo(texto, "usuario", "cliente", "nombre", "empresa", "negocio")[:120]
+    device = _wa_campo(texto, "id dispositivo", "id de dispositivo", "id del dispositivo", "device id",
+                       "iddispositivo", "dispositivo", "id equipo", "id del equipo")[:120]
+    producto = _wa_campo(texto, "producto", "app", "aplicacion", "aplicación")
+    version = ""
+    m = re.search(r"\bv?(\d+\.\d+(?:\.\d+)?)\b", producto)
+    if m:
+        version = m.group(1)
+        producto = (producto[:m.start()].strip(" -v") or PRODUCT)
+    etiqueta_plan, dias_plan, tipo_plan = _wa_plazo(_wa_campo(texto, "plan", "plazo"))
+    term, aviso_plazo = _wa_term(etiqueta_plan, dias_plan)
+    tipo = tipo_plan.upper()
+    tipo = tipo if tipo in LICENSE_TYPES else term["type"]
+    creado = _wa_fecha(texto)
+    if not client:
+        avisos.append("No se reconoció el usuario: escriba «👤 Usuario: …» en el mensaje o rellene el campo Usuario.")
+    if not device:
+        avisos.append("No se reconoció el ID del dispositivo: se creará uno nuevo al importar la solicitud.")
+    if not creado:
+        avisos.append("No se reconoció la fecha del mensaje: se usará la fecha de la importación.")
+        creado = int(time.time())
+    if aviso_plazo:
+        avisos.append(aviso_plazo)
+    return {
+        "clientName": client,
+        "deviceId": device,
+        "product": (producto or PRODUCT)[:60],
+        "version": (version or APP_VERSION)[:20],
+        "term": term["id"],
+        "termLabel": term["label"],
+        "type": tipo,
+        "days": term["days"],
+        "termAsked": _wa_campo(texto, "plan", "plazo"),
+        "phone": re.sub(r"[^\d+]", "", str(phone or _wa_telefono(texto) or ""))[:24],
+        "createdAt": creado,
+        "message": texto[:2000],
+        "warnings": avisos,
+    }
+
+
+def memory_get(req_id):
+    """Solicitud importada sin BD del servidor (se conserva mientras la herramienta esté abierta)."""
+    with _LOCK:
+        for r in _MEM_REQUESTS:
+            if int(r["id"]) == int(req_id):
+                return r
+    return None
+
+
+def memory_add(term, datos, ip=""):
+    global _MEM_SEQ
+    with _LOCK:
+        _MEM_SEQ += 1
+        fila = {
+            "id": _MEM_ID_BASE + _MEM_SEQ,
+            "clientName": datos["clientName"],
+            "deviceId": datos["deviceId"],
+            "phone": datos.get("phone") or "",
+            "term": term["id"],
+            "termLabel": term["label"],
+            "type": datos.get("type") or term["type"],
+            "days": term["days"],
+            "channel": "whatsapp",
+            "status": "pendiente",
+            "createdAt": int(datos.get("createdAt") or time.time()),
+            "message": datos.get("message") or "",
+            "mem": True,
+            "savedToDb": False,
+            "ip": ip,
+        }
+        _MEM_REQUESTS.insert(0, fila)
+        return dict(fila)
+
+
+def import_request(datos, ip=""):
+    """Registra una solicitud pegada desde WhatsApp.
+
+    Devuelve (solicitud, guardada_en_la_BD, ya_estaba). Si la herramienta no encuentra la
+    base de datos del servidor, la solicitud queda en memoria y se puede crear su clave igual.
+    """
+    datos = dict(datos or {})
+    client = str(datos.get("clientName") or "").strip()[:120]
+    if not client:
+        raise ValueError("No se reconoció el usuario en el mensaje: escríbalo en el campo Usuario "
+                         "o copie el mensaje completo del cliente.")
+    term = term_of(datos.get("term"))
+    tipo = str(datos.get("type") or "").strip().upper()
+    device = str(datos.get("deviceId") or "").strip()[:120] or f"wa-{secrets.token_hex(4)}"
+    phone = re.sub(r"[^\d+]", "", str(datos.get("phone") or ""))[:24]
+    creado = int(datos.get("createdAt") or time.time())
+    datos.update({"clientName": client, "deviceId": device, "phone": phone,
+                  "type": tipo if tipo in LICENSE_TYPES else term["type"], "createdAt": creado})
     if not db_available():
-        return []
+        with _LOCK:   # pegar dos veces el mismo mensaje no duplica la solicitud pendiente
+            for r in _MEM_REQUESTS:
+                if (r["status"] == "pendiente" and r["clientName"] == client
+                        and r["deviceId"] == device and r["term"] == term["id"]):
+                    return dict(r), False, True
+        return memory_add(term, datos, ip), False, False
     con = db_connect()
     try:
-        rows = con.execute(
-            "SELECT * FROM license_requests ORDER BY CASE status WHEN 'pendiente' THEN 0 ELSE 1 END,"
-            " created_at DESC, id DESC LIMIT ?", (int(limit),)).fetchall()
-        return [request_public(r) for r in rows]
+        dup = con.execute(
+            "SELECT * FROM license_requests WHERE device_id=? AND client_name=? AND term=? AND status='pendiente'"
+            " ORDER BY id DESC LIMIT 1", (device, client, term["id"])).fetchone()
+        if dup:  # ya estaba en la lista (p. ej. el cliente también la envió desde la Web)
+            return request_public(dup), True, True
+        con.execute(
+            "INSERT INTO license_requests(client_name, device_id, device_info, product, version, term,"
+            " term_label, license_type, days, phone, message, channel, ip, status, created_at)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?,'whatsapp',?,'pendiente',?)",
+            (client, device, "Importada desde WhatsApp por el administrador",
+             str(datos.get("product") or PRODUCT)[:60], str(datos.get("version") or APP_VERSION)[:20],
+             term["id"], term["label"], datos["type"], term["days"], phone,
+             str(datos.get("message") or "")[:2000], ip, creado))
+        con.commit()
+        row = con.execute("SELECT * FROM license_requests WHERE id=last_insert_rowid()").fetchone()
+        return dict(request_public(row), mem=False), True, False
+    except sqlite3.Error as e:
+        # Base de datos inservible (sin tablas): la solicitud se conserva en memoria.
+        print(f"[GENERADOR] No se pudo guardar en la base de datos ({e}); la solicitud queda en esta sesión.", flush=True)
+        return memory_add(term, datos, ip), False, False
     finally:
         con.close()
 
@@ -341,11 +647,17 @@ def save_license_row(payload, token, term_id=None):
 
 
 def close_request(req_id, token, license_row_id):
-    """Marca la solicitud como atendida (igual que el panel de la Web y la CLI)."""
-    if not db_available():
-        return
+    """Marca la solicitud como atendida (BD del servidor o la importada sin BD)."""
     pretty = f"NG-{token}"
     preview = pretty[:18] + "…" + pretty[-8:] if len(pretty) > 30 else pretty
+    mem = memory_get(req_id)
+    if mem is not None:
+        mem.update({"status": "atendida", "handledAt": int(time.time()),
+                    "handledBy": "license_studio.py", "licensePreview": preview,
+                    "licenseRowId": license_row_id})
+        return
+    if not db_available():
+        return
     try:
         con = db_connect()
         try:
@@ -548,6 +860,9 @@ def list_licenses(limit=500):
             " CASE WHEN expires_at=0 THEN 1 ELSE 0 END DESC, expires_at DESC, issued_at DESC, id DESC"
             " LIMIT ?", (int(limit),)).fetchall()
         acts = con.execute("SELECT * FROM license_activations ORDER BY last_seen DESC LIMIT 1000").fetchall()
+    except sqlite3.Error as e:
+        print(f"[GENERADOR] No se pudo leer el control de licencias: {e}", flush=True)
+        return [], []
     finally:
         con.close()
     agrupadas = {}
@@ -638,6 +953,13 @@ def revoke_activation(act_id):
 
 
 def request_status(req_id, status):
+    """Cambia el estado de una solicitud (BD o memoria). Devuelve las filas afectadas."""
+    mem = memory_get(req_id)
+    if mem is not None:
+        mem.update({"status": status, "handledAt": int(time.time()), "handledBy": "license_studio.py"})
+        return 1
+    if not db_available():
+        return 0
     con = db_connect()
     try:
         cur = con.execute(
@@ -645,16 +967,28 @@ def request_status(req_id, status):
             (status, int(time.time()), int(req_id)))
         con.commit()
         return cur.rowcount
+    except sqlite3.Error:
+        return 0
     finally:
         con.close()
 
 
 def request_delete(req_id):
+    """Elimina una solicitud (BD o memoria). Devuelve las filas afectadas."""
+    global _MEM_REQUESTS
+    with _LOCK:
+        if any(int(r["id"]) == int(req_id) for r in _MEM_REQUESTS):
+            _MEM_REQUESTS = [r for r in _MEM_REQUESTS if int(r["id"]) != int(req_id)]
+            return 1
+    if not db_available():
+        return 0
     con = db_connect()
     try:
         cur = con.execute("DELETE FROM license_requests WHERE id=?", (int(req_id),))
         con.commit()
         return cur.rowcount
+    except sqlite3.Error:
+        return 0
     finally:
         con.close()
 
@@ -781,6 +1115,8 @@ INDEX_HTML = r"""<!doctype html>
   .tag.danger { background: var(--danger-bg); color: var(--danger); }
   .req, .lic { border: 1px solid var(--line); border-radius: 11px; padding: 12px 14px; margin-top: 10px; }
   .lic.current { border-color: #b9d5bf; background: #f7fdf9; }
+  .req.nueva { border-color: #b9d5bf; background: #f7fdf9; box-shadow: 0 0 0 2px rgba(37, 211, 102, .16); }
+  .req textarea { font-family: var(--mono); font-size: 12px; }
   .req .top, .lic .top { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
   .req .who, .lic .who { font-weight: 700; }
   .req .meta, .lic .meta { color: var(--muted); font-size: 12px; }
@@ -941,9 +1277,11 @@ INDEX_HTML = r"""<!doctype html>
 
   <section class="card" data-panel="solicitudes" hidden>
     <h2>📨 Solicitudes recibidas por WhatsApp</h2>
-    <p class="hint" id="req-hint">Las solicitudes que los clientes envían desde la Web o la app Android («Solicitar por WhatsApp»).</p>
+    <p class="hint" id="req-hint">Las solicitudes que los clientes envían desde la Web o la app Android («Solicitar por WhatsApp») y las que
+      importe usted con <b>📥 Copiar desde el WhatsApp</b> (el mensaje que le llegó al chat, sin pasar por la Web).</p>
     <div id="requests"></div>
     <div class="row">
+      <button class="btn wa small" id="btn-import">📥 Copiar desde el WhatsApp</button>
       <button class="btn small" id="btn-refresh">↻ Actualizar</button>
       <span class="hint">«Crear clave» usa el nombre y el plazo pedidos y deja la solicitud atendida.</span>
     </div>
@@ -1005,6 +1343,33 @@ INDEX_HTML = r"""<!doctype html>
   </nav>
   <p>El cliente activa la clave en <b>Licencia de uso → Activar licencia</b> (Web o app Android). Esta herramienta usa el mismo formato firmado (HMAC-SHA256) que el servidor verifica en <b>/api/license/activate</b>.</p>
 </footer>
+<dialog id="import-dialog" aria-labelledby="import-title">
+  <div class="legal-dialog-head">
+    <div><p class="eyebrow">NovaGest · Solicitud por WhatsApp</p><h2 id="import-title">📥 Copiar desde el WhatsApp</h2></div>
+    <button class="btn legal-close" id="import-close" type="button" aria-label="Cerrar la importación de la solicitud">×</button>
+  </div>
+  <div class="legal-content">
+    <p class="hint">En WhatsApp, mantenga pulsado el mensaje del cliente y pulse <b>Copiar</b>; péguelo aquí con <b>Ctrl+V</b>.
+      Se leerán el <b>usuario</b>, el <b>ID del dispositivo</b> y el <b>plazo</b> para crear la clave con los datos exactos y
+      reenviársela al cliente por WhatsApp. Revise los campos antes de importar.</p>
+    <label>Mensaje que envió el cliente *
+      <textarea id="import-text" rows="9" spellcheck="false" placeholder="Hola, solicito activar mi Licencia de NovaGest.&#10;&#10;👤 Usuario: Tienda Nova&#10;🆔 ID Dispositivo: web-hhsp9rqlmv5zhygs&#10;📦 Producto: NovaGest v1.0.0&#10;📅 Plan: 1 día (1 días) · FULL&#10;🕒 Fecha Actual: 14/10/2026, 2:53:22 p.m."></textarea>
+    </label>
+    <div class="grid" style="margin-top:10px">
+      <label>Usuario / empresa * <input id="import-name" maxlength="120" autocomplete="off" placeholder="Ej: Tienda Nova"></label>
+      <label>Plazo * <select id="import-term"></select></label>
+      <label>Teléfono del cliente (opcional) <input id="import-phone" maxlength="24" autocomplete="off" placeholder="Ej: 5351234567 (con código de país)"></label>
+    </div>
+    <div id="import-feedback" class="hint" role="status" aria-live="polite" style="margin-top:10px"></div>
+  </div>
+  <div class="legal-dialog-foot">
+    <p class="hint">1) Pegue el mensaje · 2) «Leer mensaje» · 3) «Importar a la lista» · 4) «🔑 Crear clave y enviar por WhatsApp».</p>
+    <div class="row" style="margin-top:0">
+      <button class="btn small" id="import-parse" type="button">🔍 Leer mensaje</button>
+      <button class="btn primary small" id="import-do" type="button">📥 Importar a la lista</button>
+    </div>
+  </div>
+</dialog>
 <dialog id="legal-dialog" aria-labelledby="legal-title">
   <div class="legal-dialog-head">
     <div><p class="eyebrow">NovaGest · Información legal</p><h2 id="legal-title">Aviso legal</h2></div>
@@ -1295,29 +1660,37 @@ $("btn-copy-wa").addEventListener("click", async () => {
 });
 
 /* ------------------------------------------------ solicitudes */
+let REQ_FLASH = "";        // aviso de la última importación (se mantiene hasta la siguiente)
+let REQ_NUEVA = null;      // solicitud recién importada: se resalta en la lista
+
 function loadRequests() {
   jget("api/requests").then((s) => {
     const box = $("requests");
     const list = s.requests || [];
     const pend = list.filter((r) => (r.status || "pendiente") === "pendiente").length;
     $("tab-req").innerHTML = pend ? `<span class="tag warn">${pend}</span>` : "";
-    if (s.dbAvailable === false) {
-      box.innerHTML = `<p class="hint">No se encontró la base de datos del servidor (<b>${esc(s.dbPath || "")}</b>).
-        Arranque la herramienta con <b>--data</b> apuntando a la carpeta <b>data</b> del servidor
-        para ver aquí las solicitudes recibidas. Puede generar claves igualmente con el formulario de arriba.</p>`;
-      return;
-    }
+    const aviso = REQ_FLASH ? `<p class="ok-msg">${REQ_FLASH}</p>` : "";
+    const sinBd = s.dbAvailable === false
+      ? `<p class="hint">No hay una base de datos del servidor utilizable en <b>${esc(s.dbPath || "")}</b> (no existe todavía o el servidor
+         no la ha inicializado): las solicitudes enviadas desde la Web y la app Android no se pueden leer aquí. Arranque el servidor una vez
+         —o esta herramienta con <b>--data</b> apuntando a su carpeta <b>data</b>— para verlas. Mientras tanto, con
+         <b>📥 Copiar desde el WhatsApp</b> puede importar el mensaje que le llegó al chat y crear su clave igualmente
+         (esas solicitudes quedan en esta sesión hasta que la base esté disponible).</p>`
+      : "";
     if (!list.length) {
-      box.innerHTML = `<p class="hint">Aún no hay solicitudes. Cuando un cliente pulse «SOLICITAR POR WHATSAPP» (Web o Android) aparecerá aquí.</p>`;
+      box.innerHTML = aviso + sinBd + `<p class="hint">Aún no hay solicitudes. Cuando un cliente pulse «SOLICITAR POR WHATSAPP»
+        (Web o Android) aparecerá aquí; si le escribió directo al WhatsApp, use <b>📥 Copiar desde el WhatsApp</b>.</p>`;
       return;
     }
-    box.innerHTML = list.map((r) => {
+    box.innerHTML = aviso + sinBd + list.map((r) => {
       const pend = (r.status || "pendiente") === "pendiente";
-      return `<div class="req">
+      return `<div class="req${REQ_NUEVA && Number(r.id) === Number(REQ_NUEVA) ? " nueva" : ""}">
         <div class="top">
           <span class="who">#${esc(r.id)} · ${esc(r.clientName)}</span>
           <span class="tag ${pend ? "warn" : "ok"}">${esc(r.status || "pendiente")}</span>
           <span class="tag">${esc(r.termLabel || "")}${r.days ? " (" + esc(r.days) + " días)" : ""} · ${esc(r.type || "")}</span>
+          ${r.channel === "whatsapp" ? `<span class="tag ok">📥 importada de WhatsApp</span>` : ""}
+          ${r.mem ? `<span class="tag warn">solo en esta sesión (sin BD)</span>` : ""}
           <span class="meta">${esc(fmtDateTime(r.createdAt))} · ${esc(r.channel || "web")} · ${esc(r.deviceId || "")}${r.phone ? " · 📱 " + esc(r.phone) : ""}</span>
         </div>
         <details><summary class="hint">Mensaje que envió el cliente</summary><pre>${esc(r.message || "(sin mensaje)")}</pre></details>
@@ -1333,6 +1706,99 @@ function loadRequests() {
     }).join("");
   }).catch(() => {});
 }
+
+/* ------------------------------------------------ importar desde WhatsApp */
+const PLAZOS_BASE = [
+  { id: "DIA", label: "1 día", days: 1 }, { id: "SEMANA", label: "1 semana", days: 7 },
+  { id: "MES", label: "1 mes", days: 30 }, { id: "TRIMESTRE", label: "3 meses", days: 90 },
+  { id: "SEMESTRE", label: "6 meses", days: 180 }, { id: "ANIO", label: "1 año", days: 365 },
+  { id: "DOS_ANIOS", label: "2 años", days: 730 }, { id: "PERMANENTE", label: "Permanente", days: 0 },
+];
+/** Los 8 plazos del servidor (o los de la herramienta si el estado aún no cargó). */
+function termOptionsDe(selected) {
+  const terms = (STATE && STATE.terms && STATE.terms.length) ? STATE.terms : PLAZOS_BASE;
+  return terms.map((t) => `<option value="${esc(t.id)}"${t.id === selected ? " selected" : ""}>` +
+    `${esc(t.label)}${t.days ? " (" + esc(t.days) + " días)" : ""}</option>`).join("");
+}
+
+/** Abre el diálogo (o su respaldo con el atributo «open» donde no exista showModal). */
+function abrirDialogo(el) {
+  if (typeof el.showModal === "function") { if (!el.open) el.showModal(); }
+  else if (!el.hasAttribute("open")) el.setAttribute("open", "");
+}
+
+/** Cierra el diálogo aunque el navegador no implemente dialog.close(). */
+function cerrarDialogo(el) {
+  try { if (typeof el.close === "function") el.close(); } catch (e) { /* sin close(): respaldo */ }
+  if (el.hasAttribute("open")) el.removeAttribute("open");
+}
+
+function abrirImport() {
+  $("import-term").innerHTML = termOptionsDe($("import-term").value || "MES");
+  abrirDialogo($("import-dialog"));
+  $("import-text").focus();
+}
+
+$("btn-import").addEventListener("click", abrirImport);
+$("import-close").addEventListener("click", () => cerrarDialogo($("import-dialog")));
+$("import-dialog").addEventListener("click", (ev) => {
+  if (ev.target === $("import-dialog")) cerrarDialogo($("import-dialog"));
+});
+
+function importFeedback(html, clase) {
+  $("import-feedback").innerHTML = html ? `<span class="${clase || ""}">${html}</span>` : "";
+}
+
+$("import-parse").addEventListener("click", async () => {
+  const texto = $("import-text").value.trim();
+  if (!texto) { importFeedback("✖ Pegue primero el mensaje del cliente.", "err-msg"); $("import-text").focus(); return; }
+  const boton = $("import-parse");
+  boton.disabled = true;
+  importFeedback("Leyendo el mensaje…");
+  const d = await jpost("api/requests/parse", { message: texto }).catch(() => ({ ok: false, error: "Error de conexión." }));
+  boton.disabled = false;
+  if (!d.ok) { importFeedback("✖ " + esc(d.error || "No se pudo leer el mensaje."), "err-msg"); return; }
+  const p = d.parsed || {};
+  $("import-name").value = p.clientName || "";
+  $("import-phone").value = p.phone || "";
+  if (p.term && $("import-term").querySelector(`option[value="${p.term}"]`)) $("import-term").value = p.term;
+  const avisos = (p.warnings || []).map((w) => `<li>${esc(w)}</li>`).join("");
+  importFeedback(
+    `<b>Se reconoció:</b> ${esc(p.clientName || "(sin usuario)")} · ${esc(p.termLabel || "")}${p.days ? ` (${esc(p.days)} días)` : ""} · ${esc(p.type || "")}` +
+    ` · ${esc(p.deviceId || "(sin ID de dispositivo)")}` +
+    (p.createdAt ? ` · ${esc(fmtDateTime(p.createdAt))}` : "") +
+    (avisos ? `<ul style="margin:6px 0 0 18px">${avisos}</ul>` : `<br>Revise los campos y pulse «📥 Importar a la lista».`),
+    avisos ? "hint" : "ok-msg");
+});
+
+$("import-do").addEventListener("click", async () => {
+  const texto = $("import-text").value.trim();
+  const nombre = $("import-name").value.trim();
+  if (!texto) { importFeedback("✖ Pegue el mensaje del cliente.", "err-msg"); $("import-text").focus(); return; }
+  if (!nombre) { importFeedback("✖ Falta el usuario: pulse «🔍 Leer mensaje» o escríbalo en el campo Usuario.", "err-msg"); $("import-name").focus(); return; }
+  const boton = $("import-do");
+  boton.disabled = true;
+  importFeedback("Importando…");
+  const d = await jpost("api/requests/import", {
+    message: texto,
+    client_name: nombre,
+    term: $("import-term").value,
+    phone: $("import-phone").value.trim(),
+  }).catch(() => ({ ok: false, error: "Error de conexión." }));
+  boton.disabled = false;
+  if (!d.ok) { importFeedback("✖ " + esc(d.error || "No se pudo importar la solicitud."), "err-msg"); return; }
+  const r = d.request || {};
+  REQ_NUEVA = r.id;
+  REQ_FLASH = (d.duplicada
+    ? `ℹ️ La solicitud #${esc(r.id)} de <b>${esc(r.clientName)}</b> ya estaba pendiente en la lista; no se duplicó.`
+    : `✔ Solicitud #${esc(r.id)} importada desde WhatsApp: <b>${esc(r.clientName)}</b> · ${esc(r.termLabel || "")}${r.days ? ` (${esc(r.days)} días)` : ""} · ${esc(r.type || "")}`) +
+    (d.savedToDb === false
+      ? `.<br>No quedó guardada en la base de datos del servidor (no se encontró): vive en esta sesión. Cree su clave con «🔑 Crear clave y enviar por WhatsApp».`
+      : `.<br>Ya está en la lista: pulse «🔑 Crear clave y enviar por WhatsApp» para generarla y enviársela al cliente.`);
+  cerrarDialogo($("import-dialog"));
+  $("import-text").value = ""; $("import-name").value = ""; $("import-phone").value = ""; importFeedback("");
+  loadRequests();
+});
 
 $("requests").addEventListener("click", async (ev) => {
   const t = ev.target.closest("button[data-gen-req],button[data-copy-req],button[data-discard-req],button[data-reopen-req],button[data-del-req]");
@@ -1778,6 +2244,39 @@ class StudioHandler(BaseHTTPRequestHandler):
             self._json(200, d)
             return
 
+        if path == "/api/requests/parse":
+            # Solo lee el mensaje pegado (sin guardar nada): el administrador revisa antes.
+            texto = str(b.get("message") or b.get("texto") or "").strip()
+            if not texto:
+                self._json(400, {"ok": False, "error": "Pegue el mensaje que el cliente envió por WhatsApp."})
+                return
+            self._json(200, {"ok": True, "parsed": parse_whatsapp_request(texto, str(b.get("phone") or ""))})
+            return
+
+        if path == "/api/requests/import":
+            texto = str(b.get("message") or b.get("texto") or "").strip()
+            if not texto:
+                self._json(400, {"ok": False, "error": "Pegue el mensaje que el cliente envió por WhatsApp."})
+                return
+            datos = parse_whatsapp_request(texto, str(b.get("phone") or ""))
+            # Lo que el administrador confirmó en el diálogo manda sobre lo leído del mensaje.
+            if str(b.get("client_name") or "").strip():
+                datos["clientName"] = str(b["client_name"]).strip()[:120]
+            if str(b.get("term") or "").strip():
+                datos["term"] = str(b["term"]).strip().upper()
+            if str(b.get("phone") or "").strip():
+                datos["phone"] = str(b["phone"]).strip()[:24]
+            try:
+                req, guardada, ya_estaba = import_request(datos, self.ip())
+            except ValueError as e:
+                self._json(400, {"ok": False, "error": str(e), "parsed": datos})
+                return
+            db_audit("LICENSE_REQUEST_IMPORT",
+                     f"Solicitud #{req['id']} importada desde WhatsApp · {req['clientName']} · {req['termLabel']}", self.ip())
+            self._json(200, {"ok": True, "request": req, "savedToDb": guardada, "duplicada": ya_estaba,
+                             "warnings": datos.get("warnings") or [], "parsed": datos})
+            return
+
         if path == "/api/access-key":
             ok, msg = save_access_key(b.get("key"))
             if ok:
@@ -1788,15 +2287,15 @@ class StudioHandler(BaseHTTPRequestHandler):
         m = re.match(r"^/api/requests/(\d+)/generate$", path)
         if m:
             req_id = int(m.group(1))
-            rows = [r for r in list_requests(500) if int(r["id"]) == req_id] if db_available() else []
-            if not rows:
+            req = request_by_id(req_id)
+            if not req:
                 self._json(404, {"ok": False, "error": f"No existe la solicitud #{req_id}."})
                 return
-            req = rows[0]
             if (req.get("status") or "pendiente") != "pendiente":
                 self._json(400, {"ok": False, "error": f"La solicitud #{req_id} ya está {req.get('status')}."})
                 return
             d = generate_result("", str(b.get("phone") or ""), "", request=req)
+            d["request"] = request_by_id(req_id) or req      # ya marcada como atendida
             db_audit("LICENSE_REQUEST_DONE",
                      f"Solicitud #{req_id} atendida desde el generador con la licencia {d['payload']['license_id']}", self.ip())
             self._json(200, d)
@@ -1809,7 +2308,7 @@ class StudioHandler(BaseHTTPRequestHandler):
             if status not in ("pendiente", "atendida", "descartada"):
                 self._json(400, {"ok": False, "error": "Estado no válido."})
                 return
-            if not db_available() or request_status(req_id, status) == 0:
+            if request_status(req_id, status) == 0:
                 self._json(404, {"ok": False, "error": f"No existe la solicitud #{req_id}."})
                 return
             db_audit("LICENSE_REQUEST_STATUS", f"Solicitud #{req_id} marcada como {status} desde el generador", self.ip())
@@ -1876,10 +2375,10 @@ class StudioHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path.rstrip("/")
         if not self._exigir_clave():
             return
-        if not db_available():
+        m = re.match(r"^/api/licenses/(\d+)$", path)
+        if m and not db_available():
             self._json(400, {"ok": False, "error": "No se encontró la base de datos del servidor."})
             return
-        m = re.match(r"^/api/licenses/(\d+)$", path)
         if m:
             lic_id = int(m.group(1))
             row = license_row(lic_id)
@@ -1966,7 +2465,10 @@ def main():
         print("      Para HTTPS:  tools\\iniciar-generador-https.ps1  (Windows)  ó  --ssl-cert / --ssl-key")
     print(f"  Clave de acceso: {ACCESS_KEY}   ({ACCESS_KEY_SOURCE})")
     print(f"  Secreto de firma: {secret_source()}")
-    print(f"  Base de datos: {gen.db_path()} {'(solicitudes y licencias disponibles)' if db_available() else '(no encontrada — solo generación de claves)'}")
+    print(f"  Base de datos: {gen.db_path()} "
+          + ("(solicitudes y licencias disponibles)" if db_available()
+             else "(no disponible — se generan claves y se pueden pegar solicitudes de WhatsApp;"
+                  " esas quedan en esta sesión)"))
     print(f"  WhatsApp:      {'+' + WHATSAPP_DEFAULT if WHATSAPP_DEFAULT else 'selector de contacto (sin número fijo)'}")
     if args.host == "0.0.0.0":
         print("  ⚠️  Escucha en toda la red: es una herramienta privada del administrador (quien tenga la clave entra).")
