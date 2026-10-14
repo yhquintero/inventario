@@ -90,16 +90,16 @@ jobs:
             # bloque «What went wrong» de Gradle.
             resumen="$({
               grep -E '^e: |error:|FAILED' gradle.log | head -40
-              grep -A 45 'What went wrong' gradle.log | grep -v '^\s*at ' | head -60
+              grep -A 80 'What went wrong' gradle.log | grep -v '^\s*at ' | grep -v '^[[:space:]]*$' | head -90
             } | sed -e 's/%/%25/g' -e 's/\r//g' | awk 'BEGIN { ORS = "%0A" } { print }')"
             echo "::error::Gradle falló:%0A${resumen}"
             set +e +o pipefail
             if grep -q 'checking AAR metadata' gradle.log; then
               # ¿Bajo qué dependencia directa aparecen las versiones nuevas?
               gradle :app:dependencies --configuration debugRuntimeClasspath > deps.log 2>&1
-              awk '/^[+\\]--- /{top=$0} /(2\.10\.0|-> 1\.9\.0|:1\.9\.0)/{print top " :: " $0}' deps.log | sort -u | head -n 60 > deps-corto.log
+              awk -f tools/ci_deps_origen.awk deps.log > deps-corto.log
               cuerpo="$(sed -e 's/%/%25/g' -e 's/\r//g' deps-corto.log | awk 'BEGIN { ORS = "%0A" } { print }')"
-              echo "::error::Dependencias directas que arrastran versiones nuevas:%0A${cuerpo}"
+              echo "::error::Quién pide explícitamente Compose 1.9.0 / lifecycle 2.10.0:%0A${cuerpo}"
               # Diagnóstico: ¿qué dependencia arrastra las versiones que exigen otro AGP?
               for dep in androidx.compose.foundation:foundation-android androidx.lifecycle:lifecycle-runtime-compose-android; do
                 gradle :app:dependencyInsight --configuration debugRuntimeClasspath --dependency "$dep" > insight.log 2>&1
