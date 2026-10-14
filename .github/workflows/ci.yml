@@ -17,6 +17,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Panel de Control Visual (sintaxis y funciones del panel)
+        run: |
+          if command -v pwsh >/dev/null 2>&1; then
+            pwsh -NoProfile -File tools/test_panel_control.ps1
+          else
+            echo "pwsh no está disponible en este runner: se omite la comprobación del panel."
+          fi
+        # Comprobación rápida e independiente (no necesita Node ni Python): el
+        # panel es Windows Forms, pero tools/test_panel_control.ps1 solo usa el
+        # analizador de PowerShell y las funciones puras (sin interfaz), así que
+        # corre igual en Linux. Valida la sintaxis de iniciar-https.ps1 y
+        # panel-control.ps1, el BOM UTF-8 de los .ps1 con acentos y las
+        # funciones del panel.
       - name: Pruebas Web e IPV
         run: |
           node tools/test_ipv.mjs
@@ -39,17 +52,6 @@ jobs:
           python3 tools/test_seguridad_servidor.py
           python3 tools/test_restauracion.py
           python3 tools/test_carga.py --n 12
-      - name: Panel de Control Visual (sintaxis y funciones del panel)
-        run: |
-          if command -v pwsh >/dev/null 2>&1; then
-            pwsh -NoProfile -File tools/test_panel_control.ps1
-          else
-            echo "pwsh no está disponible en este runner: se omite la comprobación del panel."
-          fi
-        # El panel es Windows Forms, pero tools/test_panel_control.ps1 solo usa
-        # el analizador de PowerShell y las funciones puras (sin interfaz), así
-        # que corre igual en Linux: valida iniciar-https.ps1, panel-control.ps1
-        # y el BOM UTF-8 de los .ps1 con acentos.
       - name: Inventario de pendientes no inventados (informativo)
         run: python3 tools/verificar_pendientes.py
         # No bloquea: lista [COMPLETAR], firmas y casillas que solo puede
