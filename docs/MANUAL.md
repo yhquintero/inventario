@@ -72,6 +72,18 @@ Elige día, semana operativa (lunes–sábado), mes, año o **Período** con fec
 
 El resumen semanal conserva gastos fijos introducidos manualmente y admite importar el libro semanal como referencia. Los resultados importados no reemplazan los movimientos originales.
 
+## 🧾 Fichas de Costo e IPV
+
+En **Fichas de costo · IPV** (Web; en Android, consulta sincronizada):
+
+- **Nueva ficha de costo**: elige el producto o servicio, la moneda (USD o CUP), el rendimiento del lote (p. ej. `10 comensales` o `20 copas`) y añade los componentes. Al elegir un producto del inventario, su costo actual se copia a la línea como foto (puedes corregirlo); también hay líneas libres. La ficha calcula el **costo total**, el **costo por ración** y cuántas **raciones permite el stock** actual (manda el insumo más escaso).
+- **Borrador → Aprobada**: solo se edita en Borrador. Al aprobarla queda fija; los cambios se hacen con **Nueva versión** (v1, v2, …), sin tocar la aprobada ni sus controles.
+- **Control IPV**: desde una ficha aprobada, **Crear control IPV** con su período `AAAA-MM`. Recibe el código correlativo `IPV-AAAA-NNNN` y guarda una foto de las líneas. En la pestaña **Controles IPV**, **Validar control** comprueba que la ficha siga aprobada y que las sumas coincidan: queda **Validado** o **Con diferencias** con los mensajes. No mueve existencias.
+- Papelera propia (**Papelera IPV**) con restauración, impresión/PDF de la ficha seleccionada y registro en Auditoría (`FICHA_*`, `IPV_CONTROL_*`).
+- Permisos: ver = `IPV_VIEW` (Económico y Almacenero), editar/aprobar/validar = `IPV_EDIT` (Administrador, Jefe y Económico); el servidor solo acepta cambios de esas secciones a esos roles.
+
+> El cálculo ayuda a elaborar la Ficha de Costo; no sustituye la normativa oficial de precios/IPV que aplique a su actividad ni la revisión de su económico.
+
 ## Copias
 
 En Android las copias se cifran (AES-GCM) y WorkManager programa una automática cada 24 h. En Web, Copias permite exportar/restaurar JSON y cargar los libros diarios NovaGest y NOVA desde `xlsx/` (seleccionados explícitamente por quien importa).

@@ -22,9 +22,9 @@
   --shadow: 0 1px 2px rgba(23, 23, 64, .05), 0 8px 24px rgba(23, 23, 64, .07);
   --radius: 14px;
   --rail: 256px;
-  --font: "Figtree", "Segoe UI", system-ui, sans-serif;
-  --serif: "Fraunces", Georgia, serif;
-  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --serif: Georgia, "Times New Roman", serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 [data-theme="dark"] {
   --bg: #0a0e21;
@@ -329,6 +329,30 @@ kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); 
 
 /* ===================== Análisis ===================== */
 .line-chart { width: 100%; height: auto; }
+/* Utilidades (sustituyen a los antiguos style="..." en línea: CSP sin unsafe-inline) */
+.mt4{margin-top:4px}.mt8{margin-top:8px}.mt10{margin-top:10px}.mt12{margin-top:12px}.mt14{margin-top:14px}.mt16{margin-top:16px}
+.mb12{margin-bottom:12px}.mb14{margin-bottom:14px}.mv8{margin:8px 0}.mv10{margin:10px 0}.mv12{margin:12px 0}.mv14{margin:14px 0}
+.m10-0-0{margin:10px 0 0}.m4-0-10{margin:4px 0 10px}.m12-16{margin:12px 16px}.ml-auto{margin-left:auto}.m0{margin:0}
+.flex1{flex:1}.flex2{flex:2}.ta-r{text-align:right}.jc-b{justify-content:space-between}.mw140{max-width:140px}.mnw180{min-width:180px}
+.p12{padding:12px}.p16{padding:16px}.ph16{padding:0 16px}.break-all{word-break:break-all}.mono-f{font-family:monospace}
+.pre-box{white-space:pre-wrap;word-break:break-word;background:rgba(127,127,127,.14);padding:12px;border-radius:8px;font-size:12.5px}
+.key-box{word-break:break-all;background:rgba(127,127,127,.14);padding:10px;border-radius:8px;font-size:12.5px}
+.btn-wa{background:#25d366;border-color:#25d366;color:#06281a}.toplight{color:#bfc9f8}.bord-ok{border-color:var(--ok)}
+.scan-media{width:100%;max-height:260px;border-radius:10px;margin-top:10px;background:#111}
+.fatal-box{max-width:480px;margin:60px auto;padding:24px;font-family:sans-serif;text-align:center}
+.th30{width:30px;height:30px}.th32{width:32px;height:32px}.th34{width:34px;height:34px}.th40{width:40px;height:40px}.th72{width:72px;height:72px}
+.qc-blue{--qc:var(--blue)}.qc-gold{--qc:var(--gold)}.qc-ok{--qc:var(--ok)}.qc-wa{--qc:#25d366}
+/* Color por categoría sin style en línea (data-cat) */
+.cat,.thumb.ph{--c:#0d9488;--thumb-color:#0d9488}
+[data-cat="Solar / Energía"]{--c:#f59e0b;--thumb-color:#f59e0b}[data-cat="Cocina"]{--c:#ef4444;--thumb-color:#ef4444}
+[data-cat="Refrigeración"]{--c:#0ea5e9;--thumb-color:#0ea5e9}[data-cat="Clima"]{--c:#06b6d4;--thumb-color:#06b6d4}
+[data-cat="Audio y TV"]{--c:#8b5cf6;--thumb-color:#8b5cf6}[data-cat="Hogar y Muebles"]{--c:#a16207;--thumb-color:#a16207}
+[data-cat="Lavado"]{--c:#3b82f6;--thumb-color:#3b82f6}[data-cat="Herramientas"]{--c:#64748b;--thumb-color:#64748b}
+[data-cat="Construcción"]{--c:#78716c;--thumb-color:#78716c}[data-cat="Movilidad"]{--c:#16a34a;--thumb-color:#16a34a}
+[data-cat="Iluminación"]{--c:#eab308;--thumb-color:#eab308}[data-cat="General"]{--c:#0d9488;--thumb-color:#0d9488}
+.hbar i[data-cat]{background:var(--c)}
+.chart-data { margin-top: 10px; }
+.chart-data summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--primary); font-weight: 600; }
 .line-chart .grid { stroke: var(--line); stroke-dasharray: 3 4; }
 .line-chart .goal { stroke: var(--gold); stroke-width: 2; stroke-dasharray: 8 6; }
 .line-chart .goal-t { fill: var(--gold); font-size: 12px; font-weight: 700; }
@@ -584,3 +608,37 @@ tr.empty td::before { display: none; }
 .lic-panel table td .tag { font-size: 11px; }
 .lic-panel pre { margin: 0; }
 @media print { .lic-tabs, .lic-btn { display: none !important; } }
+
+/* ===== Fichas IPV, legal y consentimiento ===== */
+.skip-link { position: absolute; left: -9999px; top: 0; background: var(--primary); color: #fff; padding: 10px 16px; z-index: 99; border-radius: 0 0 10px 0; }
+.skip-link:focus { left: 0; }
+.linklike { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.linklike:hover { color: var(--primary); text-decoration: underline; }
+.legal-wrap { max-width: 880px; margin: 0 auto; padding: 20px 16px 60px; }
+.legal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.legal-doc h1 { font-family: var(--serif); margin-top: 4px; }
+.legal-doc h3 { margin: 18px 0 6px; }
+.legal-doc p, .legal-doc li { line-height: 1.55; }
+.legal-footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; display: grid; gap: 8px; }
+.legal-links { display: flex; gap: 14px; flex-wrap: wrap; }
+.legal-links a { font-weight: 600; }
+.login-legal { margin-top: 14px; font-size: 12px; }
+.consent { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 60; max-width: 760px; margin: 0 auto; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; }
+.consent p { margin: 0 0 10px; line-height: 1.5; }
+.consent-check { flex-direction: row !important; align-items: flex-start; gap: 8px !important; color: var(--ink); font-weight: 500; line-height: 1.45; }
+.consent-check input { margin-top: 2px; width: 18px; height: 18px; flex: none; }
+.ficha-item label { min-width: 110px; }
+@media print { .consent, .legal-footer, .skip-link { display: none !important; } }
+
+/* Colores forzados de Windows (forced-colors): el sistema manda; se garantiza
+   que botones, barras y focos sigan siendo distinguibles sin nuestros colores. */
+@media (forced-colors: active) {
+  .btn, button, input, select, textarea { border: 1px solid ButtonText; }
+  .btn { forced-color-adjust: none; background: ButtonFace; color: ButtonText; }
+  .btn:not(.ghost) { background: Highlight; color: HighlightText; }
+  a, .cat, .q-ico { forced-color-adjust: auto; }
+  .gb i, .hbar i, .bar { forced-color-adjust: none; background: Highlight; }
+  .thumb, .pcard, .card, .li { border: 1px solid CanvasText; }
+  :focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
+  .dot { forced-color-adjust: none; fill: Canvas; stroke: Highlight; }
+}

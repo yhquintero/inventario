@@ -10,6 +10,9 @@ import {
   parseValuesText, summarizeRows, STATUS_LABEL, VALUE_FIELDS,
   normalizeBarcode, creditPending, creditStatus,
 } from "./calc.js";
+import { moneyIn } from "./ipv.js";
+import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
+import { consentBanner, setConsent, resetConsent } from "./consent.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -30,6 +33,8 @@ const routes = {
   reports: { title: "Comprobación", icon: "▦", perm: "REPORTS_VIEW", group: "Análisis", search: true },
   history: { title: "Historial precios", icon: "↻", perm: "HISTORY_VIEW", group: "Análisis", search: true },
   finance: { title: "Monedas", icon: "$", perm: "REPORTS_FINANCIAL", group: "Análisis" },
+  fichas: { title: "Fichas de costo · IPV", icon: "▤", perm: "IPV_VIEW", group: "Análisis", search: true },
+  legal: { title: "Información legal", icon: "§", perm: null, group: "Sistema", hidden: true },
   trash: { title: "Papelera", icon: "🗑", perm: "TRASH_VIEW", group: "Sistema", search: true },
   users: { title: "Usuarios", icon: "☺", perm: "USERS_VIEW", group: "Sistema" },
   audit: { title: "Auditoría", icon: "◉", perm: "AUDIT_VIEW", group: "Sistema", search: true },
@@ -51,7 +56,19 @@ let ui = {
     genClient: "", genPhone: "", genTerm: "ANIO", genRequest: null,
   },
   custTab: "clientes",
+  fichaTab: "fichas", fichaSel: null, fichaEdit: null, fichaShowTrash: false, legalDoc: "aviso", legalData: null,
 };
+
+/** Datos legales públicos del negocio (Ajustes → Datos legales; /api/legal). */
+async function fetchLegal() {
+  if (ui.legalData !== null) return ui.legalData;
+  try {
+    const r = await fetch("/api/legal", { headers: { "X-CP": "1" } });
+    const d = await r.json();
+    ui.legalData = d.legal || {};
+  } catch { ui.legalData = {}; }
+  return ui.legalData;
+}
 
 const role = () => store.state.session?.role;
 const allowed = (perm) => !perm || can(role(), perm);
@@ -86,15 +103,14 @@ function lastDataDate() {
 
 function thumb(p, size = 40) {
   const c = CATEGORIES[p.category] || CATEGORIES.General;
-  const dimensions = size == null ? "" : `width:${size}px;height:${size}px;`;
-  const imageStyle = dimensions ? ` style="${dimensions}"` : "";
-  if (p.image) return `<img class="thumb"${imageStyle} src="${p.image}" alt="">`;
-  if (c.img) return `<img class="thumb"${imageStyle} src="./public/cat/${c.img}.jpg" alt="" loading="lazy">`;
-  return `<span class="thumb ph" style="${dimensions}--thumb-color:${c.color}">${c.icon}</span>`;
+  const cls = size == null ? "" : ` th${size}`;
+  if (p.image) return `<img class="thumb${cls}" src="${p.image}" alt="">`;
+  if (c.img) return `<img class="thumb${cls}" src="./public/cat/${c.img}.jpg" alt="" loading="lazy">`;
+  return `<span class="thumb ph${cls}" data-cat="${esc(p.category || "General")}">${c.icon}</span>`;
 }
 const catBadge = (cat) => {
   const c = CATEGORIES[cat] || CATEGORIES.General;
-  return `<span class="cat" style="--c:${c.color}">${c.icon} ${esc(cat)}</span>`;
+  return `<span class="cat" data-cat="${esc(cat || "General")}">${c.icon} ${esc(cat)}</span>`;
 };
 
 /* ============================ SHELL ============================ */
@@ -127,7 +143,7 @@ function shell(body) {
         <div class="topbar">
           <button class="btn ghost small menu-btn" data-act="drawer" aria-label="Abrir o cerrar el menú">☰</button>
           <div class="tb-title"><h2>${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP ${ui.license.status?.valid ? `· 🔐 ${esc(ui.license.status.type)} ${ui.license.status.daysLeft === -1 ? "· Permanente" : `· ${ui.license.status.daysLeft}d`}` : ""}</span></div>
-          ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" aria-label="Buscar en ${r.title.toLowerCase()}" />${ui.q ? `<button class="x" data-act="clear-q" aria-label="Borrar búsqueda">✕</button>` : ""}</div>` : `<div style="flex:1"></div>`}
+          ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" aria-label="Buscar en ${r.title.toLowerCase()}" />${ui.q ? `<button class="x" data-act="clear-q" aria-label="Borrar búsqueda">✕</button>` : ""}</div>` : `<div class="flex1"></div>`}
           ${whPicker()}
           <span class="sync-dot ${store.sync}" id="syncDot" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
           <button class="btn ghost small lic-btn ${ui.route === "license" ? "on" : ""}" data-act="license-manage" title="Gestionar la licencia de uso" aria-label="Licencia de uso" data-tip="Gestionar la licencia de uso · Licencia ${ui.license.status?.valid ? `${ui.license.status.type} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}` : "no válida"}${pendingReq ? ` · ${pendingReq} solicitud(es) pendiente(s)` : ""}">🔐${pendingReq ? `<span class="pill">${pendingReq}</span>` : ""}</button>
@@ -135,10 +151,11 @@ function shell(body) {
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema" aria-label="Cambiar tema: claro, oscuro o automático">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
         </div>
-        <div class="content">${body}</div>
+        <main class="content" id="contenido">${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
       </section>
     </div>
-    <nav class="bottom-nav">
+    ${consentBanner()}
+    <nav class="bottom-nav" aria-label="Navegación rápida">
       ${["home", "pos", "inventory", "cuadre", "analytics"].filter((k) => allowed(routes[k].perm))
         .map((k) => `<a href="#${k}" class="${ui.route === k ? "active" : ""}" data-nav="${k}">${routes[k].icon}<div>${routes[k].title.split(" ")[0]}</div></a>`).join("")}
     </nav>
@@ -152,18 +169,18 @@ function licenseRequestCard(st) {
   const device = LicenseManager.deviceId();
   const sel = ui.license.reqTerm || "MES";
   return `
-    <div class="card lic-request" style="margin-bottom:12px">
+    <div class="card lic-request mb12">
       <div class="card-h"><span class="k">1 · Solicitar licencia por WhatsApp</span><span class="tag mov">Por término</span></div>
       <label>Nombre o empresa<input id="licReqName" value="${esc(ui.license.reqName || "")}" placeholder="Ej. Tienda Nova" autocomplete="name"></label>
       <label>Tu teléfono de WhatsApp (opcional)<input id="licReqPhone" value="${esc(ui.license.reqPhone || "")}" placeholder="Ej. 5351234567" inputmode="tel" autocomplete="tel"></label>
-      <div class="hint" style="margin:8px 0">ID de dispositivo · <b class="mono">${esc(device)}</b>
+      <div class="hint mv8">ID de dispositivo · <b class="mono">${esc(device)}</b>
         <button type="button" class="btn ghost small" data-act="license-copy-device">Copiar</button></div>
       <div class="hint">Elige el plazo de tu licencia:</div>
-      <div class="chips" style="margin:8px 0">
+      <div class="chips mv8">
         ${terms.map((t) => `<button type="button" class="chip ${sel === t.id ? "on" : ""}" data-lic-term="${t.id}">${t.icon || ""} ${esc(t.label)}</button>`).join("")}
       </div>
-      <button type="button" class="btn full" style="background:#25d366;border-color:#25d366;color:#06281a" data-act="license-whatsapp">💬 SOLICITAR POR WHATSAPP</button>
-      <p class="hint" style="margin-top:8px">Se abre WhatsApp con tu nombre, ID de dispositivo y plazo ya escritos${st?.whatsapp ? " al número de NovaGest" : ""} y la solicitud queda <b>registrada</b>: el administrador la ve en <b>Gestionar → Solicitudes</b> y responde con la clave firmada para pegarla abajo.</p>
+      <button type="button" class="btn full btn-wa" data-act="license-whatsapp">💬 SOLICITAR POR WHATSAPP</button>
+      <p class="hint mt8">Se abre WhatsApp con tu nombre, ID de dispositivo y plazo ya escritos${st?.whatsapp ? " al número de NovaGest" : ""} y la solicitud queda <b>registrada</b>: el administrador la ve en <b>Gestionar → Solicitudes</b> y responde con la clave firmada para pegarla abajo.</p>
     </div>`;
 }
 
@@ -234,7 +251,7 @@ function licenseManageView() {
       <div class="card-h"><span class="k">🔐 Gestión de la licencia de uso</span><span class="tag ${st.valid ? "entrada" : "salida"}">${tag}</span></div>
       <p class="hint">El acceso a todas las Apps (Web y Móvil) se verifica siempre primero por la licencia. Aquí puede ver su estado, atender las solicitudes recibidas y crear o activar las claves.</p>
       ${licensePanelBody()}
-      <div class="row" style="margin-top:14px"><button type="button" class="btn ghost small" data-nav="home">← Volver al panel</button>
+      <div class="row mt14"><button type="button" class="btn ghost small" data-nav="home">← Volver al panel</button>
         <button type="button" class="btn ghost small" data-nav="settings">⚙ Ajustes</button></div>
     </div>`;
 }
@@ -252,17 +269,17 @@ function licenseStatusTab() {
         ${kpi("Vence", expText, st.expiresAt ? LicenseManager.fmtDate(st.issuedAt) : "sin caducidad")}
         ${kpi("Límites", `${st.maxUsers ?? "—"} / ${st.maxDevices ?? "—"}`, "usuarios / dispositivos")}
       </div>
-      <p class="hint" style="margin-top:10px">ID de licencia · <b class="mono">${esc(st.licenseId || "")}</b> · comprobada ${st.offline ? "en la caché local (sin conexión)" : "en el servidor"}${st.checkedAt ? ` · ${new Date(st.checkedAt).toLocaleString("es-CU")}` : ""}</p>
+      <p class="hint mt10">ID de licencia · <b class="mono">${esc(st.licenseId || "")}</b> · comprobada ${st.offline ? "en la caché local (sin conexión)" : "en el servidor"}${st.checkedAt ? ` · ${new Date(st.checkedAt).toLocaleString("es-CU")}` : ""}</p>
       <p class="hint">Este equipo · <b class="mono">${esc(LicenseManager.deviceId())}</b> <button type="button" class="btn ghost small" data-act="license-copy-device">Copiar</button> <span class="hint">(el ID identifica a este dispositivo en las activaciones)</span></p>
       ${LicenseManager.isExpiringSoon(st) ? `<div class="banner">⚠ La licencia vence en ${days} días. Renuévela antes de que expire para no bloquear el acceso.</div>` : ""}
     ` : `<div class="banner">⛔ No hay licencia válida. Active una clave para poder entrar al sistema.</div>`}
-    <form id="licenseFormInline" class="form-grid" style="margin-top:12px">
-      <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="NG-…" style="font-family:monospace;word-break:break-all">${esc(ui.license.key || "")}</textarea></label>
+    <form id="licenseFormInline" class="form-grid mt12">
+      <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="NG-…" class="mono-f break-all">${esc(ui.license.key || "")}</textarea></label>
       <div class="span-2 row"><button type="button" class="btn small" data-act="license-activate-inline">${st.valid ? "Actualizar / renovar" : "Activar licencia"}</button>
         <button type="button" class="btn ghost small" data-act="license-refresh">↻ Verificar de nuevo</button></div>
     </form>
     ${licenseRequestCard(st)}
-    ${ui.license.info?.active?.db_row?.key ? `<p class="hint">Clave activa en el servidor: <b class="mono" style="word-break:break-all">${esc(ui.license.info.active.db_row.key)}</b> <button type="button" class="btn ghost small" data-act="license-copy">Copiar clave activa</button></p>` : ""}`;
+    ${ui.license.info?.active?.db_row?.key ? `<p class="hint">Clave activa en el servidor: <b class="mono break-all">${esc(ui.license.info.active.db_row.key)}</b> <button type="button" class="btn ghost small" data-act="license-copy">Copiar clave activa</button></p>` : ""}`;
 }
 
 /** Pestaña «Solicitudes»: las peticiones de licencia recibidas (Web y Android). */
@@ -272,9 +289,9 @@ function licenseRequestsTab() {
   const list = (ui.license.requests || []).filter((r) => filter === "TODAS" || String(r.status).toUpperCase() === filter);
   const filters = [["TODAS", "Todas", counts.total], ["PENDIENTE", "Pendientes", counts.pendiente], ["ATENDIDA", "Atendidas", counts.atendida], ["DESCARTADA", "Descartadas", counts.descartada]];
   return `
-    <div class="row" style="margin:4px 0 10px">
+    <div class="row m4-0-10">
       ${filters.map(([id, label, n]) => `<button type="button" class="chip ${filter === id ? "on" : ""}" data-lic-filter="${id}">${label}${n ? ` · ${n}` : ""}</button>`).join("")}
-      <div style="flex:1"></div>
+      <div class="flex1"></div>
       <button type="button" class="btn ghost small" data-act="license-refresh-info">↻ Actualizar</button>
       ${(counts.atendida || counts.descartada) ? `<button type="button" class="btn ghost small danger-t" data-act="license-req-purge">🗑 Limpiar atendidas</button>` : ""}
     </div>
@@ -329,14 +346,14 @@ function keyBlock(res) {
   const phone = req?.phone || ui.license.genPhone || "";
   const vigencia = p.expires_at ? `expira ${LicenseManager.fmtDate(p.expires_at)}` : "permanente";
   return `
-    <div class="card" style="margin-top:14px;border-color:var(--ok)">
+    <div class="card mt14 bord-ok">
       <div class="card-h"><span class="k">✔ Clave generada · ${esc(p.client_name || "")}</span><span class="tag entrada">${esc(p.type || "")} · ${vigencia}</span></div>
       ${req ? `<p class="hint">Para la solicitud #${req.id} de <b>${esc(req.clientName)}</b> · ${esc(req.termLabel || "")}</p>` : ""}
-      <p class="mono" style="word-break:break-all;background:rgba(127,127,127,.14);padding:10px;border-radius:8px;font-size:12.5px">${esc(key)}</p>
+      <p class="mono key-box mono">${esc(key)}</p>
       <div class="row">
         <button type="button" class="btn ghost small" data-act="license-copy">📋 Copiar clave</button>
         <button type="button" class="btn ghost small" data-act="license-dl">⬇ Descargar .txt</button>
-        <button type="button" class="btn small" style="background:#25d366;border-color:#25d366;color:#06281a" data-act="license-send-key">💬 Enviar por WhatsApp${phone ? ` a ${esc(phone)}` : " (elegir contacto)"}</button>
+        <button type="button" class="btn small btn-wa" data-act="license-send-key">💬 Enviar por WhatsApp${phone ? ` a ${esc(phone)}` : " (elegir contacto)"}</button>
       </div>
       <p class="hint">El cliente pega esta clave en <b>Licencia de uso → Activar licencia</b> (Web o App Android). La clave se verifica en el servidor, así que sirve en el equipo que la active.</p>
     </div>`;
@@ -350,7 +367,7 @@ function licenseLicensesTab() {
   const nowSec = Math.floor(Date.now() / 1000);
   const canDelete = canDeleteLicense();
   return `
-    <div class="card-h" style="margin-top:4px"><span class="k">Licencias creadas${list.length ? ` · ${list.length}` : ""}</span>
+    <div class="card-h mt4"><span class="k">Licencias creadas${list.length ? ` · ${list.length}` : ""}</span>
       ${canDelete && list.length ? `<button type="button" class="btn danger small" data-act="license-del-all" title="Eliminar todas las licencias registradas">🗑 Eliminar todas las licencias</button>` : ""}</div>
     ${list.length ? `<div class="table-wrap"><table><thead><tr><th>Nº</th><th>Cliente</th><th>Tipo</th><th>Expira</th><th>Activa</th><th>Clave</th>${canDelete ? "<th></th>" : ""}</tr></thead>
       <tbody>${list.map((l, i) => `<tr>
@@ -363,7 +380,7 @@ function licenseLicensesTab() {
         ${canDelete ? `<td class="nowrap"><button type="button" class="btn ghost small danger-t" data-act="license-del" data-lic-del="${l.id}" title="Eliminar esta licencia definitivamente">🗑 Eliminar</button></td>` : ""}
       </tr>`).join("")}</tbody></table></div>`
       : `<p class="hint">Aún no hay licencias creadas. Use «Generar clave» para crear la primera.</p>`}
-    <div class="card-h" style="margin-top:16px"><span class="k">Equipos activados${acts.length ? ` · ${acts.length}` : ""}</span></div>
+    <div class="card-h mt16"><span class="k">Equipos activados${acts.length ? ` · ${acts.length}` : ""}</span></div>
     ${acts.length ? `<div class="table-wrap"><table><thead><tr><th>Dispositivo</th><th>Info</th><th>IP</th><th>Activado</th><th>Última vez</th><th>Estado</th></tr></thead>
       <tbody>${acts.map((a) => `<tr>
         <td class="mono hint">${esc(a.device_id || "")}</td>
@@ -385,8 +402,8 @@ function licenseRequestModal(id) {
   ui.modal = `<div class="modal-back" data-act="close-modal"><div class="modal">
     <div class="h2">📨 Solicitud #${r.id} · ${esc(r.clientName)}</div>
     <p class="hint">${esc(r.createdText || LicenseManager.fmtDate(r.createdAt))} · ${esc(r.channel || "web")} · ${esc(r.deviceId)}${r.phone ? ` · 📱 ${esc(r.phone)}` : ""}</p>
-    <pre class="mono" style="white-space:pre-wrap;word-break:break-word;background:rgba(127,127,127,.14);padding:12px;border-radius:8px;font-size:12.5px">${esc(r.message || "")}</pre>
-    <div class="row" style="margin-top:12px">
+    <pre class="mono pre-box">${esc(r.message || "")}</pre>
+    <div class="row mt12">
       <button type="button" class="btn ghost small" data-act="license-copy-message">📋 Copiar mensaje</button>
       ${r.status === "pendiente" ? `<button type="button" class="btn small" data-lic-key="${r.id}">🔑 Crear clave para esta solicitud</button>` : ""}
       <button type="button" class="btn ghost small" data-act="close-modal">Cerrar</button>
@@ -480,7 +497,7 @@ function licenseView() {
           <div>✔ Bloqueo total sin licencia</div>
         </div>
         <div class="hero-cats">${Object.values(CATEGORIES).filter((c) => c.img).slice(0, 6).map((c) => `<img src="./public/cat/${c.img}.jpg" alt="">`).join("")}</div>
-        ${st?.valid ? `<div class="card" style="margin-top:16px"><div class="card-h"><span class="k">Licencia actual</span><span class="tag entrada">${esc(st.type)}</span></div>
+        ${st?.valid ? `<div class="card mt16"><div class="card-h"><span class="k">Licencia actual</span><span class="tag entrada">${esc(st.type)}</span></div>
           <p><b>${esc(st.clientName)}</b> · ${esc(st.product)}<br><span class="hint">${expText} · ID ${esc(st.licenseId || "")}</span></p>
           ${LicenseManager.isExpiringSoon(st) ? `<div class="banner">⚠ La licencia vence en ${days} días. Renueve antes de que expire.</div>` : ""}
         </div>` : ""}
@@ -496,22 +513,23 @@ function licenseView() {
             <form id="licenseForm">
               <div class="h2">2 · ${st?.valid ? "Cambiar / Renovar licencia" : "Activar licencia de uso"}</div>
               <p class="hint">Pegue la clave de licencia completa (incluye el punto). Formato: <code>NG-XXXX-...XXXX.YYYY</code>. La clave es verificada criptográficamente en el servidor antes de permitir cualquier acceso.</p>
-              <label>Clave de licencia<textarea name="license_key" id="licenseKey" rows="4" placeholder="NG-...." required style="font-family:monospace;word-break:break-all">${esc(lic.key || "")}</textarea></label>
-              <div class="row" style="margin-top:12px">
+              <label>Clave de licencia<textarea name="license_key" id="licenseKey" rows="4" placeholder="NG-...." required class="mono-f break-all">${esc(lic.key || "")}</textarea></label>
+              <div class="row mt12">
                 <button class="btn full" ${lic.activating ? "disabled" : ""}>${lic.activating ? "Verificando…" : st?.valid ? "Actualizar licencia" : "Activar licencia"}</button>
               </div>
-              ${lic.error ? `<div class="error" style="margin-top:12px">${esc(lic.error)}</div>` : ""}
-              ${lic.info ? `<div class="card" style="margin-top:12px"><div class="card-h"><span class="k">Verificación</span></div><p class="hint">${esc(lic.info)}</p></div>` : ""}
-              <div class="row" style="margin-top:12px">
+              ${lic.error ? `<div class="error mt12">${esc(lic.error)}</div>` : ""}
+              ${lic.info ? `<div class="card mt12"><div class="card-h"><span class="k">Verificación</span></div><p class="hint">${esc(lic.info)}</p></div>` : ""}
+              <div class="row mt12">
                 <button type="button" class="btn ghost small" data-act="license-refresh">↻ Verificar de nuevo</button>
                 ${st?.valid ? `<button type="button" class="btn ghost small" data-act="license-continue">Continuar a la App →</button>` : ""}
               </div>
-              <p class="hint secure-note" style="margin-top:16px">🔒 La licencia se valida primero en el servidor. Sin licencia válida no se puede iniciar sesión ni usar la App Web o Móvil.</p>
+              <p class="hint secure-note mt16">🔒 La licencia se valida primero en el servidor. Sin licencia válida no se puede iniciar sesión ni usar la App Web o Móvil.</p>
               <div class="demo">
                 <strong>¿Primera vez?</strong><br>
                 Solicita tu plazo por WhatsApp (paso 1) o pide a un administrador que genere la clave desde <code>Ajustes → Licencia</code>.<br>
                 Prueba automática: ${st?.trialDays || 15} días.
               </div>
+              ${legalLinks("login-legal")}
             </form>
           `}
         </div>
@@ -528,17 +546,17 @@ function loginView() {
       <div class="login-hero">
         <div class="eyebrow">Plataforma todo-en-uno para negocios</div>
         <h1>Gestiona. Crece.<br>Avanza.</h1>
-        <p><strong>Inventario, punto de venta, caja e informes</strong> de tu negocio en una sola plataforma: multi-almacén, multi-dispositivo y siempre sincronizada — Web y Android.</p>
+        <p><strong>Inventario, punto de venta, caja e informes</strong> de tu negocio en una sola aplicación: multi-almacén y sincronización entre Web y Android cuando hay conexión.</p>
         <div class="hero-cats">${Object.values(CATEGORIES).filter((c) => c.img).slice(0, 6).map((c) => `<img src="./public/cat/${c.img}.jpg" alt="">`).join("")}</div>
-        ${expiring ? `<div class="banner" style="margin-top:16px">⚠ Licencia vence en ${ui.license.status.daysLeft} días (${LicenseManager.fmtDate(ui.license.status.expiresAt)}). Renueve pronto.</div>` : ""}
-        <div class="card" style="margin-top:12px"><div class="card-h"><span class="k">🔐 Licencia de uso</span><span class="tag entrada">${esc(ui.license.status.type)} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}</span></div>
+        ${expiring ? `<div class="banner mt16">⚠ Licencia vence en ${ui.license.status.daysLeft} días (${LicenseManager.fmtDate(ui.license.status.expiresAt)}). Renueve pronto.</div>` : ""}
+        <div class="card mt12"><div class="card-h"><span class="k">🔐 Licencia de uso</span><span class="tag entrada">${esc(ui.license.status.type)} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}</span></div>
           <p class="hint">${esc(ui.license.status.clientName)} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días restantes`} · el acceso se verifica siempre primero por la licencia.</p>
-          <div class="row" style="margin-top:8px">
+          <div class="row mt8">
             <button class="btn ghost small" data-act="license-manage">${ui.license.expand ? "↻ Actualizar gestión" : "Gestionar licencia"}</button>
             ${ui.license.expand ? `<button class="btn ghost small" data-act="license-close">Cerrar</button>` : ""}
           </div>
         </div>
-        ${ui.license.expand ? `<div class="card lic-panel" style="margin-top:12px"><div class="card-h"><span class="k">Gestión de la licencia</span><span class="tag mov">${esc(ui.license.status.type)}</span></div>${licensePanelBody()}</div>` : ""}
+        ${ui.license.expand ? `<div class="card lic-panel mt12"><div class="card-h"><span class="k">Gestión de la licencia</span><span class="tag mov">${esc(ui.license.status.type)}</span></div>${licensePanelBody()}</div>` : ""}
       </div>
       <div class="login-panel">
         <form class="login-card" id="loginForm">
@@ -548,27 +566,26 @@ function loginView() {
             <label>Usuario<input name="username" required autocomplete="username" /></label>
             ${ui.question ? `<p class="hint">${esc(ui.question)}</p><label>Respuesta<input name="answer" required /></label><label>Nueva contraseña<input name="newpass" type="password" required autocomplete="new-password" /></label>
               ${ui.recNeed2fa ? `<label>Código de verificación (app autenticadora)<input name="code" inputmode="numeric" autocomplete="one-time-code" required /></label>` : ""}` : ""}
-            <button class="btn full" style="margin-top:16px">${ui.question ? "Restablecer" : "Buscar pregunta"}</button>
-            <button type="button" class="btn ghost full" data-act="back-login" style="margin-top:8px">Volver</button>
+            <button class="btn full mt16">${ui.question ? "Restablecer" : "Buscar pregunta"}</button>
+            <button type="button" class="btn ghost full" data-act="back-login" class="mt8">Volver</button>
           ` : ui.pending2fa ? `
             <div class="h2">Verificación en dos pasos</div>
             <p class="hint">Escribe el código de 6 dígitos de tu app autenticadora (Google Authenticator, Authy…) o uno de tus códigos de recuperación.</p>
             <label>Código<input name="code" id="code2fa" inputmode="numeric" autocomplete="one-time-code" required autofocus /></label>
-            <button class="btn full" style="margin-top:16px">Verificar</button>
-            <button type="button" class="btn ghost full" data-act="back-login" style="margin-top:8px">Cancelar</button>
+            <button class="btn full mt16">Verificar</button>
+            <button type="button" class="btn ghost full" data-act="back-login" class="mt8">Cancelar</button>
           ` : `
             <div class="h2">Entrar a la tienda</div>
             <label>Usuario<input name="username" required autocomplete="username" /></label>
             <label>Contraseña<input name="password" type="password" required autocomplete="current-password" /></label>
-            <button class="btn full" style="margin-top:16px">Entrar</button>
-            <button type="button" class="btn ghost full" data-act="recover" style="margin-top:8px">Olvidé mi contraseña</button>
+            <button class="btn full mt16">Entrar</button>
+            <button type="button" class="btn ghost full" data-act="recover" class="mt8">Olvidé mi contraseña</button>
           `}
           <div id="loginErr">${ui.loginErr ? `<div class="error">${esc(ui.loginErr)}</div>` : ""}</div>
           <p class="hint secure-note">🔒 Conexión ${location.protocol === "https:" ? "cifrada (HTTPS)" : "sin cifrar — usa HTTPS en producción"} · Licencia verificada primero</p>
           <div class="demo">
-            <strong>Cuentas de demostración</strong><br>
-            admin / <code>Admin123!</code> · jefe / <code>Jefe123!</code><br>
-            economico / <code>Eco123!</code> · almacenero / <code>Alma123!</code>
+            <strong>Acceso inicial</strong><br>
+            Use la cuenta que le entregó su administrador. En instalaciones de prueba local deben cambiarse las contraseñas iniciales antes de usar datos reales (ver README).
           </div>
         </form>
       </div>
@@ -614,7 +631,7 @@ function homeView() {
         <div class="eyebrow">${formatDate(todayISO())} · ${esc(store.state.settings.businessName)}</div>
         <h1>${saludo}, ${esc(store.state.session.displayName.split(" ")[0])} ✨</h1>
         <p>${t.cuadre === 0 ? "El último cuadre está perfecto. ¡Sigue así!" : "El último cuadre tiene diferencia: revísalo."} Tienes <b>${prods.length}</b> productos y <b>${low.length}</b> alertas de stock.</p>
-        <div class="row" style="margin-bottom:14px"><span class="plat-chip"><i></i> Inventario · Venta · Caja · Análisis</span></div>
+        <div class="row mb14"><span class="plat-chip"><i></i> Inventario · Venta · Caja · Análisis</span></div>
         <div class="row">
           ${allowed("MOVEMENT_CREATE") ? `<button class="btn glow" data-act="new-movement">⇄ Registrar venta</button>` : ""}
           <button class="btn glass" data-nav="cuadre">☰ Ver cuadre</button>
@@ -622,10 +639,10 @@ function homeView() {
         </div>
       </div>
       <div class="hero-side">
-        <div class="ring" style="--p:${Math.min(100, Math.round((t.venta / Math.max(1, maxV)) * 100))}" data-tip="Venta del día comparada con el mejor día de la semana">
+        <div class="ring" data-p="${Math.min(100, Math.round((t.venta / Math.max(1, maxV)) * 100))}" data-tip="Venta del día comparada con el mejor día de la semana">
           <div><b>${usd(t.venta).replace(".00", "")}</b><span>venta ${formatDate(d).slice(0, 5)}</span></div>
         </div>
-        ${topList.length ? `<div class="toplist"><div class="k" style="color:#bfc9f8">Más vendidos</div>${topList.map(([n, v], i) => `<div><span>${["🥇", "🥈", "🥉"][i]} ${esc(n)}</span><b>${usd(v)}</b></div>`).join("")}</div>` : ""}
+        ${topList.length ? `<div class="toplist"><div class="k toplight">Más vendidos</div>${topList.map(([n, v], i) => `<div><span>${["🥇", "🥈", "🥉"][i]} ${esc(n)}</span><b>${usd(v)}</b></div>`).join("")}</div>` : ""}
       </div>
     </section>
     ${low.length && store.state.settings.lowStockAlerts ? `<div class="banner">⚠ <strong>${low.length} productos</strong> con stock en el mínimo o agotados.</div>` : ""}
@@ -636,21 +653,21 @@ function homeView() {
       ${kpi("Valor a precio venta", usd(valorVenta), `Costo registrado ${usd(valorCosto)}`, "gold")}
     </div>
     <div class="quick">
-      ${allowed("MOVEMENT_CREATE") ? `<a href="#pos" data-nav="pos"><span class="q-ico" style="--qc:var(--blue)">🛒</span><strong>Venta rápida</strong><span class="hint">Registra ventas y descuenta stock</span><span class="q-go">→</span></a>` : ""}
-      ${allowed("VALUES_IMPORT") ? `<a href="#importValues" data-nav="importValues"><span class="q-ico" style="--qc:var(--gold)">📥</span><strong>Importar valores</strong><span class="hint">Pega o sube desde Excel</span><span class="q-go">→</span></a>` : ""}
-      ${allowed("CUADRE_VIEW") ? `<a href="#cuadre" data-nav="cuadre"><span class="q-ico" style="--qc:var(--ok)">☰</span><strong>Cuadre del día</strong><span class="hint">Caja, tasas y gastos</span><span class="q-go">→</span></a>` : ""}
+      ${allowed("MOVEMENT_CREATE") ? `<a href="#pos" data-nav="pos"><span class="q-ico qc-blue">🛒</span><strong>Venta rápida</strong><span class="hint">Registra ventas y descuenta stock</span><span class="q-go">→</span></a>` : ""}
+      ${allowed("VALUES_IMPORT") ? `<a href="#importValues" data-nav="importValues"><span class="q-ico qc-gold">📥</span><strong>Importar valores</strong><span class="hint">Pega o sube desde Excel</span><span class="q-go">→</span></a>` : ""}
+      ${allowed("CUADRE_VIEW") ? `<a href="#cuadre" data-nav="cuadre"><span class="q-ico qc-ok">☰</span><strong>Cuadre del día</strong><span class="hint">Caja, tasas y gastos</span><span class="q-go">→</span></a>` : ""}
       ${allowed("REPORTS_VIEW") ? `<a href="#analytics" data-nav="analytics"><span class="q-ico">📈</span><strong>Análisis y metas</strong><span class="hint">Ventas, utilidades y metas</span><span class="q-go">→</span></a>` : ""}
-      ${allowed("CUSTOMER_VIEW") ? `<a href="#customers" data-nav="customers"><span class="q-ico" style="--qc:#25d366">🤝</span><strong>Clientes y fiados</strong><span class="hint">${usd(store.totalReceivable())} por cobrar</span><span class="q-go">→</span></a>` : ""}
+      ${allowed("CUSTOMER_VIEW") ? `<a href="#customers" data-nav="customers"><span class="q-ico qc-wa">🤝</span><strong>Clientes y fiados</strong><span class="hint">${usd(store.totalReceivable())} por cobrar</span><span class="q-go">→</span></a>` : ""}
     </div>
     ${valuationMismatch ? `<div class="banner inventory-value-alert" role="alert">⚠ <strong>Los totales de valoración no coinciden.</strong> Por categoría: <b>${usd(categoryValue)}</b>; por almacén: <b>${usd(warehouseValue)}</b>; diferencia: <b>${usd(valuationDifference)}</b>. Revisa las existencias y sus almacenes.</div>` : ""}
-    <div class="grid-2" style="margin-top:16px">
+    <div class="grid-2 mt16">
       <div class="card">
         <div class="card-h"><span class="k">Ventas semana ${formatDate(w.from)} – ${formatDate(w.to)}</span></div>
-        <div class="chart">${days.map((x) => `<div class="bar" style="height:${(x.v / maxV) * 100}%" title="${usd(x.v)}"><em>${x.v ? usd(x.v).replace(".00", "") : ""}</em><span>${weekday(x.day).slice(0, 3)}</span></div>`).join("")}</div>
+        <div class="chart">${days.map((x) => `<div class="bar" data-h="${(x.v / maxV) * 100}" title="${usd(x.v)}"><em>${x.v ? usd(x.v).replace(".00", "") : ""}</em><span>${weekday(x.day).slice(0, 3)}</span></div>`).join("")}</div>
       </div>
       <div class="card">
         <div class="card-h"><span class="k">Valor por categoría</span></div>
-        ${cats.map(([k, v]) => `<div class="hbar"><span>${catBadge(k)}</span><div><i style="width:${(v / (cats[0][1] || 1)) * 100}%;background:${(CATEGORIES[k] || CATEGORIES.General).color}"></i></div><b class="mono">${usd(v)}</b></div>`).join("") || `<p class="hint">Sin productos en inventario.</p>`}
+        ${cats.map(([k, v]) => `<div class="hbar"><span>${catBadge(k)}</span><div><i data-w="${(v / (cats[0][1] || 1)) * 100}" data-cat="${esc(k)}"></i></div><b class="mono">${usd(v)}</b></div>`).join("") || `<p class="hint">Sin productos en inventario.</p>`}
         <div class="hline dashboard-total"><span>Total por categoría</span><b class="mono">${usd(categoryValue)}</b></div>
       </div>
       ${warehouseRows.length > 0 ? `<div class="card">
@@ -659,7 +676,7 @@ function homeView() {
         <div class="hline dashboard-total"><span>Total general</span><b class="mono">${qty(warehouseUnits)} uds · ${usd(warehouseValue)}</b></div>
       </div>` : ""}
     </div>
-    <div class="grid-2" style="margin-top:16px">
+    <div class="grid-2 mt16">
       <div class="card">
         <div class="card-h"><span class="k">Últimos movimientos</span><button class="btn ghost small" data-nav="movements">Ver todos</button></div>
         <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Cant</th><th>Importe</th></tr></thead><tbody>
@@ -844,7 +861,7 @@ function cuadreView() {
       ${kpi("TOTAL DE CAPITAL", usd(t.capital), `Tasa ${t.rate} CUP/USD`, "gold")}
       ${kpi("CUADRE (debe ser 0)", usd(t.cuadre), t.cuadre === 0 ? "✔ Cuadrado" : "✖ Descuadre", t.cuadre === 0 ? "green" : "red")}
     </div>
-    <div class="grid-2 cuadre-grid" style="margin-top:14px">
+    <div class="grid-2 cuadre-grid mt14">
       <form id="cuadreForm" class="card">
         <div class="card-h"><span class="k">Datos del día</span></div>
         <div class="form-grid">
@@ -865,7 +882,7 @@ function cuadreView() {
         </div>
         <p class="hint">Según movimientos del día: comisiones ${cup(t.comisionesMov)} · domicilios ${cup(t.domiciliosMov)} ·
           ${canEdit ? `<a href="#" data-act="fill-mov">usar estos valores</a>` : ""}</p>
-        ${canEdit ? `<button class="btn" style="margin-top:8px">Guardar cuadre</button>` : ""}
+        ${canEdit ? `<button class="btn mt8">Guardar cuadre</button>` : ""}
       </form>
       <div class="card" id="printArea">
         <div class="card-h"><span class="k">Cuadre ${formatDate(date)}</span></div>
@@ -878,9 +895,9 @@ function cuadreView() {
         ${line("TOTAL DE SALIDAS", t.salidas, "neg")}
         ${line("TOTAL DE CAPITAL", t.capital)}${line("X COBRAR", c.xCobrar || 0)}
         <div class="cline final ${t.cuadre === 0 ? "ok" : "bad"}"><span>CUADRE (tiene que quedar en 0)</span><b class="mono">${usd(t.cuadre)}</b></div>
-        <div class="k" style="margin-top:16px">Ventas del día</div>
+        <div class="k mt16">Ventas del día</div>
         ${dayMovs.filter((m) => m.type === "VENTA").map((m) => `<div class="cline"><span>${qty(m.quantity)} × ${esc(m.productName)}</span><b class="mono">${usd(m.importeUsd)}</b></div>`).join("") || "<p class='hint'>Sin ventas registradas.</p>"}
-        <div class="k" style="margin-top:16px">Días con cuadre</div>
+        <div class="k mt16">Días con cuadre</div>
         <div class="chips">${dates.slice(0, 14).map((d) => `<button class="chip ${d === date ? "on" : ""}" data-cdate="${d}">${store.isClosed(d) ? "🔒" : ""}${d.slice(8)}/${d.slice(5, 7)}</button>`).join("")}</div>
       </div>
     </div>`;
@@ -940,7 +957,7 @@ function weeklyExcelReferenceCard(reference) {
       ${kpi("Utilidad bruta", usd(reference.grossProfitUsd), "USD")}
       ${kpi("Utilidad neta", usd(reference.netProfitUsd), `Inversión ${usd(reference.investedUsd)}`)}
     </div>
-    <div class="table-wrap" style="margin-top:12px"><table>
+    <div class="table-wrap mt12"><table>
       <thead><tr><th>Gasto del libro</th><th class="r">CUP</th></tr></thead>
       <tbody>${expenses.map(([label, key]) => `<tr><td>${label}</td><td class="mono r">${cup(reference.expensesCup?.[key] || 0)}</td></tr>`).join("")}
         <tr><td><b>Total de gastos</b></td><td class="mono r"><b>${cup(reference.totalExpensesCup)}</b></td></tr>
@@ -962,7 +979,7 @@ function weeklySummaryModal(summary, fileName) {
       <tbody>${rows}</tbody>
       ${summary.totals ? `<tfoot><tr><td colspan="2">Total del libro</td><td class="mono r">${usd(summary.totals.salesUsd)}</td><td class="mono r">${cup(summary.totals.totalExpensesCup)}</td><td class="mono r">${usd(summary.totals.totalExpensesUsd)}</td><td class="mono r">${usd(summary.totals.netProfitUsd)}</td></tr></tfoot>` : ""}
     </table></div>
-    <div class="row" style="margin-top:14px"><button type="button" class="btn" data-act="weekly-summary-apply">Guardar ${weeks.length} semanas</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "weeklySummaryPreview");
+    <div class="row mt14"><button type="button" class="btn" data-act="weekly-summary-apply">Guardar ${weeks.length} semanas</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "weeklySummaryPreview");
   ui.weeklySummaryImport = { summary, fileName };
 }
 
@@ -1019,7 +1036,7 @@ function weeklyView() {
       ${kpi("Gastos", usd(r.fijos + r.variables), `Fijos ${usd(r.fijos)} · variables ${usd(r.variables)}`, "gold")}
       ${kpi("Utilidad neta", usd(r.neta), r.ventas ? `Margen ${round2((r.neta / r.ventas) * 100)}%` : "—", r.neta >= 0 ? "green" : "red")}
     </div>
-    <div class="grid-2" style="margin-top:14px" id="printArea">
+    <div class="grid-2 mt14" id="printArea">
       <form class="card" id="weeklyForm">
         <div class="card-h"><span class="k">INFORME SEMANAL</span><span class="hint">USD</span></div>
         <table class="pl">
@@ -1035,7 +1052,7 @@ function weeklyView() {
           <tr><td class="ind">Gastos diarios (cuadres)</td><td class="mono r">${usd(r.gastosDia)}</td></tr>
           ${row("UTILIDAD NETA", r.neta, `b final ${r.neta >= 0 ? "ok" : "bad"}`)}
         </table>
-        ${canEdit ? `<button class="btn" style="margin-top:12px">Guardar gastos de la semana</button>` : ""}
+        ${canEdit ? `<button class="btn mt12">Guardar gastos de la semana</button>` : ""}
         <p class="hint">El costo usa la columna P. COSTO; domicilios y comisiones salen de ventas y cuadres, convertidos con la tasa CUP/USD de cada día.</p>
       </form>
       <div class="card">
@@ -1108,9 +1125,9 @@ function reportsView() {
     ? `<label>Desde<input type="date" id="reportFrom" value="${esc(ui.reportFrom)}" max="${todayISO()}"></label><label>Hasta<input type="date" id="reportTo" value="${esc(ui.reportTo)}" max="${todayISO()}"></label>`
     : `<label>Fecha de referencia<input type="date" id="reportDate" value="${esc(anchor)}" max="${todayISO()}"></label>`;
   const novaSection = novaReports.length ? `
-    <div class="card table-wrap flush" style="margin-top:14px" id="novaDailyReports">
+    <div class="card table-wrap flush mt14" id="novaDailyReports">
       <div class="card-h pad"><span class="k">Informes diarios NOVA · ${novaReports.length} hojas</span><span class="hint">Valores transcritos del Excel, sin sustituir el cálculo operacional</span></div>
-      <div class="kpis mini" style="padding:12px">
+      <div class="kpis mini p12">
         ${kpi("Venta del detalle", usd(novaSum("productSalesUsd")), `${qty(novaSum("productSalesUnits"))} unidades`)}
         ${kpi("Venta declarada", usd(novaSum("declaredSalesUsd")), "panel financiero")}
         ${kpi("Diferencia detalle / venta", usd(novaSum("productSalesDifferenceUsd")), "detalle menos declarada", Math.abs(novaSum("productSalesDifferenceUsd")) < 0.01 ? "green" : "gold")}
@@ -1129,7 +1146,7 @@ function reportsView() {
       <p class="hint pad">Cada renglón conserva el importe, el costo por unidad y la comisión CUP de las ventas originales, aunque después cambie el catálogo. Las diferencias de stock comparan el cálculo de la hoja con su existencia final.</p>
     </div>` : "";
   const cuadreSection = savedCuadres.length ? `
-    <div class="card table-wrap flush" style="margin-top:14px">
+    <div class="card table-wrap flush mt14">
       <div class="card-h pad"><span class="k">Cuadres diarios guardados · ${savedCuadres.length}</span><span class="hint">Diferencia final en USD</span></div>
       <table><thead><tr><th>Fecha</th><th class="r">Ventas</th><th class="r">Gastos</th><th class="r">Salidas</th><th class="r">Capital y cobros</th><th class="r">Diferencia</th><th>Estado</th></tr></thead>
         <tbody>${savedCuadres.map((cuadre) => {
@@ -1157,7 +1174,7 @@ function reportsView() {
       ${kpi("Entradas / salidas", `${qty(sum("e"))} / ${qty(sum("s"))}`, "unidades del período", "gold")}
       ${kpi("Δ precio / venta", usd(sum("diff")), "precio registrado − importe real", sum("diff") ? "gold" : "green")}
     </div>
-    <div class="card table-wrap flush sticky-data-wrap reports-table-scroll" id="printArea" style="margin-top:14px">
+    <div class="card table-wrap flush sticky-data-wrap reports-table-scroll" id="printArea" class="mt14">
       <div class="card-h pad"><span class="k">INVENTARIO · ${periodLabel}</span><span class="hint">Existencia de apertura, movimientos y cierre calculados para el período</span></div>
       <table><thead><tr><th class="num">Nº</th><th>PRODUCTOS</th><th class="r">STOCK APERTURA</th><th class="r">VENTAS</th><th class="r">ENTRADAS</th><th class="r">SALIDAS</th><th class="r">STOCK CALCULADO</th><th class="r">STOCK CIERRE</th><th class="r">IMP. LISTA</th><th class="r">IMP. REAL</th><th class="r">COSTO</th><th class="r">UTILIDAD BRUTA</th></tr></thead>
         <tbody>${rows.map((row, index) => `<tr class="${row.stockDiff ? "warn-row" : ""}"><td class="num mono">${index + 1}</td><td>${hl(row.p.name)}</td><td class="mono r">${qty(row.opening)}</td><td class="mono r">${qty(row.v)}</td><td class="mono r">${qty(row.e)}</td><td class="mono r">${qty(row.s)}</td><td class="mono r">${qty(row.calc)}</td><td class="mono r">${qty(row.closing)}</td><td class="mono r">${usd(row.orig)}</td><td class="mono r">${usd(row.real)}</td><td class="mono r">${usd(row.cost)}</td><td class="mono r">${usd(row.profit)}</td></tr>`).join("") || `<tr><td colspan="12" class="empty">Sin existencias ni movimientos en el período.</td></tr>`}</tbody>
@@ -1173,7 +1190,7 @@ const FIELD_LABEL = { precioVentaUsd: "Precio venta", precioVenta2Usd: "Precio v
 
 function historyView() {
   const tab = ui.histTab;
-  const tabs = `<div class="chips" style="margin-bottom:12px">${[["precios", "Precios de productos"], ["monedas", "Tasas de cambio por día"]].map(([k, l]) => `<button class="chip ${tab === k ? "on" : ""}" data-htab="${k}">${l}</button>`).join("")}</div>`;
+  const tabs = `<div class="chips mb12">${[["precios", "Precios de productos"], ["monedas", "Tasas de cambio por día"]].map(([k, l]) => `<button class="chip ${tab === k ? "on" : ""}" data-htab="${k}">${l}</button>`).join("")}</div>`;
   if (tab === "monedas") return tabs + ratesTable();
   const list = store.state.priceHistory.filter((h) => !ui.q || has(h.productName, ui.q) || has(FIELD_LABEL[h.field] || "", ui.q))
     .sort((a, b) => b.date.localeCompare(a.date) || (b.ts || 0) - (a.ts || 0));
@@ -1211,7 +1228,7 @@ function financeView() {
   const curs = [...new Set([...CURRENCIES, ...rates.map((r) => r.currency)])];
   return `
     <div class="kpis">${curs.slice(0, 4).map((c) => kpi(`1 ${c} =`, `${store.rateOn(c) || "—"} CUP`, "vigente hoy", "teal")).join("")}</div>
-    <div class="row" style="margin:14px 0">${canEdit ? `<button class="btn" data-act="new-rate">＋ Registrar tasa</button>` : ""}<button class="btn ghost" data-htab-go="monedas">Ver tabla por día</button></div>
+    <div class="row mv14">${canEdit ? `<button class="btn" data-act="new-rate">＋ Registrar tasa</button>` : ""}<button class="btn ghost" data-htab-go="monedas">Ver tabla por día</button></div>
     <div class="card table-wrap flush">
       <table><thead><tr><th>Fecha</th><th>Moneda</th><th class="r">Valor en CUP</th><th>Nota</th><th>Usuario</th>${canEdit ? "<th></th>" : ""}</tr></thead>
       <tbody>${rates.map((r) => `<tr><td>${formatDate(r.date)}</td><td><span class="tag mov">${esc(r.currency)}</span></td><td class="mono r">${r.rate}</td><td>${esc(r.note || "")}</td><td class="hint">${esc(r.userName || "")}</td>${canEdit ? `<td class="actions"><button class="icon-btn" data-edit-rate="${r.id}">✎</button><button class="icon-btn danger" data-del-rate="${r.id}">🗑</button></td>` : ""}</tr>`).join("")}</tbody></table>
@@ -1234,7 +1251,7 @@ function trashView() {
       <tbody>${prods.map((p, i) => `<tr><td class="num mono">${i + 1}</td><td>${thumb(p, 32)}</td><td><strong>${hl(p.name)}</strong></td><td class="mono r">${qty(p.stockActual)}</td><td class="mono r">${usd(p.precioVentaUsd)}</td><td>${catBadge(p.category)}</td><td class="hint">${when(p.deletedAt)}<br>${esc(p.deletedBy || "")}</td>
         <td class="actions"><button class="btn small" data-restore-product="${p.id}">↺ Restaurar</button>${admin ? `<button class="icon-btn danger" data-purge-product="${p.id}" title="Eliminar definitivamente">✖</button>` : ""}</td></tr>`).join("") || `<tr><td colspan="8" class="empty">Vacío</td></tr>`}</tbody></table>
     </div>
-    <div class="card table-wrap flush" style="margin-top:14px">
+    <div class="card table-wrap flush mt14">
       <div class="card-h pad"><span class="k">Movimientos eliminados</span></div>
       <table><thead><tr><th>Fecha</th><th>PRODUCTO</th><th>TIPO</th><th class="r">CANT.</th><th class="r">IMPORTE</th><th>Eliminado</th><th></th></tr></thead>
       <tbody>${movs.map((m) => `<tr><td>${formatDate(m.date)}</td><td>${hl(m.productName)}</td><td><span class="tag ${m.type.toLowerCase()}">${m.type}</span></td><td class="mono r">${qty(m.quantity)}</td><td class="mono r">${usd(m.importeUsd)}</td><td class="hint">${when(m.deletedAt)}</td>
@@ -1248,7 +1265,7 @@ function usersView() {
   if (!ui.usersLoaded) { ui.usersLoaded = true; store.loadUsers().then(render); }
   const ago = (t) => (t ? new Date(t * 1000).toLocaleString("es-CU") : "—");
   return `
-    ${canEdit ? `<div class="row" style="margin-bottom:12px"><button class="btn" data-act="new-user">＋ Nuevo usuario</button><span class="hint">Las cuentas se guardan en el servidor (contraseñas con PBKDF2, nunca en el navegador).</span></div>` : ""}
+    ${canEdit ? `<div class="row mb12"><button class="btn" data-act="new-user">＋ Nuevo usuario</button><span class="hint">Las cuentas se guardan en el servidor (contraseñas con PBKDF2, nunca en el navegador).</span></div>` : ""}
     <div class="card table-wrap flush"><table>
       <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>2FA</th><th>Último acceso</th><th>Estado</th>${canEdit ? "<th></th>" : ""}</tr></thead>
       <tbody>${store.state.users.map((u) => `<tr><td><strong>${esc(u.displayName)}</strong><div class="hint">${esc(u.email || "")}</div></td><td class="mono">${esc(u.username)}</td><td><span class="tag mov">${u.role}</span></td>
@@ -1261,7 +1278,7 @@ function usersView() {
 function auditView() {
   const canSec = ["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role());
   const tab = ui.auditTab || "app";
-  const tabs = canSec ? `<div class="chips" style="margin-bottom:12px"><button class="chip ${tab === "app" ? "on" : ""}" data-audit-tab="app">Actividad del negocio</button><button class="chip ${tab === "sec" ? "on" : ""}" data-audit-tab="sec">Seguridad (servidor)</button></div>` : "";
+  const tabs = canSec ? `<div class="chips mb12"><button class="chip ${tab === "app" ? "on" : ""}" data-audit-tab="app">Actividad del negocio</button><button class="chip ${tab === "sec" ? "on" : ""}" data-audit-tab="sec">Seguridad (servidor)</button></div>` : "";
   if (tab === "sec" && canSec) {
     if (!ui.secLog) { ui.secLog = []; api("/security-log").then((r) => { ui.secLog = r.log || []; render(); }); }
     const rows = ui.secLog.filter((a) => !ui.q || has(a.action, ui.q) || has(a.user || "", ui.q) || has(a.details || "", ui.q) || has(a.ip || "", ui.q));
@@ -1272,6 +1289,26 @@ function auditView() {
   const logs = store.state.audit.filter((a) => !ui.q || has(a.action, ui.q) || has(a.userName || "", ui.q) || has(a.details || "", ui.q) || has(a.entity || "", ui.q));
   return tabs + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>Detalle</th></tr></thead>
     <tbody>${logs.slice(0, 300).map((a) => `<tr><td class="hint">${new Date(a.timestamp).toLocaleString("es-CU")}</td><td>${esc(a.userName || "")}</td><td><span class="tag ${a.action === "TRASH" || a.action === "PURGE" || a.action === "DELETE" ? "salida" : a.action === "CREATE" || a.action === "RESTORE" ? "entrada" : "mov"}">${esc(a.action)}</span></td><td>${esc(a.entity || "")}</td><td>${hl(a.details || "")}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+function novedadesCard() {
+  if (!ui.novedades) { ui.novedades = "…"; api("/changelog").then((r) => { ui.novedades = r.entries || []; render(); }).catch(() => { ui.novedades = []; }); }
+  if (ui.novedades === "…") return `<div class="card mt14"><span class="k">🆕 Novedades</span><p class="hint">Cargando…</p></div>`;
+  if (!ui.novedades.length) return "";
+  const [ult, ...resto] = ui.novedades;
+  return `<div class="card mt14"><div class="card-h"><span class="k">🆕 Novedades</span></div>
+    <p><b>${esc(ult.titulo)}</b></p><ul>${ult.puntos.slice(0, 6).map((p) => `<li>${esc(p)}</li>`).join("")}</ul>
+    ${resto.length ? `<details class="chart-data"><summary>Ver versiones anteriores</summary>${resto.map((e) => `<p><b>${esc(e.titulo)}</b></p><ul>${e.puntos.slice(0, 4).map((p) => `<li>${esc(p)}</li>`).join("")}</ul>`).join("")}</details>` : ""}</div>`;
+}
+
+function metricsCard() {
+  if (!allowed("AUDIT_VIEW") && role() !== "JEFE") return "";
+  if (!ui.metrics) { ui.metrics = "…"; api("/metrics").then((r) => { ui.metrics = r; render(); }).catch(() => { ui.metrics = null; }); }
+  if (!ui.metrics || ui.metrics === "…") return `<div class="card mt14"><span class="k">📊 Uso local de NovaGest</span><p class="hint">Cargando métricas…</p></div>`;
+  const m = ui.metrics, c = m.conteos || {};
+  return `<div class="card mt14"><div class="card-h"><span class="k">📊 Uso local de NovaGest</span><span class="hint">Solo conteos agregados de este equipo; nada sale del servidor</span></div>
+    <p class="hint">Versión ${esc(m.appVersion)} · datos v${m.stateVersion} · licencia ${esc(m.licencia?.tipo || "—")} · BD ${Math.ceil((m.bdBytes || 0) / 1024)} KB · copias: ${m.copias?.total ?? 0}</p>
+    <div class="row">${Object.entries(c).map(([k, v]) => `<span class="tag">${esc(k)}: <b>${v}</b></span>`).join("")}${Object.entries(m.usuariosPorRol || {}).map(([k, v]) => `<span class="tag">${esc(k)}: <b>${v}</b></span>`).join("")}</div></div>`;
 }
 
 function backupView() {
@@ -1290,12 +1327,13 @@ function backupView() {
         ${isAdmin ? `<button class="btn danger" data-act="reset">Recargar desde el Excel</button>` : ""}
       </div>
     </div>
-    <div class="card table-wrap flush" style="margin-top:14px"><table>
+    <div class="card table-wrap flush mt14"><table>
       <thead><tr><th>Copia</th><th>Tipo</th><th>Fecha</th><th>Tamaño</th>${isAdmin ? "<th></th>" : ""}</tr></thead>
       <tbody>${b.list.map((x) => `<tr><td class="mono">${esc(x.name)}</td><td><span class="tag ${x.kind === "auto" ? "entrada" : "mov"}">${x.name.includes("pre-restore") ? "antes de restaurar" : x.kind}</span></td><td class="hint">${new Date(x.createdAt * 1000).toLocaleString("es-CU")}</td><td>${kb(x.size)}</td>
         ${isAdmin ? `<td class="row nowrap"><button class="btn ghost small" data-bk-dl="${esc(x.name)}">Descargar</button><button class="btn ghost small danger-t" data-bk-restore="${esc(x.name)}">Restaurar</button></td>` : ""}</tr>`).join("") || `<tr><td colspan="5" class="hint">Aún no hay copias. La primera se crea al arrancar el servidor.</td></tr>`}</tbody>
     </table></div>
-    <label class="card dropzone" id="dropzone" data-tip="Arrastra aquí tu libro diario NovaGest *.xlsx o haz clic" style="margin-top:14px">
+    ${metricsCard()}
+    <label class="card dropzone mt14" id="dropzone" data-tip="Arrastra aquí tu libro diario NovaGest *.xlsx o haz clic">
       <div class="dz-ico">📥</div><b>Importar una hoja del Excel</b>
       <span class="hint">Arrastra el archivo .xlsx aquí o haz clic. Elige la hoja del día (p. ej. «26 9 26»).</span>
       <input type="file" id="xlsxFile" accept=".xlsx,.xls" hidden>
@@ -1311,7 +1349,7 @@ function licenseCard() {
   const pend = counts.pendiente || 0;
   const expText = lic?.valid ? (lic.daysLeft === -1 ? "Permanente" : `${lic.daysLeft} días · expira ${LicenseManager.fmtDate(lic.expiresAt)}`) : "No válida";
   return `
-    <div class="card" style="margin-bottom:14px">
+    <div class="card mb14">
       <div class="card-h"><span class="k">🔐 Licencia de Uso</span>${lic?.valid ? `<span class="tag entrada">${esc(lic.type)} · ${expText}</span>` : `<span class="tag salida">Sin licencia válida</span>`}</div>
       ${lic?.valid ? `
         <div class="kpis mini">
@@ -1323,7 +1361,7 @@ function licenseCard() {
         ${LicenseManager.isExpiringSoon(lic) ? `<div class="banner">⚠ La licencia vence en ${lic.daysLeft} días. Renueve antes de que expire para no bloquear el acceso.</div>` : ""}
         <p class="hint">El acceso a todas las Apps (Web y Móvil) se verifica siempre primero por la licencia. Sin licencia válida no se puede iniciar sesión.</p>
         ${admin && pend ? `<div class="banner">📨 <b>${pend} solicitud(es) de licencia</b> pendiente(s) de atender en <b>Gestionar → Solicitudes</b>.</div>` : ""}
-        <div class="row" style="margin-top:8px">
+        <div class="row mt8">
           <button class="btn small" data-act="license-manage">🔐 Gestionar licencia</button>
           ${admin ? `<button class="btn ghost small" data-act="license-manage" data-lic-tab-go="solicitudes">📨 Solicitudes${pend ? ` · ${pend}` : ""}</button>` : ""}
           <button class="btn ghost small" data-act="license-refresh">↻ Verificar</button>
@@ -1332,11 +1370,11 @@ function licenseCard() {
         <div class="banner">⛔ No hay licencia activa. Active una licencia para usar la App.</div>
         <p class="hint">Pegue la clave completa con punto. La verificación es criptográfica y se hace en el servidor antes de cualquier acceso.</p>
         <form id="licenseFormInline" class="form-grid">
-          <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="NG-..." style="font-family:monospace"></textarea></label>
+          <label class="span-2">Clave de licencia<textarea name="license_key" rows="3" placeholder="NG-..." class="mono-f"></textarea></label>
           <div class="span-2 row"><button class="btn small" data-act="license-activate-inline">Activar</button><button type="button" class="btn ghost small" data-act="license-refresh">Verificar estado</button></div>
         </form>
       `}
-      <div class="card" style="margin-top:14px">
+      <div class="card mt14">
         <div class="card-h"><span class="k">Renovar por WhatsApp</span><span class="tag mov">Por término</span></div>
         ${licenseRequestCard(lic)}
       </div>
@@ -1359,8 +1397,8 @@ function securityCard() {
         ${sec.codes ? `<p><b>Guarda estos códigos de recuperación</b> (cada uno sirve una vez si pierdes el teléfono):</p><div class="codes mono">${sec.codes.map((c) => `<span>${c}</span>`).join("")}</div>
           <div class="row"><button class="btn ghost small" data-act="dl-codes">Descargar</button><button class="btn small" data-act="codes-done">Ya los guardé</button></div>`
         : sec.setup ? `<p class="hint">1) Escanea el código con Google Authenticator, Microsoft Authenticator o Authy. 2) Escribe el código de 6 dígitos.</p>
-          <div class="qr">${qr}</div><p class="hint mono" style="word-break:break-all">Clave manual: ${esc(sec.setup.secret)}</p>
-          <form id="tfaEnable" class="row"><input name="code" inputmode="numeric" placeholder="123456" required style="max-width:140px"><button class="btn small">Activar</button><button type="button" class="btn ghost small" data-act="tfa-cancel">Cancelar</button></form>`
+          <div class="qr">${qr}</div><p class="hint mono break-all">Clave manual: ${esc(sec.setup.secret)}</p>
+          <form id="tfaEnable" class="row"><input name="code" inputmode="numeric" placeholder="123456" required class="mw140"><button class="btn small">Activar</button><button type="button" class="btn ghost small" data-act="tfa-cancel">Cancelar</button></form>`
         : u.totpEnabled ? `<p class="hint">Al entrar se pide un código de tu app autenticadora.</p>
           <form id="tfaDisable" class="form-grid"><label>Contraseña<input name="password" type="password" required autocomplete="current-password"></label><label>Código 2FA<input name="code" inputmode="numeric" required></label><div class="span-2"><button class="btn ghost small danger-t">Desactivar 2FA</button></div></form>`
         : `<p class="hint">Protege tu cuenta: aunque alguien sepa tu contraseña, no podrá entrar sin el código de tu teléfono.</p><button class="btn" data-act="tfa-setup">Activar 2FA</button>`}
@@ -1374,7 +1412,7 @@ function securityCard() {
         <div class="span-2"><button class="btn small">Cambiar</button></div>
       </form>
     </div>
-    <div class="card table-wrap" style="margin-top:14px">
+    <div class="card table-wrap mt14">
       <div class="card-h"><span class="k">Sesiones abiertas</span><button class="btn ghost small" data-act="logout-all">Cerrar las demás sesiones</button></div>
       <table><thead><tr><th>Dispositivo</th><th>IP</th><th>Inicio</th><th>Última actividad</th><th></th></tr></thead>
       <tbody>${sec.sessions.map((x) => `<tr><td>${esc(uaName(x.ua))} ${x.current ? "<span class='tag entrada'>Esta</span>" : ""}</td><td class="mono hint">${esc(x.ip)}</td><td class="hint">${new Date(x.created * 1000).toLocaleString("es-CU")}</td><td class="hint">${new Date(x.last_seen * 1000).toLocaleString("es-CU")}</td>
@@ -1387,6 +1425,19 @@ function uaName(ua = "") {
   return `${br}${os ? " · " + os : ""}`;
 }
 
+/** Datos legales del negocio: alimentan #legal y el pie (sin inventar nada). */
+function legalCard() {
+  const d = ui.legalData || {};
+  const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
+  if (!admin) return d.razonSocial ? `<div class="card mt14"><div class="card-h"><span class="k">Datos legales</span></div><p class="hint">${esc(d.razonSocial)} · ${esc(d.idFiscal || "")} · ${esc(d.domicilio || "")} · ${esc(d.contacto || "")}</p></div>` : "";
+  return `<form id="legalForm" class="card form-grid mt14">
+    <div class="span-2 card-h"><span class="k">Datos legales del negocio</span><span class="hint">Se muestran en Información legal y en el pie. Déjelos en blanco y se seguirá viendo [COMPLETAR: …]: no se inventa ningún dato.</span></div>
+    ${LEGAL_CAMPOS.map(([k, label]) => `<label class="${k === "razonSocial" || k === "domicilio" ? "span-2" : ""}">${label} <input name="${k}" value="${esc(d[k] || "")}" maxlength="${k === "retencion" || k === "reembolso" ? 1000 : 300}"></label>`).join("")}
+    <div class="span-2 row"><button class="btn">Guardar datos legales</button><a class="btn ghost" href="#legal" data-legal-doc="aviso">Ver Información legal</a></div>
+    <p class="hint span-2">⚠ Rellenar estos datos no sustituye la revisión de los textos por un abogado antes de publicarlos.</p>
+  </form>`;
+}
+
 function settingsView() {
   const s = store.state.settings;
   const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
@@ -1394,7 +1445,8 @@ function settingsView() {
   return `
     ${licenseCard()}
     ${securityCard()}
-    <form id="settingsForm" class="card form-grid" style="margin-top:14px">
+    ${legalCard()}
+    <form id="settingsForm" class="card form-grid mt14">
       <div class="span-2 card-h"><span class="k">Ajustes del negocio</span>${admin ? "" : `<span class="hint">Solo administrador o jefe pueden cambiarlos (salvo el tema).</span>`}</div>
       <label class="span-2">Nombre del negocio <input name="businessName" ${dis} value="${esc(s.businessName)}"></label>
       <label>CUP/USD por defecto <input name="defaultCupUsd" ${dis} type="number" step="any" value="${s.defaultCupUsd}"></label>
@@ -1406,12 +1458,19 @@ function settingsView() {
       <label>Cerrar sesión por inactividad <small>minutos</small><input name="sessionMinutes" ${dis} type="number" min="1" value="${s.sessionMinutes}"></label>
       <div class="span-2 row"><button class="btn">Guardar ajustes</button></div>
     </form>
-    ${deferredInstall ? `<div class="card" style="margin-top:14px">
+    ${deferredInstall ? `<div class="card mt14">
       <div class="card-h"><span class="k">📲 Instalar aplicación</span><span class="tag entrada">Disponible</span></div>
       <p class="hint">Instala NovaGest en este dispositivo para abrirlo como app independiente: icono propio, pantalla completa y arranque más rápido. También funciona sin conexión.</p>
       <button class="btn" data-act="install-app">Instalar ahora</button>
     </div>` : ""}
-    <div class="card" style="margin-top:14px">
+    ${novedadesCard()}
+    <div class="card mt14" id="surveyForm">
+      <div class="card-h"><span class="k">💬 Tu opinión (voluntaria)</span><span class="hint">Se guarda solo en este equipo; nada se envía fuera</span></div>
+      <label>¿Cómo valoras NovaGest?<select aria-label="Valoración de NovaGest"><option value="">— Sin responder —</option><option value="5">5 · Excelente</option><option value="4">4 · Buena</option><option value="3">3 · Regular</option><option value="2">2 · Mala</option><option value="1">1 · Muy mala</option></select></label>
+      <label>¿Qué mejorarías?<textarea rows="2" maxlength="500" placeholder="Opcional"></textarea></label>
+      <div class="row"><button type="button" class="btn small" data-act="survey-save">Guardar opinión</button>${(store.state.surveys || []).length ? `<button type="button" class="btn ghost small" data-act="survey-export">Exportar respuestas CSV (${store.state.surveys.length})</button>` : ""}</div>
+    </div>
+    <div class="card mt14">
       <div class="card-h"><span class="k">Acerca de</span><span class="tag mov">Web v${APP_VERSION}</span></div>
       <p><b>NovaGest</b> — Gestiona. Crece. Avanza.<br>
       <span class="hint">La plataforma todo-en-uno de tu negocio: inventario multi-almacén, punto de venta, caja diaria e informes con análisis. Funciona sin conexión, se instala como aplicación y sincroniza en tiempo real con el servidor y la app Android.</span></p>
@@ -1440,7 +1499,7 @@ function customersView() {
       ${kpi("Vencidos", String(overdue.length), overdue.length ? `${usd(overdueTotal)} vencidos` : "ninguno vencido", overdue.length ? "red" : "green")}
       ${kpi("Fiados registrados", String(credits.length), "contado aparte, en Venta rápida", "teal")}
     </div>
-    <div class="chips" style="margin:14px 0">
+    <div class="chips mv14">
       <button class="chip ${tab === "clientes" ? "on" : ""}" data-cust-tab="clientes">🤝 Clientes</button>
       <button class="chip ${tab === "fiados" ? "on" : ""}" data-cust-tab="fiados">🧾 Fiados y abonos</button>
     </div>
@@ -1454,7 +1513,7 @@ function customersView() {
         <td class="hint">${c.dueDate ? formatDate(c.dueDate) : "—"}</td>
         ${canEdit ? `<td class="nowrap">${pend > 0 ? `<button class="btn small" data-pay-credit="${c.id}">Abonar</button>` : ""} ${!(c.payments || []).length ? `<button class="icon-btn danger" data-del-credit="${c.id}" title="Eliminar fiado sin abonos">🗑</button>` : ""}</td>` : ""}
       </tr>`; }).join("") || `<tr><td colspan="9" class="empty">Aún no hay fiados. Crea uno con «Nuevo fiado» o vende a fiado desde Venta rápida.</td></tr>`}</tbody></table></div>
-      ${canEdit ? `<div class="row" style="margin-top:12px"><button class="btn" data-act="new-credit">＋ Nuevo fiado manual</button><button class="btn ghost" data-act="export-credits">⬇ CSV de fiados</button></div>` : ""}
+      ${canEdit ? `<div class="row mt12"><button class="btn" data-act="new-credit">＋ Nuevo fiado manual</button><button class="btn ghost" data-act="export-credits">⬇ CSV de fiados</button></div>` : ""}
     ` : `
       <div class="toolbar"><div></div><div class="row">${canEdit ? `<button class="btn" data-act="new-customer">＋ Nuevo cliente</button><button class="btn ghost" data-act="new-credit">＋ Nuevo fiado</button>` : ""}<button class="btn ghost" data-act="export-customers">⬇ CSV clientes</button></div></div>
       <div class="card table-wrap flush"><table><thead><tr><th>Cliente</th><th>Contacto</th><th class="r">Límite</th><th class="r">Debe</th><th>Estado</th>${canEdit ? "<th></th>" : ""}</tr></thead>
@@ -1466,7 +1525,7 @@ function customersView() {
         <td>${bal <= 0 ? `<span class="tag entrada">Al día</span>` : over ? `<span class="tag salida">Sobre el límite</span>` : `<span class="tag gestor">Con deuda</span>`}</td>
         ${canEdit ? `<td class="nowrap"><button class="icon-btn" data-edit-customer="${c.id}" title="Editar cliente">✎</button><button class="btn ghost small" data-credit-for="${c.id}">Fiar</button><button class="icon-btn danger" data-del-customer="${c.id}" title="Eliminar (sin deuda)">🗑</button></td>` : ""}
       </tr>`; }).join("") || `<tr><td colspan="6" class="empty">Aún no hay clientes. Crea el primero para vender a fiado.</td></tr>`}</tbody></table></div>
-      <p class="hint" style="margin-top:10px">El fiado de Venta rápida descuenta stock igual que el contado y crea aquí la deuda. Los abonos quedan con fecha, importe, forma de pago y quién los cobró. El total por cobrar también se ve en Venta rápida.</p>
+      <p class="hint mt10">El fiado de Venta rápida descuenta stock igual que el contado y crea aquí la deuda. Los abonos quedan con fecha, importe, forma de pago y quién los cobró. El total por cobrar también se ve en Venta rápida.</p>
     `}`;
 }
 
@@ -1481,7 +1540,7 @@ function customerModal(c = null) {
       <label>Límite de crédito <small>USD · 0 = sin límite</small><input name="creditLimitUsd" type="number" step="any" min="0" value="${x.creditLimitUsd || 0}"></label>
       <label>Notas <input name="notes" value="${esc(x.notes || "")}"></label>
     </div>
-    <div class="row" style="margin-top:14px"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "customerForm", `data-id="${c?.id || ""}"`);
+    <div class="row mt14"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "customerForm", `data-id="${c?.id || ""}"`);
 }
 
 function creditModal(customerId = "") {
@@ -1497,7 +1556,7 @@ function creditModal(customerId = "") {
       <label class="span-2">Notas<input name="notes" value=""></label>
     </div>
     <p class="hint">Fiado manual: no mueve inventario. Para fiar productos, usa Venta rápida → Cobro: Fiado.</p>
-    <div class="row" style="margin-top:14px"><button class="btn">Registrar fiado</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "creditForm");
+    <div class="row mt14"><button class="btn">Registrar fiado</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "creditForm");
 }
 
 function creditPaymentModal(credit) {
@@ -1510,7 +1569,7 @@ function creditPaymentModal(credit) {
       <label>Forma de pago<select name="method"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>ZELLE</option><option>TARJETA</option><option>OTRO</option></select></label>
       <label>Nota<input name="notes" value=""></label>
     </div>
-    <div class="row" style="margin-top:14px"><button class="btn">Registrar abono</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "creditPayForm", `data-id="${credit.id}"`);
+    <div class="row mt14"><button class="btn">Registrar abono</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "creditPayForm", `data-id="${credit.id}"`);
 }
 
 /* ============================ PUNTO DE VENTA ============================ */
@@ -1534,17 +1593,17 @@ function posView() {
   return `
     <div class="pos">
       <div class="pos-left">
-        <div class="card" style="margin-bottom:12px">
+        <div class="card mb12">
           <div class="card-h"><span class="k">📷 Escáner de códigos de barras</span><span class="tag mov">Cámara · lector USB · teclado</span></div>
           <div class="row">
-            <input id="barcodeInput" placeholder="Escanea o escribe el código y pulsa Enter…" autocomplete="off" style="flex:1" aria-label="Código de barras">
+            <input id="barcodeInput" placeholder="Escanea o escribe el código y pulsa Enter…" autocomplete="off" class="flex1" aria-label="Código de barras">
             <button type="button" class="btn" data-act="scan-camera">📷 Escanear con cámara</button>
             <button type="button" class="btn ghost" data-act="scan-stop" hidden id="scanStopBtn">Detener</button>
           </div>
-          <video id="barcodeVideo" playsinline muted hidden style="width:100%;max-height:260px;border-radius:10px;margin-top:10px;background:#111"></video>
+          <video id="barcodeVideo" playsinline muted hidden class="scan-media"></video>
           <p class="hint" id="scanHint">Con lector USB/Bluetooth solo escanea: el producto entra solo al carrito. Si el código no existe, podrás crearlo con ese código ya escrito.</p>
         </div>
-        <div class="chips" style="margin-bottom:12px">
+        <div class="chips mb12">
           <button class="chip ${ui.posCat === "TODAS" ? "on" : ""}" data-poscat="TODAS">Todas</button>
           ${cats.map((c) => `<button class="chip ${ui.posCat === c ? "on" : ""}" data-poscat="${esc(c)}">${(CATEGORIES[c] || CATEGORIES.General).icon} ${esc(c)}</button>`).join("")}
         </div>
@@ -1585,7 +1644,7 @@ function posView() {
         </div>
         ${pendingTotal ? `<p class="hint">🤝 Por cobrar hoy (todos los clientes): <b>${usd(pendingTotal)}</b> · <button type="button" class="btn ghost small" data-nav="customers">Ver clientes y fiados</button></p>` : ""}
         <div class="cart-total"><span>${qty(uds)} uds</span><b>${usd(total)}</b></div>
-        <div class="hint" style="text-align:right">≈ ${cup(total * store.rateOn("USD", ui.posDate || todayISO()))}</div>
+        <div class="hint ta-r">≈ ${cup(total * store.rateOn("USD", ui.posDate || todayISO()))}</div>
         <button class="btn full big" data-act="checkout" ${ui.cart.length ? "" : "disabled"}>${isFiado ? "✔ Fiar" : "✔ Cobrar"} ${usd(total)}</button>
       </aside>
     </div>`;
@@ -1690,7 +1749,12 @@ function lineChart(series, goal) {
   const x = (i) => P + (i * (W - 2 * P)) / Math.max(1, series.length - 1);
   const y = (v) => H - P - (v / max) * (H - 2 * P);
   const pts = series.map((s, i) => `${x(i)},${y(s.v)}`).join(" ");
-  return `<svg viewBox="0 0 ${W} ${H}" class="line-chart">
+  // Equivalente textual (WCAG 1.1.1/1.4.1): resumen para lector de pantalla + tabla de datos
+  const vmax = series.reduce((a, b) => (b.v > a.v ? b : a), series[0]);
+  const vavg = series.reduce((a, b) => a + b.v, 0) / series.length;
+  const resumen = `Gráfica de ventas diarias: ${series.length} días, máximo ${usd(vmax.v)} el ${formatDate(vmax.d)}, media ${usd(vavg)}, último día ${usd(series[series.length - 1].v)}${goal ? `, meta diaria ${usd(goal)}` : ""}.`;
+  const tablaDatos = `<details class="chart-data"><summary>Ver datos de la gráfica en tabla</summary><div class="table-wrap"><table><thead><tr><th scope="col">Fecha</th><th scope="col">Ventas</th>${goal ? '<th scope="col">Meta</th>' : ""}</tr></thead><tbody>${series.map((s) => `<tr><td>${formatDate(s.d)}</td><td class="mono">${usd(s.v)}</td>${goal ? `<td class="mono">${usd(goal)}</td>` : ""}</tr>`).join("")}</tbody></table></div></details>`;
+  return `<svg viewBox="0 0 ${W} ${H}" class="line-chart" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title>
     <defs><linearGradient id="lg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#14b8a6" stop-opacity=".45"/><stop offset="1" stop-color="#14b8a6" stop-opacity="0"/></linearGradient></defs>
     ${[0.25, 0.5, 0.75, 1].map((k) => `<line x1="${P}" x2="${W - P}" y1="${y(max * k / 1.1)}" y2="${y(max * k / 1.1)}" class="grid"/>`).join("")}
     ${goal ? `<line x1="${P}" x2="${W - P}" y1="${y(goal)}" y2="${y(goal)}" class="goal"/><text x="${W - P}" y="${y(goal) - 6}" text-anchor="end" class="goal-t">Meta ${usd(goal)}</text>` : ""}
@@ -1698,12 +1762,12 @@ function lineChart(series, goal) {
     <polyline points="${pts}" class="ln"/>
     ${series.map((s, i) => `<circle cx="${x(i)}" cy="${y(s.v)}" r="4" class="dot ${goal && s.v >= goal ? "hit" : ""}"><title>${formatDate(s.d)}: ${usd(s.v)}</title></circle>`).join("")}
     ${series.map((s, i) => (i % Math.ceil(series.length / 10) === 0 ? `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" class="ax">${s.d.slice(8)}/${s.d.slice(5, 7)}</text>` : "")).join("")}
-  </svg>`;
+  </svg>${tablaDatos}`;
 }
 function goalBar(label, v, goal) {
   const p = goal ? Math.min(100, (v / goal) * 100) : 0;
-  return `<div class="goal-bar" data-tip="${usd(v)} de ${usd(goal)}"><div class="row" style="justify-content:space-between"><b>${label}</b><span class="mono">${usd(v)} / ${usd(goal)}</span></div>
-    <div class="gb"><i style="width:${p}%" class="${p >= 100 ? "done" : ""}"></i></div><div class="hint">${p >= 100 ? "🏆 ¡Meta cumplida!" : `Faltan ${usd(goal - v)} (${round2(p)}%)`}</div></div>`;
+  return `<div class="goal-bar" data-tip="${usd(v)} de ${usd(goal)}"><div class="row jc-b"><b>${label}</b><span class="mono">${usd(v)} / ${usd(goal)}</span></div>
+    <div class="gb"><i data-w="${p}" class="${p >= 100 ? "done" : ""}"></i></div><div class="hint">${p >= 100 ? "🏆 ¡Meta cumplida!" : `Faltan ${usd(goal - v)} (${round2(p)}%)`}</div></div>`;
 }
 function analyticsView() {
   const s = store.state.settings;
@@ -1726,18 +1790,18 @@ function analyticsView() {
       ${kpi("Promedio diario", usd(avg), `${series.length} días con datos`, "blue")}
       ${kpi("Utilidad neta semana", usd(wk.neta), "según informe semanal", wk.neta >= 0 ? "teal" : "red")}
     </div>
-    <div class="grid-2" style="margin-top:16px">
+    <div class="grid-2 mt16">
       <div class="card"><div class="card-h"><span class="k">🎯 Metas</span>${allowed("REPORTS_FINANCIAL") ? `<button class="btn ghost small" data-nav="settings">Editar metas</button>` : ""}</div>
         ${goalBar(`Hoy (${formatDate(last.d)})`, last.v, s.goalDaily)}
         ${goalBar(`Semana ${formatDate(wk.w.from).slice(0, 5)}–${formatDate(wk.w.to).slice(0, 5)}`, wk.ventas, s.goalWeekly)}
         ${goalBar("Mes", series.filter((x) => x.d.slice(0, 7) === last.d.slice(0, 7)).reduce((a, b) => a + b.v, 0), s.goalWeekly * 4.3)}
       </div>
       <div class="card"><div class="card-h"><span class="k">Margen por categoría (ventas registradas)</span></div>
-        ${Object.entries(byCat).sort((a, b) => b[1].v - a[1].v).map(([k, o]) => `<div class="hbar"><span>${catBadge(k)}</span><div><i style="width:${o.v ? Math.max(4, ((o.v - o.c) / o.v) * 100) : 0}%;background:${(CATEGORIES[k] || CATEGORIES.General).color}"></i></div><b class="mono" data-tip="Venta ${usd(o.v)} · costo ${usd(o.c)}">${o.v ? round2(((o.v - o.c) / o.v) * 100) : 0}%</b></div>`).join("") || "<p class='hint'>Sin ventas registradas.</p>"}
+        ${Object.entries(byCat).sort((a, b) => b[1].v - a[1].v).map(([k, o]) => `<div class="hbar"><span>${catBadge(k)}</span><div><i data-w="${o.v ? Math.max(4, ((o.v - o.c) / o.v) * 100) : 0}" data-cat="${esc(k)}"></i></div><b class="mono" data-tip="Venta ${usd(o.v)} · costo ${usd(o.c)}">${o.v ? round2(((o.v - o.c) / o.v) * 100) : 0}%</b></div>`).join("") || "<p class='hint'>Sin ventas registradas.</p>"}
       </div>
     </div>
-    <div class="card" style="margin-top:16px"><div class="card-h"><span class="k">📈 Tendencia de ventas diarias</span><span class="hint">línea discontinua = meta diaria</span></div>${lineChart(series, s.goalDaily)}</div>
-    <div class="card" style="margin-top:16px"><div class="card-h"><span class="k">💤 Productos sin movimiento (más capital parado)</span></div>
+    <div class="card mt16"><div class="card-h"><span class="k">📈 Tendencia de ventas diarias</span><span class="hint">línea discontinua = meta diaria</span></div>${lineChart(series, s.goalDaily)}</div>
+    <div class="card mt16"><div class="card-h"><span class="k">💤 Productos sin movimiento (más capital parado)</span></div>
       <div class="table-wrap"><table><thead><tr><th class="num">Nº</th><th></th><th>PRODUCTO</th><th class="r">STOCK</th><th class="r">CAPITAL</th></tr></thead>
       <tbody>${quietos.map((p, i) => `<tr><td class="num mono">${i + 1}</td><td>${thumb(p, 30)}</td><td>${esc(p.name)}</td><td class="mono r">${qty(p.stockActual)}</td><td class="mono r">${usd(p.stockActual * p.precioVentaUsd)}</td></tr>`).join("")}</tbody></table></div>
     </div>`;
@@ -1845,10 +1909,10 @@ function novaImportModal() {
     <p class="hint">Revisa la fecha de cada pestaña antes de importar. NOVA tiene fechas incompletas y duplicadas; se guardará un reporte financiero por hoja. Las ventas conservarán el importe, el costo y la comisión calculados en el Excel.</p>
     ${warning}
     <label>Almacén destino<select id="novaImportWh">${warehouses.map((warehouse) => `<option value="${warehouse.id}" ${warehouse.id === warehouseId ? "selected" : ""}>${esc(warehouse.name)}</option>`).join("")}</select></label>
-    <div class="row" style="margin:10px 0"><button type="button" class="btn ghost small" data-act="nova-select-all">Seleccionar todas</button><button type="button" class="btn ghost small" data-act="nova-select-none">Excluir todas</button><span class="hint">${chosen.length} de ${records.length} hojas seleccionadas</span></div>
+    <div class="row mv10"><button type="button" class="btn ghost small" data-act="nova-select-all">Seleccionar todas</button><button type="button" class="btn ghost small" data-act="nova-select-none">Excluir todas</button><span class="hint">${chosen.length} de ${records.length} hojas seleccionadas</span></div>
     <div class="table-wrap"><table><thead><tr><th></th><th>Hoja</th><th>Fecha a importar</th><th class="r">Unidades vendidas</th><th class="r">Venta en detalle</th><th class="r">Venta declarada</th><th>Fecha original</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    <div class="row" style="margin-top:14px"><button class="btn" type="button" data-act="nova-import-selected">Importar ${chosen.length} hojas seleccionadas</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "novaImportForm");
+    <div class="row mt14"><button class="btn" type="button" data-act="nova-import-selected">Importar ${chosen.length} hojas seleccionadas</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "novaImportForm");
 }
 
 function importNovaSelected() {
@@ -1901,9 +1965,9 @@ function pinarImportModal() {
     <p class="hint">Se importarán en orden cronológico. Los cambios de existencia que el libro registra sin entrada/salida explícita se conservarán como ajustes visibles en los movimientos.</p>
     ${closed.length ? `<div class="banner">⚠ No se puede modificar: ${closed.map((record) => `${esc(record.sheet)} (${formatDate(record.date)})`).join(", ")}. Excluye las hojas cerradas o pide que un administrador las reabra.</div>` : `<div class="banner info">Confirma el almacén y las fechas antes de aplicar todas las hojas seleccionadas.</div>`}
     <label>Almacén destino<select id="pinarImportWh">${warehouses.map((warehouse) => `<option value="${warehouse.id}" ${warehouse.id === warehouseId ? "selected" : ""}>${esc(warehouse.name)}</option>`).join("")}</select></label>
-    <div class="row" style="margin:10px 0"><button type="button" class="btn ghost small" data-act="pinar-select-all">Seleccionar todas</button><button type="button" class="btn ghost small" data-act="pinar-select-none">Excluir todas</button><span class="hint">${selected.length} de ${records.length} hojas seleccionadas</span></div>
+    <div class="row mv10"><button type="button" class="btn ghost small" data-act="pinar-select-all">Seleccionar todas</button><button type="button" class="btn ghost small" data-act="pinar-select-none">Excluir todas</button><span class="hint">${selected.length} de ${records.length} hojas seleccionadas</span></div>
     <div class="table-wrap"><table><thead><tr><th></th><th>Hoja</th><th>Fecha</th><th class="r">Productos</th><th class="r">Unidades vendidas</th><th class="r">Ventas USD</th><th class="r">Tasa CUP/USD</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="row" style="margin-top:14px"><button class="btn" type="button" data-act="pinar-import-selected" ${closed.length ? "disabled" : ""}>Importar ${selected.length} hojas seleccionadas</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "pinarImportForm");
+    <div class="row mt14"><button class="btn" type="button" data-act="pinar-import-selected" ${closed.length ? "disabled" : ""}>Importar ${selected.length} hojas seleccionadas</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "pinarImportForm");
 }
 
 function importPinarSelected() {
@@ -1964,7 +2028,7 @@ function importModal() {
     </div>
     ${trash ? `<div class="banner">⚠ ${trash} productos están en la papelera y se omitirán (no se duplican).</div>` : ""}
     <p class="hint">Se actualizan precios, costos y comisiones (quedan en el historial), se ajusta la existencia al inicio del día <b>en «${esc(store.warehouseName(importWh))}»</b>, se crean las entradas/salidas/ventas de esa fecha y se guarda el cuadre. Reimportar la misma hoja reemplaza ese lote, aunque se corrija su fecha.</p>
-    <div class="row" style="margin-top:14px"><button class="btn" type="button" data-act="do-import">Importar ahora</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "importForm");
+    <div class="row mt14"><button class="btn" type="button" data-act="do-import">Importar ahora</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "importForm");
 }
 
 /* ============================ ALMACENES ============================ */
@@ -2000,9 +2064,9 @@ function warehouseCard(w, s, active) {
       <div><span>Valor</span><b>${usd(s.valor)}</b></div>
       <div><span>Movimientos</span><b>${s.movs}</b></div>
     </div>
-    ${s.bajo ? `<div class="banner" style="margin:10px 0 0">⚠ ${s.bajo} productos en el mínimo</div>` : ""}
-    <p class="hint" style="margin-top:8px">${s.last ? `Última entrada: ${WH_KIND[s.last.kind] || s.last.kind} · ${esc(s.last.userName || "")} · ${new Date(s.last.ts).toLocaleString("es-CU")}` : "Sin entradas registradas"}</p>
-    <div class="row" style="margin-top:12px">
+    ${s.bajo ? `<div class="banner m10-0-0">⚠ ${s.bajo} productos en el mínimo</div>` : ""}
+    <p class="hint mt8">${s.last ? `Última entrada: ${WH_KIND[s.last.kind] || s.last.kind} · ${esc(s.last.userName || "")} · ${new Date(s.last.ts).toLocaleString("es-CU")}` : "Sin entradas registradas"}</p>
+    <div class="row mt12">
       <button class="btn small" data-wh-use="${w.id}">Ver existencias</button>
       ${canImport ? `<button class="btn ghost small" data-wh-imp="${w.id}">📥 Importar</button>` : ""}
       ${canEdit ? `<button class="btn ghost small" data-wh-edit="${w.id}">✎ Editar</button>` : ""}
@@ -2096,7 +2160,7 @@ function warehousesView() {
       ${kpi("Unidades en total", qty(tot.unidades), "Suma de todos los almacenes", "gold")}
       ${kpi("Valor a precio venta", usd(tot.valor), `Almacén en uso: ${esc(active?.name || "—")}`, "green")}
     </div>
-    ${ui.whTab === "entradas" ? warehouseEntriesPanel() : `<div class="wh-grid" style="margin-top:14px">${stats.map(({ w, s }) => warehouseCard(w, s, active)).join("") || `<div class="card empty">Todavía no hay almacenes. Crea el primero para empezar.</div>`}</div>`}`;
+    ${ui.whTab === "entradas" ? warehouseEntriesPanel() : `<div class="wh-grid mt14">${stats.map(({ w, s }) => warehouseCard(w, s, active)).join("") || `<div class="card empty">Todavía no hay almacenes. Crea el primero para empezar.</div>`}</div>`}`;
 }
 
 /* ---------------------------- modales de almacén ---------------------------- */
@@ -2110,7 +2174,7 @@ function warehouseModal(w = null) {
       <label>Ubicación <input name="location" value="${esc(x.location || "")}" placeholder="Pinar del Río"></label>
       <label class="span-2">Notas <input name="notes" value="${esc(x.notes || "")}" placeholder="Mercancía general, se cuenta los viernes…"></label>
     </div>
-    <div class="row" style="margin-top:14px"><button class="btn">${w ? "Guardar cambios" : "Crear almacén"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "warehouseForm", `data-id="${w?.id || ""}"`);
+    <div class="row mt14"><button class="btn">${w ? "Guardar cambios" : "Crear almacén"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "warehouseForm", `data-id="${w?.id || ""}"`);
 }
 
 function transferModal({ fromId = null, productId = null } = {}) {
@@ -2134,7 +2198,7 @@ function transferModal({ fromId = null, productId = null } = {}) {
       <label>Fecha<input name="date" type="date" value="${todayISO()}" max="${todayISO()}"></label>
       <label class="span-2">Nota <input name="note" placeholder="Ej.: pedido de la tienda"></label>
     </div>
-    <div class="row" style="margin-top:14px"><button class="btn">Traspasar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "transferForm", `data-from="${from.id}"`);
+    <div class="row mt14"><button class="btn">Traspasar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "transferForm", `data-from="${from.id}"`);
 }
 
 function whDeleteFlow(id) {
@@ -2148,7 +2212,7 @@ function whDeleteFlow(id) {
       <div class="modal-h"><div class="h2">Eliminar «${esc(w.name)}»</div><button type="button" class="icon-btn" data-act="close-modal">✕</button></div>
       <p>Tiene <b>${st.items} ítems</b> (${qty(st.unidades)} unidades) y <b>${st.movs} movimientos</b>. Elige a qué almacén se pasan antes de eliminarlo: nada se pierde.</p>
       <label>Mover todo a<select name="moveTo">${others.map((o) => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></label>
-      <div class="row" style="margin-top:14px"><button class="btn danger">Mover y eliminar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>
+      <div class="row mt14"><button class="btn danger">Mover y eliminar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>
     </form></div>`;
     render();
     return;
@@ -2193,7 +2257,7 @@ function importValuesView() {
   const names = store.activeProducts().map((p) => p.name);
 
   const result = iv.last ? `
-    <div class="card" style="margin-bottom:14px">
+    <div class="card mb14">
       <div class="card-h"><span class="k">✔ Entrada registrada</span><span class="tag entrada">${WH_KIND.VALORES}</span></div>
       <div class="kpis mini">
         ${kpi("Almacén", esc(iv.last.almacen), "destino de los valores")}
@@ -2204,7 +2268,7 @@ function importValuesView() {
       ${iv.last.sobrescritos ? `<div class="banner">⚠ Se sobrescribieron valores de ${iv.last.sobrescritos} producto(s) que ya estaban guardados.</div>` : ""}
       ${iv.last.omitidos.length ? `<p class="hint">Omitidos: ${iv.last.omitidos.length} · ${iv.last.omitidos.slice(0, 6).map(esc).join(" · ")}${iv.last.omitidos.length > 6 ? " …" : ""}</p>` : ""}
       ${iv.last.errores.length ? `<div class="error">${iv.last.errores.slice(0, 4).map(esc).join("<br>")}</div>` : ""}
-      <div class="row" style="margin-top:12px">
+      <div class="row mt12">
         <button class="btn" data-wh-use="${w.id}">Ver existencias de «${esc(w.name)}»</button>
         <button class="btn ghost" data-wh-tab="entradas">Ver en Entradas</button>
         ${iv.last.entryId ? `<button class="btn ghost danger-t" data-wh-undo="${iv.last.entryId}">Deshacer esta entrada</button>` : ""}
@@ -2224,7 +2288,7 @@ function importValuesView() {
       <div class="chips">
         ${whs.map((x) => `<button class="chip ${x.id === w.id ? "on" : ""}" data-iv-wh="${x.id}">🏬 ${esc(x.name)}</button>`).join("")}
       </div>
-      <div class="wh-stats" style="margin-top:12px">
+      <div class="wh-stats mt12">
         <div><span>Ítems ahora</span><b>${s.items}</b></div>
         <div><span>Unidades</span><b>${qty(s.unidades)}</b></div>
         <div><span>Valor</span><b>${usd(s.valor)}</b></div>
@@ -2234,7 +2298,7 @@ function importValuesView() {
     </div>`;
 
   const originCard = `
-    <div class="card" style="margin-top:14px">
+    <div class="card mt14">
       <div class="card-h"><span class="k">2 · ¿De dónde salen los valores?</span>
         <button class="btn ghost small" data-act="iv-template" data-tip="Descarga esta lista (producto y su existencia actual) para llenarla en Excel y volver a pegarla">⬇ Plantilla de «${esc(w.code || w.name.slice(0, 3))}»</button>
       </div>
@@ -2243,24 +2307,24 @@ function importValuesView() {
           .map(([k, l]) => `<button class="chip ${iv.src === k ? "on" : ""}" data-iv-src="${k}">${l}</button>`).join("")}
       </div>
       ${iv.src === "pegar" ? `
-        <label style="margin-top:12px">Pega las columnas copiadas del Excel (Ctrl+V)
+        <label class="mt12">Pega las columnas copiadas del Excel (Ctrl+V)
           <textarea id="ivText" rows="6" placeholder="PRODUCTO&#9;EXISTENCIA&#9;PRECIO VENTA&#9;P. COSTO&#9;COMISIÓN&#10;PANEL SOLAR 500W&#9;8&#9;120&#9;70&#9;5&#10;NEVERA 11 PIES&#9;3&#9;900&#9;700&#9;20">${esc(iv.text || "")}</textarea>
         </label>
         <p class="hint">Se aceptan encabezados (PRODUCTO, EXISTENCIA/STOCK, PRECIO, COSTO, COMISIÓN, OBSERVACIONES) en cualquier orden, con o sin ellos, y números con coma decimal. Las columnas que dejes vacías no se tocan.</p>
-        <div class="row" style="margin-top:10px"><button class="btn" data-act="iv-analyze">Analizar lo pegado</button></div>` : ""}
+        <div class="row mt10"><button class="btn" data-act="iv-analyze">Analizar lo pegado</button></div>` : ""}
       ${iv.src === "archivo" ? `
-        <label class="dropzone" style="margin-top:12px" id="ivDrop">
+        <label class="dropzone mt12" id="ivDrop">
           <div class="dz-ico">📄</div><b>Arrastra el archivo .xlsx, .csv o .tsv</b>
           <span class="hint">${iv.fileName ? `Último archivo: <b>${esc(iv.fileName)}</b>${iv.sheetName ? ` · hoja «${esc(iv.sheetName)}»` : ""}` : "La primera fila puede ser el encabezado de las columnas"}</span>
           <input type="file" id="ivFile" accept=".xlsx,.xls,.csv,.tsv,.txt" hidden>
         </label>
         ${iv.sheets.length > 1 ? `<label>Hoja<select id="ivSheet">${iv.sheets.map((x) => `<option ${x === iv.sheetName ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></label>` : ""}
         ${iv.pchSections.length > 1 ? `<label>Ubicación en PCH.xlsx<select id="ivPchSection">${iv.pchSections.map((x) => `<option value="${esc(x.name)}" ${x.name === iv.pchSection ? "selected" : ""}>${esc(x.name)} · ${x.rows.length} productos</option>`).join("")}</select></label>` : ""}
-        ${iv.pchSections.length ? `<div class="banner info" style="margin-top:12px"><b>Importación por ubicación</b><br>Se cargará solo la existencia de «${esc(pchSection?.name || "")}». PCH.xlsx tiene precios distintos según la ubicación; el catálogo maneja precios compartidos y no se modificarán.${pchSection?.duplicates ? `<br>Se consolidaron ${pchSection.duplicates} filas repetidas sumando sus existencias.` : ""}</div>` : ""}
-        <div class="row" style="margin-top:10px"><button class="btn ghost small" data-act="iv-template">⬇ Descargar plantilla CSV</button></div>` : ""}
+        ${iv.pchSections.length ? `<div class="banner info mt12"><b>Importación por ubicación</b><br>Se cargará solo la existencia de «${esc(pchSection?.name || "")}». PCH.xlsx tiene precios distintos según la ubicación; el catálogo maneja precios compartidos y no se modificarán.${pchSection?.duplicates ? `<br>Se consolidaron ${pchSection.duplicates} filas repetidas sumando sus existencias.` : ""}</div>` : ""}
+        <div class="row mt10"><button class="btn ghost small" data-act="iv-template">⬇ Descargar plantilla CSV</button></div>` : ""}
       ${iv.src === "manual" ? `
-        <p class="hint" style="margin-top:12px">Escribe los productos y sus valores directamente en la tabla de abajo. Puedes empezar por el nombre (te sugiere los que ya existen) y seguir con existencia, precios y comisión.</p>
-        <div class="row" style="margin-top:10px">
+        <p class="hint mt12">Escribe los productos y sus valores directamente en la tabla de abajo. Puedes empezar por el nombre (te sugiere los que ya existen) y seguir con existencia, precios y comisión.</p>
+        <div class="row mt10">
           <button class="btn" data-act="iv-addrow">＋ Añadir fila</button>
           <button class="btn ghost" data-act="iv-fillrows">Rellenar 20 filas</button>
           <span class="hint">Las filas sin nombre se ignoran al aplicar.</span>
@@ -2268,11 +2332,11 @@ function importValuesView() {
     </div>`;
 
   const reviewCard = !iv.rows.length ? "" : `
-    <div class="card flush" style="margin-top:14px">
+    <div class="card flush mt14">
       <div class="card-h pad"><span class="k">3 · Revisar y aplicar · «${esc(w.name)}»</span>
         <span class="hint">${sum.total} filas · ${selected} seleccionadas</span>
       </div>
-      <div class="toolbar" style="padding:0 16px">
+      <div class="toolbar ph16">
         <div class="chips">
           <button class="chip" data-act="iv-selall">☑ Todos</button>
           <button class="chip" data-act="iv-selnone">☐ Ninguno</button>
@@ -2281,7 +2345,7 @@ function importValuesView() {
           <button class="chip" data-iv-selonly="sobrescribe">Marcar los que sobrescriben (${sum.sobrescribe})</button>
         </div>
         <div class="row">
-          <input class="sel" id="ivSearch" placeholder="Filtrar filas…" value="${esc(iv.q)}" style="min-width:180px">
+          <input class="sel" id="ivSearch" placeholder="Filtrar filas…" value="${esc(iv.q)}" class="mnw180">
           <button class="btn ghost small" data-act="iv-refresh" data-tip="Recalcula los estados después de editar la tabla">↻ Estado</button>
         </div>
       </div>
@@ -2293,10 +2357,10 @@ function importValuesView() {
         ${sum.papelera ? `<span class="tag salida">${sum.papelera} en papelera</span>` : ""}
         ${sum.duplicates.length ? `<span class="tag salida">${sum.duplicates.length} nombres repetidos</span>` : ""}
       </div>
-      ${conflicts.length ? `<div class="banner" style="margin:12px 16px">
+      ${conflicts.length ? `<div class="banner m12-16">
         <b>⚠ ${conflicts.length} fila(s) ya tienen valores guardados en «${esc(w.name)}».</b> Si continúas, esos valores se sobrescriben.
-        <div class="wh-detail" style="margin-top:8px">${conflicts.slice(0, 10).map((c) => `<div class="cline"><span>${esc(c.name)}</span><b class="mono">${(c.warns.length ? c.warns : c.changed).map((k) => `${fieldLabel(k)}: ${fmtVal(c.current[k])} → ${fmtVal(c.row[k])}`).join(" · ")}</b></div>`).join("")}${conflicts.length > 10 ? `<p class="hint">y ${conflicts.length - 10} más…</p>` : ""}</div>
-        <div class="row" style="margin-top:10px">
+        <div class="wh-detail mt8">${conflicts.slice(0, 10).map((c) => `<div class="cline"><span>${esc(c.name)}</span><b class="mono">${(c.warns.length ? c.warns : c.changed).map((k) => `${fieldLabel(k)}: ${fmtVal(c.current[k])} → ${fmtVal(c.row[k])}`).join(" · ")}</b></div>`).join("")}${conflicts.length > 10 ? `<p class="hint">y ${conflicts.length - 10} más…</p>` : ""}</div>
+        <div class="row mt10">
           <button class="btn danger" data-iv-confirm="sobrescribir">Sobrescribir los ${conflicts.length}</button>
           <button class="btn" data-iv-confirm="completar">Solo completar lo que falta</button>
           <span class="hint">«Completar» respeta lo que ya tenía valor.</span>
@@ -2468,8 +2532,8 @@ function productModal(p = null, presetBarcode = "") {
     </div>
     ${p && whList.length > 1 ? `<p class="hint">Existencias: ${whList.map((w) => `${esc(w.code || w.name)} <b>${qty(store.stockIn(p, w.id))}</b>`).join(" · ")} · total <b>${qty(p.stockActual)}</b></p>` : ""}
     ${p ? `<p class="hint">Stock actual: <b>${qty(p.stockActual)}</b>. Los cambios de precio/comisión se guardan en el historial del día.</p>` : ""}
-    <div class="row" style="margin-top:14px"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button>
-      ${p ? `<button type="button" class="btn danger" data-del-product="${p.id}" style="margin-left:auto">Enviar a papelera</button>` : ""}</div>`, "productForm", `data-id="${p?.id || ""}"`);
+    <div class="row mt14"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button>
+      ${p ? `<button type="button" class="btn danger" data-del-product="${p.id}" class="ml-auto">Enviar a papelera</button>` : ""}</div>`, "productForm", `data-id="${p?.id || ""}"`);
   ui.pendingImage = undefined;
 }
 
@@ -2494,8 +2558,8 @@ function movementModal(m = null, productId = null) {
     </div>
     <label>Observación <input name="notes" value="${esc(x.notes || "")}"></label>
     <p class="hint">Importe = cantidad × precio (solo VENTA). Comisión = cantidad × comisión del producto. No se permite stock negativo.</p>
-    <div class="row" style="margin-top:14px"><button class="btn">${m ? "Guardar cambios" : "Registrar"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button>
-      ${m ? `<button type="button" class="btn danger" data-del-mov="${m.id}" style="margin-left:auto">Enviar a papelera</button>` : ""}</div>`, "movForm", `data-id="${m?.id || ""}"`);
+    <div class="row mt14"><button class="btn">${m ? "Guardar cambios" : "Registrar"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button>
+      ${m ? `<button type="button" class="btn danger" data-del-mov="${m.id}" class="ml-auto">Enviar a papelera</button>` : ""}</div>`, "movForm", `data-id="${m?.id || ""}"`);
 }
 
 function rateModal(r = null) {
@@ -2508,7 +2572,7 @@ function rateModal(r = null) {
       <label>Nota<input name="note" value="${esc(x.note || "")}"></label>
     </div>
     <p class="hint">Si ya existe una tasa para esa moneda y fecha, se actualiza (una por día).</p>
-    <div class="row" style="margin-top:14px"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "rateForm", `data-id="${r?.id || ""}"`);
+    <div class="row mt14"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "rateForm", `data-id="${r?.id || ""}"`);
 }
 
 function userModal(u = null) {
@@ -2521,12 +2585,12 @@ function userModal(u = null) {
       <label>${u ? "Nueva contraseña <small>(vacío = no cambiar)</small>" : "Contraseña"} <input name="password" type="password" ${u ? "" : "required"} autocomplete="new-password"></label>
       ${u ? "" : `<label>Pregunta <input name="securityQuestion" value="¿Ciudad de la tienda?"></label><label class="span-2">Respuesta <input name="answer"></label>`}
     </div>
-    <div class="row" style="margin-top:14px"><button class="btn">${u ? "Guardar" : "Crear"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "userForm", u ? `data-id="${u.id}"` : "");
+    <div class="row mt14"><button class="btn">${u ? "Guardar" : "Crear"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "userForm", u ? `data-id="${u.id}"` : "");
 }
 
 function confirmModal(text, onYes) {
   ui.confirm = onYes;
-  ui.modal = `<div class="modal-back" data-act="close-modal"><div class="modal small"><div class="h2">Confirmar</div><p>${text}</p><div class="row" style="margin-top:14px"><button class="btn danger" data-act="confirm-yes">Sí, continuar</button><button class="btn ghost" data-act="close-modal">Cancelar</button></div></div></div>`;
+  ui.modal = `<div class="modal-back" data-act="close-modal"><div class="modal small"><div class="h2">Confirmar</div><p>${text}</p><div class="row mt14"><button class="btn danger" data-act="confirm-yes">Sí, continuar</button><button class="btn ghost" data-act="close-modal">Cancelar</button></div></div></div>`;
   render();
 }
 
@@ -2552,6 +2616,172 @@ async function reloadLicensePanel() {
   render();
 }
 
+/* ============================ LEGAL (público, sin sesión) ============================ */
+function legalView() {
+  const doc = LEGAL_DOCS[ui.legalDoc] || LEGAL_DOCS.aviso;
+  return `
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+    <div class="legal-wrap">
+      <header class="legal-head">
+        <div class="brand-row"><img src="./public/icon-app.png" alt="" /><div><div class="eyebrow">NovaGest</div><div>Información legal</div></div></div>
+        <button type="button" class="btn ghost small" data-act="legal-back">← Volver a la aplicación</button>
+      </header>
+      <div class="chips" role="tablist" aria-label="Documentos legales" class="mv12">
+        ${LEGAL_KEYS.map((k) => `<button type="button" role="tab" aria-selected="${ui.legalDoc === k}" class="chip ${ui.legalDoc === k ? "on" : ""}" data-legal-doc="${k}">${LEGAL_DOCS[k].title}</button>`).join("")}
+      </div>
+      <main class="card legal-doc" id="contenido">
+        <h1>${doc.title}</h1>
+        ${rellenarLegal(doc.body, ui.legalData || {})}
+      </main>
+      ${legalFooter(ui.legalData || {})}
+      ${consentBanner()}
+    </div>`;
+}
+
+/* ============================ FICHAS DE COSTO · IPV ============================
+   Adaptado de yhquintero/IPV_Fichas-Costos: ficha versionada por producto,
+   aprobación, rendimiento (comensales/copas), costo por ración, raciones
+   posibles con el stock y Control IPV por período con código IPV-AAAA-NNNN. */
+function fichaMoney(f, v) { return moneyIn(v, f?.currency || "USD"); }
+
+function fichasView() {
+  const canEdit = allowed("IPV_EDIT");
+  const showTrash = ui.fichaShowTrash;
+  const fichas = (showTrash ? (store.state.fichas || []).filter((f) => f.deletedAt) : store.activeFichas())
+    .filter((f) => !ui.q || has(f.productName, ui.q) || has(f.status, ui.q))
+    .sort((a, b) => String(a.productName).localeCompare(String(b.productName), "es") || b.version - a.version);
+  const controls = (showTrash ? (store.state.ipvControls || []).filter((c) => c.deletedAt) : store.activeControls())
+    .filter((c) => !ui.q || has(c.productName, ui.q) || has(c.code, ui.q) || has(c.period, ui.q))
+    .sort((a, b) => String(b.period).localeCompare(String(a.period)) || (b.createdAt || 0) - (a.createdAt || 0));
+  const tab = ui.fichaTab || "fichas";
+  const sel = store.fichaById(ui.fichaSel);
+  const approved = store.activeFichas().filter((f) => f.status === "Aprobada").length;
+  const pending = store.activeControls().filter((c) => c.status === "Pendiente").length;
+  const diffs = store.activeControls().filter((c) => c.status === "Con diferencias").length;
+  return `
+    <div class="kpis">
+      ${kpi("Fichas de costo", String(store.activeFichas().length), `${approved} aprobadas`, "blue")}
+      ${kpi("Controles IPV", String(store.activeControls().length), "por período AAAA-MM", "teal")}
+      ${kpi("Pendientes de validar", String(pending), pending ? "valídalos en la pestaña Controles" : "ninguno pendiente", pending ? "gold" : "green")}
+      ${kpi("Con diferencias", String(diffs), diffs ? "revisa la ficha vinculada" : "sin diferencias", diffs ? "red" : "green")}
+    </div>
+    <div class="chips mv14">
+      <button class="chip ${tab === "fichas" ? "on" : ""}" data-ficha-tab="fichas">▤ Fichas de costo</button>
+      <button class="chip ${tab === "controles" ? "on" : ""}" data-ficha-tab="controles">✓ Controles IPV</button>
+      <button class="chip ${showTrash ? "on" : ""}" data-ficha-trash="1">${showTrash ? "← Volver" : "🗑 Papelera IPV"}</button>
+    </div>
+    ${ui.fichaEdit ? fichaEditor() : ""}
+    ${tab === "controles" ? `
+      <div class="card table-wrap flush"><table><thead><tr><th>Id</th><th>Código</th><th>Producto</th><th>Período</th><th class="r">Foto ficha</th><th class="r">Comprobado</th><th class="r">Diferencia</th><th>Estado</th>${canEdit ? "<th></th>" : ""}</tr></thead>
+      <tbody>${controls.map((c, i) => `<tr>
+        <td class="hint">${i + 1}</td><td class="mono"><strong>${esc(c.code)}</strong><div class="hint">ficha v${c.fichaVersion}</div></td>
+        <td><strong>${esc(c.productName)}</strong></td><td>${esc(c.period)}</td>
+        <td class="mono r">${moneyIn(c.snapshotTotal, c.currency)}</td><td class="mono r">${c.checkedAt ? moneyIn(c.checkedTotal, c.currency) : "—"}</td>
+        <td class="mono r">${c.checkedAt ? moneyIn(Math.round(((c.checkedTotal || 0) - (c.snapshotTotal || 0)) * 100) / 100, c.currency) : "—"}</td>
+        <td><span class="tag ${c.status === "Validado" ? "entrada" : c.status === "Con diferencias" ? "salida" : "gestor"}">${esc(c.status)}</span>${(c.validationMessages || []).map((m) => `<div class="hint">${m.type === "error" ? "⚠" : "✔"} ${esc(m.text)}</div>`).join("")}</td>
+        ${canEdit ? `<td class="nowrap">${showTrash ? `<button class="btn ghost small" data-ficha-crestore="${c.id}">Restaurar control</button>` : `${c.status !== "Validado" ? `<button class="btn small" data-ficha-validate="${c.id}">Validar control</button>` : ""} <button class="icon-btn danger" data-ficha-cdel="${c.id}" title="Enviar el control a la papelera" aria-label="Enviar el control ${esc(c.code)} a la papelera">🗑</button>`}</td>` : ""}
+      </tr>`).join("") || `<tr><td colspan="9" class="empty">Aún no hay controles IPV. Aprueba una ficha y crea su control desde la pestaña «Fichas de costo».</td></tr>`}</tbody></table></div>
+      <p class="hint mt10">El control guarda una <b>foto</b> de la ficha al crearse (código IPV-AAAA-NNNN). «Validar control» comprueba que la ficha siga aprobada y que las sumas coincidan; no modifica existencias.</p>
+    ` : `
+      <div class="card table-wrap flush"><table><thead><tr><th>Id</th><th>Producto / servicio</th><th>Versión</th><th>Estado</th><th>Rendimiento</th><th class="r">Costo total</th><th class="r">Costo por ración</th><th class="r">Raciones posibles</th>${canEdit ? "<th></th>" : ""}</tr></thead>
+      <tbody>${fichas.map((f, i) => { const sv = store.fichaServings(f); return `<tr>
+        <td class="hint">${i + 1}</td>
+        <td><button type="button" class="linklike" data-ficha-sel="${f.id}"><strong>${esc(f.productName)}</strong></button><div class="hint">${(f.items || []).length} componentes · vigente desde ${esc(f.validFrom || "")}</div></td>
+        <td class="mono">v${f.version}</td>
+        <td><span class="tag ${f.status === "Aprobada" ? "entrada" : "gestor"}">${esc(f.status)}</span></td>
+        <td>${esc(String(f.yieldQty))} ${esc(f.yieldUnit || "unidad")}</td>
+        <td class="mono r"><b>${fichaMoney(f, f.totalCost)}</b></td>
+        <td class="mono r">${fichaMoney(f, store.fichaCostPerServing(f))}</td>
+        <td class="mono r">${sv.servings}${sv.limitedBy ? `<div class="hint">limita: ${esc(sv.limitedBy)}</div>` : ""}</td>
+        ${canEdit ? `<td class="nowrap">${showTrash ? `<button class="btn ghost small" data-ficha-restore="${f.id}">Restaurar ficha</button>` : `
+          <button class="btn ghost small" data-ficha-sel="${f.id}">Ver ficha</button>
+          ${f.status === "Borrador" ? `<button class="btn ghost small" data-ficha-edit="${f.id}">Editar ficha</button><button class="btn small" data-ficha-approve="${f.id}">Aprobar ficha</button>` : `<button class="btn ghost small" data-ficha-version="${f.id}">Nueva versión</button><button class="btn small" data-ficha-control="${f.id}">Crear control IPV</button>`}
+          <button class="icon-btn danger" data-ficha-del="${f.id}" title="Enviar la ficha a la papelera" aria-label="Enviar la ficha de ${esc(f.productName)} a la papelera">🗑</button>`}</td>` : ""}
+      </tr>`; }).join("") || `<tr><td colspan="9" class="empty">Aún no hay fichas de costo. Crea la primera: elige un producto, añade sus insumos y define cuántas raciones rinde.</td></tr>`}</tbody></table></div>
+      ${canEdit && !showTrash ? `<div class="row mt12"><button class="btn" data-act="new-ficha">＋ Nueva ficha de costo</button></div>` : ""}
+      ${sel && !sel.deletedAt ? fichaDetail(sel) : ""}
+      <p class="hint mt10">Los componentes son productos del propio inventario (su costo se copia al guardar: queda como foto y no cambia si luego cambia el precio). El importe se guarda en la moneda de la ficha (USD o CUP). Las «raciones posibles» usan el stock total de todos los almacenes. Este cálculo ayuda a elaborar la Ficha de Costo; no sustituye la normativa oficial de precios que aplique a su actividad.</p>
+    `}`;
+}
+
+function fichaDetail(f) {
+  const sv = store.fichaServings(f);
+  const rate = store.rateOn("USD");
+  return `<div class="card mt14">
+    <div class="card-h"><span class="k">Ficha de ${esc(f.productName)} · v${f.version}</span><span class="tag ${f.status === "Aprobada" ? "entrada" : "gestor"}">${esc(f.status)}</span></div>
+    <div class="kpis mini">
+      ${kpi("Costo total", fichaMoney(f, f.totalCost), `lote de ${esc(String(f.yieldQty))} ${esc(f.yieldUnit || "unidad")}`)}
+      ${kpi("Costo por ración", fichaMoney(f, store.fichaCostPerServing(f)), `por ${esc(f.yieldUnit || "unidad")}`)}
+      ${kpi("Raciones posibles", String(sv.servings), sv.limitedBy ? `limita: ${esc(sv.limitedBy)}` : "con el stock actual")}
+      ${kpi("Equivalente orientativo", f.currency === "CUP" ? moneyIn(Math.round(((f.totalCost || 0) / (rate || 1)) * 100) / 100, "USD") : moneyIn(Math.round((f.totalCost || 0) * (rate || 0) * 100) / 100, "CUP"), "a la tasa CUP/USD del día")}
+    </div>
+    ${sv.shortages.length ? `<div class="banner" role="alert">Falta stock para una ración completa de: ${sv.shortages.map((s) => `${esc(s.description)} (hay ${s.stock}, hace falta ${s.required} por ración)`).join(" · ")}</div>` : ""}
+    <div class="table-wrap"><table><thead><tr><th>Id</th><th>Componente</th><th class="r">Cantidad</th><th>Unidad</th><th class="r">Costo unitario</th><th class="r">Subtotal</th><th class="r">Existencias</th></tr></thead>
+    <tbody>${(f.items || []).map((it, i) => { const p = it.materialId ? store.state.products.find((x) => x.id === it.materialId) : null; return `<tr><td class="hint">${i + 1}</td><td><strong>${esc(it.description)}</strong>${p ? "" : `<div class="hint">línea libre</div>`}</td><td class="mono r">${esc(String(it.quantity))}</td><td>${esc(it.unit || "")}</td><td class="mono r">${moneyIn(it.unitCost, f.currency)}</td><td class="mono r">${moneyIn(Math.round(it.quantity * it.unitCost * 100) / 100, f.currency)}</td><td class="mono r">${p ? esc(String(p.stockActual)) : "—"}</td></tr>`; }).join("")}</tbody></table></div>
+    ${f.observations ? `<p class="hint mt8">${esc(f.observations)}</p>` : ""}
+    <div class="row mt10"><button class="btn gold small" data-act="print">Imprimir / PDF de la ficha</button></div>
+  </div>`;
+}
+
+/** Editor en línea (no modal) para no perder líneas al re-renderizar. */
+function fichaEditor() {
+  const e = ui.fichaEdit;
+  const products = store.activeProducts();
+  return `<form class="card" id="fichaForm" class="mb14">
+    <div class="card-h"><span class="k">${e.id ? `Editar ficha v${e.version || ""}` : "Nueva ficha de costo"}</span><span class="tag mov">${e.id ? "Borrador" : "Nueva"}</span></div>
+    <div class="form-grid">
+      <label class="span-2">Producto o servicio
+        <select name="productId" id="fichaProduct" required>
+          <option value="">— Elige un producto —</option>
+          ${products.map((p) => `<option value="${p.id}" ${e.productId === p.id ? "selected" : ""}>${esc(p.name)} · costo ${usd(p.precioCostoUsd)} · stock ${p.stockActual}</option>`).join("")}
+        </select></label>
+      <label>Moneda de la ficha
+        <select name="currency" id="fichaCurrency"><option value="USD" ${e.currency !== "CUP" ? "selected" : ""}>USD</option><option value="CUP" ${e.currency === "CUP" ? "selected" : ""}>CUP</option></select></label>
+      <label>Vigente desde <input name="validFrom" type="date" value="${esc(e.validFrom || todayISO())}"></label>
+      <label>Rendimiento del lote (cantidad) <input name="yieldQty" type="number" step="any" min="0" value="${e.yieldQty ?? 1}" required></label>
+      <label>Rendimiento (unidad: comensales, copas…) <input name="yieldUnit" value="${esc(e.yieldUnit || "unidad")}" maxlength="30"></label>
+      <label class="span-2">Observaciones <input name="observations" value="${esc(e.observations || "")}" maxlength="1000"></label>
+    </div>
+    <div class="fs">Componentes / insumos</div>
+    <div id="fichaItems">
+      ${e.items.map((it, i) => `<div class="row ficha-item mt8">
+        <label class="flex2 m0">Componente ${i + 1}
+          <select data-fitem="materialId" data-i="${i}"><option value="">— Línea libre —</option>${products.map((p) => `<option value="${p.id}" ${it.materialId === p.id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+        <label class="flex2 m0">Descripción <input data-fitem="description" data-i="${i}" value="${esc(it.description || "")}" required></label>
+        <label class="flex1 m0">Cantidad <input data-fitem="quantity" data-i="${i}" type="number" step="any" min="0" value="${it.quantity ?? ""}" required></label>
+        <label class="flex1 m0">Unidad <input data-fitem="unit" data-i="${i}" value="${esc(it.unit || "unidad")}"></label>
+        <label class="flex1 m0">Costo unitario <input data-fitem="unitCost" data-i="${i}" type="number" step="any" min="0" value="${it.unitCost ?? ""}" required></label>
+        <button type="button" class="icon-btn danger" data-ficha-delitem="${i}" title="Quitar componente ${i + 1}" aria-label="Quitar componente ${i + 1}">✕</button>
+      </div>`).join("")}
+    </div>
+    <div class="row mt12">
+      <button type="button" class="btn ghost small" data-act="ficha-add-item">＋ Añadir componente</button>
+      <button class="btn">Guardar ficha de costo</button>
+      <button type="button" class="btn ghost" data-act="ficha-cancel">Cancelar</button>
+    </div>
+    <p class="hint">Al elegir un producto, su descripción, unidad y costo actual se copian a la línea (puedes corregirlos: quedan como foto en la ficha). Si la moneda es CUP, el costo sugerido convierte el costo USD a la tasa del día y también queda como foto editable.</p>
+  </form>`;
+}
+
+/** Lee el editor en línea al estado ui.fichaEdit (antes de re-renderizar). */
+function readFichaEditor() {
+  const form = $("#fichaForm");
+  if (!form || !ui.fichaEdit) return;
+  const fd = new FormData(form);
+  ui.fichaEdit.productId = String(fd.get("productId") || "");
+  ui.fichaEdit.currency = String(fd.get("currency") || "USD");
+  ui.fichaEdit.validFrom = String(fd.get("validFrom") || todayISO());
+  ui.fichaEdit.yieldQty = Number(fd.get("yieldQty")) || 1;
+  ui.fichaEdit.yieldUnit = String(fd.get("yieldUnit") || "unidad");
+  ui.fichaEdit.observations = String(fd.get("observations") || "");
+  form.querySelectorAll("[data-fitem]").forEach((el) => {
+    const it = ui.fichaEdit.items[+el.dataset.i];
+    if (!it) return;
+    const k = el.dataset.fitem;
+    it[k] = k === "quantity" || k === "unitCost" ? (el.value === "" ? "" : Number(el.value)) : el.value;
+  });
+}
+
 /* ============================ RENDER ============================ */
 function page() {
   const views = { license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
@@ -2567,8 +2797,24 @@ async function checkLicenseFirst() {
   return !!ui.license.status?.valid;
 }
 
+/** Valores dinámicos sin atributos style (CSP sin 'unsafe-inline'):
+ * se marcan con data-w/data-h/data-p y se aplican por CSSOM tras pintar. */
+function hydrateStyles(root = document) {
+  root.querySelectorAll("[data-w]").forEach((e) => { e.style.width = `${e.dataset.w}%`; });
+  root.querySelectorAll("[data-h]").forEach((e) => { e.style.height = `${e.dataset.h}%`; });
+  root.querySelectorAll("[data-p]").forEach((e) => { e.style.setProperty("--p", e.dataset.p); });
+}
+
 function render() {
   applyTheme();
+  // Páginas legales: públicas, también sin licencia ni sesión.
+  if (ui.route === "legal") {
+    if (ui.legalData === null) fetchLegal().then(() => { if (ui.route === "legal") render(); });
+    app.innerHTML = legalView();
+    ensureClicks();
+    window.scrollTo(0, 0);
+    return;
+  }
   // Conserva foco y cursor (arregla el buscador que perdía el foco al escribir).
   const activeEl = document.activeElement;
   const focusId = activeEl?.id;
@@ -2599,6 +2845,7 @@ function render() {
   document.querySelectorAll(".modal input, .modal select").forEach((el) => { if (el.name && el.type !== "file") formVals[el.name] = el.value; });
   const hadModal = !!$(".modal");
   app.innerHTML = shell(page());
+  hydrateStyles(app);
   if (hadModal && ui.modal) document.querySelectorAll(".modal input, .modal select").forEach((el) => { if (el.name in formVals) el.value = formVals[el.name]; });
   if (scroll) { const c = $(".content"); if (c) c.scrollTop = scroll; }
   if (focusId) {
@@ -2727,6 +2974,34 @@ function bindLogin() {
 
 function bindApp() {
   ensureClicks();
+  // Editor de Ficha de Costo (en línea): guardar, autocompletar costo y foco.
+  $("#fichaForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    readFichaEditor();
+    const r = store.saveFicha(ui.fichaEdit);
+    result(r, ui.fichaEdit.id ? "Ficha de costo actualizada" : "Ficha de costo creada en Borrador");
+    if (!r.error) { ui.fichaSel = r.id; ui.fichaEdit = null; }
+    render();
+  });
+  $("#fichaProduct")?.addEventListener("change", (e) => {
+    readFichaEditor();
+    render();
+    $("#fichaProduct")?.focus();
+    void e;
+  });
+  document.querySelectorAll('[data-fitem="materialId"]').forEach((el) => el.addEventListener("change", () => {
+    readFichaEditor();
+    const it = ui.fichaEdit?.items[+el.dataset.i];
+    const p = store.state.products.find((x) => x.id === el.value);
+    if (it && p) {
+      it.description = p.name;
+      it.unit = "unidad";
+      const rate = store.rateOn("USD") || 1;
+      it.unitCost = ui.fichaEdit.currency === "CUP" ? Math.round((Number(p.precioCostoUsd) || 0) * rate * 100) / 100 : (Number(p.precioCostoUsd) || 0);
+    }
+    render();
+  }));
+  document.querySelectorAll('[data-fitem]').forEach((el) => el.addEventListener("change", () => readFichaEditor()));
   const search = $("#globalSearch");
   search?.addEventListener("input", (e) => {
     ui.q = e.target.value;
@@ -2804,7 +3079,7 @@ function bindApp() {
     if (!f) return;
     ui.pendingImage = await resizeImage(f, 240);
     const img = $(".img-pick .thumb");
-    if (img) img.outerHTML = `<img class="thumb" style="width:72px;height:72px" src="${ui.pendingImage}">`;
+    if (img) img.outerHTML = `<img class="thumb th72" src="${ui.pendingImage}" alt="Foto del producto seleccionada">`;
   });
   $("#movProdSearch")?.addEventListener("input", (e) => {
     const q = e.target.value;
@@ -2838,6 +3113,16 @@ function bindApp() {
     const r = store.saveRate({ id: e.target.dataset.id || null, currency: String(fd.get("currency")).trim().toUpperCase(), rate: fd.get("rate"), date: fd.get("date"), note: fd.get("note") });
     if (r.error) return toast(r.error, "err");
     ui.modal = null; toast("Tasa guardada en el historial", "ok");
+  });
+  if (ui.route === "settings" && ui.legalData === null) fetchLegal().then(() => { if (ui.route === "settings") render(); });
+  $("#legalForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = {};
+    for (const [k] of LEGAL_CAMPOS) body[k] = String(fd.get(k) || "").trim();
+    const r = await api("/legal", { method: "PUT", body });
+    if (r.ok) { ui.legalData = r.legal || body; toast("Datos legales guardados", "ok"); } else toast(r.error || "No se pudo guardar", "err");
+    render();
   });
   $("#settingsForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -3084,6 +3369,35 @@ function onClick(e) {
   else if (d.licStatus) licenseRequestStatusFlow(d.licStatus, d.licStatusValue);
   else if (d.licReqDel) licenseRequestDeleteFlow(d.licReqDel);
   else if (d.custTab) { ui.custTab = d.custTab; render(); }
+  else if (d.legalDoc) { ui.legalDoc = d.legalDoc; ui.route = "legal"; if (location.hash !== "#legal") history.replaceState(null, "", "#legal"); render(); }
+  else if (d.consent) { setConsent(d.consent === "yes"); toast(d.consent === "yes" ? "Preferencia guardada: opcionales aceptados (hoy no hay ninguno activo)." : "Preferencia guardada: opcionales rechazados.", "ok"); render(); }
+  else if (d.consentOpen !== undefined) { resetConsent(); ui.legalDoc = "cookies"; ui.route = "legal"; render(); }
+  else if (d.fichaTab) { ui.fichaTab = d.fichaTab; render(); }
+  else if (d.fichaTrash) { ui.fichaShowTrash = !ui.fichaShowTrash; ui.fichaSel = null; render(); }
+  else if (d.fichaSel) { ui.fichaSel = ui.fichaSel === d.fichaSel ? null : d.fichaSel; ui.fichaTab = "fichas"; render(); }
+  else if (d.fichaEdit) {
+    const f = store.fichaById(d.fichaEdit);
+    if (f) { ui.fichaEdit = JSON.parse(JSON.stringify(f)); render(); $("#fichaProduct")?.focus(); }
+  }
+  else if (d.fichaApprove) confirmModal("¿Aprobar esta ficha? Quedará fija; los cambios se harán creando una nueva versión.", () => { result(store.approveFicha(d.fichaApprove), "Ficha aprobada"); render(); });
+  else if (d.fichaVersion) { const r = store.newFichaVersion(d.fichaVersion); result(r, "Nueva versión creada en Borrador"); if (!r.error) { ui.fichaSel = r.id; const f = store.fichaById(r.id); ui.fichaEdit = f ? JSON.parse(JSON.stringify(f)) : null; } render(); }
+  else if (d.fichaControl) {
+    const f = store.fichaById(d.fichaControl);
+    if (f) modal("Crear control IPV", `
+      <div class="form-grid">
+        <label>Período (AAAA-MM) <input name="period" value="${todayISO().slice(0, 7)}" pattern="\\d{4}-(0[1-9]|1[0-2])" required></label>
+        <label>Notas <input name="notes" maxlength="1000"></label>
+      </div>
+      <p class="hint mt8">Se guardará una foto de «${esc(f.productName)} v${f.version}» (${fichaMoney(f, f.totalCost)}). Podrás validarla en la pestaña Controles.</p>
+      <div class="row mt14"><button class="btn">Crear control IPV</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "ipvControlForm", `data-ficha="${f.id}"`);
+    render();
+  }
+  else if (d.fichaDel) confirmModal("¿Enviar esta ficha a la papelera IPV? Podrás restaurarla.", () => { result(store.deleteFicha(d.fichaDel), "Ficha enviada a la papelera"); if (ui.fichaSel === d.fichaDel) ui.fichaSel = null; render(); });
+  else if (d.fichaRestore) { result(store.restoreFicha(d.fichaRestore), "Ficha restaurada"); render(); }
+  else if (d.fichaValidate) { const r = store.validateControl(d.fichaValidate); result(r, r.status === "Validado" ? "Control validado: coincide con la ficha" : "Control con diferencias: revisa los mensajes"); ui.fichaTab = "controles"; render(); }
+  else if (d.fichaCdel) confirmModal("¿Enviar este control a la papelera IPV? Podrás restaurarlo.", () => { result(store.deleteControl(d.fichaCdel), "Control enviado a la papelera"); render(); });
+  else if (d.fichaCrestore) { result(store.restoreControl(d.fichaCrestore), "Control restaurado"); render(); }
+  else if (d.fichaDelitem !== undefined) { readFichaEditor(); ui.fichaEdit?.items.splice(+d.fichaDelitem, 1); render(); }
   else if (d.editCustomer) { customerModal(store.customerById(d.editCustomer)); render(); }
   else if (d.creditFor) { creditModal(d.creditFor); render(); }
   else if (d.payCredit) { const cr = store.creditById(d.payCredit); if (cr) { creditPaymentModal(cr); render(); } }
@@ -3317,6 +3631,7 @@ function onClick(e) {
     });
   }
   else if (act === "license-whatsapp") {
+    if (!$("#licConsent")?.checked) { toast("Marca primero la casilla de privacidad para enviar la solicitud.", "err"); $("#licConsent")?.focus(); return; }
     const name = ($("#licReqName")?.value || ui.license.reqName || "").trim();
     if (!name) { toast("Escribe tu nombre o empresa para solicitar la licencia.", "err"); $("#licReqName")?.focus(); return; }
     ui.license.reqName = name;
@@ -3343,6 +3658,15 @@ function onClick(e) {
     ui.route = "pos"; navTo("pos");
     setTimeout(() => { $("#barcodeInput")?.focus(); startBarcodeScanner(); }, 60);
   }
+  else if (act === "legal-back") { ui.route = store.state.session ? "home" : "home"; if (!store.state.session) { ui.route = "home"; } history.replaceState(null, "", store.state.session ? "#home" : "#"); render(); }
+  else if (act === "new-ficha") {
+    ui.fichaEdit = { id: null, productId: "", currency: "USD", validFrom: todayISO(), yieldQty: 10, yieldUnit: "comensales", observations: "", items: [{ materialId: "", description: "", quantity: "", unit: "unidad", unitCost: "" }] };
+    ui.fichaTab = "fichas";
+    render();
+    $("#fichaProduct")?.focus();
+  }
+  else if (act === "ficha-add-item") { readFichaEditor(); ui.fichaEdit?.items.push({ materialId: "", description: "", quantity: "", unit: "unidad", unitCost: "" }); render(); }
+  else if (act === "ficha-cancel") { ui.fichaEdit = null; render(); }
   else if (act === "new-customer") { customerModal(null); render(); }
   else if (act === "new-credit") { creditModal(ui.posCustomer || ""); render(); }
   else if (act === "export-customers") exportCustomers();
@@ -3358,7 +3682,7 @@ function onClick(e) {
   else if (act === "new-movement") { movementModal(); render(); }
   else if (act === "new-rate") { rateModal(); render(); }
   else if (act === "new-user") { userModal(); render(); }
-  else if (act === "rm-img") { ui.pendingImage = null; const img = $(".img-pick .thumb"); if (img) img.outerHTML = `<span class="thumb ph" style="width:72px;height:72px">∅</span>`; }
+  else if (act === "rm-img") { ui.pendingImage = null; const img = $(".img-pick .thumb"); if (img) img.outerHTML = `<span class="thumb ph th72">∅</span>`; }
   else if (act === "fill-mov") {
     const date = ui.cuadreDate || lastDataDate();
     const tt = cuadreCalc(store.cuadreFor(date), store.activeMovements().filter((m) => m.date === date));
@@ -3373,6 +3697,18 @@ function onClick(e) {
   else if (act === "do-backup") { download("novagest-backup.json", store.exportBackup(), "application/json"); toast("Copia descargada", "ok"); }
   else if (act === "reset") confirmModal("Esto reemplaza los datos del servidor (para todos) por los datos iniciales de NovaGest (hoja 25 9 26). Crea antes una copia.", () => { store.resetDemo(); toast("Datos recargados desde el Excel", "ok"); });
   else if (act === "export-csv") exportComprobacion();
+  else if (act === "survey-save") {
+    const f = document.getElementById("surveyForm");
+    const txt = f?.querySelector("textarea")?.value.trim() || "";
+    const nota = Number(f?.querySelector("select")?.value || 0);
+    if (!nota) return toast("Elige una valoración o déjala: la encuesta es voluntaria.", "err");
+    (store.state.surveys ||= []).push({ id: `sv${Date.now().toString(36)}`, date: todayISO(), score: nota, comment: txt.slice(0, 500), role: role() });
+    store.emit(); toast("Gracias: encuesta guardada solo en este equipo.", "ok");
+  }
+  else if (act === "survey-export") {
+    const rows = [["fecha", "rol", "valoracion", "comentario"], ...(store.state.surveys || []).map((s) => [s.date, s.role, s.score, `"${String(s.comment || "").replace(/"/g, '""')}"`])];
+    download(`encuesta_novagest_${todayISO()}.csv`, "\uFEFF" + rows.map((r) => r.join(";")).join("\n"), "text/csv");
+  }
   else if (act === "export-mov") exportMovements();
   else if (act === "export-inv") exportInventory();
   else if (act === "export-movements-view") exportMovementsView();
@@ -3401,6 +3737,7 @@ function printCurrentView() {
   } else if (ui.route === "inventory") label = "Inventario";
   else if (ui.route === "movements") label = `Movimientos${ui.movDate ? ` · ${formatDate(ui.movDate)}` : ""}`;
   else if (ui.route === "warehouses" && ui.pdfWarehouseId) label = `Inventario · ${store.warehouseName(ui.pdfWarehouseId)}`;
+  else if (ui.route === "fichas") { const f = store.fichaById(ui.fichaSel); label = f ? `Ficha de Costo · ${f.productName} v${f.version}` : "Fichas de costo · IPV"; }
   else label = routes[ui.route]?.title || "Informe";
 
   const previousTitle = document.title;

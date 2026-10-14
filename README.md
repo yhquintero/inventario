@@ -48,6 +48,7 @@ Inventario · Punto de venta · Caja · Informes — **todo tu negocio en una so
 - 🤝 **Clientes y fiados** — libro de clientes con límite de crédito, cuentas por cobrar con vencimiento, estados (pendiente/parcial/vencido/pagado) y **abonos** con historial; el total por cobrar se ve en el Panel.
 - 🧮 **Caja diaria (cuadre)** — tasas CUP/USD y MXN/USD, cobros, entradas, extracciones, fondos y gastos: el día está «cuadrado» cuando el resultado da 0, y la aplicación te avisa si no lo está.
 - 🔄 **Movimientos** — ventas, entradas y salidas con almacén, centro de venta, cantidades, importes y observaciones; cada movimiento recalcula el stock y queda registrado.
+- 🧾 **Fichas de Costo e IPV** — ficha versionada por producto/servicio (componentes desde el propio inventario, costo total, rendimiento en comensales/copas y costo por ración, raciones posibles con el stock) con flujo Borrador → Aprobada, y **Control IPV** por período (`IPV-AAAA-NNNN`) que guarda la foto de la ficha y se valida contra ella. Web: **Fichas de costo · IPV**; Android: consulta sincronizada. Adaptado del repositorio [IPV · Fichas y Costos](https://github.com/yhquintero/IPV_Fichas-Costos) (verificado: sus 12 pruebas de flujo/numeración pasan) sin duplicar el catálogo de materiales. Los importes se guardan en la moneda de cada ficha (USD o CUP).
 - 📊 **Informes y comprobación** — cuadres diarios, resumen semanal y comprobación de inventario por día, semana, mes, año o rango personalizado, con exportación CSV/PDF lista para imprimir o enviar al contador.
 - 📈 **Análisis y metas** — ventas por período, utilidad bruta y neta, valor del inventario a precio de venta y a costo, progreso frente a metas diarias y semanales.
 - 🕵️ **Historial y auditoría** — precios, costos y tasas por día; registro de quién hizo qué y cuándo, según el rol de cada usuario.
@@ -199,7 +200,7 @@ python3 tools/generate_license.py --request 3       # clave de la solicitud #3, 
 
 La clave se activa pegándola completa (incluido el punto del medio) en la pantalla **Licencia de Uso** de la Web o de la app Android, o con `POST /api/license/activate`. Las claves nuevas usan el prefijo `NG-`; las heredadas `CP-` también son válidas. Cada instalación firma con su propio secreto (`data/license.key` o la variable `LICENSE_SECRET`), por lo que una clave generada en un servidor **no** verifica en otro: para reutilizarla copia el mismo `LICENSE_SECRET` o genera una clave nueva en ese servidor.
 
-En una base de datos nueva se crean estas cuentas de demostración:
+En una base de datos nueva se crean estas cuentas de demostración (**solo para pruebas locales**; ya no se muestran en la pantalla de acceso):
 
 | Usuario | Contraseña inicial | Rol |
 |---|---|---|
@@ -209,6 +210,8 @@ En una base de datos nueva se crean estas cuentas de demostración:
 | `almacenero` | `Alma123!` | Almacenero |
 
 ⚠️ **Cambia las contraseñas iniciales antes de publicar o usar el sistema con datos reales.** No expongas el servidor por HTTP en Internet; utiliza HTTPS y conserva las claves de cifrado fuera de la instancia.
+
+**Producción sin cuentas conocidas:** arranca el servidor con `NOVAGEST_DEMO_USERS=0 NOVAGEST_ADMIN_PASSWORD=<secreta, mín. 10>` y solo se creará el administrador con esa contraseña. Además: el rol **Administrador debe activar la verificación en dos pasos** (`REQUIRE_ADMIN_TOTP=1`, por defecto; `=0` lo desactiva) — sin activarla, el servidor solo le deja entrar, cambiar su contraseña y activar el 2FA. Hay límite de peticiones por IP en acceso/recuperación/solicitud de licencia, y las copias pueden replicarse fuera del equipo con `BACKUP_MIRROR_DIRS="E:\Copias;/ruta/red"` (regla 3-2-1, siempre cifradas). Los datos legales públicos (#legal) se rellenan en **Ajustes → Datos legales**; lo no rellenado se muestra como `[COMPLETAR: …]`.
 
 ## ✅ Pruebas
 

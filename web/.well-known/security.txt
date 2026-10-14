@@ -1,0 +1,4 @@
+Contact: [COMPLETAR: correo de seguridad, ej. seguridad@tu-negocio.cu]
+Preferred-Languages: es, en
+Policy: Divulgación coordinada: gracias por reportar primero en privado; no accedas a datos de terceros ni interrumpas el servicio.
+Expires: [COMPLETAR: fecha futura, ej. 2027-01-01T00:00:00.000Z]

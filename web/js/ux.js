@@ -158,8 +158,8 @@ function showStep() {
   if (r.right + 340 < innerWidth && r.width < 300) { pop.left = r.right + 16; pop.top = Math.max(12, Math.min(r.top, innerHeight - 200)); }
   pop.left = Math.max(12, Math.min(pop.left, innerWidth - 340));
   wrap.innerHTML = `
-    <div class="tour-hole" style="top:${r.top - 6}px;left:${r.left - 6}px;width:${r.width + 12}px;height:${r.height + 12}px"></div>
-    <div class="tour-pop" style="top:${pop.top}px;left:${pop.left}px">
+    <div class="tour-hole"></div>
+    <div class="tour-pop">
       <div class="tour-step">Paso ${step + 1} de ${STEPS.length}</div>
       <div class="tour-title">${s.title}</div><p>${s.text}</p>
       <div class="tour-dots">${STEPS.map((_, i) => `<i class="${i === step ? "on" : ""}"></i>`).join("")}</div>
@@ -167,6 +167,10 @@ function showStep() {
         ${step > 0 ? `<button class="btn ghost small" data-tour="prev">Atrás</button>` : ""}
         <button class="btn small" data-tour="next">${step === STEPS.length - 1 ? "Terminar" : "Siguiente →"}</button></div>
     </div>`;
+  // Posición vía CSSOM (permitido por CSP sin 'unsafe-inline')
+  const hole = wrap.querySelector(".tour-hole"), popEl = wrap.querySelector(".tour-pop");
+  Object.assign(hole.style, { top: `${r.top - 6}px`, left: `${r.left - 6}px`, width: `${r.width + 12}px`, height: `${r.height + 12}px` });
+  Object.assign(popEl.style, { top: `${pop.top}px`, left: `${pop.left}px` });
   wrap.addEventListener("click", (e) => {
     const a = e.target.closest("[data-tour]")?.dataset.tour;
     if (a === "skip") endTour();
@@ -206,7 +210,7 @@ export function openPalette({ routes, products, allowed, go, act, openProduct, n
       .map((p) => ({ icon: "▣", label: p.name, hint: `Stock ${p.stockActual} · $${p.precioVentaUsd}`, run: () => openProduct(p) })) : [];
     items = [...base.filter((b) => !q || norm(b.label).includes(q)), ...prods];
     sel = Math.min(sel, Math.max(0, items.length - 1));
-    list.innerHTML = items.map((it, i) => `<div class="pi ${i === sel ? "on" : ""}" data-i="${i}"><span class="pic">${it.icon}</span><span>${it.label.replace(/</g, "&lt;")}</span><small>${it.hint}</small></div>`).join("") || `<div class="hint" style="padding:16px">Sin resultados</div>`;
+    list.innerHTML = items.map((it, i) => `<div class="pi ${i === sel ? "on" : ""}" data-i="${i}"><span class="pic">${it.icon}</span><span>${it.label.replace(/</g, "&lt;")}</span><small>${it.hint}</small></div>`).join("") || `<div class="hint p16">Sin resultados</div>`;
   };
   const run = (i) => { const it = items[i]; closePalette(); it?.run(); };
   input.addEventListener("input", () => { sel = 0; draw(); });

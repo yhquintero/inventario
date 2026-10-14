@@ -37,6 +37,9 @@ function emptyState() {
     warehouseEntries: [],
     customers: [],
     credits: [],
+    fichas: [],
+    ipvControls: [],
+    surveys: [],
     settings: {
       theme: "system",
       businessName: "NovaGest",
@@ -53,7 +56,7 @@ function emptyState() {
     users: [],
   };
 }
-const SHARED = ["products", "movements", "cuadres", "audit", "rates", "priceHistory", "weekly", "excelDailyReports", "settings", "warehouses", "warehouseEntries", "customers", "credits"];
+const SHARED = ["products", "movements", "cuadres", "audit", "rates", "priceHistory", "weekly", "excelDailyReports", "settings", "warehouses", "warehouseEntries", "customers", "credits", "fichas", "ipvControls", "surveys"];
 
 class Store {
   constructor() {
@@ -115,6 +118,9 @@ class Store {
     if (!Array.isArray(st.warehouseEntries)) { st.warehouseEntries = []; changed = true; }
     if (!Array.isArray(st.customers)) { st.customers = []; changed = true; }
     if (!Array.isArray(st.credits)) { st.credits = []; changed = true; }
+    if (!Array.isArray(st.fichas)) { st.fichas = []; changed = true; }
+    if (!Array.isArray(st.ipvControls)) { st.ipvControls = []; changed = true; }
+    if (!Array.isArray(st.surveys)) { st.surveys = []; changed = true; }
     let def = st.warehouses.find((w) => !w.deletedAt && w.isDefault) || st.warehouses.find((w) => !w.deletedAt);
     if (!def) {
       def = {
@@ -474,6 +480,183 @@ class Store {
     credit.deletedAt = Date.now();
     credit.deletedBy = this.state.session?.displayName;
     this.audit("TRASH", "credit", `Fiado ${credit.totalUsd} USD de ${credit.customerName} eliminado`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  /* ================= FICHAS DE COSTO Y CONTROLES IPV =================
+     Adaptado de yhquintero/IPV_Fichas-Costos (fichas versionadas, aprobación
+     y controles IPV-AAAA-NNNN con foto de la ficha). Los componentes son
+     productos del inventario (materialId = producto), sin catálogo duplicado. */
+  activeFichas() { return (this.state.fichas || []).filter((f) => !f.deletedAt); }
+  fichaById(id) { return (this.state.fichas || []).find((f) => f.id === id) || null; }
+  fichasOfProduct(productId) { return this.activeFichas().filter((f) => f.productId === productId).sort((a, b) => b.version - a.version); }
+  activeControls() { return (this.state.ipvControls || []).filter((c) => !c.deletedAt); }
+  controlById(id) { return (this.state.ipvControls || []).find((c) => c.id === id) || null; }
+  /** Raciones posibles con el stock total actual (todos los almacenes). */
+  fichaServings(ficha) {
+    return servingsFromStock(ficha?.items || [], ficha?.yieldQty, (pid) => {
+      const p = this.state.products.find((x) => x.id === pid);
+      return p ? Number(p.stockActual) || 0 : 0;
+    });
+  }
+  fichaCostPerServing(ficha) { return costPerServing(ficha?.totalCost, ficha?.yieldQty); }
+
+  saveFicha(data) {
+    if (!can(this.state.session?.role, "IPV_EDIT")) return { error: "Tu rol no puede editar Fichas de Costo." };
+    const product = this.state.products.find((p) => p.id === data.productId && !p.deletedAt);
+    if (!product) return { error: "Elige un producto o servicio válido." };
+    const items = (data.items || []).map((it) => ({
+      materialId: it.materialId || null,
+      description: String(it.description || "").replace(/\s+/g, " ").trim().slice(0, 200),
+      quantity: Number(it.quantity) || 0,
+      unit: String(it.unit || "unidad").trim().slice(0, 30) || "unidad",
+      unitCost: Math.max(0, Number(it.unitCost) || 0),
+    }));
+    const err = validateFichaData({ productId: product.id, items });
+    if (err) return { error: err };
+    const { yieldQty, yieldUnit } = normalizeYield(data.yieldQty, data.yieldUnit);
+    const who = this.state.session?.displayName || "sistema";
+    const fields = {
+      productId: product.id, productName: product.name,
+      validFrom: String(data.validFrom || todayISO()).slice(0, 10),
+      observations: String(data.observations || "").trim().slice(0, 1000),
+      currency: data.currency === "CUP" ? "CUP" : "USD",
+      yieldQty, yieldUnit, items, totalCost: fichaTotal(items),
+      updatedAt: Date.now(), updatedBy: who,
+    };
+    if (!data.id) {
+      const ficha = {
+        id: uid("ficha"), ...fields, version: nextVersion(this.activeFichas(), product.id),
+        status: "Borrador", createdAt: Date.now(), createdBy: who, deletedAt: null,
+      };
+      (this.state.fichas ||= []).unshift(ficha);
+      this.audit("FICHA_CREATE", "ficha", `${product.name} v${ficha.version} · ${fields.totalCost} ${fields.currency}`, ficha.id);
+      this.emit();
+      return { ok: true, id: ficha.id };
+    }
+    const prev = this.fichaById(data.id);
+    if (!prev || prev.deletedAt) return { error: "Ficha no encontrada." };
+    if (prev.status !== "Borrador") return { error: "Solo se pueden editar fichas en estado Borrador. Crea una nueva versión." };
+    Object.assign(prev, fields);
+    this.audit("FICHA_UPDATE", "ficha", `${product.name} v${prev.version} · ${fields.totalCost} ${fields.currency}`, prev.id);
+    this.emit();
+    return { ok: true, id: prev.id };
+  }
+
+  /** Clona una ficha como siguiente versión en Borrador (la aprobada no se toca). */
+  newFichaVersion(id) {
+    if (!can(this.state.session?.role, "IPV_EDIT")) return { error: "Tu rol no puede editar Fichas de Costo." };
+    const src = this.fichaById(id);
+    if (!src || src.deletedAt) return { error: "Ficha no encontrada." };
+    const who = this.state.session?.displayName || "sistema";
+    const ficha = {
+      ...JSON.parse(JSON.stringify(src)), id: uid("ficha"),
+      version: nextVersion(this.activeFichas(), src.productId), status: "Borrador",
+      createdAt: Date.now(), createdBy: who, updatedAt: Date.now(), updatedBy: who, deletedAt: null,
+    };
+    (this.state.fichas ||= []).unshift(ficha);
+    this.audit("FICHA_VERSION", "ficha", `${src.productName} v${ficha.version} (desde v${src.version})`, ficha.id);
+    this.emit();
+    return { ok: true, id: ficha.id };
+  }
+
+  approveFicha(id) {
+    if (!can(this.state.session?.role, "IPV_EDIT")) return { error: "Tu rol no puede aprobar Fichas de Costo." };
+    const ficha = this.fichaById(id);
+    if (!ficha || ficha.deletedAt) return { error: "Ficha no encontrada." };
+    if (ficha.status === "Aprobada") return { error: "Esa ficha ya está aprobada." };
+    const err = validateFichaData(ficha);
+    if (err) return { error: err };
+    ficha.status = "Aprobada";
+    ficha.updatedAt = Date.now();
+    ficha.updatedBy = this.state.session?.displayName || "sistema";
+    this.audit("FICHA_APPROVE", "ficha", `${ficha.productName} v${ficha.version}`, ficha.id);
+    this.emit();
+    return { ok: true };
+  }
+
+  deleteFicha(id) {
+    if (!can(this.state.session?.role, "IPV_EDIT")) return { error: "Tu rol no puede editar Fichas de Costo." };
+    const ficha = this.fichaById(id);
+    if (!ficha || ficha.deletedAt) return { error: "Ficha no encontrada." };
+    ficha.deletedAt = Date.now();
+    ficha.deletedBy = this.state.session?.displayName;
+    this.audit("FICHA_TRASH", "ficha", `${ficha.productName} v${ficha.version}`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  restoreFicha(id) {
+    if (!can(this.state.session?.role, "IPV_EDIT")) return { error: "Tu rol no puede editar Fichas de Costo." };
+    const ficha = this.fichaById(id);
+    if (!ficha) return { error: "Ficha no encontrada." };
+    ficha.deletedAt = null;
+    this.audit("FICHA_RESTORE", "ficha", `${ficha.productName} v${ficha.version}`, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  /** Crea el Control IPV de un período: foto exacta de las líneas de la ficha. */
+  createControl({ fichaId, period, notes = "" } = {}) {
+    if (!can(this.state.session?.role, "IPV_EDIT")) return { error: "Tu rol no puede crear Controles IPV." };
+    const ficha = this.fichaById(fichaId);
+    if (!ficha || ficha.deletedAt) return { error: "Elige una ficha válida." };
+    const per = String(period || "").trim();
+    if (!PERIOD_RE.test(per)) return { error: "Indica el período del control en formato AAAA-MM." };
+    if (!(ficha.items || []).length) return { error: "No se puede crear un control desde una ficha vacía." };
+    if (this.activeControls().some((c) => c.fichaId === fichaId && c.period === per)) {
+      return { error: `Ya existe un control de esa ficha para ${per}.` };
+    }
+    const who = this.state.session?.displayName || "sistema";
+    const control = {
+      id: uid("ipv"), code: nextControlCode(this.activeControls(), per),
+      fichaId, fichaVersion: ficha.version, productId: ficha.productId, productName: ficha.productName,
+      currency: ficha.currency || "USD", period: per, status: "Pendiente",
+      snapshotTotal: ficha.totalCost, checkedTotal: 0,
+      items: JSON.parse(JSON.stringify(ficha.items || [])),
+      notes: String(notes || "").trim().slice(0, 1000), validationMessages: [],
+      createdAt: Date.now(), createdBy: who, checkedAt: null, deletedAt: null,
+    };
+    (this.state.ipvControls ||= []).unshift(control);
+    this.audit("IPV_CONTROL_CREATE", "ipvControl", `${control.code} · ${ficha.productName} v${ficha.version} · ${per}`, control.id);
+    this.emit();
+    return { ok: true, id: control.id, code: control.code };
+  }
+
+  validateControl(id) {
+    if (!can(this.state.session?.role, "IPV_EDIT")) return { error: "Tu rol no puede validar Controles IPV." };
+    const control = this.controlById(id);
+    if (!control || control.deletedAt) return { error: "Control no encontrado." };
+    const ficha = this.fichaById(control.fichaId);
+    const r = validateControlData({ ficha, control });
+    control.status = r.status;
+    control.checkedTotal = r.checkedTotal;
+    control.validationMessages = r.messages;
+    control.checkedAt = Date.now();
+    control.checkedBy = this.state.session?.displayName || "sistema";
+    this.audit("IPV_CONTROL_VALIDATE", "ipvControl", `${control.code} · ${r.status} · ${r.checkedTotal} ${control.currency}`, control.id);
+    this.emit();
+    return { ok: true, status: r.status };
+  }
+
+  deleteControl(id) {
+    if (!can(this.state.session?.role, "IPV_EDIT")) return { error: "Tu rol no puede editar Controles IPV." };
+    const control = this.controlById(id);
+    if (!control || control.deletedAt) return { error: "Control no encontrado." };
+    control.deletedAt = Date.now();
+    control.deletedBy = this.state.session?.displayName;
+    this.audit("IPV_CONTROL_TRASH", "ipvControl", control.code, id);
+    this.emit();
+    return { ok: true };
+  }
+
+  restoreControl(id) {
+    if (!can(this.state.session?.role, "IPV_EDIT")) return { error: "Tu rol no puede editar Controles IPV." };
+    const control = this.controlById(id);
+    if (!control) return { error: "Control no encontrado." };
+    control.deletedAt = null;
+    this.audit("IPV_CONTROL_RESTORE", "ipvControl", control.code, id);
     this.emit();
     return { ok: true };
   }
