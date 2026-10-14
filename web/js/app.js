@@ -219,8 +219,12 @@ function licenseRequestCard(st) {
       <div class="chips mv8">
         ${terms.map((t) => `<button type="button" class="chip ${sel === t.id ? "on" : ""}" data-lic-term="${t.id}">${t.icon || ""} ${esc(t.label)}</button>`).join("")}
       </div>
+      <label class="consent-check lic-request-consent" for="licConsent">
+        <input id="licConsent" type="checkbox" aria-describedby="licConsentHelp">
+        <span id="licConsentHelp">Autorizo registrar los datos de esta solicitud para gestionar mi licencia. Consulta la <a href="#legal" data-legal-doc="privacidad">Política de privacidad</a>.</span>
+      </label>
       <button type="button" class="btn full btn-wa" data-act="license-whatsapp">💬 SOLICITAR POR WHATSAPP</button>
-      <p class="hint mt8">Se abre WhatsApp con tu nombre, ID de dispositivo y plazo ya escritos${st?.whatsapp ? " al número de NovaGest" : ""} y la solicitud queda <b>registrada</b>: el administrador la ve en <b>Gestionar → Solicitudes</b> y responde con la clave firmada para pegarla abajo.</p>
+      <p class="hint mt8">Se abre WhatsApp con tu nombre, ID de dispositivo y plazo ya escritos${st?.whatsapp ? " al número de NovaGest" : ""}. Si autorizas el registro, la solicitud también queda disponible para el administrador en <b>Gestionar → Solicitudes</b>.</p>
     </div>`;
 }
 
@@ -567,7 +571,7 @@ function licenseView() {
               <div class="demo">
                 <strong>¿Primera vez?</strong><br>
                 Solicita tu plazo por WhatsApp (paso 1) o pide a un administrador que genere la clave desde <code>Ajustes → Licencia</code>.<br>
-                Prueba automática: ${st?.trialDays || 15} días.
+                La licencia solo se activa al introducir arriba una clave válida proporcionada por un administrador.
               </div>
               ${legalLinks("login-legal")}
             </form>

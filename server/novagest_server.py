@@ -36,7 +36,6 @@ ADMINS = {"ADMINISTRADOR", "JEFE"}
 APP_VERSION = "1.0.0"
 LICENSE_PRODUCT = os.environ.get("LICENSE_PRODUCT", "NovaGest")
 LICENSE_FILE = os.path.join(DATA, "license.key")
-LICENSE_TRIAL_DAYS = int(os.environ.get("LICENSE_TRIAL_DAYS", "15"))
 LICENSE_EXEMPT = {"/api/health", "/api/license/status", "/api/license/activate", "/api/license/verify", "/api/license/request", "/api/legal"}
 # Licencia por término (solicitud por WhatsApp, como en DrywallMaterialsCalculator):
 # el cliente elige un plazo, envía sus datos por WhatsApp y recibe la clave firmada.
@@ -92,7 +91,6 @@ def license_public_config():
         "version": APP_VERSION,
         "whatsapp": LICENSE_WHATSAPP,
         "terms": LICENSE_TERMS,
-        "trialDays": LICENSE_TRIAL_DAYS,
     }
 
 # Quién puede modificar cada sección del estado compartido
@@ -433,50 +431,6 @@ def register_license_request(b, ip="", user_agent=""):
     return row, False
 
 
-def ensure_trial_license():
-    try:
-        cnt = q("SELECT COUNT(*) as c FROM licenses", one=True)
-        if cnt and cnt["c"] > 0:
-            return
-    except Exception:
-        return
-    # Crea licencia de prueba
-    payload = generate_license_payload(
-        client_name="NovaGest (Prueba)",
-        product=LICENSE_PRODUCT,
-        license_type="TRIAL",
-        days=LICENSE_TRIAL_DAYS,
-        max_users=5,
-        max_devices=3,
-        features=["*"],
-    )
-    token = create_license_token(payload)
-    try:
-        q(
-            "INSERT INTO licenses(key, client_name, product, type, issued_at, expires_at, max_users, max_devices, features, active, created_by, created_at, last_verified, metadata) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (
-                token,
-                payload["client_name"],
-                payload["product"],
-                payload["type"],
-                payload["issued_at"],
-                payload["expires_at"],
-                payload["max_users"],
-                payload["max_devices"],
-                json.dumps(payload["features"], ensure_ascii=False),
-                1,
-                "sistema",
-                now(),
-                now(),
-                json.dumps({"auto_trial": True}, ensure_ascii=False),
-            ),
-        )
-        audit("sistema", "LICENSE_TRIAL", f"Licencia de prueba creada ({LICENSE_TRIAL_DAYS} días) · {payload['license_id']}")
-        print(f"[LICENCIA] Licencia de prueba creada: {payload['license_id']} expira en {LICENSE_TRIAL_DAYS} días", flush=True)
-    except Exception as e:
-        print(f"[LICENCIA] No se pudo crear licencia de prueba: {e}", flush=True)
-
-
 # ------------------------------------------------------------------ contraseñas
 def hash_pw(pw, iters=210_000):
     salt = secrets.token_hex(16)
@@ -585,11 +539,8 @@ def init_db():
     CREATE TABLE IF NOT EXISTS rate_hits(k TEXT PRIMARY KEY, hits TEXT);
     """)
     CON.commit()
-    # Licencia de uso: si no hay ninguna, crea una de prueba automáticamente
-    try:
-        ensure_trial_license()
-    except Exception as e:
-        print(f"[LICENCIA] Error al verificar licencia inicial: {e}", flush=True)
+    # No se activa ninguna licencia durante el arranque. La primera activación
+    # debe llegar explícitamente a /api/license/activate con una clave válida.
     if not q("SELECT 1 FROM users LIMIT 1", one=True):
         # Producción: NOVAGEST_DEMO_USERS=0 + NOVAGEST_ADMIN_PASSWORD=<secreta>
         # crea solo el administrador con esa contraseña (sin cuentas conocidas).
@@ -949,8 +900,15 @@ class Api(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def log_message(self, fmt, *args):
-        if "/api/state/version" not in (args[0] if args else ""):
-            print("[%s] %s %s" % (self.log_date_time_string(), self.ip(), fmt % args), flush=True)
+        # HTTPServer pasa códigos HTTPStatus (no cadenas) en algunos send_error;
+        # filtrar args[0] como texto provocaba TypeError al usar el operador "in".
+        try:
+            message = fmt % args if args else fmt
+        except (TypeError, ValueError):
+            message = f"{fmt} {args!r}"
+        message = str(message)
+        if "/api/state/version" not in message:
+            print("[%s] %s %s" % (self.log_date_time_string(), self.ip(), message), flush=True)
 
 
 ROUTES = {}

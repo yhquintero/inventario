@@ -531,6 +531,12 @@ test("El servidor recibe las secciones nuevas al guardar", () => {
 /* ----------------------------- licencia: gestión, solicitudes y claves ----------------------------- */
 console.log("\nWeb · Licencia de uso: Gestionar, solicitudes y claves\n");
 
+test("La activación no promete una prueba automática", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  assert.ok(source.includes("La licencia solo se activa al introducir arriba una clave válida proporcionada por un administrador."));
+  assert.ok(!source.includes("Prueba automática:"), "no debe anunciarse una prueba que ya no se crea");
+});
+
 // Deja llegar /api/license/info (el panel lo pide al abrirse)
 await flush();
 go("settings");
@@ -542,6 +548,8 @@ test("La tarjeta de Ajustes explica la verificación previa y ofrece Gestionar/V
   assert.match(html, /data-act="license-manage"/);
   assert.match(html, /data-act="license-refresh"/);
   assert.match(html, /data-act="license-whatsapp"/);
+  assert.match(html, /id="licConsent" type="checkbox"/);
+  assert.match(html, /data-legal-doc="privacidad"/);
 });
 
 test("«Gestionar» abre el panel de la licencia con sus pestañas (no se queda en «Verificar»)", () => {
@@ -631,6 +639,20 @@ await atest("El rol JEFE puede ver las licencias pero no eliminarlas", async () 
     click({ licTab: "licencias" });
     await flush();
   }
+});
+
+await atest("La solicitud no se envía si no se autoriza el registro", async () => {
+  click({ licTab: "estado" });
+  await flush();
+  getEl("licReqName").value = "Tienda Nova";
+  getEl("licConsent").checked = false;
+  fetchCalls.length = 0;
+  openedUrls.length = 0;
+  click({ act: "license-whatsapp" });
+  await flush();
+  assert.equal(fetchCalls.some((c) => c.url.endsWith("/api/license/request")), false);
+  assert.equal(openedUrls.length, 0);
+  assert.match(app.innerHTML, /Marca primero la casilla de privacidad/);
 });
 
 await atest("Solicitar por WhatsApp registra la solicitud en el servidor y abre WhatsApp", async () => {

@@ -9,7 +9,8 @@ Comprueba, sin arrancar el servidor HTTP:
   · los 8 plazos publicados y el plazo por defecto,
   · el registro de solicitudes en la base de datos (con deduplicación),
   · los estados (pendiente / atendida / descartada) y los conteos,
-  · la conversión de una solicitud en licencia (nombre y plazo de la propia solicitud).
+  · la conversión de una solicitud en licencia (nombre y plazo de la propia solicitud),
+  · que el arranque no cree licencias de prueba y que solo una clave válida active licencia.
 """
 import datetime as dt
 import os
@@ -44,6 +45,34 @@ def _check(cond, extra=""):
         raise AssertionError(extra or "comprobación fallida")
 
 
+class FakeLicenseHandler:
+    """Adaptador mínimo para invocar la ruta de activación sin abrir un servidor."""
+    def __init__(self, body):
+        self._body = body
+        self.headers = {"User-Agent": "test_licencia.py"}
+        self.response = None
+
+    def body(self):
+        return self._body
+
+    def ip(self):
+        return "127.0.0.1"
+
+    def err(self, status, message):
+        self.response = (status, {"error": message})
+        return self.response
+
+    def send_json(self, status, payload):
+        self.response = (status, payload)
+        return self.response
+
+
+def call_license_activate(body):
+    handler = FakeLicenseHandler(body)
+    srv.ROUTES[("POST", "/api/license/activate")](handler, "")
+    return handler.response
+
+
 def reset():
     srv.q("DELETE FROM license_requests")
     srv.q("DELETE FROM licenses WHERE created_by='prueba'")
@@ -76,6 +105,16 @@ def _generate_from_request(req_id):
 
 
 print("\nLicencia · Solicitudes por WhatsApp y gestión\n")
+
+
+def prueba_sin_licencia_automatica():
+    total = srv.q("SELECT COUNT(*) AS c FROM licenses", one=True)["c"]
+    _check(total == 0, f"el arranque creó {total} licencia(s)")
+    _check(not srv.get_active_license_info()["valid"], "no debe haber licencia activa al arrancar")
+
+
+test("el arranque no crea ni activa una licencia de prueba", prueba_sin_licencia_automatica)
+
 
 def prueba_mensaje():
     msg = srv.license_request_message("Tienda Nova", "web-hhsp9rqlmv5zhygs", "MES", when=1791856318)
@@ -173,6 +212,50 @@ test("la fecha de la solicitud usa el formato es-CU de la Web", lambda: (
 test("la tabla license_requests existe en la base de datos creada", lambda: (
     _check(srv.q("SELECT COUNT(*) AS c FROM license_requests", one=True) is not None, "falta la tabla"),
 ))
+
+
+def prueba_activacion_explicita_y_sin_recreacion():
+    token = None
+    try:
+        total = srv.q("SELECT COUNT(*) AS c FROM licenses", one=True)["c"]
+        _check(total == 0, f"la prueba requiere una BD sin licencias; hay {total}")
+
+        status, body = call_license_activate({})
+        _check(status == 400 and "error" in body, f"sin clave: HTTP {status}, {body}")
+        _check(srv.q("SELECT COUNT(*) AS c FROM licenses", one=True)["c"] == 0,
+               "una activación vacía no debe crear licencia")
+
+        status, body = call_license_activate({"license_key": "clave-inválida"})
+        _check(status == 400 and "no válida" in body.get("error", ""),
+               f"clave inválida: HTTP {status}, {body}")
+        _check(srv.q("SELECT COUNT(*) AS c FROM licenses", one=True)["c"] == 0,
+               "una clave inválida no debe crear licencia")
+
+        payload = srv.generate_license_payload(client_name="Activación explícita", days=30)
+        token = srv.create_license_token(payload)
+        status, body = call_license_activate({
+            "license_key": token,
+            "device_id": "activation-regression-device",
+        })
+        _check(status == 200 and body.get("valid") is True,
+               f"clave válida: HTTP {status}, {body}")
+        _check(srv.get_active_license_info()["valid"], "la clave válida debe quedar activa")
+
+        srv.q("DELETE FROM license_activations WHERE license_key=?", (token,))
+        srv.q("DELETE FROM licenses WHERE key=?", (token,))
+        token = None
+        srv.init_db()  # simula el siguiente arranque después de eliminar la licencia
+        total = srv.q("SELECT COUNT(*) AS c FROM licenses", one=True)["c"]
+        _check(total == 0, f"el reinicio recreó una licencia ({total} encontrada)")
+        _check(not srv.get_active_license_info()["valid"], "no debe quedar una licencia activa tras eliminarla")
+    finally:
+        if token:
+            srv.q("DELETE FROM license_activations WHERE license_key=?", (token,))
+            srv.q("DELETE FROM licenses WHERE key=?", (token,))
+
+
+test("solo una clave válida activa la licencia y el arranque no la recrea tras eliminarla",
+     prueba_activacion_explicita_y_sin_recreacion)
 
 reset()
 print(f"\n{ok} pruebas correctas, {fail} fallidas\n")

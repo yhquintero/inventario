@@ -86,6 +86,13 @@ LICENSE_TYPES = ("TRIAL", "FULL", "ENTERPRISE", "LIFETIME")
 WHATSAPP_DEFAULT = re.sub(r"\D", "", os.environ.get("LICENSE_WHATSAPP")
                           or os.environ.get("NOVAGEST_WHATSAPP")
                           or os.environ.get("WHATSAPP_NUMBER") or "")
+FAVICON_SVG = """<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\">
+<defs><linearGradient id=\"g\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop stop-color=\"#172554\"/><stop offset=\"1\" stop-color=\"#059669\"/></linearGradient></defs>
+<rect width=\"64\" height=\"64\" rx=\"16\" fill=\"url(#g)\"/>
+<path d=\"M32 5 53 13v15c0 14-8.6 24.4-21 31C19.6 52.4 11 42 11 28V13z\" fill=\"#fff\" opacity=\".96\"/>
+<circle cx=\"27\" cy=\"27\" r=\"6\" fill=\"none\" stroke=\"#172554\" stroke-width=\"5\"/>
+<path d=\"m31.5 31.5 13 13m-6-6 5-5m-1 11 5-5\" fill=\"none\" stroke=\"#172554\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>
+</svg>"""
 
 # Clave de acceso de la herramienta (se resuelve en main() / load_access_key)
 ACCESS_KEY = ""
@@ -232,6 +239,26 @@ def secret_source():
 
 def db_available():
     return os.path.exists(gen.db_path())
+
+
+def legal_public_data():
+    """Lee únicamente los datos legales públicos de NovaGest; nunca expone secretos."""
+    if not db_available():
+        return {}
+    try:
+        con = db_connect()
+        try:
+            row = con.execute("SELECT data FROM legal_info WHERE id=1").fetchone()
+            if not row:
+                return {}
+            data = json.loads(row["data"] or "{}")
+            return data if isinstance(data, dict) else {}
+        finally:
+            con.close()
+    except (sqlite3.Error, ValueError, TypeError):
+        # La tabla puede no existir en una instalación antigua; los textos mantienen
+        # entonces los marcadores [COMPLETAR] y no se inventan datos del titular.
+        return {}
 
 
 def db_connect():
@@ -684,21 +711,29 @@ INDEX_HTML = r"""<!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Generador de Licencias · NovaGest</title>
-<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14264f">
+<meta name="description" content="NovaGest License Studio: herramienta privada para gestionar licencias firmadas, solicitudes y equipos.">
+<meta name="color-scheme" content="light">
+<title>NovaGest · Generador seguro de licencias</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
   :root {
     --bg: #f2f4f8; --card: #ffffff; --ink: #17233b; --muted: #5b6b85;
     --line: #d9e0ec; --brand: #1f4fd8; --brand-ink: #ffffff; --ok: #25d366;
     --danger: #b3261e; --danger-bg: #fdecea; --warn-bg: #fff6e5; --warn-ink: #7a5200;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --shadow: 0 14px 44px rgba(23, 35, 59, .12);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); }
-  header { background: linear-gradient(120deg, #14264f, #1f4fd8); color: #fff; padding: 22px 20px 18px; }
+  [hidden] { display: none !important; }
+  body { min-height: 100vh; margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: radial-gradient(ellipse at 85% 0%, #e2eaff 0, transparent 42%), var(--bg); color: var(--ink); }
+  header { background: linear-gradient(120deg, #14264f, #1f4fd8 65%, #087f64); color: #fff; padding: 20px max(20px, calc((100% - 1040px) / 2)); box-shadow: 0 6px 24px rgba(20,38,79,.16); }
   header h1 { margin: 0; font-size: 21px; }
   header .sub { margin: 6px 0 0; opacity: .92; font-size: 13.5px; }
+  .brand-lockup { display: flex; align-items: center; gap: 14px; max-width: 1040px; margin: 0 auto; }
+  .brand-icon { width: 48px; height: 48px; flex: 0 0 auto; border-radius: 14px; box-shadow: 0 5px 18px rgba(0,0,0,.2); }
+  .brand-eyebrow { margin: 0 0 2px; color: #c4d7ff; font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
   header .badge { display: inline-block; margin-left: 8px; padding: 2px 10px; border-radius: 999px; background: rgba(255,255,255,.18); font-size: 12px; vertical-align: 2px; }
   .hdr-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 12px; font-size: 12.5px; }
   .hdr-bar .chip { padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.16); }
@@ -759,44 +794,85 @@ INDEX_HTML = r"""<!doctype html>
   footer { max-width: 1040px; margin: 0 auto 30px; padding: 0 16px; color: var(--muted); font-size: 12px; }
   .ok-msg { color: #14663a; font-weight: 600; }
   .err-msg { color: #a12222; font-weight: 600; }
-  #login { max-width: 460px; margin: 60px auto; }
-  #login .card { padding: 26px 24px; }
+  #login { width: min(460px, calc(100% - 32px)); margin: clamp(28px, 7vh, 72px) auto 34px; }
+  #login .card { padding: 26px 24px; border-radius: 18px; box-shadow: var(--shadow); }
   #login h1 { font-size: 19px; margin: 0 0 6px; }
+  .login-mark { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 14px; border-radius: 15px; background: #e9efff; color: #1f4fd8; font-size: 24px; }
+  .login-kicker, .eyebrow { margin: 0 0 3px; color: var(--brand); font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+  #login input { min-height: 44px; }
+  #login input:focus-visible, .btn:focus-visible, a:focus-visible, button:focus-visible { outline: 3px solid #8bb4ff; outline-offset: 2px; }
+  .site-footer { max-width: 1040px; margin: 34px auto 0; padding: 18px 16px 30px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+  .footer-brand { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 12px; }
+  .footer-brand strong { color: var(--ink); font-size: 14px; }
+  .legal-links { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0 12px; }
+  .legal-links a { color: var(--brand); font-weight: 650; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  dialog { width: min(780px, calc(100% - 24px)); max-width: none; max-height: min(86vh, 900px); padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; color: var(--ink); background: var(--card); box-shadow: 0 24px 80px rgba(4, 14, 39, .3); }
+  dialog::backdrop { background: rgba(11, 20, 42, .58); backdrop-filter: blur(3px); }
+  .legal-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 22px 12px; border-bottom: 1px solid var(--line); }
+  .legal-dialog-head h2 { margin: 0; font-size: 20px; }
+  .legal-dialog-head .eyebrow { margin-bottom: 3px; }
+  .legal-close { width: 36px; height: 36px; border-radius: 10px; padding: 0; font-size: 20px; }
+  .legal-tabs { padding: 12px 22px 0; }
+  .legal-tabs button { font-size: 11.5px; padding: 6px 10px; }
+  .legal-content { max-height: 58vh; overflow: auto; padding: 14px 22px 24px; }
+  .legal-content h3 { margin: 18px 0 5px; font-size: 14px; }
+  .legal-content p, .legal-content li { line-height: 1.6; }
+  .legal-content ul { padding-left: 22px; }
+  .legal-notice { padding: 12px 14px; margin: 4px 0 16px; border: 1px solid #f0dca8; border-radius: 11px; color: var(--warn-ink); background: var(--warn-bg); font-size: 12.5px; }
+  .legal-dialog-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 22px; border-top: 1px solid var(--line); }
+  .legal-dialog-foot p { margin: 0; }
   .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 4px; }
+  @media (max-width: 560px) {
+    header { padding: 16px; }
+    .brand-lockup { align-items: flex-start; }
+    .brand-icon { width: 42px; height: 42px; }
+    .brand-lockup h1 { font-size: 18px; }
+    #login { margin-top: 28px; }
+    #login .card { padding: 22px 19px; }
+    .legal-dialog-head, .legal-tabs { padding-left: 16px; padding-right: 16px; }
+    .legal-content { padding: 12px 16px 20px; max-height: 55vh; }
+    .legal-dialog-foot { padding: 12px 16px; }
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>🔐 Generador de Licencias <span class="badge">aparte de la Web</span></h1>
-  <p class="sub">NovaGest · genera la clave firmada, <b>controla todas las licencias emitidas</b> y envíala por WhatsApp con un solo clic.</p>
+  <div class="brand-lockup">
+    <img class="brand-icon" src="/favicon.svg" alt="" width="48" height="48">
+    <div>
+      <p class="brand-eyebrow">NovaGest · Área privada</p>
+      <h1>Generador de Licencias <span class="badge">herramienta segura</span></h1>
+      <p class="sub">Genera claves firmadas, gestiona solicitudes y controla los equipos activados.</p>
+    </div>
+  </div>
   <div class="hdr-bar" id="hdr-bar" hidden>
     <span class="chip" id="chip-proto">—</span>
     <span class="chip" id="chip-secret">—</span>
     <span class="chip" id="chip-db">—</span>
-    <button class="btn ghost small" id="btn-logout">Salir</button>
+    <button class="btn ghost small" id="btn-logout" type="button">Salir</button>
   </div>
 </header>
 
-<section id="login" hidden>
+<section id="login" aria-labelledby="login-title">
   <div class="card">
-    <h1>🔒 Acceso del administrador</h1>
-    <p class="hint">Esta herramienta es privada: escriba la <b>clave de acceso</b> para entrar.
-      Se guarda en <b id="login-path">data\licencia-acceso.txt</b> (o en la variable
-      <b>LICENSE_ADMIN_KEY</b>) y se muestra en la consola al arrancar el generador.</p>
+    <div class="login-mark" aria-hidden="true">🔒</div>
+    <p class="login-kicker">Acceso seguro · NovaGest</p>
+    <h1 id="login-title">🔒 Acceso del administrador</h1>
+    <p class="hint">Esta herramienta es privada: escriba la <b>clave de acceso</b> para entrar. Se configura con <code>--clave</code> o <code>LICENSE_ADMIN_KEY</code>; si no se indican, se guarda en <code>data/licencia-acceso.txt</code>. La clave se muestra en la consola al arrancar el generador.</p>
     <form id="login-form">
-      <label>Clave de acceso
-        <input id="login-key" type="password" autocomplete="current-password" autofocus placeholder="••••••••">
+      <label for="login-key">Clave de acceso
+        <input id="login-key" type="password" autocomplete="current-password" required autofocus placeholder="••••••••">
       </label>
       <div class="row">
         <button class="btn primary" type="submit">Entrar</button>
-        <span class="hint" id="login-msg"></span>
+        <span class="hint" id="login-msg" role="status" aria-live="polite"></span>
       </div>
     </form>
   </div>
 </section>
 
 <main id="app" hidden>
-  <div class="status" id="status">Cargando…</div>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
 
   <nav class="tabs" id="tabs">
     <button data-tab="generar" class="on">🆕 Generar</button>
@@ -917,11 +993,36 @@ INDEX_HTML = r"""<!doctype html>
     </div>
   </section>
 </main>
-<footer>
-  El cliente activa la clave en <b>Licencia de uso → Activar licencia</b> (Web o app Android).
-  Esta herramienta no modifica la Web de NovaGest: funciona como un proceso aparte y usa el
-  mismo formato de clave (HMAC-SHA256) que el servidor verifica en <b>/api/license/activate</b>.
+<footer class="site-footer" id="site-footer">
+  <div class="footer-brand"><strong>NovaGest</strong><span>Generador de licencias · herramienta privada</span></div>
+  <b>Información legal</b>
+  <nav class="legal-links" aria-label="Información legal">
+    <a href="#legal-aviso" data-legal-doc="aviso">Aviso legal</a>
+    <a href="#legal-privacidad" data-legal-doc="privacidad">Política de privacidad</a>
+    <a href="#legal-terminos" data-legal-doc="terminos">Términos y condiciones</a>
+    <a href="#legal-cookies" data-legal-doc="cookies">Política de cookies</a>
+    <a href="#legal-reembolsos" data-legal-doc="reembolsos">Política de reembolsos</a>
+  </nav>
+  <p>El cliente activa la clave en <b>Licencia de uso → Activar licencia</b> (Web o app Android). Esta herramienta usa el mismo formato firmado (HMAC-SHA256) que el servidor verifica en <b>/api/license/activate</b>.</p>
 </footer>
+<dialog id="legal-dialog" aria-labelledby="legal-title">
+  <div class="legal-dialog-head">
+    <div><p class="eyebrow">NovaGest · Información legal</p><h2 id="legal-title">Aviso legal</h2></div>
+    <button class="btn legal-close" id="legal-close" type="button" aria-label="Cerrar información legal">×</button>
+  </div>
+  <nav class="tabs legal-tabs" id="legal-tabs" aria-label="Documentos legales">
+    <button type="button" data-legal-doc="aviso">Aviso legal</button>
+    <button type="button" data-legal-doc="privacidad">Privacidad</button>
+    <button type="button" data-legal-doc="terminos">Términos</button>
+    <button type="button" data-legal-doc="cookies">Cookies</button>
+    <button type="button" data-legal-doc="reembolsos">Reembolsos</button>
+  </nav>
+  <article class="legal-content" id="legal-content"></article>
+  <div class="legal-dialog-foot">
+    <p class="hint">Complete los datos del titular desde NovaGest → Ajustes → Datos legales.</p>
+    <button class="btn primary small" id="legal-done" type="button">Entendido</button>
+  </div>
+</dialog>
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
@@ -944,6 +1045,93 @@ const jpost = (url, body) => jreq(url, {
   body: JSON.stringify(body || {}),
 });
 const jdel = (url) => jreq(url, { method: "DELETE" });
+
+// Campos sincronizados con NovaGest → Ajustes → Datos legales. Si falta un dato,
+// se conserva el marcador visible: nunca se inventan datos del titular.
+const LEGAL_DEFAULTS = {
+  razonSocial: "[COMPLETAR: razón social / nombre legal del titular]",
+  idFiscal: "[COMPLETAR: identificación fiscal o registro]",
+  domicilio: "[COMPLETAR: domicilio legal]",
+  contacto: "[COMPLETAR: correo y teléfono de contacto]",
+  privacidad: "[COMPLETAR: contacto para privacidad y derechos de datos]",
+  pais: "[COMPLETAR: país y forma jurídica]",
+  retencion: "[COMPLETAR: plazos de conservación por tipo de dato]",
+  reembolso: "[COMPLETAR: política de reembolsos aprobada por el negocio]",
+  alojamiento: "[COMPLETAR: proveedor y país del alojamiento]",
+  privacidadRoles: "[COMPLETAR: quién es responsable y quién encargado de los datos]",
+  privacidadBase: "[COMPLETAR: base jurídica revisada para cada tratamiento]",
+  privacidadPlazo: "[COMPLETAR: plazo aplicable para responder solicitudes de privacidad]",
+  licenciaTransferencia: "[COMPLETAR: reglas de transferencia o cambio de dispositivo]",
+  pagos: "[COMPLETAR: medios de pago, moneda, impuestos y comprobantes]",
+  servicio: "[COMPLETAR: disponibilidad, soporte y mantenimiento]",
+  jurisdiccion: "[COMPLETAR: ley aplicable y vías de reclamación]",
+  limitaciones: "[COMPLETAR: límites de responsabilidad revisados por asesor]",
+  reembolsoPlazo: "[COMPLETAR: plazo para tramitar reembolsos]",
+  cookiesRevision: "[COMPLETAR: revisión de cookies y almacenamiento según jurisdicción]",
+};
+let LEGAL_DATA = null;
+const legalField = (key) => esc(String(LEGAL_DATA?.[key] || "").trim() || LEGAL_DEFAULTS[key]);
+const legalDraftNote = `<div class="legal-notice" role="note"><strong>Borrador pendiente de revisión legal profesional.</strong> Complete los campos marcados, confirme que las condiciones reflejan la operación real y solicite revisión en la jurisdicción correspondiente antes de publicarlos como definitivos.</div>`;
+const LEGAL_DOCUMENTS = {
+  aviso: { title: "Aviso legal", render: () => `${legalDraftNote}
+    <h3>1. Titular</h3><p><strong>${legalField("razonSocial")}</strong> · ${legalField("idFiscal")}<br>Domicilio: ${legalField("domicilio")}<br>Forma jurídica y país: ${legalField("pais")}<br>Contacto: ${legalField("contacto")}</p>
+    <h3>2. Servicio</h3><p>NovaGest es una herramienta de gestión para negocios que reúne inventario, ventas, caja, informes y control de licencias. El acceso al sistema requiere cuenta y licencia vigentes.</p>
+    <h3>3. Propiedad intelectual</h3><p>La titularidad y los permisos de uso de la marca, el software y sus contenidos deben confirmarse con ${legalField("razonSocial")}. Los datos que cada negocio introduce siguen sujetos a las condiciones acordadas con ese negocio.</p>
+    <h3>4. Uso de la información</h3><p>Las licencias y los cálculos son herramientas de gestión; revise los resultados antes de tomar decisiones comerciales, contables o de precios. Límites y condiciones: ${legalField("limitaciones")}.</p>` },
+  privacidad: { title: "Política de privacidad", render: () => `${legalDraftNote}
+    <h3>1. Responsable y contacto</h3><p>${legalField("razonSocial")} (${legalField("idFiscal")}), ${legalField("domicilio")}. Contacto para privacidad: ${legalField("privacidad")}. Roles de cada instalación: ${legalField("privacidadRoles")}.</p>
+    <h3>2. Datos y finalidades</h3><ul>
+      <li>Datos de cuenta y seguridad: usuario, rol, credenciales protegidas, sesiones y eventos de acceso.</li>
+      <li>Datos operativos que introduce cada negocio: productos, existencias, ventas, clientes, movimientos, auditoría y copias.</li>
+      <li>Solicitudes de licencia: nombre o empresa, ID e información del dispositivo, plazo y teléfono opcional; se usan para gestionar y responder la solicitud.</li>
+      <li>Generación de licencias: nombre del cliente, plan, límites de usuarios/equipos y clave firmada; pueden guardarse en la base de datos de la instalación. El servidor también puede registrar acciones administrativas e IP para seguridad.</li>
+    </ul>
+    <h3>3. Conservación y derechos</h3><p>Bases aplicables: ${legalField("privacidadBase")}. Plazos de conservación: ${legalField("retencion")}. Para solicitudes de acceso, rectificación, eliminación u otros derechos reconocidos, contacte con ${legalField("privacidad")}; plazo y canal: ${legalField("privacidadPlazo")}.</p>
+    <h3>4. Destinatarios y seguridad</h3><p>Si se pulsa el botón de WhatsApp, el navegador abre el servicio de WhatsApp con el texto preparado; se aplican las condiciones de Meta. Alojamiento: ${legalField("alojamiento")}. La herramienta aplica controles de acceso y sesiones; ninguna medida es infalible.</p>` },
+  terminos: { title: "Términos y condiciones", render: () => `${legalDraftNote}
+    <h3>1. Acceso y licencia</h3><p>El generador es una herramienta privada para el administrador. Las claves que emite NovaGest se firman con el secreto configurado para esa instalación: solo son válidas donde se comparte el mismo secreto. Límites y reglas para transferir o cambiar dispositivos: ${legalField("licenciaTransferencia")}.</p>
+    <h3>2. Uso permitido</h3><p>Use la herramienta para gestionar solicitudes y emitir licencias autorizadas. Proteja la clave de acceso y el secreto de firma. Queda prohibido eludir controles, divulgar secretos o usar el servicio para fines ilícitos.</p>
+    <h3>3. Precio, soporte y disponibilidad</h3><p>La aplicación no procesa pagos dentro del generador. Condiciones de pago: ${legalField("pagos")}. Soporte y disponibilidad: ${legalField("servicio")}.</p>
+    <h3>4. Responsabilidad y ley aplicable</h3><p>Las condiciones y límites aplicables son: ${legalField("limitaciones")}. País y forma jurídica del titular: ${legalField("pais")}. Ley y vías de reclamación: ${legalField("jurisdiccion")}.</p>
+    <p>Consulta también la <button type="button" class="btn small" data-legal-doc="reembolsos">Política de reembolsos</button>.</p>` },
+  cookies: { title: "Política de cookies", render: () => `${legalDraftNote}
+    <h3>1. Almacenamiento usado por esta herramienta</h3><p>El generador usa una cookie de sesión llamada <code>ngstudio</code>, protegida con <code>HttpOnly</code> y <code>SameSite=Lax</code>; se marca <code>Secure</code> cuando funciona por HTTPS. La cookie dura como máximo 12 horas y el servidor también invalida las sesiones después de 12 horas sin actividad. El navegador conserva esta cookie para permitir el acceso autenticado.</p>
+    <h3>2. Tecnologías no esenciales</h3><p>Esta interfaz no incorpora analítica, publicidad ni píxeles de seguimiento. La caché y el almacenamiento que usa la aplicación NovaGest pueden depender de la instalación y del dispositivo. Revisión según jurisdicción: ${legalField("cookiesRevision")}.</p>
+    <h3>3. Contacto</h3><p>Para consultas sobre privacidad o almacenamiento, contacte con ${legalField("privacidad")}.</p>` },
+  reembolsos: { title: "Política de reembolsos", render: () => `${legalDraftNote}
+    <h3>1. Alcance</h3><p>NovaGest emite licencias digitales; las condiciones de compra deben comunicarse antes del pago. La herramienta no procesa pagos ni emite reembolsos automáticamente.</p>
+    <h3>2. Solicitud de reembolso</h3><p>Condiciones aprobadas por el negocio: ${legalField("reembolso")}. Canal de atención: ${legalField("contacto")}. Para localizar el pago, indique los datos mínimos necesarios y no envíe contraseñas ni claves de licencia por canales no autorizados.</p>
+    <h3>3. Plazos y derechos</h3><p>Plazo para tramitar una devolución aprobada: ${legalField("reembolsoPlazo")}. Esta política no limita derechos irrenunciables reconocidos por la ley aplicable. Ley y vías de reclamación: ${legalField("jurisdiccion")}.</p>` },
+};
+
+async function openLegalDocument(id) {
+  const key = LEGAL_DOCUMENTS[id] ? id : "aviso";
+  if (LEGAL_DATA === null) {
+    try { const response = await jget("api/legal"); LEGAL_DATA = response.legal || {}; }
+    catch { LEGAL_DATA = {}; }
+  }
+  const doc = LEGAL_DOCUMENTS[key];
+  $("legal-title").textContent = doc.title;
+  $("legal-content").innerHTML = doc.render();
+  document.querySelectorAll("#legal-tabs [data-legal-doc]").forEach((button) => {
+    button.classList.toggle("on", button.getAttribute("data-legal-doc") === key);
+  });
+  const dialog = $("legal-dialog");
+  if (typeof dialog.showModal === "function" && !dialog.open) dialog.showModal();
+  else if (!dialog.open) dialog.setAttribute("open", "");
+}
+
+document.addEventListener("click", (ev) => {
+  const link = ev.target.closest("[data-legal-doc]");
+  if (!link) return;
+  ev.preventDefault();
+  openLegalDocument(link.getAttribute("data-legal-doc"));
+});
+$("legal-close").addEventListener("click", () => $("legal-dialog").close?.());
+$("legal-done").addEventListener("click", () => $("legal-dialog").close?.());
+$("legal-dialog").addEventListener("click", (ev) => {
+  if (ev.target === $("legal-dialog")) $("legal-dialog").close?.();
+});
 
 function fmtDate(ts) {
   if (!ts) return "Permanente";
@@ -968,13 +1156,21 @@ function showApp() {
 
 $("login-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  $("login-msg").textContent = "Comprobando…";
+  const button = $("login-form").querySelector("button[type=submit]");
+  button.disabled = true;
+  $("login-msg").textContent = "Verificando clave…";
   const d = await jreq("api/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ key: $("login-key").value }),
   }).catch(() => ({ ok: false, error: "Error de conexión con la herramienta." }));
-  if (!d.ok) { $("login-msg").innerHTML = `<span class="err-msg">✖ ${esc(d.error || "Clave incorrecta")}</span>`; return; }
+  button.disabled = false;
+  if (!d.ok) {
+    $("login-msg").innerHTML = `<span class="err-msg">✖ ${esc(d.error || "Clave incorrecta")}</span>`;
+    $("login-key").focus();
+    $("login-key").select();
+    return;
+  }
   $("login-key").value = "";
   $("login-msg").textContent = "";
   boot();
@@ -1371,11 +1567,8 @@ function boot() {
 }
 
 jget("api/session").then((s) => {
-  if (s.authenticated) { boot(); }
-  else {
-    showLogin();
-    if (s.accessKeySource) $("login-path").textContent = s.accessKeySource;
-  }
+  if (s.authenticated) boot();
+  else showLogin();
 }).catch(() => showLogin());
 </script>
 </body>
@@ -1391,12 +1584,20 @@ class StudioHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print(f"[GENERADOR] {self.address_string()} {fmt % args}", flush=True)
 
+    def _security_headers(self):
+        """Cabeceras comunes para evitar MIME sniffing, framing y referer leaks."""
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+
     def _json(self, code, obj, cookie=None):
         raw = json.dumps(obj, ensure_ascii=False).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
         self.send_header("Cache-Control", "no-store")
+        self._security_headers()
         if cookie:
             self.send_header("Set-Cookie", cookie)
         self.end_headers()
@@ -1409,6 +1610,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
         self.send_header("Content-Length", str(len(raw)))
         self.send_header("Cache-Control", "no-store")
+        self._security_headers()
         self.end_headers()
         self.wfile.write(raw)
 
@@ -1454,6 +1656,18 @@ class StudioHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(raw)))
+            self.send_header("Cache-Control", "no-store")
+            self._security_headers()
+            self.end_headers()
+            self.wfile.write(raw)
+            return
+        if path == "/favicon.svg":
+            raw = FAVICON_SVG.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "image/svg+xml; charset=utf-8")
+            self.send_header("Content-Length", str(len(raw)))
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self._security_headers()
             self.end_headers()
             self.wfile.write(raw)
             return
@@ -1465,8 +1679,11 @@ class StudioHandler(BaseHTTPRequestHandler):
                 "version": APP_VERSION,
                 "product": PRODUCT,
                 "https": self._secure(),
-                "accessKeySource": ACCESS_KEY_SOURCE,
             })
+            return
+        if path == "/api/legal":
+            # La información legal se publica también en NovaGest: no es dato privado.
+            self._json(200, {"ok": True, "legal": legal_public_data()})
             return
         if not self._exigir_clave():
             return
