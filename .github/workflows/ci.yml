@@ -1,0 +1,67 @@
+name: CI NovaGest
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * *" # nocturno UTC: incluye la prueba de restauración
+
+jobs:
+  web-y-servidor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pruebas Web e IPV
+        run: |
+          node tools/test_ipv.mjs
+          node tools/test_calc.mjs
+          node tools/cobertura.mjs --min 80
+          node tools/test_accesibilidad.mjs
+          npm --prefix tools install --ignore-scripts
+          node tools/test_axe.mjs
+          node tools/test_almacenes.mjs
+          node tools/test_customers_credits.mjs
+          node tools/test_excel_sources.mjs
+          node tools/smoke_web.mjs
+      - name: Pruebas Python y sintaxis del servidor
+        run: |
+          python3 -m py_compile server/novagest_server.py tools/license_studio.py
+          python3 -m pip install -r requirements.txt
+          python3 tools/test_licencia.py
+          python3 tools/test_generador.py
+          python3 tools/test_seguridad_servidor.py
+          python3 tools/test_restauracion.py
+          python3 tools/test_carga.py --n 12
+      - name: Inventario de pendientes no inventados (informativo)
+        run: python3 tools/verificar_pendientes.py
+        # No bloquea: lista [COMPLETAR], firmas y casillas que solo puede
+        # cerrar el titular/asesor/firma externa. Revisar la salida en cada PR.
+      - name: Auditoría de dependencias Python (SCA)
+        run: |
+          python3 -m pip install pip-audit
+          python3 -m pip_audit -r requirements.txt --desc || true
+        # «|| true»: el informe no bloquea el CI; revísese cada aviso y, cuando
+        # no queden avisos sin tratar, quite el «|| true» para que bloquee.
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+        # El repo no incluye el script gradlew: se instala Gradle en CI y se
+        # compila/prueba Android de verdad. Si este job falla, es la señal
+        # real de compilación que en local (sin JDK) no se puede obtener.
+      - name: Pruebas unitarias Android (incluye IpvCalculatorTest)
+        run: gradle testDebugUnitTest --stacktrace

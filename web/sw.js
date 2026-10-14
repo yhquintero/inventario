@@ -4,10 +4,10 @@
    la primera vez que se usan.
    v10: panel «Gestionar licencia» (estado, solicitudes, claves y equipos) y registro de las
    solicitudes de licencia en el servidor. */
-const CACHE = "novagest-v10";
+const CACHE = "novagest-v11";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
-  "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/ux.js",
+  "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/ux.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
   "./js/excel-import.js", "./js/license.js", "./js/seed-data.js",
   "./vendor/qrcode.mjs", "./vendor/xlsx.full.min.js",
   "./public/icon-app.png", "./public/icon-192.png", "./public/icon-512.png",

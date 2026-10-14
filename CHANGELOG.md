@@ -1,5 +1,68 @@
 # NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-14 (IV) · Las 15 opciones de mejora continua
+
+- **Cobertura con puerta en CI** (`tools/test_calc.mjs` 10 pruebas, `tools/cobertura.mjs --min 80`: calc 98,5 %, ipv 97 %), **restauración automática probada** (`tools/test_restauracion.py`, nocturno) y **carga ligera** (`tools/test_carga.py`, p95).
+- **Bug grave corregido gracias a (2)**: `read_backup` rechazaba las copias actuales (`novagest_` frente al prefijo legado `cuadre_`) — restaurar habría fallado — y el bucle diario no reconocía la copia del día. Ambos prefijos conviven al leer; prueba de regresión incluida.
+- **CSP sin `unsafe-inline`**: 159 estilos en línea migrados a clases utilitarias, `data-cat`/`data-w/h/p` + CSSOM; verificado en vivo (`auditoria_seguridad.py` 10/10). HSTS ya solo bajo HTTPS; `verificar_pendientes.py` avisa de la caducidad de `security.txt` y de la cadencia trimestral.
+- **Dependabot** mensual (pip/gradle/actions); **axe-core** en CI (portada + legales) y `@media (forced-colors: active)`.
+- **Métricas locales** (`GET /api/metrics` + tarjeta en Copias, sin datos personales ni envíos), **Novedades** desde el CHANGELOG (`GET /api/changelog` + tarjeta en Ajustes) y **encuesta voluntaria** local con export CSV. Corrección asociada: `SHARED` incluye por fin `fichas`, `ipvControls` y `surveys`.
+- Pendientes que solo cierran personas: generar `gradlew` en Android Studio, sesión WCAG con lector real (registro trimestral creado), rotaciones/firmas (actas listas).
+
+
+## NovaGest v1.0.0 · revisión 2026-10-14 (III) · Pendientes «no inventados» ejecutables y mejora continua
+
+- **Índice de certificación y firmas** `docs/certificacion/00-INDICE-Y-FIRMAS.md`:
+  quién cierra A–E y la revisión legal, bloques de firma (vacíos hasta que firme
+  la persona real) y plantillas de sesión WCAG, revisión mensual SOC 2,
+  simulacro de restauración y solicitud de pentest lista para enviar.
+- **`tools/verificar_pendientes.py`**: inventario automático de `[COMPLETAR]`,
+  firmas y casillas abiertas (en CI, informativo); **`tools/generar_security_txt.py`**
+  escribe `security.txt` solo con el contacto real que le des (nunca inventado).
+- **Endurecimiento**: contraseña con máximo de 128 caracteres (`pw_policy`) probado
+  por `tools/test_seguridad_servidor.py`; CI Android compila con Gradle 8.9
+  (`setup-gradle`) en lugar de limitarse a avisar.
+- **Accesibilidad**: la gráfica de ventas lleva resumen para lector de pantalla y
+  tabla de datos equivalente («Ver datos de la gráfica en tabla»); test 7/7.
+- **Mejora continua**: `docs/MEJORA_CONTINUA.md` con 15 opciones priorizadas y su
+  verificación; ninguna se anuncia como hecha sin pasarla.
+
+## NovaGest v1.0.0 · revisión 2026-10-14 (II) · Pendientes cerrados en código y endurecimiento
+
+- **Datos legales editables**: `GET/PUT /api/legal` (tabla `legal_info`) y tarjeta en
+  Ajustes → Datos legales; `#legal` y el pie se rellenan sin tocar código y lo vacío
+  sigue como `[COMPLETAR: …]` (nada inventado). Plantilla de firma en
+  `docs/REVISION_LEGAL.md`.
+- **Imágenes de categoría propias**: las 10 anteriores, de licencia no comprobable,
+  sustituidas por arte procedural generado en el repo (`tools/generar_imagenes_categorias.py`).
+- **Credenciales y 2FA**: las contraseñas demo ya no se muestran en el acceso;
+  arranque sin cuentas conocidas (`NOVAGEST_DEMO_USERS=0`); Administrador obligado a
+  activar 2FA (`REQUIRE_ADMIN_TOTP=1`) con vía de activación y aviso en la Web.
+- **Endurecimiento**: rate-limit por IP (login/recuperación/licencia → 429),
+  `frame-ancestors`/`X-Frame-Options`/COOP/CORP, cookie `SameSite=Lax`, copias
+  espejo 3-2-1 (`BACKUP_MIRROR_DIRS`), CI con suites + `pip-audit`
+  (`.github/workflows/ci.yml`, `requirements.txt`) y chequeo automático de
+  accesibilidad (`tools/test_accesibilidad.mjs`, que corrigió un `alt` ausente).
+
+## NovaGest v1.0.0 · revisión 2026-10-14 · Fichas de Costo e IPV + cumplimiento legal/accesibilidad
+
+- **Fichas de Costo e IPV** (adaptado de yhquintero/IPV_Fichas-Costos, verificado con sus
+  pruebas): colecciones compartidas `fichas`/`ipvControls`, ficha versionada
+  Borrador→Aprobada con componentes desde el inventario, rendimiento y costo por ración,
+  raciones posibles por stock, Control IPV `IPV-AAAA-NNNN` con foto y validación,
+  papelera propia, impresión/PDF, permisos `IPV_VIEW`/`IPV_EDIT` (Web) y consulta
+  sincronizada en Android (`IpvCalculator` espejo + pantalla «Fichas · IPV»).
+- **Legal**: páginas públicas en `#legal` (Aviso legal, Privacidad, Términos, Cookies y
+  Reembolsos) enlazadas desde el pie, el acceso y la solicitud de licencia, con
+  `[COMPLETAR: …]` para los datos del negocio. Requieren revisión profesional.
+- **Cookies/privacidad**: eliminada Google Fonts (fuentes del sistema; CSP sin orígenes
+  de Google), banner de consentimiento con Aceptar/Rechazar equivalentes que no activa
+  nada por defecto (hoy no hay analíticas ni píxeles) y casilla de privacidad sin marcar
+  obligatoria antes de solicitar la licencia por WhatsApp.
+- **Accesibilidad**: enlace «Saltar al contenido», `<main>` y navegación etiquetada,
+  nombres descriptivos en botones nuevos y foco visible existente verificado.
+- Informe completo en `docs/CUMPLIMIENTO.md`; pruebas nuevas `tools/test_ipv.mjs`.
+
 ## NovaGest v1.0.0 · revisión 2026-10-13 · Generador de licencias por HTTPS y control de licencias
 
 El generador independiente se puede abrir **por HTTPS en su propio puerto** (8444 por

@@ -353,7 +353,7 @@ test("Iluminación muestra el icono a tamaño contenido en Venta rápida", () =>
   const html = go("pos");
   product.category = originalCategory;
   assert.match(html, /💡 Iluminación/);
-  assert.match(html, /style="--thumb-color:#eab308">💡<\/span>/);
+  assert.match(html, /<span class="thumb ph" data-cat="Iluminación">💡<\/span>/);
   assert.doesNotMatch(html, /999px/);
   assert.match(html, /Almacén/);
   assert.match(html, /posWh/);
@@ -369,6 +369,8 @@ test("El servidor recibe las secciones nuevas al guardar", () => {
   const shared = store.shared();
   assert.ok(Array.isArray(shared.warehouses) && shared.warehouses.length === 2);
   assert.ok(Array.isArray(shared.warehouseEntries));
+  assert.ok(Array.isArray(shared.fichas) && Array.isArray(shared.ipvControls), "fichas e IPV viajan al servidor");
+  assert.ok(Array.isArray(shared.surveys), "encuestas locales viajan al servidor");
 });
 
 /* ----------------------------- licencia: gestión, solicitudes y claves ----------------------------- */
@@ -481,6 +483,7 @@ await atest("Solicitar por WhatsApp registra la solicitud en el servidor y abre 
   await flush();
   getEl("licReqName").value = "Tienda Nova";
   getEl("licReqPhone").value = "5351234567";
+  getEl("licConsent").checked = true; // casilla de privacidad (sin marcar por defecto)
   fetchCalls.length = 0;
   openedUrls.length = 0;
   click({ act: "license-whatsapp" });

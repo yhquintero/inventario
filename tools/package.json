@@ -1,0 +1,10 @@
+{
+  "name": "novagest-tools",
+  "private": true,
+  "type": "module",
+  "description": "Solo para tools/test_axe.mjs (axe-core/jsdom). No forma parte de la app.",
+  "devDependencies": {
+    "axe-core": "^4.14.0",
+    "jsdom": "^29.1.1"
+  }
+}

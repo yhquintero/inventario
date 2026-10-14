@@ -253,6 +253,54 @@ class SyncManager @Inject constructor(
         }.getOrDefault(emptyList())
     }
 
+    private fun fichaItems(arr: org.json.JSONArray?): List<com.novagest.inventario.domain.model.FichaItem> =
+        (arr?.objects() ?: emptyList()).map {
+            com.novagest.inventario.domain.model.FichaItem(
+                materialId = it.optString("materialId").takeIf { s -> s.isNotBlank() },
+                description = it.str("description"), quantity = it.num("quantity"),
+                unit = it.str("unit").ifBlank { "unidad" }, unitCost = it.num("unitCost")
+            )
+        }
+
+    /** Fichas de Costo del estado compartido (lectura; alta/edición completa en la Web). */
+    fun fichas(): List<com.novagest.inventario.domain.model.FichaCosto> {
+        if (!stateFile.exists()) return emptyList()
+        return runCatching {
+            JSONObject(stateFile.readText()).optJSONArray("fichas").objects()
+                .filter { !isDeleted(it) }
+                .map {
+                    com.novagest.inventario.domain.model.FichaCosto(
+                        id = it.str("id"), productId = it.str("productId"), productName = it.str("productName"),
+                        version = it.optInt("version", 1), status = it.str("status").ifBlank { "Borrador" },
+                        currency = it.str("currency").ifBlank { "USD" },
+                        yieldQty = it.num("yieldQty").takeIf { v -> v > 0 } ?: 1.0,
+                        yieldUnit = it.str("yieldUnit").ifBlank { "unidad" },
+                        validFrom = it.str("validFrom"), observations = it.str("observations"),
+                        items = fichaItems(it.optJSONArray("items")), totalCost = it.num("totalCost")
+                    )
+                }.sortedWith(compareBy({ it.productName }, { -it.version }))
+        }.getOrDefault(emptyList())
+    }
+
+    /** Controles IPV del estado compartido (lectura; creación/validación en la Web). */
+    fun ipvControls(): List<com.novagest.inventario.domain.model.IpvControl> {
+        if (!stateFile.exists()) return emptyList()
+        return runCatching {
+            JSONObject(stateFile.readText()).optJSONArray("ipvControls").objects()
+                .filter { !isDeleted(it) }
+                .map {
+                    com.novagest.inventario.domain.model.IpvControl(
+                        id = it.str("id"), code = it.str("code"), fichaId = it.str("fichaId"),
+                        fichaVersion = it.optInt("fichaVersion", 1), productName = it.str("productName"),
+                        currency = it.str("currency").ifBlank { "USD" }, period = it.str("period"),
+                        status = it.str("status").ifBlank { "Pendiente" },
+                        snapshotTotal = it.num("snapshotTotal"), checkedTotal = it.num("checkedTotal"),
+                        items = fichaItems(it.optJSONArray("items"))
+                    )
+                }.sortedByDescending { it.period }
+        }.getOrDefault(emptyList())
+    }
+
     /** Crea el fiado de una venta rápida Android dentro del JSON compartido y lo sube. */
     suspend fun createPosCredit(customerId: String, totalUsd: Double, dueDate: String = ""): String? = mutex.withLock {
         if (!isConnected() || !stateFile.exists()) return@withLock "Fiado no registrado: sin conexión con el servidor."

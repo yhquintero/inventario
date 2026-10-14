@@ -37,7 +37,7 @@ APP_VERSION = "1.0.0"
 LICENSE_PRODUCT = os.environ.get("LICENSE_PRODUCT", "NovaGest")
 LICENSE_FILE = os.path.join(DATA, "license.key")
 LICENSE_TRIAL_DAYS = int(os.environ.get("LICENSE_TRIAL_DAYS", "15"))
-LICENSE_EXEMPT = {"/api/health", "/api/license/status", "/api/license/activate", "/api/license/verify", "/api/license/request"}
+LICENSE_EXEMPT = {"/api/health", "/api/license/status", "/api/license/activate", "/api/license/verify", "/api/license/request", "/api/legal"}
 # Licencia por término (solicitud por WhatsApp, como en DrywallMaterialsCalculator):
 # el cliente elige un plazo, envía sus datos por WhatsApp y recibe la clave firmada.
 # Número destino configurable: LICENSE_WHATSAPP / NOVAGEST_WHATSAPP / WHATSAPP_NUMBER
@@ -109,6 +109,10 @@ WRITE = {
     "warehouseEntries": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
     "customers": {"ADMINISTRADOR", "JEFE", "ECONOMICO", "ALMACENERO"},
     "credits": {"ADMINISTRADOR", "JEFE", "ECONOMICO", "ALMACENERO"},
+    # Fichas de Costo y Controles IPV (módulo «Fichas de costo · IPV»)
+    "fichas": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
+    "ipvControls": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
+    "surveys": set(ROLES),
     "audit": set(ROLES),
 }
 CLOSE_DAY = {"ADMINISTRADOR", "JEFE", "ECONOMICO"}
@@ -490,6 +494,7 @@ def check_pw(pw, stored):
 
 def pw_policy(pw):
     if len(pw or "") < 8: return "La contraseña debe tener al menos 8 caracteres."
+    if len(pw) > 128: return "La contraseña no puede superar 128 caracteres."
     if not re.search(r"\d", pw): return "La contraseña debe incluir un número."
     if not re.search(r"[A-Z]", pw): return "La contraseña debe incluir una mayúscula."
     return None
@@ -576,6 +581,8 @@ def init_db():
       license_preview TEXT,
       created_at INTEGER);
     CREATE INDEX IF NOT EXISTS license_requests_status ON license_requests(status, created_at DESC);
+    CREATE TABLE IF NOT EXISTS legal_info(id INTEGER PRIMARY KEY CHECK(id=1), data TEXT, updated_at INTEGER, updated_by TEXT);
+    CREATE TABLE IF NOT EXISTS rate_hits(k TEXT PRIMARY KEY, hits TEXT);
     """)
     CON.commit()
     # Licencia de uso: si no hay ninguna, crea una de prueba automáticamente
@@ -584,7 +591,20 @@ def init_db():
     except Exception as e:
         print(f"[LICENCIA] Error al verificar licencia inicial: {e}", flush=True)
     if not q("SELECT 1 FROM users LIMIT 1", one=True):
-        demo = [("admin", "Yosvany Hernández", "admin@novagest.app", "ADMINISTRADOR", "Admin123!"),
+        # Producción: NOVAGEST_DEMO_USERS=0 + NOVAGEST_ADMIN_PASSWORD=<secreta>
+        # crea solo el administrador con esa contraseña (sin cuentas conocidas).
+        if os.environ.get("NOVAGEST_DEMO_USERS", "1") != "1":
+            admin_pw = os.environ.get("NOVAGEST_ADMIN_PASSWORD", "")
+            if len(admin_pw) < 10:
+                raise SystemExit("NOVAGEST_DEMO_USERS=0 exige NOVAGEST_ADMIN_PASSWORD (mín. 10 caracteres) para crear el primer administrador.")
+            q("INSERT INTO users(username,display_name,email,role,pw_hash,question,answer_hash,created_at,pw_changed) VALUES(?,?,?,?,?,?,?,?,?)",
+              (os.environ.get("NOVAGEST_ADMIN_USER", "admin"), "Administrador", "", "ADMINISTRADOR", hash_pw(admin_pw), "", "", now(), now()))
+            audit(None, "BOOTSTRAP", "Administrador inicial creado desde el entorno (sin usuarios de demostración)")
+            print("[SEGURIDAD] Sin usuarios demo: administrador creado desde NOVAGEST_ADMIN_PASSWORD.", flush=True)
+            demo = []
+        else:
+            print("[SEGURIDAD] Usuarios de demostración creados (SOLO pruebas locales): cambie las contraseñas o use NOVAGEST_DEMO_USERS=0 en producción.", flush=True)
+            demo = [("admin", "Yosvany Hernández", "admin@novagest.app", "ADMINISTRADOR", "Admin123!"),
                 ("jefe", "Jefe de Tienda", "jefe@novagest.app", "JEFE", "Jefe123!"),
                 ("economico", "Área Económica", "economia@novagest.app", "ECONOMICO", "Eco123!"),
                 ("almacenero", "Almacén Central", "almacen@novagest.app", "ALMACENERO", "Alma123!")]
@@ -631,14 +651,28 @@ def make_backup(kind="auto", user="sistema"):
     blob = fernet().encrypt(gzip.compress(json.dumps(payload, ensure_ascii=False).encode()))
     name = dt.datetime.now().strftime(f"novagest_%Y-%m-%d_%H%M%S_{kind}.bak")
     with open(os.path.join(BACKUPS, name), "wb") as f: f.write(blob)
+    # Réplica fuera del equipo (regla 3-2-1): BACKUP_MIRROR_DIRS="E:\\Copias;/ruta/red"
+    # La copia ya va cifrada; un destino caído no interrumpe la copia local.
+    for dest in (os.environ.get("BACKUP_MIRROR_DIRS") or "").split(";"):
+        dest = dest.strip()
+        if not dest: continue
+        try:
+            os.makedirs(dest, exist_ok=True)
+            target = os.path.join(dest, name)
+            with open(target, "wb") as f: f.write(blob)
+            if os.path.getsize(target) != len(blob): raise OSError("tamaño distinto al escribir")
+            audit(user, "BACKUP_MIRROR", f"{name} -> {dest}")
+        except Exception as e:
+            audit(user, "BACKUP_MIRROR_FAILED", f"{dest}: {e}")
     files = sorted(f for f in os.listdir(BACKUPS) if f.endswith(".bak"))
     for old in files[:-BACKUP_KEEP]: os.remove(os.path.join(BACKUPS, old))
-    audit(user, "BACKUP", f"{name} ({len(blob)} bytes)")
+    audit(user, "BACKUP", f"{name} ({len(blob)} bytes) sha256:{hashlib.sha256(blob).hexdigest()[:16]}")
     return name
 
 
 def read_backup(name):
-    if not re.fullmatch(r"cuadre_[\w\-]+\.bak", name): raise ValueError("nombre inválido")
+    # Acepta el prefijo actual y el legado (antes de renombrar a NovaGest).
+    if not re.fullmatch(r"(?:novagest|cuadre)_[\w\-]+\.bak", name): raise ValueError("nombre inválido")
     with open(os.path.join(BACKUPS, name), "rb") as f:
         return json.loads(gzip.decompress(fernet().decrypt(f.read())))
 
@@ -647,7 +681,7 @@ def backup_loop():
     while True:
         try:
             today = dt.date.today().strftime("%Y-%m-%d")
-            has_today = any(f.startswith(f"cuadre_{today}") and f.endswith("_auto.bak") for f in os.listdir(BACKUPS))
+            has_today = any(f.startswith(f"novagest_{today}") and f.endswith("_auto.bak") for f in os.listdir(BACKUPS))
             if not has_today and dt.datetime.now().hour >= BACKUP_HOUR:
                 make_backup("auto")
         except Exception as e:
@@ -764,9 +798,22 @@ def validate_change(old, new, role, closed):
 
 # ------------------------------------------------------------------ HTTP
 MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
-        ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json"}
-CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-       "font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'")
+        ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json", ".txt": "text/plain; charset=utf-8"}
+# Sin 'unsafe-inline': los estilos en línea se migraron a clases/data-* + CSSOM
+# y ningún script en línea se ejecuta. Ver docs/CUMPLIMIENTO.md y MEJORA_CONTINUA.
+CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; "
+       "font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'")
+
+# Límite de peticiones por IP (además del bloqueo por cuenta que ya existe):
+# (método, ruta) -> (máximo, ventana en segundos)
+RATE_LIMITS = {
+    ("POST", "/api/login"): (30, 60),
+    ("POST", "/api/recover"): (10, 3600),
+    ("POST", "/api/license/request"): (10, 3600),
+}
+# 2FA obligatoria para ADMINISTRADOR (con vía de activación: ver route()).
+REQUIRE_ADMIN_TOTP = os.environ.get("REQUIRE_ADMIN_TOTP", "1") == "1"
+TOTP_GRACE_PATHS = {"/api/me", "/api/logout", "/api/2fa/setup", "/api/2fa/enable", "/api/password", "/api/sessions", "/api/legal"}
 
 
 class Api(BaseHTTPRequestHandler):
@@ -784,6 +831,9 @@ class Api(BaseHTTPRequestHandler):
 
     def headers_common(self):
         self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header("Permissions-Policy", "geolocation=(), microphone=(), camera=(self)")
         self.send_header("Content-Security-Policy", CSP)
@@ -809,8 +859,12 @@ class Api(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(n) or b"{}")
 
     def cookie(self, token, clear=False):
+        # SameSite=Lax por defecto (la Web es del mismo origen y Android usa Bearer).
+        # Solo si la Web se embebe en otro sitio: SESSION_SAMESITE=None (exige HTTPS).
+        samesite = os.environ.get("SESSION_SAMESITE", "Lax")
+        if samesite not in ("Lax", "Strict", "None"): samesite = "Lax"
         attrs = "Path=/; HttpOnly"
-        if self.secure(): attrs += "; Secure; SameSite=None; Partitioned"
+        if self.secure(): attrs += f"; Secure; SameSite={samesite}" + ("; Partitioned" if samesite == "None" else "")
         else: attrs += "; SameSite=Strict"
         return f"cp_session={'' if clear else token}; {attrs}; Max-Age={0 if clear else MAXAGE}"
 
@@ -853,6 +907,20 @@ class Api(BaseHTTPRequestHandler):
         # CSRF: toda petición que modifica exige la cabecera X-CP (un formulario de otro sitio no puede ponerla)
         if method != "GET" and self.headers.get("X-CP") != "1":
             return self.err(403, "Falta cabecera anti-CSRF")
+        # Límite de peticiones por IP en rutas sensibles (login, recuperación, licencias)
+        limit = RATE_LIMITS.get((method, path))
+        if limit:
+            max_hits, window = limit
+            k = f"{method} {path}|{self.ip()}"
+            t = now()
+            row = q("SELECT hits FROM rate_hits WHERE k=?", (k,), one=True)
+            hits = [x for x in (json.loads(row["hits"]) if row else []) if t - x < window]
+            if len(hits) >= max_hits:
+                retry = max(1, window - (t - hits[0]))
+                self.send_json(429, {"error": f"Demasiadas peticiones. Espera {retry} s."})
+                return
+            hits.append(t)
+            q("INSERT OR REPLACE INTO rate_hits(k,hits) VALUES(?,?)", (k, json.dumps(hits)))
         try:
             h = ROUTES.get((method, path)) or ROUTES.get((method, re.sub(r"/[\w\-.]+$", "/:id", path)))
             if not h: return self.err(404, "No encontrado")
@@ -867,7 +935,9 @@ class Api(BaseHTTPRequestHandler):
     def static(self, path):
         if path in ("", "/"): path = "/index.html"
         full = os.path.realpath(os.path.join(WEB, path.lstrip("/")))
-        if not full.startswith(os.path.realpath(WEB) + os.sep) or "/." in path or not os.path.isfile(full):
+        # /.well-known/ es la única ruta oculta pública permitida (security.txt)
+        oculta_ok = path == "/.well-known/security.txt"
+        if not full.startswith(os.path.realpath(WEB) + os.sep) or ("/." in path and not oculta_ok) or not os.path.isfile(full):
             return self.err(404, "No encontrado")
         data = open(full, "rb").read()
         self.send_response(200)
@@ -894,6 +964,13 @@ def route(method, path, need=True, roles=None):
                 u = h.auth()
                 if not u: return h.err(401, "Sesión caducada. Vuelve a entrar.")
                 if roles and u["role"] not in roles: return h.err(403, "No tienes permiso.")
+                # 2FA obligatoria para ADMINISTRADOR: sin activarla solo puede
+                # entrar, ver sus datos, cambiar contraseña y activar el 2FA.
+                if REQUIRE_ADMIN_TOTP and u["role"] == "ADMINISTRADOR" and not u["totp_enabled"]:
+                    req_path = urlparse(h.path).path
+                    is_state_read = req_path == "/api/state" and h.command == "GET"
+                    if req_path not in TOTP_GRACE_PATHS and not is_state_read:
+                        return h.err(403, "Tu rol (Administrador) exige activar la verificación en dos pasos. Hazlo en Ajustes → Seguridad.")
             return fn(h, u, ident)
         ROUTES[(method, path)] = wrap
         return fn
@@ -1250,6 +1327,29 @@ def license_delete_all(h, u, _):
 
 
 # ------------------------------------------------------------------ autenticación
+LEGAL_FIELDS = ("razonSocial", "idFiscal", "domicilio", "contacto", "privacidad", "pais", "retencion", "reembolso", "alojamiento")
+
+
+@route("GET", "/api/legal", need=False)
+def legal_get(h, _, __):
+    """Datos legales públicos del negocio (sin secretos) para #legal y el pie."""
+    r = q("SELECT data FROM legal_info WHERE id=1", one=True)
+    h.send_json(200, {"legal": json.loads(r["data"]) if r and r["data"] else {}})
+
+
+@route("PUT", "/api/legal", roles=ADMINS)
+def legal_put(h, u, _):
+    b = h.body()
+    data = {}
+    for k in LEGAL_FIELDS:
+        v = re.sub(r"[<>]", "", str(b.get(k, "") or "")).strip()
+        data[k] = v[:1000] if k in ("retencion", "reembolso") else v[:300]
+    q("INSERT OR REPLACE INTO legal_info(id,data,updated_at,updated_by) VALUES(1,?,?,?)",
+      (json.dumps(data, ensure_ascii=False), now(), u["display_name"]))
+    audit(u["username"], "LEGAL_UPDATE", "Datos legales del negocio actualizados", h.ip())
+    h.send_json(200, {"ok": True, "legal": data})
+
+
 @route("GET", "/api/health", need=False)
 def health(h, u, _):
     lic = get_active_license_info()
@@ -1495,7 +1595,7 @@ def state_put(h, u, _):
             # Un cliente con la interfaz antigua (caché del navegador) no manda estas
             # secciones: se conservan las que ya hay en el servidor.
             old = json.loads(r["data"]) or {}
-            for k in ("warehouses", "warehouseEntries", "excelDailyReports", "customers", "credits"):
+            for k in ("warehouses", "warehouseEntries", "excelDailyReports", "customers", "credits", "fichas", "ipvControls", "surveys"):
                 if k not in new:
                     new[k] = old.get(k)
         if r["data"] is None:
@@ -1591,6 +1691,43 @@ def backups_restore(h, u, name):
                     pass
     audit(u["username"], "BACKUP_RESTORE", name, h.ip())
     h.send_json(200, {"ok": True, "version": v})
+
+
+@route("GET", "/api/changelog")
+def changelog(h, u, _):
+    """Novedades dentro de la app: entradas del CHANGELOG.md del repo (solo lectura)."""
+    try:
+        txt = open(os.path.join(ROOT, "CHANGELOG.md"), encoding="utf-8").read()
+    except OSError:
+        return h.send_json(200, {"entries": []})
+    entries, cur = [], None
+    for line in txt.splitlines():
+        if line.startswith("## "):
+            if cur: entries.append(cur)
+            cur = {"titulo": line[3:].strip(), "puntos": []}
+        elif cur and line.startswith("- "):
+            cur["puntos"].append(line[2:].strip())
+        if len(entries) >= 6 and cur is None: break
+    if cur: entries.append(cur)
+    h.send_json(200, {"entries": entries[:6]})
+
+
+@route("GET", "/api/metrics", roles=ADMINS | {"ECONOMICO"})
+def metrics(h, u, _):
+    """Métricas 100% locales y agregadas (sin datos personales ni envíos fuera)."""
+    r = q("SELECT version, data, updated_at FROM app_state WHERE id=1", one=True)
+    st = json.loads(r["data"]) if r and r["data"] else {}
+    conteos = {k: len(st.get(k) or []) for k in ("products", "movements", "customers", "credits", "fichas", "ipvControls", "warehouses")}
+    copias = [f for f in os.listdir(BACKUPS) if f.endswith(".bak")] if os.path.isdir(BACKUPS) else []
+    lic = get_active_license_info()
+    h.send_json(200, {
+        "appVersion": "1.0.0", "stateVersion": r["version"] if r else 0,
+        "conteos": conteos,
+        "usuariosPorRol": {row["role"]: row["n"] for row in q("SELECT role, COUNT(*) n FROM users WHERE active=1 GROUP BY role")},
+        "copias": {"total": len(copias), "ultima": max(copias) if copias else None},
+        "bdBytes": os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0,
+        "licencia": {"tipo": (lic.get("payload") or {}).get("type"), "valida": bool(lic.get("valid"))},
+    })
 
 
 @route("GET", "/api/security-log", roles=ADMINS | {"ECONOMICO"})

@@ -77,6 +77,7 @@ sealed class Dest(val route: String, val label: String, val icon: ImageVector, v
     data object Trash : Dest("trash", "Papelera", Icons.Outlined.DeleteOutline, Permission.INVENTORY_EDIT)
     data object History : Dest("history", "Historial precios", Icons.Outlined.Timeline, Permission.INVENTORY_VIEW)
     data object Customers : Dest("customers", "Clientes y fiados", Icons.Outlined.People, Permission.CUSTOMER_VIEW)
+    data object Ipv : Dest("ipv", "Fichas · IPV", Icons.Outlined.Assessment, Permission.IPV_VIEW)
 }
 
 private val bottom = listOf(Dest.Home, Dest.Pos, Dest.Inventory, Dest.Movements)
@@ -213,6 +214,7 @@ fun AppShell(
                 composable(Dest.Trash.route) { com.novagest.inventario.ui.trash.TrashScreen(user) }
                 composable(Dest.History.route) { com.novagest.inventario.ui.history.PriceHistoryScreen() }
                 composable(Dest.Customers.route) { com.novagest.inventario.ui.customers.CustomersScreen(user) }
+                composable(Dest.Ipv.route) { com.novagest.inventario.ui.ipv.IpvScreen(user) }
             }
         }
     }

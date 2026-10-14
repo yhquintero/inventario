@@ -7,7 +7,9 @@ import com.novagest.inventario.domain.model.Permission
 import com.novagest.inventario.domain.model.Role
 import com.novagest.inventario.domain.model.RolePermissions
 import com.novagest.inventario.domain.model.SaleCenter
+import com.novagest.inventario.domain.model.FichaItem
 import com.novagest.inventario.domain.usecase.CuadreCalculator
+import com.novagest.inventario.domain.usecase.IpvCalculator
 import com.novagest.inventario.domain.usecase.StockCalculator
 import com.novagest.inventario.domain.usecase.Validators
 import org.junit.Assert.assertEquals
@@ -139,6 +141,42 @@ class PermissionsTest {
         assertTrue(RolePermissions.can(Role.ECONOMICO, Permission.REPORTS_EXPORT))
         assertFalse(RolePermissions.can(Role.ECONOMICO, Permission.INVENTORY_EDIT))
         assertTrue(RolePermissions.can(Role.ECONOMICO, Permission.EXCHANGE_EDIT))
+    }
+}
+
+class IpvCalculatorTest {
+
+    private val items = listOf(
+        FichaItem("a", "A", 10.0, "kg", 2.0),
+        FichaItem("b", "B", 4.0, "L", 5.0)
+    )
+
+    @Test
+    fun fichaTotalYCostoPorRacion() {
+        assertEquals(40.0, IpvCalculator.fichaTotal(items), 0.0)
+        assertEquals(4.0, IpvCalculator.costPerServing(40.0, 10.0), 0.0)
+        assertEquals(40.0, IpvCalculator.costPerServing(40.0, 0.0), 0.0)
+    }
+
+    @Test
+    fun racionesLimitadasPorElInsumoEscaso() {
+        val r = IpvCalculator.servingsFromStock(items, 10.0) { if (it == "a") 95.0 else 9.0 }
+        assertEquals(22, r.servings)
+        assertEquals("B", r.limitedBy)
+    }
+
+    @Test
+    fun codigoControlCorrelativo() {
+        assertEquals("IPV-2026-0008", IpvCalculator.nextControlCode(listOf("IPV-2026-0007", "IPV-2025-0099"), "2026-03"))
+        assertEquals(6, IpvCalculator.nextVersion(listOf(2, 5)))
+    }
+
+    @Test
+    fun controlSoloValidaConFichaAprobadaYSumas() {
+        val okR = IpvCalculator.validateControl("Aprobada", 40.0, 40.0, items)
+        assertEquals("Validado", okR.status)
+        val bad = IpvCalculator.validateControl("Borrador", 40.0, 40.0, items)
+        assertEquals("Con diferencias", bad.status)
     }
 }
 

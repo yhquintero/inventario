@@ -80,13 +80,15 @@ object RolePermissions {
             Permission.REPORTS_VIEW, Permission.REPORTS_EXPORT, Permission.REPORTS_FINANCIAL,
             Permission.EXCHANGE_EDIT,
             Permission.AUDIT_VIEW,
-            Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT
+            Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT,
+            Permission.IPV_VIEW, Permission.IPV_EDIT
         )
         Role.ALMACENERO -> setOf(
             Permission.INVENTORY_VIEW, Permission.INVENTORY_EDIT,
             Permission.MOVEMENT_VIEW, Permission.MOVEMENT_CREATE,
             Permission.CUADRE_VIEW,
-            Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT
+            Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT,
+            Permission.IPV_VIEW
         )
     }
 
@@ -249,6 +251,55 @@ data class Customer(
     val address: String = "",
     val notes: String = "",
     val creditLimitUsd: Double = 0.0
+)
+
+/** Línea de una Ficha de Costo: insumo del inventario o línea libre (colección `fichas`). */
+data class FichaItem(
+    val materialId: String? = null,
+    val description: String = "",
+    val quantity: Double = 0.0,
+    val unit: String = "unidad",
+    val unitCost: Double = 0.0
+) {
+    val subtotal: Double get() = kotlin.math.round(quantity * unitCost * 100.0) / 100.0
+}
+
+/**
+ * Ficha de Costo versionada de un producto/servicio (colección `fichas` del
+ * estado compartido). Adaptado de yhquintero/IPV_Fichas-Costos: solo se edita
+ * en «Borrador»; aprobada queda fija y los cambios van a una nueva versión.
+ */
+data class FichaCosto(
+    val id: String,
+    val productId: String,
+    val productName: String,
+    val version: Int = 1,
+    val status: String = "Borrador",
+    val currency: String = "USD",
+    val yieldQty: Double = 1.0,
+    val yieldUnit: String = "unidad",
+    val validFrom: String = "",
+    val observations: String = "",
+    val items: List<FichaItem> = emptyList(),
+    val totalCost: Double = 0.0
+) {
+    val costPerServing: Double
+        get() = kotlin.math.round((totalCost / (if (yieldQty > 0) yieldQty else 1.0)) * 100.0) / 100.0
+}
+
+/** Control IPV por período: foto de la ficha al crearse (colección `ipvControls`). */
+data class IpvControl(
+    val id: String,
+    val code: String,
+    val fichaId: String,
+    val fichaVersion: Int = 1,
+    val productName: String,
+    val currency: String = "USD",
+    val period: String = "",
+    val status: String = "Pendiente",
+    val snapshotTotal: Double = 0.0,
+    val checkedTotal: Double = 0.0,
+    val items: List<FichaItem> = emptyList()
 )
 
 /** Fiado / cuenta por cobrar (colección `credits` del estado compartido). */

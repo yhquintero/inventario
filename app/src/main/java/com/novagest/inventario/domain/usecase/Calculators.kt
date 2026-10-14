@@ -136,6 +136,85 @@ object CuadreCalculator {
         abs(totals.diferenciaUsd) <= epsilon
 }
 
+/**
+ * Fichas de Costo e IPV: espejo de web/js/ipv.js y de las funciones del
+ * repositorio IPV · Fichas y Costos (_create_ficha, _validate_control,
+ * yield_info, servings_from_stock). Dinero redondeado a 2 decimales.
+ */
+object IpvCalculator {
+
+    fun itemSubtotal(quantity: Double, unitCost: Double): Double = StockCalculator.round2(quantity * unitCost)
+
+    fun fichaTotal(items: List<com.novagest.inventario.domain.model.FichaItem>): Double =
+        StockCalculator.round2(items.sumOf { it.subtotal })
+
+    fun costPerServing(totalCost: Double, yieldQty: Double): Double {
+        val y = if (yieldQty > 0) yieldQty else 1.0
+        return StockCalculator.round2(totalCost / y)
+    }
+
+    data class Servings(val servings: Int, val limitedBy: String?, val shortages: List<String>)
+
+    /** Raciones que permite el stock actual: manda el insumo más escaso. */
+    fun servingsFromStock(
+        items: List<com.novagest.inventario.domain.model.FichaItem>,
+        yieldQty: Double,
+        stockOf: (String) -> Double
+    ): Servings {
+        val y = if (yieldQty > 0) yieldQty else 1.0
+        var best: Int? = null
+        var limitedBy: String? = null
+        val shortages = mutableListOf<String>()
+        for (item in items) {
+            val pid = item.materialId ?: continue
+            val per = item.quantity / y
+            if (per <= 0) continue
+            val stock = stockOf(pid)
+            val possible = kotlin.math.floor(stock / per).toInt()
+            if (best == null || possible < best!!) { best = possible; limitedBy = item.description }
+            if (stock < per) shortages += item.description
+        }
+        return Servings(best ?: 0, limitedBy, shortages)
+    }
+
+    fun nextVersion(versions: List<Int>): Int = (versions.maxOrNull() ?: 0) + 1
+
+    /** Código correlativo IPV-AAAA-NNNN por año del período «AAAA-MM». */
+    fun nextControlCode(existingCodes: List<String>, period: String): String {
+        val year = period.take(4).ifBlank { "0000" }
+        val prefix = "IPV-$year-"
+        val max = existingCodes.filter { it.startsWith(prefix) }
+            .mapNotNull { it.removePrefix(prefix).toIntOrNull() }.maxOrNull() ?: 0
+        return prefix + (max + 1).toString().padStart(4, '0')
+    }
+
+    data class ControlValidation(val status: String, val checkedTotal: Double, val messages: List<String>)
+
+    /** Réplica de _validate_control del repo IPV: sumas y ficha aprobada. */
+    fun validateControl(fichaStatus: String?, fichaTotalCost: Double?, snapshotTotal: Double, items: List<com.novagest.inventario.domain.model.FichaItem>): ControlValidation {
+        val messages = mutableListOf<String>()
+        if (fichaStatus == null || fichaTotalCost == null) {
+            return ControlValidation("Con diferencias", 0.0, listOf("La ficha vinculada no existe."))
+        }
+        if (fichaStatus != "Aprobada") messages += "La Ficha de Costo vinculada no está aprobada."
+        if (items.isEmpty()) messages += "El control no contiene líneas de detalle."
+        var sum = 0.0
+        for (item in items) {
+            sum += item.subtotal
+            if (item.description.isBlank()) messages += "Existe una línea sin descripción."
+            if (item.quantity <= 0) messages += "Cantidad no válida en: ${item.description}."
+        }
+        val checked = StockCalculator.round2(sum)
+        if (checked != StockCalculator.round2(snapshotTotal)) messages += "La suma de las líneas no coincide con el total registrado en el control."
+        if (StockCalculator.round2(snapshotTotal) != StockCalculator.round2(fichaTotalCost)) messages += "El total del control no coincide con el total de la ficha vinculada."
+        return if (messages.isEmpty()) {
+            ControlValidation("Validado", checked, listOf("El total y las líneas coinciden con la Ficha de Costo vinculada."))
+        } else {
+            ControlValidation("Con diferencias", checked, messages)
+        }
+    }
+}
+
 object Validators {
     fun productName(name: String): String? {
         val n = name.trim()
