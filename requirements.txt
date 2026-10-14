@@ -2,4 +2,4 @@
 # - cryptography: copias cifradas y licencias del servidor
 # - openpyxl: regenerar semillas desde los libros Excel (tools/import_excel.py)
 cryptography>=50.0.2
-openpyxl>=3.1
+openpyxl>=3.1.5
