@@ -95,6 +95,11 @@ jobs:
             echo "::error::Gradle falló:%0A${resumen}"
             set +e +o pipefail
             if grep -q 'checking AAR metadata' gradle.log; then
+              # ¿Bajo qué dependencia directa aparecen las versiones nuevas?
+              gradle :app:dependencies --configuration debugRuntimeClasspath > deps.log 2>&1
+              awk '/^[+\\]--- /{top=$0} /(2\.10\.0|-> 1\.9\.0|:1\.9\.0)/{print top " :: " $0}' deps.log | sort -u | head -n 60 > deps-corto.log
+              cuerpo="$(sed -e 's/%/%25/g' -e 's/\r//g' deps-corto.log | awk 'BEGIN { ORS = "%0A" } { print }')"
+              echo "::error::Dependencias directas que arrastran versiones nuevas:%0A${cuerpo}"
               # Diagnóstico: ¿qué dependencia arrastra las versiones que exigen otro AGP?
               for dep in androidx.compose.foundation:foundation-android androidx.lifecycle:lifecycle-runtime-compose-android; do
                 gradle :app:dependencyInsight --configuration debugRuntimeClasspath --dependency "$dep" > insight.log 2>&1
