@@ -88,7 +88,7 @@ familia de stack que NovaGest, por lo que la lógica es trasladable sin dependen
 
 | # | Prioridad | Hallazgo | Estado |
 |---|---|---|---|
-| 1 | **Alta** | Datos legales `[COMPLETAR]` y revisión por abogado (Cuba + RGPD si hay clientes UE) | **Mecanismo hecho**: Ajustes → Datos legales (`/api/legal`) rellena los textos sin tocar código; la revisión/firma sigue **pendiente del titular** (`docs/REVISION_LEGAL.md`) — no publicar #legal como definitivo sin ella |
+| 1 | **Alta** | Datos legales `[COMPLETAR]` y revisión profesional según jurisdicción | **Mecanismo hecho**: Ajustes → Datos legales (`/api/legal`) permite completar datos y cláusulas de los cinco documentos; la revisión/firma sigue **pendiente del titular** (`docs/REVISION_LEGAL.md`, `docs/GUIA_DATOS_LEGALES.md`) — no publicar #legal como definitivo sin ella |
 | 2 | **Alta** | Contraseñas de demostración (`Admin123!`…) y servidor por HTTP si se expone sin TLS | **Mitigado en código**: ya no se muestran en el acceso; producción puede arrancar sin cuentas conocidas (`NOVAGEST_DEMO_USERS=0` + `NOVAGEST_ADMIN_PASSWORD`); HTTPS sigue siendo decisión de cada despliegue (fuera del repo) |
 | 3 | **Alta** | Licencia de las imágenes `cat/*.jpg` no comprobable | **Resuelto**: sustituidas por arte procedural propio generado en el repo (`docs/IMAGENES.md`) |
 | 4 | Media | CSP con `style-src 'unsafe-inline'` (estilos en línea en las vistas) | **Aplicado (2026-10-14)**: estilos en línea migrados a clases/data-*/CSSOM; CSP ya va sin `'unsafe-inline'` también en estilos |
@@ -145,9 +145,10 @@ Histórico de la propuesta original:
 
 - **Datos legales sin inventar**: tabla `legal_info` + `GET /api/legal` (público) y
   `PUT /api/legal` (Administrador/Jefe, auditado). Ajustes → «Datos legales del
-  negocio» rellena Avisos/Privacidad/Términos/Reembolsos y el pie en tiempo real
-  (`rellenarLegal`); lo vacío sigue como `[COMPLETAR: …]`. Firma legal: plantilla
-  en `docs/REVISION_LEGAL.md` (la revisión profesional no la puede hacer el código).
+  negocio» rellena Aviso, Privacidad, Términos, Cookies, Reembolsos y el pie en
+  tiempo real (`rellenarLegal`); los campos incluyen ayuda y lo que siga vacío se
+  ve como `[COMPLETAR: …]`. Guía de captura: `docs/GUIA_DATOS_LEGALES.md`; aprobación
+  profesional: `docs/REVISION_LEGAL.md` (el código no puede hacer esa revisión).
 - **Imágenes**: sustituidas las 10 de categoría por arte propio generado en el repo
   (`tools/generar_imagenes_categorias.py`, `docs/IMAGENES.md`).
 - **Credenciales demo**: fuera de la pantalla de acceso; arranque de producción sin

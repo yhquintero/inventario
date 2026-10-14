@@ -1327,7 +1327,16 @@ def license_delete_all(h, u, _):
 
 
 # ------------------------------------------------------------------ autenticación
-LEGAL_FIELDS = ("razonSocial", "idFiscal", "domicilio", "contacto", "privacidad", "pais", "retencion", "reembolso", "alojamiento")
+LEGAL_FIELDS = (
+    "razonSocial", "idFiscal", "domicilio", "contacto", "privacidad", "pais",
+    "retencion", "reembolso", "alojamiento", "privacidadRoles", "privacidadBase",
+    "privacidadPlazo", "licenciaTransferencia", "pagos", "servicio", "jurisdiccion",
+    "limitaciones", "reembolsoPlazo", "cookiesRevision",
+)
+LEGAL_LONG_FIELDS = {
+    "retencion", "reembolso", "privacidadRoles", "privacidadBase", "privacidadPlazo",
+    "licenciaTransferencia", "pagos", "servicio", "jurisdiccion", "limitaciones", "cookiesRevision",
+}
 
 
 @route("GET", "/api/legal", need=False)
@@ -1343,7 +1352,7 @@ def legal_put(h, u, _):
     data = {}
     for k in LEGAL_FIELDS:
         v = re.sub(r"[<>]", "", str(b.get(k, "") or "")).strip()
-        data[k] = v[:1000] if k in ("retencion", "reembolso") else v[:300]
+        data[k] = v[:1000] if k in LEGAL_LONG_FIELDS else v[:300]
     q("INSERT OR REPLACE INTO legal_info(id,data,updated_at,updated_by) VALUES(1,?,?,?)",
       (json.dumps(data, ensure_ascii=False), now(), u["display_name"]))
     audit(u["username"], "LEGAL_UPDATE", "Datos legales del negocio actualizados", h.ip())

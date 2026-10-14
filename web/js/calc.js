@@ -104,18 +104,18 @@ export function normName(s) {
 }
 
 export const CATEGORIES = {
-  "Solar / Energía": { img: "solar", color: "#f59e0b", icon: "☀" },
-  "Cocina": { img: "cocina", color: "#ef4444", icon: "🍳" },
-  "Refrigeración": { img: "refrigeracion", color: "#0ea5e9", icon: "❄" },
-  "Clima": { img: "clima", color: "#06b6d4", icon: "🌀" },
-  "Audio y TV": { img: "audio", color: "#8b5cf6", icon: "📺" },
-  "Hogar y Muebles": { img: "hogar", color: "#a16207", icon: "🛋" },
-  "Lavado": { img: "lavado", color: "#3b82f6", icon: "🧺" },
-  "Herramientas": { img: "herramientas", color: "#64748b", icon: "🔧" },
-  "Construcción": { img: "construccion", color: "#78716c", icon: "🧱" },
-  "Movilidad": { img: "movilidad", color: "#16a34a", icon: "🚲" },
-  "Iluminación": { img: null, color: "#eab308", icon: "💡" },
-  "General": { img: null, color: "#0d9488", icon: "📦" },
+  "Solar / Energía": { img: "solar", color: "#fbbf24", icon: "sun" },
+  "Cocina": { img: "cocina", color: "#fb7185", icon: "cook" },
+  "Refrigeración": { img: "refrigeracion", color: "#38bdf8", icon: "snow" },
+  "Clima": { img: "clima", color: "#22d3ee", icon: "air" },
+  "Audio y TV": { img: "audio", color: "#a78bfa", icon: "media" },
+  "Hogar y Muebles": { img: "hogar", color: "#c084fc", icon: "chair" },
+  "Lavado": { img: "lavado", color: "#60a5fa", icon: "washer" },
+  "Herramientas": { img: "herramientas", color: "#94a3b8", icon: "tools" },
+  "Construcción": { img: "construccion", color: "#fb923c", icon: "building" },
+  "Movilidad": { img: "movilidad", color: "#34d399", icon: "bike" },
+  "Iluminación": { img: null, color: "#fde047", icon: "bulb" },
+  "General": { img: null, color: "#2dd4bf", icon: "box" },
 };
 
 export const CURRENCIES = ["USD", "EUR", "MXN", "MLC", "CAD"];

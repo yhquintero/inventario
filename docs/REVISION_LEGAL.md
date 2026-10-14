@@ -1,43 +1,61 @@
 # Revisión legal profesional — lista de cierre
 
 Los textos de **Información legal** (`#legal`: Aviso legal, Privacidad, Términos,
-Cookies, Reembolsos) son **borradores** generados desde lo que el código hace.
-Ningún dato del negocio se ha inventado: lo no rellenado se ve como
-`[COMPLETAR: …]`. Esto no puede cerrarlo el desarrollo: lo cierra el titular
-con su asesor. Esta hoja deja el pendiente **ejecutable**, no resuelto.
+Cookies y Reembolsos) son borradores generados a partir del funcionamiento actual
+del código. No se ha inventado ningún dato del negocio: lo que no se haya
+confirmado aparece como `[COMPLETAR: …]`. El titular y su asesor deben cerrar
+estos pendientes; desarrollo no puede decidirlos por ellos.
 
-## 1. Rellenar los datos (sin inventar)
-En la Web, como Administrador/Jefe: **Ajustes → Datos legales del negocio**
-(se guardan en el servidor vía `PUT /api/legal` y se muestran en `#legal` y en el pie):
+## 1. Recopilar datos del titular
 
-- [ ] Razón social / titular · [ ] Identificación fiscal o nº de licencia
-- [ ] Domicilio legal · [ ] Correo y teléfono de contacto
-- [ ] Correo del responsable de privacidad · [ ] País y forma jurídica
-- [ ] Plazos de conservación · [ ] Condiciones y plazo de reembolso
-- [ ] Proveedor y país del alojamiento del servidor
+Como **Administrador** o **Jefe**, abre **Ajustes → Datos legales del negocio**.
+El formulario explica campo por campo qué información preparar. Los valores se
+guardan con `PUT /api/legal` y se muestran públicamente en `#legal` y en el pie.
+Para obtener la lista detallada y una plantilla para responder, consulta
+[`GUIA_DATOS_LEGALES.md`](GUIA_DATOS_LEGALES.md).
 
-Quedarán visibles como `[COMPLETAR: …]` solo: la base jurídica/plazo de respuesta
-de derechos en su país y las cláusulas que su asesor dicte (están marcadas dentro
-de cada texto a propósito).
+Antes de guardar, recuerda que el endpoint público `GET /api/legal` devuelve los
+valores para mostrarlos a visitantes. No guardes contraseñas, claves, datos
+bancarios ni documentos personales. Si un dato no está confirmado, déjalo vacío:
+la marca `[COMPLETAR]` seguirá visible.
 
-## 2. Revisión por profesional (firma de cierre)
-- [ ] Un abogado de su jurisdicción revisa los 5 textos (Cuba + RGPD/ePrivacy si
-      trata datos de personas en la UE; consumo si vende fuera de Cuba).
-- [ ] Confirma: forma jurídica, norma de Fichas de Costo/IPV de su actividad,
-      conservación de documentos contables y vía de reclamación del consumidor.
-- [ ] Se retiran los `[COMPLETAR: …]` restantes o se dejan solo donde el asesor
-      indique que debe figurar literalmente así.
+## 2. Confirmar los puntos dependientes del negocio y su jurisdicción
 
-| Campo | Valor |
+- [ ] Nombre legal, forma jurídica, identificación y domicilio que se pueden publicar.
+- [ ] Contactos públicos para atención general y solicitudes sobre privacidad.
+- [ ] Quién determina los usos de los datos y quién opera/alberga cada instalación.
+- [ ] Ubicación real del servidor, proveedores y posibles transferencias internacionales.
+- [ ] Plazos de conservación por tipo de registro y copias de seguridad.
+- [ ] Bases jurídicas y plazos de respuesta a solicitudes de privacidad.
+- [ ] Transferencia de licencias, cambio de dispositivos y límites de cada plan.
+- [ ] Métodos de pago, moneda, comprobantes e impuestos realmente aplicables.
+- [ ] Disponibilidad, horario/canal de soporte y mantenimiento que sí se puedan cumplir.
+- [ ] Política de reembolso y plazo de ejecución, respetando derechos irrenunciables.
+- [ ] Normas de cookies/almacenamiento y vías de reclamación aplicables en cada mercado.
+- [ ] Límites de responsabilidad y cualquier condición de servicio, revisados por asesor.
+
+## 3. Revisión y aprobación profesional
+
+- [ ] Un abogado de la jurisdicción del titular revisa los cinco textos y el contrato/licencia.
+- [ ] Si se ofrecen licencias o se tratan datos fuera del país de establecimiento,
+      confirma las normas adicionales de privacidad, consumo, impuestos y comercio.
+- [ ] Confirma las reglas aplicables a Fichas de Costo/IPV de la actividad del negocio.
+- [ ] Cada `[COMPLETAR: …]` se sustituye por una decisión confirmada, o se mantiene
+      pendiente si aún falta aprobación. No se deben usar ejemplos como datos reales.
+
+| Registro de revisión | Valor |
 |---|---|
-| Revisado por (nombre y nº de colegiado/licencia) | |
+| Profesional (nombre y nº de colegiado/licencia) | |
+| Jurisdicciones revisadas | |
 | Fecha de revisión | |
-| Textos aprobados (Aviso/Privacidad/Términos/Cookies/Reembolsos) | |
+| Documentos aprobados (Aviso/Privacidad/Términos/Cookies/Reembolsos) | |
 | Observaciones | |
 | Firma | |
 
-## 3. Mientras tanto
-- No publique la instalación como definitiva con `[COMPLETAR]` visibles en
-  producción si su asesor no lo autoriza; el aviso «Borrador pendiente de
-  revisión legal profesional» se mantiene en cada texto.
-- En local/pruebas puede usarse tal cual para validar el funcionamiento.
+## 4. Mientras tanto
+
+- No presentes la instalación como legalmente revisada ni definitiva mientras haya
+  datos o cláusulas pendientes, salvo autorización expresa de tu asesor.
+- El aviso «Borrador pendiente de revisión legal profesional» permanece visible en
+  cada documento hasta que el titular decida publicar textos aprobados.
+- En desarrollo/pruebas puedes validar el formulario y la sustitución de los campos.
