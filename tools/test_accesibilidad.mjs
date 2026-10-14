@@ -34,7 +34,7 @@ const varCss = (name, dark = false) => {
 ok("idioma del documento y salto al contenido", () => {
   assert.match(html, /<html lang="es">/);
   assert.match(app, /skip-link/);
-  assert.match(app, /<main class="content(?: \$\{ui\.route === "home" \? "dashboard-page" : ""\})?" id="contenido">/);
+  assert.match(app, /<main class="content dashboard-page" id="contenido">/); // misma tipografía del Panel en todos los módulos
 });
 
 ok("foco visible y movimiento reducido en CSS", () => {

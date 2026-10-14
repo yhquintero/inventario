@@ -6,8 +6,9 @@
    solicitudes de licencia en el servidor.
    v12: Dashboard interactivo y nuevos recursos de categorías (renueva el caché del cliente).
    v13: solicitud de licencia con consentimiento visible y accesible en el flujo de WhatsApp.
-   v14: aviso de activación explícita; ya no se ofrece una prueba automática. */
-const CACHE = "novagest-v14";
+   v14: aviso de activación explícita; ya no se ofrece una prueba automática.
+  v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos. */
+const CACHE = "novagest-v15";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/ux.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",

@@ -2,7 +2,7 @@
 
 ## Arranque
 
-En Windows, `server\iniciar-https.ps1` abre el **Panel de Control Visual** (ventana con el estado de cada servicio e **icono en la bandeja del sistema**, junto al reloj) y arranca solo, en segundo plano, el servidor de la Web con la API (8443) y el generador de licencias (8444). Con el **botón derecho** sobre el icono está el menú: mostrar el panel, abrir la Web o el generador, iniciar todo, **detener los servicios web**, **detener el servidor principal**, **detener el generador (`iniciar-generador-https.ps1`)**, reiniciar todo y **salir**. Cerrar la ventana con la **X** solo oculta el panel en la bandeja: los servicios siguen funcionando. Para el arranque clásico en consola (servidor en primer plano) usa `server\iniciar-https.ps1 -SinPanel`.
+En Windows, `server\iniciar-https.ps1` abre el **Panel de Control Visual** (ventana con el estado de cada servicio e **icono en la bandeja del sistema**, junto al reloj) y arranca solo, en segundo plano, el servidor de la Web con la API (8443) y el generador de licencias (8444). Con el **botón derecho** sobre el icono está el menú (se abre en el cursor): mostrar el panel, abrir la Web o el generador, iniciar todo, **detener los servicios web**, **detener el servidor principal**, **detener el generador (`iniciar-generador-https.ps1`)**, reiniciar todo y **salir**. Cerrar la ventana con la **X** solo oculta el panel en la bandeja: los servicios siguen funcionando. Para el arranque clásico en consola (servidor en primer plano) usa `server\iniciar-https.ps1 -SinPanel`.
 
 1. Entra con `admin` / `Admin123!`.
 2. En **Ajustes** activa biometría si el dispositivo lo permite.
@@ -103,7 +103,7 @@ En **Clientes y fiados** das de alta clientes (nombre, teléfono, correo, direcc
 
 ## 🔐 Licencia por término (WhatsApp)
 
-Si la licencia vence o aún no tienes una: escribe tu **nombre o empresa** (y tu teléfono, si quieres que te respondan a él), elige el **plazo** (día, semana, mes, trimestre, semestre, año, 2 años o permanente), pulsa **Solicitar por WhatsApp** y envía el mensaje (ya trae tu ID de dispositivo). Cuando recibas la clave `NG-…`, pégala en «Activar Licencia» y pulsa **Activar ahora**.
+Si la licencia vence o aún no tienes una: escribe tu **nombre o empresa** (y tu teléfono, si quieres que te respondan a él), elige el **plazo** (día, semana, mes, trimestre, semestre, año, 2 años o permanente), marca la casilla **«Autorizo registrar los datos de esta solicitud…»** (el botón **💬 Solicitar por WhatsApp** se activa solo al marcarla), pulsa **Solicitar por WhatsApp** y envía el mensaje (ya trae tu ID de dispositivo). Cuando recibas la clave `NG-…`, pégala en «Activar Licencia» y pulsa **Activar ahora**.
 
 La solicitud queda registrada en el servidor: el administrador la ve en **🔐 Gestionar licencia → Solicitudes** (Web: botón 🔐 de la barra superior o Ajustes → Licencia de Uso → Gestionar) con tu plan, tu teléfono y tu ID de dispositivo, y crea la clave en un clic para enviártela. Si la pides desde la app Android también aparece en el mismo panel.
 
