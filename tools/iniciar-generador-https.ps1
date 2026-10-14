@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   NovaGest - Generador de Licencias por HTTPS en Windows (mkcert + firewall + URLs).
 
@@ -41,6 +41,11 @@
 .PARAMETER AbrirNavegador
   Abre el navegador al arrancar (por defecto sí).
 
+.PARAMETER SinNavegador
+  No abre el navegador. Equivale a -AbrirNavegador $false y es la forma segura
+  de pedirlo por línea de comandos o desde el Panel de Control Visual, porque un
+  parámetro [bool] recibido como texto «False» con -File se convierte en $true.
+
 .PARAMETER ReutilizarCert
   Fuerza el uso del certificado del servidor (certs\cuadre.crt) aunque no se
   pueda comprobar si cubre las IPs actuales.
@@ -69,11 +74,15 @@ param(
     [string]$Clave = "",
     [switch]$SoloLocal,
     [bool]$AbrirNavegador = $true,
+    [switch]$SinNavegador,
     [switch]$ReutilizarCert,
     [switch]$CrearReglaFirewall
 )
 
 $ErrorActionPreference = 'Continue'
+
+# -SinNavegador equivale a -AbrirNavegador $false (y sí funciona al invocar con -File)
+if ($SinNavegador) { $AbrirNavegador = $false }
 
 # Raiz del proyecto (este script vive en <raiz>\tools)
 $raiz       = Split-Path -Parent $PSScriptRoot

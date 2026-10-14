@@ -1,19 +1,41 @@
 ﻿<#
 .SYNOPSIS
-  NovaGest - arranque HTTPS en Windows (mkcert + firewall + URLs por red).
+  NovaGest - arranque HTTPS en Windows: abre el PANEL DE CONTROL VISUAL
+  (mkcert + firewall + URLs por red + icono en la bandeja del sistema).
 
 .DESCRIPTION
+  Arranque único de NovaGest en Windows. De forma normal NO deja una consola
+  abierta: abre el PANEL DE CONTROL VISUAL (server\panel-control.ps1), una
+  ventana con el estado de cada servicio y un ICONO en la bandeja del sistema
+  (junto al reloj) cuyo menú, con el botón derecho del ratón, permite:
+
+    · Mostrar el Panel de Control Visual
+    · Abrir la Web (https://localhost:8443)
+    · Abrir el generador de licencias (https://localhost:8444)
+    · Iniciar todos los servicios
+    · Detener los servicios web (todo)
+    · Detener el servidor principal (Web + API)
+    · Detener el generador (iniciar-generador-https.ps1)
+    · Reiniciar todos los servicios
+    · Abrir la carpeta de registros
+    · Salir (detener los servicios y cerrar)
+
+  Pasos de este script:
+
   1) Detecta todas las IPs IPv4 de la laptop (incluida 192.168.137.1 si esta
      activa la "Zona con cobertura inalambrica movil" / punto de acceso de
      Windows) y crea el certificado mkcert con todas ellas.
   2) Crea la regla de Firewall de Windows para el puerto 8443 si no existe
      (la primera vez pide elevacion con UAC).
-  3) Imprime las URLs correctas de cada red, arranca el servidor en
-     https://0.0.0.0:8443 con registro en data\logs\servidor_AAAA-MM-DD.log y
-     abre la Web en el navegador (https://localhost:8443) en cuanto el servidor
-     empieza a escuchar; omítelo con -AbrirNavegador $false.
-  4) Inicia automáticamente el generador HTTPS en una ventana aparte (puerto
-     8444 por defecto), reutilizando el certificado y la carpeta data del servidor.
+  3) Imprime las URLs correctas de cada red y abre el Panel de Control Visual,
+     que arranca AUTOMÁTICAMENTE y en segundo plano el servidor
+     (https://0.0.0.0:8443, registro en data\logs\servidor_AAAA-MM-DD.log) y el
+     generador de licencias HTTPS (puerto 8444, data\logs\generador_AAAA-MM-DD.log),
+     y abre la Web en el navegador (https://localhost:8443) en cuanto el
+     servidor escucha.
+  4) Si el panel no pudiera arrancar (por ejemplo, sin interfaz gráfica), este
+     script continúa en el modo consola clásico para no dejar la Web sin
+     servicio. Con -SinPanel se usa siempre ese modo consola clásico.
 
 .PARAMETER Puerto
   Puerto del servidor. Por defecto 8443.
@@ -28,6 +50,22 @@
   Abre la Web (https://localhost:PUERTO) en el navegador en cuanto el servidor
   empieza a escuchar. Por defecto sí. Usa -AbrirNavegador $false para no abrirla.
 
+.PARAMETER SinNavegador
+  No abre el navegador. Equivale a -AbrirNavegador $false y es la forma segura
+  de pasarlo por línea de comandos (un [bool] «False» por -File se convierte
+  en $true).
+
+.PARAMETER SinPanel
+  Modo consola clásico: no abre el Panel de Control Visual; el servidor queda
+  en primer plano en esta ventana (Ctrl+C para detenerlo).
+
+.PARAMETER SinAutoInicio
+  El panel se abre pero no arranca los servicios automáticamente (se inician
+  desde la ventana o desde el menú del icono de la bandeja).
+
+.PARAMETER Minimizado
+  El panel arranca oculto: solo el icono de la bandeja (doble clic para abrirlo).
+
 .PARAMETER CrearReglaFirewall
   Uso interno: crea unicamente la regla de firewall (proceso elevado via UAC).
 
@@ -37,8 +75,15 @@
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1 -AbrirNavegador $false
 
+.EXAMPLE
+  powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1 -Minimizado
+
+.EXAMPLE
+  powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1 -SinPanel
+
 .NOTES
   Sustituye al arrancador anterior. Requiere Windows 10 o superior.
+  El Panel de Control Visual vive en server\panel-control.ps1.
 #>
 [CmdletBinding()]
 param(
@@ -46,6 +91,10 @@ param(
     [int]$PuertoGenerador = 8444,
     [switch]$SinGenerador,
     [bool]$AbrirNavegador = $true,
+    [switch]$SinNavegador,
+    [switch]$SinPanel,
+    [switch]$SinAutoInicio,
+    [switch]$Minimizado,
     [switch]$CrearReglaFirewall
 )
 
@@ -61,6 +110,9 @@ $nomRegla  = "NovaGest HTTPS $Puerto"
 function Ok($m)    { Write-Host "  [OK] $m" -ForegroundColor Green }
 function Aviso($m) { Write-Host "  [AVISO] $m" -ForegroundColor Yellow }
 function Fallo($m) { Write-Host "  [X] $m" -ForegroundColor Red }
+
+# -SinNavegador equivale a -AbrirNavegador $false (y sí funciona al invocar con -File)
+if ($SinNavegador) { $AbrirNavegador = $false }
 
 # Consola UTF-8: acentos correctos y salida de Python sin "mojibake"
 try { chcp 65001 | Out-Null } catch { }
@@ -217,6 +269,126 @@ if ($caroot) {
     Write-Host "  Moviles: instala una vez el certificado raiz '$caroot'"
     Write-Host '      Android: Ajustes > Seguridad > Cifrado y credenciales > Instalar certificado > Autoridad de certificacion.'
     Write-Host '      iPhone:  Ajustes > General > Info > Ajustes de certificados > Instalar certificado de raiz.'
+}
+
+# ======================= Panel de Control Visual (modo normal) =======================
+# Arranque normal: se abre el PANEL DE CONTROL VISUAL (server\panel-control.ps1), una
+# ventana con el estado de cada servicio y un icono en la bandeja del sistema (clic
+# derecho para el menú: mostrar el panel, abrir la Web, detener los servicios web, el
+# servidor principal o el generador, reiniciar y salir). El panel arranca los servicios
+# en segundo plano; este script se cierra en cuanto el panel confirma que está listo.
+# Con -SinPanel se omite todo esto y se conserva el modo consola clásico.
+if ($SinPanel) {
+    Write-Host ''
+    Aviso 'Modo consola (-SinPanel): el servidor queda en primer plano en esta ventana (Ctrl+C para detenerlo).'
+    Write-Host '        Para volver al Panel de Control Visual, ejecuta este script sin -SinPanel.' -ForegroundColor Cyan
+    Write-Host ''
+} else {
+    $panelScript = Join-Path $PSScriptRoot 'panel-control.ps1'
+    if (-not (Test-Path $panelScript)) {
+        Aviso "No se encontró el Panel de Control Visual ($panelScript); se continúa en modo consola."
+    } else {
+        # Una sola instancia del panel: comparte el mutex con panel-control.ps1, así que
+        # si ya está abierto no se lanza una segunda copia (y no se pisa su registro).
+        $hayPanel = $false
+        try {
+            $mtxPanel = New-Object System.Threading.Mutex -ArgumentList $false, 'Local\NovaGestPanelControlVisual'
+            $libre = $mtxPanel.WaitOne(0, $false)
+            if ($libre) { try { $mtxPanel.ReleaseMutex() } catch { } } else { $hayPanel = $true }
+            try { $mtxPanel.Dispose() } catch { }
+        } catch { }
+
+        if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+        $consolaPanel    = Join-Path $logDir 'consola-panel.log'
+        $consolaPanelErr = Join-Path $logDir 'consola-panel.err.log'
+        $psExe = (Get-Process -Id $PID).Path
+        if ($hayPanel) {
+            Ok 'El Panel de Control Visual ya está abierto.'
+            Write-Host '        Búscalo en la bandeja del sistema (icono junto al reloj) o en la barra de tareas.' -ForegroundColor Cyan
+            Write-Host ''
+            exit 0
+        }
+        $panelArgs = @(
+            '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$panelScript`"",
+            '-Puerto', "$Puerto",
+            '-PuertoGenerador', "$PuertoGenerador"
+        )
+        if (-not $AbrirNavegador) { $panelArgs += '-SinNavegador' }
+        if ($SinGenerador)  { $panelArgs += '-SinGenerador' }
+        if ($SinAutoInicio) { $panelArgs += '-SinAutoInicio' }
+        if ($Minimizado)    { $panelArgs += '-Minimizado' }
+
+        $procesoPanel = $null
+        try {
+            $procesoPanel = Start-Process -FilePath $psExe -ArgumentList $panelArgs -WorkingDirectory $raiz `
+                -WindowStyle Hidden -PassThru -ErrorAction Stop `
+                -RedirectStandardOutput $consolaPanel -RedirectStandardError $consolaPanelErr
+        } catch {
+            Aviso "No se pudo abrir el Panel de Control Visual: $($_.Exception.Message)"
+        }
+
+        if ($procesoPanel) {
+            # Se espera a que el panel escriba NOVAGEST-PANEL-LISTO en su consola: así,
+            # si la interfaz gráfica no puede cargarse, este script sigue en modo consola
+            # y la Web arranca igualmente.
+            $listo = $false
+            $yaAbierto = $false
+            $limite = (Get-Date).AddSeconds(25)
+            while ((Get-Date) -lt $limite) {
+                if ($procesoPanel.HasExited) { break }
+                try {
+                    if (Test-Path $consolaPanel) {
+                        $textoPanel = [string](Get-Content -LiteralPath $consolaPanel -Raw -Encoding UTF8 -ErrorAction Stop)
+                        if ($textoPanel -like '*NOVAGEST-PANEL-LISTO*') { $listo = $true; break }
+                    }
+                } catch { }
+                Start-Sleep -Milliseconds 400
+            }
+            if (-not $listo -and -not $procesoPanel.HasExited) {
+                # Margen final: el proceso vive, se espera un poco más por si el equipo es lento.
+                Start-Sleep -Seconds 3
+                try {
+                    if ((Test-Path $consolaPanel) -and ([string](Get-Content -LiteralPath $consolaPanel -Raw -Encoding UTF8) -like '*NOVAGEST-PANEL-LISTO*')) { $listo = $true }
+                } catch { }
+            }
+            try {
+                if (Test-Path $consolaPanel) {
+                    $textoPanel = [string](Get-Content -LiteralPath $consolaPanel -Raw -Encoding UTF8)
+                    if ($textoPanel -like '*NOVAGEST-PANEL-YA-ABIERTO*') { $yaAbierto = $true }
+                }
+            } catch { }
+
+            if ($listo) {
+                Ok "Panel de Control Visual abierto (PID $($procesoPanel.Id)): icono en la bandeja del sistema, junto al reloj."
+                Write-Host '        Clic derecho sobre el icono: mostrar el panel, abrir la Web, detener los servicios web, el servidor principal o el generador, y salir.' -ForegroundColor Cyan
+                Write-Host '        Los servicios se inician solos, en segundo plano, desde el panel.' -ForegroundColor Cyan
+                Write-Host ''
+                exit 0
+            }
+
+            if ($yaAbierto) {
+                Ok 'El Panel de Control Visual ya estaba abierto.'
+                Write-Host '        Búscalo en la bandeja del sistema (icono junto al reloj) o en la barra de tareas.' -ForegroundColor Cyan
+                Write-Host ''
+                exit 0
+            }
+
+            Fallo 'El Panel de Control Visual no llegó a abrirse: se continúa en modo consola.'
+            $detalle = ''
+            try { if (Test-Path $consolaPanelErr) { $detalle = [string](Get-Content -LiteralPath $consolaPanelErr -Raw -Encoding UTF8) } } catch { }
+            if (-not $detalle) {
+                try { if (Test-Path $consolaPanel) { $detalle = [string](Get-Content -LiteralPath $consolaPanel -Raw -Encoding UTF8) } } catch { }
+            }
+            if ($detalle) {
+                Write-Host '  ---- salida del panel (últimas líneas) ----' -ForegroundColor DarkGray
+                $lineasPanel = @($detalle -split "`r?`n")
+                foreach ($l in ($lineasPanel | Select-Object -Last 12)) { Write-Host "    $l" -ForegroundColor DarkGray }
+                Write-Host '  ------------------------------------------' -ForegroundColor DarkGray
+            }
+            try { if (-not $procesoPanel.HasExited) { Stop-Process -Id $procesoPanel.Id -Force -ErrorAction SilentlyContinue } } catch { }
+            Write-Host ''
+        }
+    }
 }
 
 # --------------------------- puerto ya ocupado (otra copia) ---------------------------

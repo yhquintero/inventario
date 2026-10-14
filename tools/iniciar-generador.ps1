@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   NovaGest - Generador de Licencias INDEPENDIENTE de la Web (envío por WhatsApp).
 
@@ -75,7 +75,10 @@ if ($Https) {
     }
     $destino = if ($Puerto -eq 8777) { 8444 } else { $Puerto }
     $argsHttps = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$psHttps`"",
-                   '-Puerto', "$destino", '-AbrirNavegador', "$AbrirNavegador")
+                   '-Puerto', "$destino")
+    # Con -File un [bool] «False» se convierte en $true (cadena no vacía): se usa el
+    # interruptor -SinNavegador, que sí respeta el «no abrir el navegador».
+    if (-not $AbrirNavegador) { $argsHttps += '-SinNavegador' }
     if ($Datos -ne "") { $argsHttps += @('-Datos', $Datos) }
     if ($Clave -ne "") { $argsHttps += @('-Clave', $Clave) }
     if ($WhatsApp -ne "") { $argsHttps += @('-WhatsApp', $WhatsApp) }

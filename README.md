@@ -97,11 +97,33 @@ El servidor escucha en `http://localhost:8080` por defecto y sirve la interfaz W
 
 ### Despliegue con HTTPS
 
-**Windows (una laptop, con mkcert):** `server\iniciar-https.ps1` crea el certificado con mkcert para todas las IPs de la máquina (incluida `192.168.137.1` si está activa la Zona con cobertura inalámbrica móvil), abre la regla de Firewall del puerto 8443 (UAC la primera vez), imprime las URLs de cada red, arranca el servidor en `https://0.0.0.0:8443` y **abre la Web en el navegador** (`https://localhost:8443`) en cuanto el servidor está escuchando; también inicia el generador de licencias HTTPS en otra ventana (puerto 8444). Para no abrir el navegador: `-AbrirNavegador $false`; para omitir el generador: `-SinGenerador`. Si el servidor ya estaba corriendo (puerto 8443 ocupado por la propia copia), no arranca una segunda instancia pero abre la Web igualmente.
+**Windows (una laptop, con mkcert):** `server\iniciar-https.ps1` crea el certificado con mkcert para todas las IPs de la máquina (incluida `192.168.137.1` si está activa la Zona con cobertura inalámbrica móvil), abre la regla de Firewall del puerto 8443 (UAC la primera vez), imprime las URLs de cada red y **abre el Panel de Control Visual** (`server\panel-control.ps1`) con un **icono en la bandeja del sistema**, junto al reloj. Ese panel arranca solo, en segundo plano, el servidor (`https://0.0.0.0:8443`, registro en `data\logs\servidor_AAAA-MM-DD.log`) y el generador de licencias HTTPS (`tools\iniciar-generador-https.ps1`, puerto 8444, `data\logs\generador_AAAA-MM-DD.log`), y abre la Web en el navegador (`https://localhost:8443`) en cuanto el servidor escucha. Si la interfaz gráfica no pudiera cargarse, el lanzador continúa en modo consola para no dejar la Web sin servicio.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1
 ```
+
+#### 🎛️ Panel de Control Visual (icono en la bandeja + menú)
+
+La ventana muestra una tarjeta por servicio con su estado (en ejecución, arrancando, detenido, sin respuesta) y los botones **▶ Iniciar**, **■ Detener**, **↻ Reiniciar**, **Abrir en el navegador** y **Ver registro** (últimas líneas de `data\logs\…`), más las acciones globales **Iniciar todo**, **Detener los servicios web**, **Reiniciar todo** y las casillas *Abrir la Web al iniciar los servicios*, *Reiniciar automáticamente si un servicio se cae* y *Al salir, detener los servicios*.
+
+El **icono de la bandeja** (junto al reloj) tiene menú con el **botón derecho**:
+
+| Opción del menú | Qué hace |
+| --- | --- |
+| **Mostrar el Panel de Control Visual** | Abre la ventana (también con doble clic izquierdo en el icono) |
+| **Abrir la Web / Abrir el generador** | Abre `https://localhost:8443` o `https://localhost:8444` en el navegador |
+| **▶ Iniciar todos los servicios** | Arranca el servidor principal y el generador |
+| **■ Detener los servicios web** | Detiene **todo** (servidor + generador) y libera los puertos |
+| **■ Detener el servidor principal (Web + API)** | Detiene solo el servidor de la Web y la API |
+| **■ Detener el generador (iniciar-generador-https.ps1)** | Detiene solo la herramienta de licencias |
+| **↻ Reiniciar todos los servicios** | Detiene y vuelve a arrancar ambos |
+| **Abrir la carpeta de registros** | Abre `data\logs` en el Explorador |
+| **Salir (detener los servicios y cerrar)** | Pregunta si detener los servicios y cierra el panel |
+
+Cerrar la ventana con la **X** no cierra el programa: lo **oculta en la bandeja** y los servicios siguen en segundo plano (solo «Salir» termina el panel). El panel también reconoce los servicios arrancados **fuera** de él (por ejemplo, una consola de `iniciar-https.ps1 -SinPanel` o de `iniciar-generador-https.ps1`) y puede detenerlos, comprobando antes que el proceso del puerto sea de NovaGest: si el puerto lo ocupa otro programa, avisa y **no** lo toca. Los procesos hijos se lanzan con la ventana oculta y su salida queda en `data\logs\consola-servidor.log`, `data\logs\consola-generador.log`, `data\logs\consola-panel.log` y el registro diario `data\logs\panel_AAAA-MM-DD.log`.
+
+Opciones del panel: `-Minimizado` (arranca solo en la bandeja), `-SinAutoInicio` (no arranca los servicios solo), `-SinGenerador`, `-SinServidor`, `-Puerto`, `-PuertoGenerador`, `-Datos` y `-SinNavegador` (o `-AbrirNavegador $false`, que es equivalente cuando ejecutas el script desde PowerShell). Para el arranque clásico en consola (servidor en primer plano): `server\iniciar-https.ps1 -SinPanel`. Pruebas del panel: `pwsh -NoProfile -File tools\test_panel_control.ps1`.
 
 **Con un dominio apuntado al servidor y Docker instalado:**
 
@@ -162,7 +184,7 @@ Al pulsar **📥 Importar a la lista** la solicitud aparece en **📨 Solicitude
 
 #### 🔒 Por HTTPS en su propio puerto (Windows)
 
-`tools\iniciar-generador-https.ps1` arranca la herramienta **por HTTPS en un puerto propio (8444 por defecto)**, aparte del servidor de NovaGest (8443) y de la Web: reutiliza el certificado del servidor si ya cubre las IPs de la laptop (`certs\cuadre.crt`) o crea el suyo con mkcert (`certs\licencias.crt`), abre la regla de Firewall del puerto (UAC la primera vez) e imprime las URLs de cada red — `https://localhost:8444`, la IP del router y la del hotspot `192.168.137.1` — además de la clave de acceso. Al arrancar con `server\iniciar-https.ps1`, el generador se inicia automáticamente en otra ventana con el mismo certificado y carpeta `data`; puedes omitirlo con `-SinGenerador` o cambiar su puerto con `-PuertoGenerador 9443`. También puedes iniciar el generador manualmente con su propio script. Los móviles solo necesitan la autoridad raíz de mkcert, la misma que ya usan para el servidor.
+`tools\iniciar-generador-https.ps1` arranca la herramienta **por HTTPS en un puerto propio (8444 por defecto)**, aparte del servidor de NovaGest (8443) y de la Web: reutiliza el certificado del servidor si ya cubre las IPs de la laptop (`certs\cuadre.crt`) o crea el suyo con mkcert (`certs\licencias.crt`), abre la regla de Firewall del puerto (UAC la primera vez) e imprime las URLs de cada red — `https://localhost:8444`, la IP del router y la del hotspot `192.168.137.1` — además de la clave de acceso. Al arrancar con `server\iniciar-https.ps1`, el generador se inicia automáticamente en segundo plano (ventana oculta, controlado desde el Panel de Control Visual) con el mismo certificado y carpeta `data`; puedes omitirlo con `-SinGenerador` o cambiar su puerto con `-PuertoGenerador 9443`. También puedes iniciar el generador manualmente con su propio script, y detenerlo desde el menú del icono de la bandeja («■ Detener el generador (iniciar-generador-https.ps1)»). Los móviles solo necesitan la autoridad raíz de mkcert, la misma que ya usan para el servidor.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador-https.ps1
