@@ -70,8 +70,27 @@ def create_token(payload: dict) -> str:
     sig = sign(b64)
     return f"{b64}.{sig}"
 
+def _db_tiene_tablas(ruta: str) -> bool:
+    try:
+        if not os.path.exists(ruta) or os.path.getsize(ruta) == 0:
+            return False
+        con = sqlite3.connect(ruta, timeout=10)  # existe: no se crea nada
+        try:
+            return con.execute("SELECT 1 FROM sqlite_master WHERE type='table' LIMIT 1").fetchone() is not None
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return False
+
+
 def db_path() -> str:
-    return os.path.join(DATA, "novagest.db")
+    """La misma base que usa el servidor (server/novagest_server.py · resolve_db_path):
+    data/novagest.db o, en instalaciones antiguas, data/cuadre.db."""
+    nueva = os.path.join(DATA, "novagest.db")
+    antigua = os.path.join(DATA, "cuadre.db")
+    if os.path.exists(antigua) and (not os.path.exists(nueva) or (not _db_tiene_tablas(nueva) and _db_tiene_tablas(antigua))):
+        return antigua
+    return nueva
 
 
 def db_rows(sql: str, args: tuple = ()):

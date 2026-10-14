@@ -413,6 +413,93 @@ def t_importar_sin_bd():
         studio.request_delete(studio._MEM_ID_BASE + 1)
 
 
+def _esquema(con, tabla):
+    return [(r[1], (r[2] or "").upper(), r[4], r[5]) for r in con.execute(f"PRAGMA table_info({tabla})")]
+
+
+def _con_datos_en(carpeta):
+    """Apunta temporalmente el generador a otra carpeta data (y la deja como estaba)."""
+    class _Ctx:
+        def __enter__(self):
+            self.prev = (studio.gen.DATA, studio.gen.LICENSE_FILE)
+            studio.gen.DATA = carpeta
+            studio.gen.LICENSE_FILE = os.path.join(carpeta, "license.key")
+            with studio._LOCK:
+                studio._DB_READY_CACHE.clear()
+            return self
+
+        def __exit__(self, *exc):
+            studio.gen.DATA, studio.gen.LICENSE_FILE = self.prev
+            with studio._LOCK:
+                studio._DB_READY_CACHE.clear()
+            return False
+    return _Ctx()
+
+
+def t_crea_la_bd_si_falta():
+    """Sin base de datos (el servidor nunca arrancó) la herramienta la crea: ya no queda «sin BD»."""
+    import sqlite3
+    carpeta = tempfile.mkdtemp(prefix="novagest-sin-bd-")
+    with _con_datos_en(carpeta):
+        ruta = studio.gen.db_path()
+        _check(not os.path.exists(ruta) and not studio.db_available(), "la carpeta de prueba debía empezar sin BD")
+        code, s, _ = api("/api/state")
+        _check(code == 200 and s["dbAvailable"] is True and s["dbCreated"] is True, f"/api/state no creó la BD: {s}")
+        _check(s["dbPath"] == ruta and os.path.exists(ruta), "la BD no quedó en la carpeta data indicada")
+        con = sqlite3.connect(ruta)
+        try:
+            tablas = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            _check({"licenses", "license_requests", "license_activations", "audit", "legal_info"} <= tablas,
+                   f"faltan tablas de licencias: {tablas}")
+            # Mismo esquema que el servidor (si el servidor cambia sus tablas, esta prueba avisa).
+            for tabla in ("licenses", "license_requests", "license_activations", "audit", "legal_info"):
+                _check(_esquema(con, tabla) == _esquema(srv.CON, tabla),
+                       f"la tabla {tabla} del generador no coincide con la del servidor")
+        finally:
+            con.close()
+        # Con la BD creada se registran las licencias emitidas y las solicitudes importadas.
+        code, g, _ = api("/api/generate", {"client_name": "Tienda Nueva", "term": "MES"})
+        _check(code == 200 and g["ok"] and g.get("savedToDb") is not False, f"la licencia no quedó registrada en la BD nueva: {g}")
+        code, lic, _ = api("/api/licenses")
+        _check(lic["dbAvailable"] is True and any(x["clientName"] == "Tienda Nueva" for x in lic["licenses"]),
+               "la licencia emitida no aparece en el control de licencias")
+
+
+def t_bd_antigua_cuadre():
+    """Instalación antigua (data/cuadre.db): se usa esa base, aunque exista un novagest.db vacío."""
+    import sqlite3
+    carpeta = tempfile.mkdtemp(prefix="novagest-cuadre-")
+    antigua = os.path.join(carpeta, "cuadre.db")
+    con = sqlite3.connect(antigua)
+    con.execute("CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT)")
+    con.execute("INSERT INTO users(username) VALUES('admin')")
+    con.commit()
+    con.close()
+    with _con_datos_en(carpeta):
+        _check(studio.gen.db_path() == antigua, "sin novagest.db debe usarse cuadre.db")
+        vacia = os.path.join(carpeta, "novagest.db")
+        sqlite3.connect(vacia).execute("PRAGMA user_version=1").connection.close()  # archivo SQLite sin tablas
+        _check(os.path.exists(vacia), "no se creó el novagest.db vacío de la prueba")
+        _check(studio.gen.db_path() == antigua, "un novagest.db vacío no debe ocultar los datos de cuadre.db")
+        _check(srv.resolve_db_path(carpeta) == antigua, "el servidor debe elegir la misma base que el generador")
+        _check(studio.ensure_db() is True, "no preparó las tablas de licencias en cuadre.db")
+        con = sqlite3.connect(antigua)
+        try:
+            tablas = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            _check({"users", "licenses", "license_requests"} <= tablas, f"cuadre.db no quedó lista: {tablas}")
+            _check(con.execute("SELECT username FROM users").fetchone()[0] == "admin", "se tocaron los datos existentes")
+        finally:
+            con.close()
+        con = sqlite3.connect(vacia)
+        try:
+            _check(con.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table'").fetchone()[0] == 0,
+                   "no debía crear tablas en el novagest.db vacío")
+        finally:
+            con.close()
+    _check(srv.resolve_db_path(tempfile.mkdtemp(prefix="novagest-nueva-")).endswith("novagest.db"),
+           "una instalación nueva usa data/novagest.db")
+
+
 def t_control_de_licencias():
     reset()
     code, g, _ = api("/api/generate", {"client_name": "Control SL", "term": "SEMANA"})
@@ -550,6 +637,8 @@ for nombre, fn in [
     ("leer el mensaje que el cliente envió por WhatsApp", t_lee_mensajes_de_whatsapp),
     ("copiar desde el WhatsApp: importar, crear y reenviar", t_importar_desde_whatsapp),
     ("importar sin la base de datos del servidor (queda en la sesión)", t_importar_sin_bd),
+    ("sin base de datos la crea (ya no queda «sin BD»)", t_crea_la_bd_si_falta),
+    ("instalación antigua: usa cuadre.db aunque haya un novagest.db vacío", t_bd_antigua_cuadre),
     ("controlar licencias: listar, activar, renovar, revocar, eliminar", t_control_de_licencias),
     ("equipos de una licencia: listar y quitar", t_equipos_y_csv),
     ("exportar la hoja de control a CSV", t_exportar_csv),
