@@ -10,6 +10,11 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
+    ignore:
+      # material 1.13+ exige Android Gradle Plugin 8.6+ (arrastra Compose 1.9):
+      # se actualizará junto con el AGP, no por separado.
+      - dependency-name: "com.google.android.material:material"
+        versions: [">=1.13.0"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

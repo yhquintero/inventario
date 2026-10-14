@@ -79,7 +79,10 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
-    implementation("com.google.android.material:material:1.14.0")
+    // Solo aporta el tema XML Theme.Material3 (la interfaz es Compose). 1.13+/1.14
+    // arrastran Compose 1.9, lifecycle 2.10 y core 1.16, que exigen AGP 8.6+ y
+    // rompían el CI (checkDebugAarMetadata). Ver .github/dependabot.yml.
+    implementation("com.google.android.material:material:1.12.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
