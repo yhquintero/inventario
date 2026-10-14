@@ -42,6 +42,15 @@ ok("foco visible y movimiento reducido en CSS", () => {
   assert.match(css, /prefers-reduced-motion/);
 });
 
+ok("tipografía y jerarquía del Dashboard compartidas por todos los módulos", () => {
+  assert.match(css, /--serif:\s*var\(--font\)/);
+  assert.match(css, /body\s*\{[^}]*line-height:\s*1\.5/s);
+  assert.match(css, /\.tb-title h2\s*\{[^}]*font-family:\s*var\(--font\)/s);
+  assert.match(css, /\.kpi \.v\s*\{[^}]*font-variant-numeric:\s*tabular-nums/s);
+  assert.doesNotMatch(css, /\.dashboard-page\s+\.kpi \.v/);
+  assert.doesNotMatch(css, /Georgia,\s*["']Times New Roman["'],\s*serif/);
+});
+
 ok("todas las <img> de las vistas llevan alt (vacío = decorativa)", () => {
   const imgs = app.match(/<img[^>]*>/g) || [];
   assert.ok(imgs.length > 0);

@@ -1,5 +1,23 @@
 # NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-14 (IX) · Consentimiento para solicitudes de licencia
+
+- El botón **💬 SOLICITAR POR WHATSAPP** empieza deshabilitado y solo se activa al marcar «Autorizo registrar los datos de esta solicitud…»; al quitar la marca se vuelve a deshabilitar.
+- Se conserva la validación antes de enviar como protección adicional; la prueba Web comprueba el estado del botón y que no se envíen datos sin autorización. La caché PWA sube a `v16` para distribuir el cambio.
+
+## NovaGest v1.0.0 · revisión 2026-10-14 (VIII) · Interacciones del panel y estilo global Web
+
+- **Bandeja de Windows**: el clic derecho muestra el menú de forma explícita; el clic izquierdo abre el panel. Los errores de acciones del panel ahora se presentan visiblemente.
+- **Panel de Control Visual**: «Detener todo» se habilita al iniciar servicios y se deshabilita cuando ya no hay procesos administrados. Los botones y acciones del menú usan un registro de eventos común.
+- **Web**: la familia tipográfica, jerarquía de títulos, cifras KPI y espaciado de lectura del Dashboard se comparten ahora con todos los módulos; también se refinó el estado de botones deshabilitados y el hover de tarjetas. El caché de la PWA sube a `v15` para distribuir el nuevo CSS.
+- **Pruebas**: se añadió una comprobación de accesibilidad para verificar la tipografía global y se validó la sintaxis de ambos scripts PowerShell. WinForms requiere verificación interactiva en Windows.
+
+## NovaGest v1.0.0 · revisión 2026-10-14 (VII) · Panel de Control Visual HTTPS en Windows
+
+- `server\\iniciar-https.ps1` abre un panel Windows Forms en segundo plano con icono de bandeja; al mostrarlo inicia automáticamente el servidor principal (Web + API) y el generador HTTPS.
+- El panel y el menú de clic derecho permiten abrir, iniciar y detener cada servicio por separado, detenerlos juntos, abrir registros, copiar la clave de acceso del generador y salir cerrando los procesos administrados. Cerrar o minimizar el panel lo deja en la bandeja.
+- El generador se supervisa como árbol de procesos para que al detenerlo también se cierre su Python; la Web y la API se presentan como un único servicio porque comparten el proceso del servidor.
+
 ## NovaGest v1.0.0 · revisión 2026-10-14 (VI) · «Copiar desde el WhatsApp» en el generador
 
 - **Importar la solicitud que llegó al chat** (`tools/license_studio.py` → **📨 Solicitudes → 📥 Copiar desde el WhatsApp**): se pega el mensaje del cliente, **🔍 Leer mensaje** reconoce usuario, ID de dispositivo, producto/versión, plazo (`1 día`, `3 meses`, `un año`, `Permanente`…) y fecha —sin depender de los emojis, con o sin `*negritas*`, y avisando de lo que no reconoce— y **📥 Importar a la lista** la deja como solicitud pendiente (etiqueta *📥 importada de WhatsApp*, resaltada). Desde ahí, **🔑 Crear clave y enviar por WhatsApp** la genera con ese nombre y ese plazo, la marca atendida y abre `wa.me` con el mensaje listo para reenviárselo al cliente. El **teléfono** del cliente se puede indicar en el diálogo para que el reenvío vaya directo a su chat.

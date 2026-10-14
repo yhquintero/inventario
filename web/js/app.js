@@ -223,7 +223,7 @@ function licenseRequestCard(st) {
         <input id="licConsent" type="checkbox" aria-describedby="licConsentHelp">
         <span id="licConsentHelp">Autorizo registrar los datos de esta solicitud para gestionar mi licencia. Consulta la <a href="#legal" data-legal-doc="privacidad">Política de privacidad</a>.</span>
       </label>
-      <button type="button" class="btn full btn-wa" data-act="license-whatsapp">💬 SOLICITAR POR WHATSAPP</button>
+      <button type="button" class="btn full btn-wa" data-act="license-whatsapp" disabled>💬 SOLICITAR POR WHATSAPP</button>
       <p class="hint mt8">Se abre WhatsApp con tu nombre, ID de dispositivo y plazo ya escritos${st?.whatsapp ? " al número de NovaGest" : ""}. Si autorizas el registro, la solicitud también queda disponible para el administrador en <b>Gestionar → Solicitudes</b>.</p>
     </div>`;
 }
@@ -3188,6 +3188,13 @@ document.addEventListener("keydown", (e) => {
 function bindLicenseInputs() {
   $("#licReqName")?.addEventListener("input", (e) => { ui.license.reqName = e.target.value; });
   $("#licReqPhone")?.addEventListener("input", (e) => { ui.license.reqPhone = e.target.value; });
+  const consent = $("#licConsent");
+  const whatsappButton = $('[data-act="license-whatsapp"]');
+  if (consent && whatsappButton) {
+    const syncWhatsAppButton = () => { whatsappButton.disabled = !consent.checked; };
+    syncWhatsAppButton();
+    consent.addEventListener("change", syncWhatsAppButton);
+  }
 }
 
 function bindLicense() {

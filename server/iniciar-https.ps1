@@ -1,35 +1,30 @@
 ﻿<#
 .SYNOPSIS
-  NovaGest - arranque HTTPS en Windows (mkcert + firewall + URLs por red).
+  NovaGest - Panel de Control Visual y arranque HTTPS en Windows.
 
 .DESCRIPTION
-  1) Detecta todas las IPs IPv4 de la laptop (incluida 192.168.137.1 si esta
-     activa la "Zona con cobertura inalambrica movil" / punto de acceso de
-     Windows) y crea el certificado mkcert con todas ellas.
-  2) Crea la regla de Firewall de Windows para el puerto 8443 si no existe
-     (la primera vez pide elevacion con UAC).
-  3) Imprime las URLs correctas de cada red, arranca el servidor en
-     https://0.0.0.0:8443 con registro en data\logs\servidor_AAAA-MM-DD.log y
-     abre la Web en el navegador (https://localhost:8443) en cuanto el servidor
-     empieza a escuchar; omítelo con -AbrirNavegador $false.
-  4) Inicia automáticamente el generador HTTPS en una ventana aparte (puerto
-     8444 por defecto), reutilizando el certificado y la carpeta data del servidor.
+  Prepara el certificado mkcert para las IPs actuales y la regla de Firewall del
+  servidor. Después muestra el Panel de Control Visual de NovaGest, cuyo icono
+  permanece en la bandeja del sistema. Al abrir el panel inicia automáticamente
+  el servidor principal (Web + API) y, salvo que se use -SinGenerador, el
+  generador de licencias HTTPS. Desde el panel o el menú del icono se pueden
+  abrir, iniciar y detener ambos servicios.
 
 .PARAMETER Puerto
-  Puerto del servidor. Por defecto 8443.
+  Puerto del servidor principal. Por defecto 8443.
 
 .PARAMETER PuertoGenerador
-  Puerto del generador de licencias. Por defecto 8444.
+  Puerto del generador de licencias HTTPS. Por defecto 8444.
 
 .PARAMETER SinGenerador
-  No inicia automáticamente el generador HTTPS.
+  No inicia automáticamente el generador. Se puede iniciar más tarde desde el panel.
 
 .PARAMETER AbrirNavegador
-  Abre la Web (https://localhost:PUERTO) en el navegador en cuanto el servidor
-  empieza a escuchar. Por defecto sí. Usa -AbrirNavegador $false para no abrirla.
+  Abre la Web y el generador en el navegador cuando estén listos. Por defecto sí.
+  Usa -AbrirNavegador $false para desactivar ambas aperturas automáticas.
 
 .PARAMETER CrearReglaFirewall
-  Uso interno: crea unicamente la regla de firewall (proceso elevado via UAC).
+  Uso interno: crea solamente una regla de Firewall elevada mediante UAC.
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1
@@ -37,8 +32,12 @@
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1 -AbrirNavegador $false
 
+.EXAMPLE
+  powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1 -SinGenerador
+
 .NOTES
-  Sustituye al arrancador anterior. Requiere Windows 10 o superior.
+  Requiere Windows 10 o posterior, Python 3 y mkcert. Cerrar la ventana del panel
+  la minimiza a la bandeja; usa el menú del icono y «Salir» para detener servicios.
 #>
 [CmdletBinding()]
 param(
@@ -46,27 +45,62 @@ param(
     [int]$PuertoGenerador = 8444,
     [switch]$SinGenerador,
     [bool]$AbrirNavegador = $true,
-    [switch]$CrearReglaFirewall
+    [switch]$CrearReglaFirewall,
+    [switch]$ControlPanelHost
 )
 
 $ErrorActionPreference = 'Continue'
+$raiz = Split-Path -Parent $PSScriptRoot
+$certs = Join-Path $raiz 'certs'
+$dataDir = Join-Path $raiz 'data'
+$logDir = Join-Path $dataDir 'logs'
+$servidor = Join-Path $PSScriptRoot 'novagest_server.py'
+$nomRegla = "NovaGest HTTPS $Puerto"
 
-# Raiz del proyecto (este script vive en <raiz>\server)
-$raiz      = Split-Path -Parent $PSScriptRoot
-$certs     = Join-Path $raiz 'certs'
-$logDir    = Join-Path $raiz 'data\logs'
-$servidor  = Join-Path $PSScriptRoot 'novagest_server.py'
-$nomRegla  = "NovaGest HTTPS $Puerto"
+function Ok($mensaje)    { Write-Host "  [OK] $mensaje" -ForegroundColor Green }
+function Aviso($mensaje) { Write-Host "  [AVISO] $mensaje" -ForegroundColor Yellow }
+function Fallo($mensaje) { Write-Host "  [X] $mensaje" -ForegroundColor Red }
 
-function Ok($m)    { Write-Host "  [OK] $m" -ForegroundColor Green }
-function Aviso($m) { Write-Host "  [AVISO] $m" -ForegroundColor Yellow }
-function Fallo($m) { Write-Host "  [X] $m" -ForegroundColor Red }
+function Mostrar-ErrorInicio([string]$Mensaje) {
+    try {
+        [System.Windows.Forms.MessageBox]::Show(
+            $Mensaje,
+            'NovaGest · No se pudo iniciar',
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        ) | Out-Null
+    } catch {
+        Write-Host $Mensaje -ForegroundColor Red
+    }
+}
 
-# Consola UTF-8: acentos correctos y salida de Python sin "mojibake"
-try { chcp 65001 | Out-Null } catch { }
-try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+function ConvertTo-WindowsArgument([string]$Value) {
+    # Escapado de argumentos según las reglas de la línea de comandos de Windows.
+    $builder = New-Object System.Text.StringBuilder
+    $slash = [string][char]92
+    $doubleQuote = [char]34
+    [void]$builder.Append($doubleQuote)
+    $backslashes = 0
+    foreach ($character in $Value.ToCharArray()) {
+        if ($character -eq [char]92) {
+            $backslashes++
+            continue
+        }
+        if ($character -eq $doubleQuote) {
+            [void]$builder.Append($slash * ((2 * $backslashes) + 1))
+            [void]$builder.Append($doubleQuote)
+        } else {
+            [void]$builder.Append($slash * $backslashes)
+            [void]$builder.Append($character)
+        }
+        $backslashes = 0
+    }
+    [void]$builder.Append($slash * (2 * $backslashes))
+    [void]$builder.Append($doubleQuote)
+    return $builder.ToString()
+}
 
-# ------------- proceso elevado (UAC): solo crea la regla y termina -------------
+# Proceso elevado llamado mediante UAC: crea únicamente la regla solicitada.
 if ($CrearReglaFirewall) {
     try {
         New-NetFirewallRule -DisplayName $nomRegla -Direction Inbound -Action Allow `
@@ -75,273 +109,243 @@ if ($CrearReglaFirewall) {
     } catch {
         Fallo "No se pudo crear la regla: $($_.Exception.Message)"
     }
-    exit 0
+    return
 }
 
-Write-Host ''
-Write-Host '  ===  NovaGest - inicio seguro (HTTPS)  ==='
-Write-Host ''
-
-# --------------------------------- Python ---------------------------------
-$pyExe  = $null
-$pyArgs = @()
-foreach ($candExe in 'python', 'py') {
-    $found = Get-Command $candExe -ErrorAction SilentlyContinue | Select-Object -First 1
-    if (-not $found) { continue }
-    $extra = @()
-    if ($candExe -eq 'py') { $extra = @('-3') }
-    & $found.Source @extra -c "import sys" *> $null
-    if ($LASTEXITCODE -eq 0) {
-        $pyExe  = $found.Source
-        $pyArgs = $extra
-        break
-    }
-}
-if (-not $pyExe) {
-    Fallo 'No se encontro Python. Instalalo desde https://www.python.org/downloads/'
-    exit 1
-}
-$pyv = (& $pyExe @pyArgs -c "import sys;print(sys.version)" 2>&1 | Select-Object -Last 1)
-Ok "Python: $pyv"
-
-& $pyExe @pyArgs -c "import cryptography" *> $null
-if ($LASTEXITCODE -ne 0) {
-    Write-Host '  Instalando la libreria cryptography...'
-    & $pyExe @pyArgs -m pip install cryptography *> $null
-    & $pyExe @pyArgs -c "import cryptography" *> $null
-    if ($LASTEXITCODE -ne 0) {
-        Fallo "Falta la libreria cryptography. Ejecuta:  $pyExe -m pip install cryptography"
-        exit 1
-    }
-}
-Ok 'Libreria cryptography lista.'
-
-# --------------------------------- mkcert ---------------------------------
-$mk = Get-Command mkcert -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($mk) {
-    $mkPath = $mk.Source
-} else {
-    $wg = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\mkcert.exe'
-    if (Test-Path $wg) { $mkPath = $wg } else {
-        Fallo 'mkcert no esta instalado. Instalalo con:  winget install FiloSottile.mkcert'
-        exit 1
-    }
-}
-Ok "mkcert: $mkPath"
-
-# ----------------- IPs IPv4 actuales de esta laptop (incluye el hotspot) -----------------
-$ips = @()
 try {
-    $ips = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
-        Where-Object { $_.IPAddress -ne '127.0.0.1' -and $_.IPAddress -notlike '169.254.*' } |
-        Select-Object -ExpandProperty IPAddress -Unique)
-} catch { }
-if (-not $ips) {
-    # Respaldo: interpretar la salida de ipconfig
-    $ips = @(ipconfig | ForEach-Object {
-        if ($_ -match 'IPv4[^:]*:\s*(\d{1,3}(?:\.\d{1,3}){3})') { $Matches[1] }
-    } | Where-Object { $_ -notlike '169.254.*' } | Select-Object -Unique)
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+} catch {
+    Write-Host 'Este panel requiere Windows con Windows Forms.' -ForegroundColor Red
+    return
 }
 
-# -------------------------------- Certificado --------------------------------
-if (-not (Test-Path $certs)) { New-Item -ItemType Directory -Path $certs | Out-Null }
-$nombres = @('localhost', '127.0.0.1', '::1', 'sqlserver', $env:COMPUTERNAME) + $ips
-Write-Host "  Creando certificado para: $($nombres -join ' ')"
-& $mkPath -install
-& $mkPath -cert-file (Join-Path $certs 'cuadre.crt') -key-file (Join-Path $certs 'cuadre.key') @nombres | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    Fallo 'mkcert no pudo crear el certificado (revisa el mensaje anterior).'
-    exit 1
-}
-Ok 'Certificado creado en certs\'
-
-# --------------------------------- Firewall ---------------------------------
-function Test-ReglaFirewall {
-    [bool](Get-NetFirewallRule -DisplayName $nomRegla -ErrorAction SilentlyContinue |
-        Select-Object -First 1)
+if ($Puerto -lt 1 -or $Puerto -gt 65535 -or $PuertoGenerador -lt 1 -or $PuertoGenerador -gt 65535) {
+    Mostrar-ErrorInicio 'Los puertos deben estar entre 1 y 65535.'
+    return
 }
 
-if (-not (Test-ReglaFirewall)) {
-    Aviso "Falta la regla de Firewall: sin ella el movil NO podra conectar al puerto $Puerto."
-    $esAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-        ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if ($esAdmin) {
-        New-NetFirewallRule -DisplayName $nomRegla -Direction Inbound -Action Allow `
-            -Protocol TCP -LocalPort $Puerto -Profile Any | Out-Null
-    } else {
-        Write-Host '  Se abrira un aviso de Control de cuentas de usuario: pulsa "Si".'
-        $psExe  = (Get-Process -Id $PID).Path
-        $psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
-                    "`"$PSCommandPath`"", '-Puerto', $Puerto, '-CrearReglaFirewall')
-        try {
-            Start-Process -FilePath $psExe -Verb RunAs -Wait -ArgumentList $psArgs -ErrorAction Stop
-        } catch {
-            Aviso 'Elevacion cancelada o fallida.'
-        }
-    }
-    if (-not (Test-ReglaFirewall)) {
-        Fallo 'No se pudo crear la regla de Firewall. Abre PowerShell como administrador y ejecuta:'
-        Write-Host "       New-NetFirewallRule -DisplayName `"$nomRegla`" -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Puerto -Profile Any"
-        exit 1
-    }
-}
-Ok "Firewall: puerto $Puerto abierto (regla `"$nomRegla`")."
-
-# ----------------------------------- URLs -----------------------------------
-Write-Host ''
-if ($AbrirNavegador) {
-    Ok "Abre en esta laptop:   https://localhost:$Puerto   (se abre sola al arrancar)"
-} else {
-    Ok "Abre en esta laptop:   https://localhost:$Puerto"
-}
-$hotspot = $null
-foreach ($ip in $ips) {
-    Ok "Desde movil / otra PC: https://${ip}:$Puerto"
-    if ($ip -like '192.168.137.*') { $hotspot = $ip }
-}
-if ($hotspot) {
-    Ok "Zona con cobertura inalambrica movil detectada: la laptop es $hotspot"
-    Write-Host "        Abre desde el movil:   https://${hotspot}:$Puerto" -ForegroundColor Green
-} else {
-    Write-Host '  [AVISO] No se ve ninguna IP 192.168.137.x. Si vas a usar la Zona con cobertura' -ForegroundColor Yellow
-    Write-Host '           inalambrica movil, activala y vuelve a ejecutar este script para que' -ForegroundColor Yellow
-    Write-Host '           el certificado incluya 192.168.137.1.' -ForegroundColor Yellow
-}
-
-# ------------------------------- CA raiz para moviles -------------------------------
-$caroot = $null
-try { $caroot = (& $mkPath -caroot 2>$null | Select-Object -First 1) } catch { }
-if ($caroot) {
-    $caroot = "$caroot".Trim()
-    Write-Host ''
-    Write-Host "  Moviles: instala una vez el certificado raiz '$caroot'"
-    Write-Host '      Android: Ajustes > Seguridad > Cifrado y credenciales > Instalar certificado > Autoridad de certificacion.'
-    Write-Host '      iPhone:  Ajustes > General > Info > Ajustes de certificados > Instalar certificado de raiz.'
-}
-
-# --------------------------- puerto ya ocupado (otra copia) ---------------------------
-$ocupado = $false
-try {
-    $ocupado = @(Get-NetTCPConnection -State Listen -LocalPort $Puerto -ErrorAction SilentlyContinue).Count -gt 0
-} catch { }
-if (-not $ocupado) {
-    $ocupado = [bool](netstat -ano | Select-String -Pattern ":$Puerto\s.*LISTENING" | Select-Object -First 1)
-}
-if ($ocupado) {
-    Write-Host ''
-    Fallo "El puerto $Puerto ya esta en uso: cierra la otra ventana del servidor y vuelve a ejecutar este script."
-    # Si quien ocupa el puerto es el propio servidor de NovaGest, la Web ya esta
-    # sirviendo: se abre en el navegador (no hay que arrancar nada de nuevo).
-    $propio = $false
+# Se desprende un host oculto para que la consola de PowerShell no quede abierta.
+# El formulario visible y el icono de bandeja pertenecen al proceso oculto.
+if (-not $ControlPanelHost) {
     try {
-        $dueno = @(Get-NetTCPConnection -State Listen -LocalPort $Puerto -ErrorAction Stop |
-            Select-Object -First 1 -ExpandProperty OwningProcess)
-        if ($dueno) {
-            $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$dueno" -ErrorAction Stop).CommandLine
-            if ($cmdLine -and ($cmdLine -like '*novagest_server.py*' -or $cmdLine -like '*serve.py*')) { $propio = $true }
-        }
-    } catch { }
-    if ($propio) {
-        Ok "La Web ya esta sirviendo en https://localhost:$Puerto."
-        if ($AbrirNavegador) {
-            try { Start-Process "https://localhost:$Puerto" } catch { }
-        }
-    }
-    exit 1
-}
-
-# ---------------------------------- arranque ----------------------------------
-if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
-$env:SSL_CERT           = Join-Path $certs 'cuadre.crt'
-$env:SSL_KEY            = Join-Path $certs 'cuadre.key'
-$env:PORT               = "$Puerto"
-$env:DATA_DIR           = Join-Path $raiz 'data'
-$env:PYTHONUNBUFFERED   = '1'
-$env:PYTHONIOENCODING   = 'utf-8'
-
-# -------------------------- generador HTTPS complementario --------------------------
-if ($SinGenerador) {
-    Aviso 'Inicio automático del generador desactivado (-SinGenerador).'
-} elseif ($PuertoGenerador -eq $Puerto) {
-    Aviso "No se inicia el generador: debe usar un puerto distinto al servidor ($Puerto). Ajusta -PuertoGenerador."
-} else {
-    $generadorScript = Join-Path $raiz 'tools\iniciar-generador-https.ps1'
-    if (-not (Test-Path $generadorScript)) {
-        Aviso "No se encontró el lanzador del generador: $generadorScript"
-    } else {
-        $generadorOcupado = $false
-        try {
-            $generadorOcupado = @(Get-NetTCPConnection -State Listen -LocalPort $PuertoGenerador -ErrorAction SilentlyContinue).Count -gt 0
-        } catch { }
-        if (-not $generadorOcupado) {
-            $generadorOcupado = [bool](netstat -ano | Select-String -Pattern ":$PuertoGenerador\s.*LISTENING" | Select-Object -First 1)
-        }
-        if ($generadorOcupado) {
-            Aviso "El puerto $PuertoGenerador ya está en uso; no se inicia una segunda instancia del generador."
-        } else {
-            $psExe = (Get-Process -Id $PID).Path
-            $generadorArgs = @(
-                '-NoProfile',
-                '-ExecutionPolicy', 'Bypass',
-                '-File', "`"$generadorScript`"",
-                '-Puerto', "$PuertoGenerador",
-                '-Datos', "`"$env:DATA_DIR`"",
-                '-ReutilizarCert'
-            )
-            try {
-                $procesoGenerador = Start-Process -FilePath $psExe -ArgumentList $generadorArgs `
-                    -WorkingDirectory $raiz -PassThru -ErrorAction Stop
-                Ok "Generador HTTPS iniciado en una ventana aparte (puerto $PuertoGenerador, PID $($procesoGenerador.Id))."
-            } catch {
-                Aviso "No se pudo iniciar automáticamente el generador HTTPS: $($_.Exception.Message)"
-                Aviso 'El servidor principal seguirá iniciándose; puedes arrancar el generador manualmente desde tools\iniciar-generador-https.ps1.'
-            }
-        }
-    }
-}
-
-$hoy = Get-Date -Format 'yyyy-MM-dd'
-$log = Join-Path $logDir "servidor_$hoy.log"
-
-# ------------------- apertura automática de la Web en el navegador -------------------
-# Se lanza en segundo plano y abre https://localhost:PUERTO en cuanto el puerto
-# responde: si se abriera antes, el navegador llegaría antes que el servidor y
-# mostraría un error de conexión.
-$urlLocal = "https://localhost:$Puerto"
-if ($AbrirNavegador) {
-    try {
-        $null = Start-Job -ErrorAction Stop -ArgumentList $urlLocal, $Puerto -ScriptBlock {
-            param([string]$url, [int]$puerto)
-            $fin = (Get-Date).AddSeconds(60)   # margen para que el servidor escuche
-            while ((Get-Date) -lt $fin) {
-                $escucha = $false
-                try {
-                    $escucha = @(Get-NetTCPConnection -State Listen -LocalPort $puerto -ErrorAction SilentlyContinue).Count -gt 0
-                } catch { }
-                if (-not $escucha) {
-                    $escucha = [bool](netstat -ano | Select-String -Pattern ":$puerto\s.*LISTENING" | Select-Object -First 1)
-                }
-                if ($escucha) { break }
-                Start-Sleep -Milliseconds 400
-            }
-            Start-Sleep -Milliseconds 500
-            try { Start-Process $url } catch { }
-        }
-        Ok "El navegador abrirá la Web en $urlLocal en cuanto el servidor esté listo."
+        $hostExe = (Get-Process -Id $PID).Path
+        $childArgs = @(
+            '-NoLogo', '-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass',
+            '-WindowStyle', 'Hidden', '-File', $PSCommandPath,
+            '-ControlPanelHost', '-Puerto', "$Puerto", '-PuertoGenerador', "$PuertoGenerador",
+            '-AbrirNavegador', "$AbrirNavegador"
+        )
+        if ($SinGenerador) { $childArgs += '-SinGenerador' }
+        $argumentLine = ($childArgs | ForEach-Object { ConvertTo-WindowsArgument ([string]$_) }) -join ' '
+        Start-Process -FilePath $hostExe -ArgumentList $argumentLine `
+            -WorkingDirectory $raiz -WindowStyle Hidden -ErrorAction Stop | Out-Null
     } catch {
-        Aviso "No se pudo programar la apertura del navegador: $($_.Exception.Message)"
-        Aviso "Ábrela manualmente en: $urlLocal"
+        Mostrar-ErrorInicio "No se pudo iniciar el Panel de Control Visual en segundo plano.`r`n`r`n$($_.Exception.Message)"
     }
+    return
 }
 
-Write-Host ''
-Write-Host "  Registro del servidor: $log"
-Write-Host '  Para detenerlo: cierra esta ventana o pulsa Ctrl+C.'
-Write-Host ''
-& $pyExe @pyArgs -u $servidor 2>&1 | ForEach-Object {
-    $s = "$_"
-    Write-Host $s
-    Add-Content -LiteralPath $log -Value $s -Encoding UTF8
+# Evita dos paneles supervisando la misma instalación.
+$mutex = $null
+$mutexCreated = $false
+try {
+    $normalRoot = [System.IO.Path]::GetFullPath($raiz).ToUpperInvariant()
+    $hashAlgorithm = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $hashAlgorithm.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($normalRoot))
+    } finally {
+        $hashAlgorithm.Dispose()
+    }
+    $rootHash = ([System.BitConverter]::ToString($hashBytes)).Replace('-', '').Substring(0, 20)
+    $mutexName = "Local\NovaGest-Panel-$rootHash"
+    $mutex = [System.Threading.Mutex]::new($true, $mutexName, [ref]$mutexCreated)
+    if (-not $mutexCreated) {
+        try { $mutex.Dispose() } catch { }
+        [System.Windows.Forms.MessageBox]::Show(
+            'El Panel de Control Visual de esta instalación ya está abierto. Busca su icono en la bandeja del sistema.',
+            'NovaGest · Panel ya abierto',
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Information
+        ) | Out-Null
+        return
+    }
+
+    # Consola UTF-8 para los lanzadores y las salidas capturadas en los registros.
+    try { chcp 65001 | Out-Null } catch { }
+    try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+
+    # ------------------------------- Python -------------------------------
+    $pyExe = $null
+    $pyArgs = @()
+    foreach ($candidate in @('python', 'py')) {
+        $found = Get-Command $candidate -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $found) { continue }
+        $extra = @()
+        if ($candidate -eq 'py') { $extra = @('-3') }
+        & $found.Source @extra -c 'import sys' *> $null
+        if ($LASTEXITCODE -eq 0) {
+            $pyExe = $found.Source
+            $pyArgs = $extra
+            break
+        }
+    }
+    if (-not $pyExe) {
+        Fallo 'No se encontró Python 3. Instálalo desde https://www.python.org/downloads/.'
+        Mostrar-ErrorInicio 'No se encontró Python 3. Instálalo y vuelve a iniciar server\iniciar-https.ps1.'
+        return
+    }
+    $pyVersion = (& $pyExe @pyArgs -c 'import sys;print(sys.version)' 2>&1 | Select-Object -Last 1)
+    Ok "Python: $pyVersion"
+
+    & $pyExe @pyArgs -c 'import cryptography' *> $null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host '  Instalando la librería cryptography...'
+        & $pyExe @pyArgs -m pip install cryptography *> $null
+        & $pyExe @pyArgs -c 'import cryptography' *> $null
+        if ($LASTEXITCODE -ne 0) {
+            $mensaje = "Falta la librería cryptography. Ejecuta: $pyExe -m pip install cryptography"
+            Fallo $mensaje
+            Mostrar-ErrorInicio $mensaje
+            return
+        }
+    }
+    Ok 'Librería cryptography lista.'
+
+    # ------------------------------- mkcert -------------------------------
+    $mk = Get-Command mkcert -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($mk) {
+        $mkPath = $mk.Source
+    } else {
+        $wingetLink = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\mkcert.exe'
+        if (Test-Path -LiteralPath $wingetLink) {
+            $mkPath = $wingetLink
+        } else {
+            $mensaje = 'mkcert no está instalado. Instálalo con: winget install FiloSottile.mkcert'
+            Fallo $mensaje
+            Mostrar-ErrorInicio $mensaje
+            return
+        }
+    }
+    Ok "mkcert: $mkPath"
+
+    # IPs IPv4 de la laptop, incluida la zona con cobertura inalámbrica móvil.
+    $ips = @()
+    try {
+        $ips = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop |
+            Where-Object { $_.IPAddress -ne '127.0.0.1' -and $_.IPAddress -notlike '169.254.*' } |
+            Select-Object -ExpandProperty IPAddress -Unique)
+    } catch { }
+    if (-not $ips) {
+        $ips = @(ipconfig | ForEach-Object {
+            if ($_ -match 'IPv4[^:]*:\s*(\d{1,3}(?:\.\d{1,3}){3})') { $Matches[1] }
+        } | Where-Object { $_ -notlike '169.254.*' } | Select-Object -Unique)
+    }
+
+    if (-not (Test-Path -LiteralPath $certs)) {
+        New-Item -ItemType Directory -Path $certs -Force | Out-Null
+    }
+    $certificate = Join-Path $certs 'cuadre.crt'
+    $privateKey = Join-Path $certs 'cuadre.key'
+    $names = @('localhost', '127.0.0.1', '::1', 'sqlserver', $env:COMPUTERNAME) + $ips
+    Write-Host "  Creando certificado para: $($names -join ' ')"
+    & $mkPath -install *> $null
+    & $mkPath -cert-file $certificate -key-file $privateKey @names | Out-Null
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $certificate) -or -not (Test-Path -LiteralPath $privateKey)) {
+        $mensaje = 'mkcert no pudo crear el certificado. Revisa su instalación y vuelve a intentarlo.'
+        Fallo $mensaje
+        Mostrar-ErrorInicio $mensaje
+        return
+    }
+    Ok 'Certificado HTTPS listo en certs\.'
+    $certificateRoot = ''
+    try { $certificateRoot = (& $mkPath -CAROOT 2>$null | Select-Object -First 1).Trim() } catch { }
+
+    # ------------------------------- Firewall -------------------------------
+    function Test-ReglaFirewall {
+        [bool](Get-NetFirewallRule -DisplayName $nomRegla -ErrorAction SilentlyContinue | Select-Object -First 1)
+    }
+
+    if (-not (Test-ReglaFirewall)) {
+        $esAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+            ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        if ($esAdmin) {
+            try {
+                New-NetFirewallRule -DisplayName $nomRegla -Direction Inbound -Action Allow `
+                    -Protocol TCP -LocalPort $Puerto -Profile Any -ErrorAction Stop | Out-Null
+            } catch {
+                Aviso "No se pudo crear la regla de Firewall: $($_.Exception.Message)"
+            }
+        } else {
+            Write-Host '  Se abrirá una solicitud de Control de cuentas de usuario para permitir HTTPS.'
+            $adminArgs = @(
+                '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath,
+                '-Puerto', "$Puerto", '-CrearReglaFirewall'
+            )
+            $adminLine = ($adminArgs | ForEach-Object { ConvertTo-WindowsArgument ([string]$_) }) -join ' '
+            try {
+                Start-Process -FilePath (Get-Process -Id $PID).Path -Verb RunAs -Wait `
+                    -ArgumentList $adminLine -ErrorAction Stop | Out-Null
+            } catch {
+                Aviso 'La elevación se canceló o no pudo completarse.'
+            }
+        }
+        if (-not (Test-ReglaFirewall)) {
+            $mensaje = "No se pudo abrir el puerto $Puerto en el Firewall. Autoriza la solicitud UAC o crea la regla como administrador."
+            Fallo $mensaje
+            Mostrar-ErrorInicio $mensaje
+            return
+        }
+    }
+    Ok "Firewall: puerto $Puerto abierto."
+
+    if (-not (Test-Path -LiteralPath $logDir)) {
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    }
+
+    # El proceso que sirve Web y API se controla como un único servicio.
+    $panelScript = Join-Path $PSScriptRoot 'panel-control-visual.ps1'
+    if (-not (Test-Path -LiteralPath $panelScript)) {
+        $mensaje = "No se encontró el Panel de Control Visual: $panelScript"
+        Fallo $mensaje
+        Mostrar-ErrorInicio $mensaje
+        return
+    }
+
+    $generatorPortConflict = ($Puerto -eq $PuertoGenerador)
+    if ($generatorPortConflict) {
+        Aviso 'El generador necesita un puerto distinto al servidor principal; se omitirá hasta cambiar -PuertoGenerador.'
+    }
+
+    $panelParameters = @{
+        ProjectRoot = $raiz
+        ServerScript = $servidor
+        GeneratorScript = (Join-Path $raiz 'tools\iniciar-generador-https.ps1')
+        PythonExecutable = $pyExe
+        PythonArguments = $pyArgs
+        Certificate = $certificate
+        PrivateKey = $privateKey
+        CertificateRoot = $certificateRoot
+        DataDirectory = $dataDir
+        LogDirectory = $logDir
+        Port = $Puerto
+        GeneratorPort = $PuertoGenerador
+        IPv4Addresses = $ips
+        OpenBrowser = $AbrirNavegador
+    }
+    if ($SinGenerador) { $panelParameters.SkipGenerator = $true }
+    if ($generatorPortConflict) { $panelParameters.GeneratorPortConflict = $true }
+
+    Write-Host ''
+    Write-Host '  Abriendo el Panel de Control Visual de NovaGest…'
+    & $panelScript @panelParameters
+} catch {
+    $mensaje = "Error al preparar NovaGest:`r`n$($_.Exception.Message)"
+    Fallo $mensaje
+    Mostrar-ErrorInicio $mensaje
+} finally {
+    if ($mutexCreated -and $mutex) {
+        try { $mutex.ReleaseMutex() } catch { }
+        try { $mutex.Dispose() } catch { }
+    }
 }
-Write-Host ''
-Write-Host '  Servidor detenido.'

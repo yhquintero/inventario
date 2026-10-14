@@ -26,7 +26,7 @@ const listeners = new Map();
 let sidebarNav = null;
 const makeEl = (id = "") => {
   const el = {
-    id, outerHTML: "", textContent: "", value: "", hidden: false, tagName: "DIV",
+    id, outerHTML: "", textContent: "", value: "", hidden: false, disabled: false, checked: false, tagName: "DIV",
     dataset: {}, style: {}, scrollTop: 0, offsetWidth: 10, offsetHeight: 10,
     classList: { add() {}, remove() {} },
     addEventListener(t, fn) { listeners.set(id + ":" + t, fn); },
@@ -53,6 +53,7 @@ globalThis.document = {
   getElementById: getEl,
   querySelector: (sel) => {
     if (sel === ".rail nav") return sidebarNav;
+    if (sel === '[data-act="license-whatsapp"]') return getEl("license-whatsapp");
     return typeof sel === "string" && /^#[A-Za-z0-9_-]+$/.test(sel) ? getEl(sel.slice(1)) : null;
   },
   querySelectorAll: () => [],
@@ -548,6 +549,7 @@ test("La tarjeta de Ajustes explica la verificación previa y ofrece Gestionar/V
   assert.match(html, /data-act="license-manage"/);
   assert.match(html, /data-act="license-refresh"/);
   assert.match(html, /data-act="license-whatsapp"/);
+  assert.match(html, /data-act="license-whatsapp"[^>]*disabled/);
   assert.match(html, /id="licConsent" type="checkbox"/);
   assert.match(html, /data-legal-doc="privacidad"/);
 });
@@ -646,6 +648,8 @@ await atest("La solicitud no se envía si no se autoriza el registro", async () 
   await flush();
   getEl("licReqName").value = "Tienda Nova";
   getEl("licConsent").checked = false;
+  getEl("licConsent").dispatch("change", { target: getEl("licConsent") });
+  assert.equal(getEl("license-whatsapp").disabled, true);
   fetchCalls.length = 0;
   openedUrls.length = 0;
   click({ act: "license-whatsapp" });
@@ -661,6 +665,8 @@ await atest("Solicitar por WhatsApp registra la solicitud en el servidor y abre 
   getEl("licReqName").value = "Tienda Nova";
   getEl("licReqPhone").value = "5351234567";
   getEl("licConsent").checked = true; // casilla de privacidad (sin marcar por defecto)
+  getEl("licConsent").dispatch("change", { target: getEl("licConsent") });
+  assert.equal(getEl("license-whatsapp").disabled, false);
   fetchCalls.length = 0;
   openedUrls.length = 0;
   click({ act: "license-whatsapp" });
