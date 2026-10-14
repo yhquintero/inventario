@@ -223,6 +223,8 @@ fun CategoryThumb(category: String, size: androidx.compose.ui.unit.Dp = 44.dp) {
         "Herramientas" -> R.drawable.cat_herramientas
         "Construcción" -> R.drawable.cat_construccion
         "Movilidad" -> R.drawable.cat_movilidad
+        "Iluminación" -> R.drawable.cat_iluminacion
+        "General" -> R.drawable.cat_general
         else -> null
     }
     if (res != null) {

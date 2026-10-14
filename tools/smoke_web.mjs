@@ -23,23 +23,38 @@ writeFileSync(join(tmp, "package.json"), JSON.stringify({ type: "module" }));
 
 /* ----------------------------- DOM simulado ----------------------------- */
 const listeners = new Map();
-const makeEl = (id = "") => ({
-  id, innerHTML: "", outerHTML: "", textContent: "", value: "", hidden: false, tagName: "DIV",
-  dataset: {}, style: {}, scrollTop: 0, offsetWidth: 10, offsetHeight: 10,
-  classList: { add() {}, remove() {} },
-  addEventListener(t, fn) { listeners.set(id + ":" + t, fn); },
-  dispatch(t, ev) { const fn = listeners.get(id + ":" + t); if (fn) fn(ev); return !!fn; },
-  appendChild() {}, remove() {}, focus() {}, setAttribute() {}, removeAttribute() {}, scrollIntoView() {},
-  querySelector: () => null, querySelectorAll: () => [], closest: () => null,
-  getBoundingClientRect: () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }),
-});
+let sidebarNav = null;
+const makeEl = (id = "") => {
+  const el = {
+    id, outerHTML: "", textContent: "", value: "", hidden: false, tagName: "DIV",
+    dataset: {}, style: {}, scrollTop: 0, offsetWidth: 10, offsetHeight: 10,
+    classList: { add() {}, remove() {} },
+    addEventListener(t, fn) { listeners.set(id + ":" + t, fn); },
+    dispatch(t, ev) { const fn = listeners.get(id + ":" + t); if (fn) fn(ev); return !!fn; },
+    appendChild() {}, remove() {}, focus() {}, setAttribute() {}, removeAttribute() {}, scrollIntoView() {},
+    querySelector: () => null, querySelectorAll: () => [], closest: () => null,
+    getBoundingClientRect: () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+  };
+  let html = "";
+  Object.defineProperty(el, "innerHTML", {
+    get: () => html,
+    set: (value) => {
+      html = String(value ?? "");
+      if (id === "app") sidebarNav = html.includes('<aside class="rail') ? makeEl("sidebar-nav") : null;
+    },
+  });
+  return el;
+};
 const els = new Map();
 const getEl = (id) => (els.has(id) ? els.get(id) : (els.set(id, makeEl(id)), els.get(id)));
 
 const docListeners = new Map();
 globalThis.document = {
   getElementById: getEl,
-  querySelector: (sel) => (typeof sel === "string" && /^#[A-Za-z0-9_-]+$/.test(sel) ? getEl(sel.slice(1)) : null),
+  querySelector: (sel) => {
+    if (sel === ".rail nav") return sidebarNav;
+    return typeof sel === "string" && /^#[A-Za-z0-9_-]+$/.test(sel) ? getEl(sel.slice(1)) : null;
+  },
   querySelectorAll: () => [],
   createElement: () => makeEl("tmp"),
   addEventListener(t, fn) { const a = docListeners.get(t) || []; a.push(fn); docListeners.set(t, a); },
@@ -54,6 +69,7 @@ const fireWin = (t, ev) => (winListeners.get(t) || []).forEach((fn) => fn(ev));
 globalThis.matchMedia = () => ({ matches: false });
 globalThis.innerWidth = 1200;
 globalThis.innerHeight = 900;
+globalThis.scrollTo = () => {};
 let _hash = "";
 globalThis.location = {
   get hash() { return _hash; },
@@ -157,6 +173,7 @@ const atest = async (name, fn) => {
 
 /* ----------------------------- arranque de la app ----------------------------- */
 await import(pathToFileURL(join(tmp, "js/app.js")).href);
+const legalModule = await import(pathToFileURL(join(tmp, "js/legal.js")).href);
 await new Promise((resolve) => setImmediate(resolve)); // espera el control asíncrono de licencia
 const app = getEl("app");
 store.applyServer({ version: 1, state, closedDays: [] });
@@ -166,10 +183,81 @@ const go = (route) => { location.hash = "#" + route; if (store.emit) store.emit(
 const flush = async (n = 3) => { for (let i = 0; i < n; i++) await new Promise((resolve) => setImmediate(resolve)); };
 /** Pulsa un botón del panel como si el usuario hiciera clic. */
 const click = (dataset) => app.dispatch("click", { target: { closest: () => ({ dataset, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+/** Simula closest() con la lista real de selectores del manejador delegado. */
+const clickMatching = (attribute, dataset, tagName = "BUTTON") => app.dispatch("click", {
+  target: {
+    tagName,
+    closest: (selector) => selector.includes(`[data-${attribute}]`) ? { dataset, tagName } : null,
+  },
+  preventDefault() {},
+});
 
 console.log("\nWeb · Almacenes e Importar valores (DOM simulado)\n");
 
 
+test("Aceptar/Rechazar guarda la elección, cierra el aviso y permite configurar cookies", () => {
+  const key = "novagest.consent";
+  const previous = localStorage.getItem(key);
+  try {
+    localStorage.removeItem(key);
+    go("home");
+    assert.match(app.innerHTML, /data-consent="yes"/);
+
+    clickMatching("consent", { consent: "yes" });
+    assert.equal(JSON.parse(localStorage.getItem(key)).optional, true);
+    assert.doesNotMatch(app.innerHTML, /class="consent"/);
+
+    clickMatching("legal-doc", { legalDoc: "cookies" }, "A");
+    assert.match(app.innerHTML, /<h1>Política de cookies<\/h1>/);
+    clickMatching("consent-open", { consentOpen: "" });
+    assert.match(app.innerHTML, /data-consent="no"/);
+
+    clickMatching("consent", { consent: "no" });
+    assert.equal(JSON.parse(localStorage.getItem(key)).optional, false);
+    assert.doesNotMatch(app.innerHTML, /class="consent"/);
+  } finally {
+    if (previous === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, previous);
+    go("home");
+  }
+});
+
+test("los cinco textos legales tienen todos sus campos editables y ayuda en Ajustes", () => {
+  const html = go("settings");
+  const campos = new Set(legalModule.LEGAL_CAMPOS.map(([k]) => k));
+  for (const key of Object.keys(legalModule.COMPLETAR)) {
+    assert.ok(campos.has(key), `falta el campo editable ${key}`);
+    assert.match(html, new RegExp(`name="${key}"`), `el formulario no muestra ${key}`);
+  }
+  assert.equal(campos.size, Object.keys(legalModule.COMPLETAR).length);
+  assert.match(html, /no elijas 30 días por defecto/i);
+  const bodies = Object.values(legalModule.LEGAL_DOCS).map((doc) => doc.body).join("\n");
+  const sample = Object.fromEntries(Object.keys(legalModule.COMPLETAR).map((key) => [key, `Dato de prueba ${key}`]));
+  assert.doesNotMatch(legalModule.rellenarLegal(bodies, sample), /\[COMPLETAR:/);
+});
+
+test("Fichas de costo abre su vista IPV y no repite el Panel", () => {
+  const html = go("fichas");
+  assert.match(html, /Fichas de costo · IPV/);
+  assert.match(html, /Controles IPV/);
+  assert.match(html, /Aún no hay fichas de costo/);
+  assert.doesNotMatch(html, /Valor por categoría/);
+});
+
+test("el menú lateral conserva su desplazamiento al cambiar de apartado", () => {
+  go("inventory");
+  const oldNav = document.querySelector(".rail nav");
+  assert.ok(oldNav, "el menú lateral debe estar renderizado");
+  oldNav.scrollTop = 284;
+  oldNav.dispatch("scroll", { currentTarget: oldNav });
+
+  clickMatching("nav", { nav: "fichas" }, "A");
+
+  const newNav = document.querySelector(".rail nav");
+  assert.ok(newNav, "el menú lateral debe seguir renderizado");
+  assert.equal(newNav.scrollTop, 284);
+  assert.match(app.innerHTML, /href="#fichas" class="active" data-nav="fichas"/);
+});
 
 test("los informes muestran encabezado y controles de impresión/PDF", () => {
   const cuadre = go("cuadre");
@@ -191,12 +279,79 @@ test("los informes muestran encabezado y controles de impresión/PDF", () => {
 test("el Panel muestra totales por categoría y por almacén", () => {
   const html = go("home");
   assert.match(html, /NovaGest/);
-  assert.match(html, /Valor por categoría/);
+  assert.match(html, /Valor del inventario por categoría/);
   assert.match(html, /Total por categoría/);
   assert.match(html, /Existencias por almacén/);
   assert.match(html, /Total general/);
   assert.match(html, /TIENDA PINAR/);
+  assert.match(html, /class="content dashboard-page"/);
+  assert.match(html, /dashboard-page-title/);
+  assert.match(html, /class="top-rank">01/);
+  assert.doesNotMatch(html, /✨/);
   assert.doesNotMatch(html, /inventory-value-alert/);
+});
+
+test("el gráfico del Panel cambia período, indicador y tipo sin navegar", () => {
+  const html = go("home");
+  assert.match(html, /id="dashboardRange"/);
+  assert.match(html, /id="dashboardMetric"/);
+  assert.match(html, /id="dashboardType"/);
+  assert.match(html, /Ver datos del gráfico en tabla/);
+  assert.match(html, /Ventas por categoría/);
+
+  const range = getEl("dashboardRange");
+  range.value = "4w";
+  assert.equal(range.dispatch("change", { target: range }), true);
+  assert.match(app.innerHTML, /Últimas 4 semanas/);
+
+  const metric = getEl("dashboardMetric");
+  metric.value = "units";
+  assert.equal(metric.dispatch("change", { target: metric }), true);
+  assert.match(app.innerHTML, /Evolución: Unidades vendidas/);
+
+  const type = getEl("dashboardType");
+  type.value = "bars";
+  assert.equal(type.dispatch("change", { target: type }), true);
+  assert.match(app.innerHTML, /data-chart-type="bars"/);
+  assert.match(app.innerHTML, /option value="bars" selected/);
+
+  const sale = store.state.movements.find((movement) => movement.id === "m1");
+  const oldUnitCost = sale.unitCostUsd;
+  const oldCost = sale.costoUsd;
+  try {
+    sale.unitCostUsd = 60;
+    sale.costoUsd = 60;
+    metric.value = "costs";
+    assert.equal(metric.dispatch("change", { target: metric }), true);
+    assert.match(app.innerHTML, /Evolución: Costos registrados/);
+    assert.match(app.innerHTML, /COSTOS REGISTRADOS/);
+
+    metric.value = "profit";
+    assert.equal(metric.dispatch("change", { target: metric }), true);
+    assert.match(app.innerHTML, /Evolución: Ganancia bruta estimada/);
+    assert.match(app.innerHTML, /<strong>\$40\.00<\/strong>/);
+  } finally {
+    sale.unitCostUsd = oldUnitCost;
+    sale.costoUsd = oldCost;
+    range.value = "7d";
+    range.dispatch("change", { target: range });
+    metric.value = "sales";
+    metric.dispatch("change", { target: metric });
+    type.value = "line";
+    type.dispatch("change", { target: type });
+  }
+});
+
+test("las diez imágenes de categorías Web y Android permanecen sincronizadas", () => {
+  const categories = ["audio", "clima", "cocina", "construccion", "herramientas", "hogar", "lavado", "movilidad", "refrigeracion", "solar"];
+  for (const category of categories) {
+    const web = readFileSync(join(root, "web/public/cat", `${category}.jpg`));
+    const android = readFileSync(join(root, "app/src/main/res/drawable-nodpi", `cat_${category}.jpg`));
+    assert.deepEqual(android, web, `la imagen de ${category} no coincide entre clientes`);
+  }
+  for (const category of ["iluminacion", "general"]) {
+    assert.match(readFileSync(join(root, "app/src/main/res/drawable", `cat_${category}.xml`), "utf8"), /<vector/);
+  }
 });
 
 test("el Panel alerta si los valores por categoría y almacén difieren", () => {
@@ -352,8 +507,8 @@ test("Iluminación muestra el icono a tamaño contenido en Venta rápida", () =>
   product.category = "Iluminación";
   const html = go("pos");
   product.category = originalCategory;
-  assert.match(html, /💡 Iluminación/);
-  assert.match(html, /<span class="thumb ph" data-cat="Iluminación">💡<\/span>/);
+  assert.match(html, /data-poscat="Iluminación"><svg class="category-icon" width="16"/);
+  assert.match(html, /<span class="thumb ph" data-cat="Iluminación"><svg class="category-icon" width="22"/);
   assert.doesNotMatch(html, /999px/);
   assert.match(html, /Almacén/);
   assert.match(html, /posWh/);

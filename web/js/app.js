@@ -11,7 +11,7 @@ import {
   normalizeBarcode, creditPending, creditStatus,
 } from "./calc.js";
 import { moneyIn } from "./ipv.js";
-import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
+import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -44,8 +44,27 @@ const routes = {
   license: { title: "Licencia de uso", icon: "🔐", perm: null, group: "Sistema", hidden: true },
 };
 
+let sidebarScrollTop = 0;
+function rememberSidebarScroll(nav = $(".rail nav")) {
+  if (nav) sidebarScrollTop = nav.scrollTop;
+  return sidebarScrollTop;
+}
+function restoreSidebarScroll(nav) {
+  if (!nav) return;
+  nav.addEventListener?.("scroll", (event) => {
+    if (nav.isConnected === false) return;
+    const scroller = event.currentTarget || event.target;
+    if (scroller) sidebarScrollTop = scroller.scrollTop;
+  }, { passive: true });
+  nav.scrollTop = sidebarScrollTop;
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => {
+    if (nav.isConnected !== false) nav.scrollTop = sidebarScrollTop;
+  });
+}
+
 let ui = {
   route: "home", q: "", filter: "TODOS", cat: "TODAS", period: "semanal", reportDate: "", reportFrom: "", reportTo: "", reportWarehouse: null, modal: null, toast: null,
+  dashboardRange: "7d", dashboardMetric: "sales", dashboardType: "line",
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
   histTab: "precios",
   whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, pdfWarehouseId: null, iv: null,
@@ -74,6 +93,25 @@ const role = () => store.state.session?.role;
 const allowed = (perm) => !perm || can(role(), perm);
 const has = (text, q) => normName(text).includes(normName(q));
 
+const CATEGORY_ICON_MARKUP = {
+  sun: `<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>`,
+  cook: `<path d="M4 10h16l-1.4 9H5.4L4 10Z"/><path d="M3 10h18M7 6c0-1 1-1 1-2m4 2c0-1 1-1 1-2m4 2c0-1 1-1 1-2"/>`,
+  snow: `<path d="M12 2v20M3.34 7l17.32 10M20.66 7 3.34 17"/><path d="M12 6 8 4m4 2 4-2m-4 12-4 2m4-2 4 2M7.7 9.5 4 9m3.7.5-1.2-3.7m9.8 8.7 3.7.5m-3.7-.5 1.2 3.7m0-9.2L20 9m-3.7.5 1.2-3.7M7.7 14.5 4 15m3.7-.5-1.2 3.7"/>`,
+  air: `<path d="M3 7h12a3 3 0 1 0-3-3M2 12h17a3 3 0 1 1-3 3M4 17h7a3 3 0 1 1-3 3"/>`,
+  media: `<rect x="3" y="4" width="18" height="13" rx="2"/><path d="m8 21 4-4 4 4M7 9h.01M10 9h.01M13 9h.01M16 9h.01M7 12h10"/>`,
+  chair: `<path d="M7 12V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v6M5 12h14v5H5zM7 17l-1 4m12-4 1 4"/>`,
+  washer: `<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="13" r="5"/><path d="M8 6h.01M11 6h.01M15 6h2"/>`,
+  tools: `<path d="M14.5 6.5a5 5 0 0 0-6.7 6.7l-4.5 4.5a2 2 0 0 0 2.8 2.8l4.5-4.5a5 5 0 0 0 6.7-6.7l-3 3-3.3-3.3 3.5-2.5Z"/>`,
+  building: `<path d="M3 21V8l9-5 9 5v13M8 21v-7h8v7M7 9h.01M12 9h.01M17 9h.01M7 12h.01M17 12h.01"/>`,
+  bike: `<circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="m6 17 4-8h4l4 8m-8-8 4 8h-4m1-11h3"/>`,
+  bulb: `<path d="M9 18h6m-5 3h4m-5-6a7 7 0 1 1 6 0c-.7.5-1 1.2-1 2H9c0-.8-.3-1.5-1-2Z"/><path d="M12 2v1m8 7h-1M5 10H4m13-5-.7.7M7 5l-.7-.7"/>`,
+  box: `<path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10m-4-12 9-4"/>`,
+};
+function categoryIcon(category, size = 18) {
+  const key = (CATEGORIES[category] || CATEGORIES.General).icon;
+  return `<svg class="category-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${CATEGORY_ICON_MARKUP[key] || CATEGORY_ICON_MARKUP.box}</svg>`;
+}
+
 function toast(msg, kind = "") {
   ui.toast = { msg, kind };
   render();
@@ -88,6 +126,7 @@ function applyTheme() {
 }
 
 function navTo(route) {
+  rememberSidebarScroll();
   if (!allowed(routes[route]?.perm)) return toast("No tienes permiso para esa sección.", "err");
   if (ui.route !== route) { ui.q = ""; ui.filter = "TODOS"; ui.cat = "TODAS"; }
   ui.route = route;
@@ -104,13 +143,14 @@ function lastDataDate() {
 function thumb(p, size = 40) {
   const c = CATEGORIES[p.category] || CATEGORIES.General;
   const cls = size == null ? "" : ` th${size}`;
+  const category = esc(p.category || "General");
   if (p.image) return `<img class="thumb${cls}" src="${p.image}" alt="">`;
-  if (c.img) return `<img class="thumb${cls}" src="./public/cat/${c.img}.jpg" alt="" loading="lazy">`;
-  return `<span class="thumb ph${cls}" data-cat="${esc(p.category || "General")}">${c.icon}</span>`;
+  if (c.img) return `<img class="thumb${cls}" data-cat="${category}" src="./public/cat/${c.img}.jpg" alt="" loading="lazy">`;
+  return `<span class="thumb ph${cls}" data-cat="${category}">${categoryIcon(p.category || "General", size === 72 ? 34 : 22)}</span>`;
 }
 const catBadge = (cat) => {
   const c = CATEGORIES[cat] || CATEGORIES.General;
-  return `<span class="cat" data-cat="${esc(cat || "General")}">${c.icon} ${esc(cat)}</span>`;
+  return `<span class="cat" data-cat="${esc(cat || "General")}">${categoryIcon(cat || "General", 15)} ${esc(cat)}</span>`;
 };
 
 /* ============================ SHELL ============================ */
@@ -142,7 +182,7 @@ function shell(body) {
       <section class="main">
         <div class="topbar">
           <button class="btn ghost small menu-btn" data-act="drawer" aria-label="Abrir o cerrar el menú">☰</button>
-          <div class="tb-title"><h2>${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP ${ui.license.status?.valid ? `· 🔐 ${esc(ui.license.status.type)} ${ui.license.status.daysLeft === -1 ? "· Permanente" : `· ${ui.license.status.daysLeft}d`}` : ""}</span></div>
+          <div class="tb-title"><h2 class="${ui.route === "home" ? "dashboard-page-title" : ""}">${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP ${ui.license.status?.valid ? `· 🔐 ${esc(ui.license.status.type)} ${ui.license.status.daysLeft === -1 ? "· Permanente" : `· ${ui.license.status.daysLeft}d`}` : ""}</span></div>
           ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" aria-label="Buscar en ${r.title.toLowerCase()}" />${ui.q ? `<button class="x" data-act="clear-q" aria-label="Borrar búsqueda">✕</button>` : ""}</div>` : `<div class="flex1"></div>`}
           ${whPicker()}
           <span class="sync-dot ${store.sync}" id="syncDot" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
@@ -151,7 +191,7 @@ function shell(body) {
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema" aria-label="Cambiar tema: claro, oscuro o automático">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
         </div>
-        <main class="content" id="contenido">${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
+        <main class="content ${ui.route === "home" ? "dashboard-page" : ""}" id="contenido">${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
       </section>
     </div>
     ${consentBanner()}
@@ -593,10 +633,231 @@ function loginView() {
 }
 
 /* ============================ PANEL ============================ */
+const DASHBOARD_RANGES = {
+  "7d": { label: "Últimos 7 días", count: 7, days: 7 },
+  "4w": { label: "Últimas 4 semanas", count: 4, days: 28 },
+  "12w": { label: "Últimas 12 semanas", count: 12, days: 84 },
+};
+const DASHBOARD_METRICS = {
+  sales: { label: "Ventas", field: "revenue", money: true },
+  costs: { label: "Costos registrados", field: "cost", money: true },
+  profit: { label: "Ganancia bruta estimada", field: "profit", money: true },
+  units: { label: "Unidades vendidas", field: "units", money: false },
+  lines: { label: "Líneas de venta", field: "lines", money: false },
+};
+function dashboardAggregate(from, to, movements = store.activeMovements()) {
+  const sales = movements.filter((movement) => movement.type === "VENTA" && inRange(movement.date, from, to));
+  const revenue = round2(sales.reduce((sum, movement) => sum + (Number(movement.importeUsd) || 0), 0));
+  const cost = round2(sales.reduce((sum, movement) => sum + (Number(movement.costoUsd) || ((Number(movement.unitCostUsd) || 0) * (Number(movement.quantity) || 0))), 0));
+  const costLines = sales.filter((movement) => Number(movement.costoUsd) > 0 || Number(movement.unitCostUsd) > 0).length;
+  const costsComplete = sales.length === 0 || costLines === sales.length;
+  return {
+    revenue, cost, costLines, profit: costsComplete ? round2(revenue - cost) : null,
+    units: round2(sales.reduce((sum, movement) => sum + (Number(movement.quantity) || 0), 0)),
+    lines: sales.length,
+  };
+}
+function buildDashboardSeries(anchor, rangeKey = ui.dashboardRange, movements = store.activeMovements()) {
+  const key = DASHBOARD_RANGES[rangeKey] ? rangeKey : "7d";
+  const range = DASHBOARD_RANGES[key];
+  let buckets;
+  if (key === "7d") {
+    const first = addDays(anchor, -6);
+    buckets = Array.from({ length: 7 }, (_, index) => {
+      const day = addDays(first, index);
+      return { from: day, to: day, label: weekday(day).slice(0, 3) };
+    });
+  } else {
+    const currentWeek = weekRange(anchor);
+    const first = addDays(currentWeek.from, -7 * (range.count - 1));
+    buckets = Array.from({ length: range.count }, (_, index) => {
+      const from = addDays(first, index * 7);
+      const to = addDays(from, 6);
+      return { from, to, label: formatDate(from).slice(0, 5) };
+    });
+  }
+  return buckets.map((bucket) => ({ ...bucket, ...dashboardAggregate(bucket.from, bucket.to, movements) }));
+}
+function dashboardSeriesTotals(series) {
+  const totals = series.reduce((sum, point) => ({
+    revenue: sum.revenue + point.revenue,
+    cost: sum.cost + point.cost,
+    costLines: sum.costLines + point.costLines,
+    units: sum.units + point.units,
+    lines: sum.lines + point.lines,
+    profit: sum.profit + (point.profit ?? 0),
+  }), { revenue: 0, cost: 0, costLines: 0, units: 0, lines: 0, profit: 0 });
+  return {
+    revenue: round2(totals.revenue), cost: round2(totals.cost), costLines: totals.costLines,
+    units: round2(totals.units), lines: totals.lines,
+    profit: series.every((point) => point.profit != null) ? round2(totals.profit) : null,
+  };
+}
+function dashboardCategorySales(from, to, movements = store.activeMovements()) {
+  const products = new Map(store.state.products.map((product) => [product.id, product]));
+  const totals = new Map();
+  movements.filter((movement) => movement.type === "VENTA" && inRange(movement.date, from, to)).forEach((movement) => {
+    const category = products.get(movement.productId)?.category || "General";
+    const row = totals.get(category) || { category, revenue: 0, units: 0 };
+    row.revenue += Number(movement.importeUsd) || 0;
+    row.units += Number(movement.quantity) || 0;
+    totals.set(category, row);
+  });
+  return [...totals.values()].map((row) => ({ ...row, revenue: round2(row.revenue), units: round2(row.units) }))
+    .sort((a, b) => b.revenue - a.revenue);
+}
+function dashboardMetricValue(point, metricKey) {
+  const field = DASHBOARD_METRICS[metricKey]?.field || DASHBOARD_METRICS.sales.field;
+  const value = point[field];
+  return value == null || !Number.isFinite(Number(value)) ? null : Number(value);
+}
+function dashboardFormatValue(value, metricKey, compact = false) {
+  if (value == null || !Number.isFinite(Number(value))) return "—";
+  const metric = DASHBOARD_METRICS[metricKey] || DASHBOARD_METRICS.sales;
+  if (metric.money) {
+    if (!compact) return usd(value);
+    const amount = Number(value);
+    const abs = Math.abs(amount);
+    const short = abs >= 1_000_000 ? `${(abs / 1_000_000).toFixed(1)} M` : abs >= 1_000 ? `${(abs / 1_000).toFixed(1)} k` : abs.toFixed(0);
+    return `${amount < 0 ? "−" : ""}$${short}`;
+  }
+  return metricKey === "lines" ? Math.round(Number(value)).toLocaleString("es-CU") : qty(value);
+}
+function dashboardChartMarkup(series, metricKey, chartType, rangeLabel) {
+  const metric = DASHBOARD_METRICS[metricKey] || DASHBOARD_METRICS.sales;
+  const W = 900, H = 300, LEFT = 76, RIGHT = 22, TOP = 22, BOTTOM = 46;
+  const plotWidth = W - LEFT - RIGHT;
+  const plotHeight = H - TOP - BOTTOM;
+  const values = series.map((point) => dashboardMetricValue(point, metricKey));
+  const finiteValues = values.filter((value) => value != null);
+  let low = Math.min(0, ...finiteValues);
+  let high = Math.max(0, ...finiteValues);
+  if (high === low) high = low + 1;
+  const padding = (high - low) * 0.12;
+  if (low < 0) low -= padding;
+  high += padding;
+  const span = high - low;
+  const y = (value) => TOP + ((high - value) / span) * plotHeight;
+  const zeroY = y(0);
+  const x = (index) => series.length === 1 ? LEFT + plotWidth / 2 : LEFT + (index * plotWidth) / (series.length - 1);
+  const rangeName = rangeLabel || "período seleccionado";
+  const peak = series.reduce((best, point, index) => {
+    const value = values[index];
+    return value != null && (best.value == null || value > best.value) ? { point, value } : best;
+  }, { value: null, point: null });
+  const summary = finiteValues.length
+    ? `${metric.label}, ${rangeName}. ${peak.point.label}: ${dashboardFormatValue(peak.value, metricKey)}.`
+    : `No hay costos unitarios completos para mostrar ${metric.label.toLowerCase()} en ${rangeName}.`;
+  const grid = Array.from({ length: 5 }, (_, index) => {
+    const value = high - (span * index) / 4;
+    const gy = y(value);
+    return `<g><line x1="${LEFT}" x2="${W - RIGHT}" y1="${gy}" y2="${gy}" class="dashboard-grid-line"/><text x="${LEFT - 12}" y="${gy + 4}" text-anchor="end" class="dashboard-axis-label">${esc(dashboardFormatValue(value, metricKey, true))}</text></g>`;
+  }).join("");
+  const segments = [];
+  let segment = [];
+  values.forEach((value, index) => {
+    if (value == null) {
+      if (segment.length) segments.push(segment);
+      segment = [];
+    } else {
+      segment.push({ x: x(index), y: y(value), value, index });
+    }
+  });
+  if (segment.length) segments.push(segment);
+  const area = chartType === "area" ? segments.map((points) => {
+    const first = points[0], last = points[points.length - 1];
+    const line = points.map((point) => `${point.x},${point.y}`).join(" ");
+    return `<polygon points="${first.x},${zeroY} ${line} ${last.x},${zeroY}" class="dashboard-area-fill"/>`;
+  }).join("") : "";
+  const line = chartType === "bars" ? series.map((point, index) => {
+    const value = values[index];
+    if (value == null) return "";
+    const band = plotWidth / series.length;
+    const width = Math.min(44, band * 0.62);
+    const center = LEFT + band * (index + 0.5);
+    const top = Math.min(y(value), zeroY);
+    const height = Math.max(2, Math.abs(zeroY - y(value)));
+    return `<rect x="${center - width / 2}" y="${top}" width="${width}" height="${height}" rx="5" class="dashboard-bar ${value < 0 ? "negative" : ""}"><title>${esc(point.label)}: ${esc(dashboardFormatValue(value, metricKey))}</title></rect>`;
+  }).join("") : segments.map((points) => {
+    const polyline = points.map((point) => `${point.x},${point.y}`).join(" ");
+    const dots = points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="4.5" class="dashboard-dot"><title>${esc(series[point.index].label)}: ${esc(dashboardFormatValue(point.value, metricKey))}</title></circle>`).join("");
+    return `<polyline points="${polyline}" class="dashboard-line"/>${dots}`;
+  }).join("");
+  const labels = series.map((point, index) => {
+    const labelX = chartType === "bars" ? LEFT + (plotWidth / series.length) * (index + 0.5) : x(index);
+    const anchor = index === 0 ? "start" : index === series.length - 1 ? "end" : "middle";
+    return `<text x="${labelX}" y="${H - 12}" text-anchor="${anchor}" class="dashboard-axis-label">${esc(point.label)}</text>`;
+  }).join("");
+  const rangeRows = series.map((point) => {
+    const period = point.from === point.to ? formatDate(point.from) : `${formatDate(point.from)} – ${formatDate(point.to)}`;
+    return `<tr><td>${period}</td><td class="mono">${usd(point.revenue)}</td><td class="mono">${usd(point.cost)}</td><td class="mono">${point.profit == null ? "—" : usd(point.profit)}</td><td class="mono">${qty(point.units)}</td><td class="mono">${point.lines.toLocaleString("es-CU")}</td></tr>`;
+  }).join("");
+  const table = `<details class="chart-data dashboard-data"><summary>Ver datos del gráfico en tabla</summary><div class="table-wrap"><table><thead><tr><th scope="col">Período</th><th scope="col">Ventas</th><th scope="col">Costos registrados</th><th scope="col">Ganancia bruta estimada</th><th scope="col">Unidades</th><th scope="col">Líneas de venta</th></tr></thead><tbody>${rangeRows}</tbody></table></div></details>`;
+  return `<svg viewBox="0 0 ${W} ${H}" class="dashboard-chart-svg" data-chart-type="${chartType}" role="img" aria-label="${esc(summary)}"><title>${esc(summary)}</title>
+    <defs><linearGradient id="dashboardAreaGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" class="dashboard-gradient-top"/><stop offset="100%" class="dashboard-gradient-bottom"/></linearGradient></defs>
+    ${grid}${area}${line}${labels}
+  </svg><p class="dashboard-chart-note">Ventas = importe registrado. Los costos son los asociados a las ventas; la ganancia bruta estimada los resta y no incluye gastos operativos. Si faltan costos unitarios, la ganancia se muestra como no disponible.</p>${table}`;
+}
+function dashboardCategoryChartMarkup(rows, rangeLabel) {
+  const total = round2(rows.reduce((sum, row) => sum + row.revenue, 0));
+  if (total <= 0) return `<p class="empty dashboard-empty">Sin ventas registradas en ${esc(rangeLabel.toLowerCase())}.</p>`;
+  const ranked = [...rows].sort((a, b) => b.revenue - a.revenue);
+  const categories = ranked.length > 6
+    ? [...ranked.slice(0, 5), { category: "Otros", revenue: round2(ranked.slice(5).reduce((sum, row) => sum + row.revenue, 0)), units: ranked.slice(5).reduce((sum, row) => sum + row.units, 0) }]
+    : ranked;
+  const circumference = 2 * Math.PI * 69;
+  let offset = 0;
+  const arcs = categories.map((row) => {
+    const length = (row.revenue / total) * circumference;
+    const color = CATEGORIES[row.category]?.color || CATEGORIES.General.color;
+    const arc = `<circle cx="100" cy="100" r="69" fill="none" stroke="${color}" stroke-width="22" stroke-dasharray="${length.toFixed(2)} ${circumference.toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}"><title>${esc(row.category)}: ${usd(row.revenue)}</title></circle>`;
+    offset += length;
+    return arc;
+  }).join("");
+  const legend = categories.map((row) => {
+    const category = row.category === "Otros" ? "General" : row.category;
+    const percent = round2((row.revenue / total) * 100);
+    return `<li><div class="dashboard-category-name">${catBadge(category)}${row.category === "Otros" ? `<span class="hint">Otros</span>` : ""}</div><div class="dashboard-category-amount"><b class="mono">${usd(row.revenue)}</b><span class="hint">${percent}% · ${qty(row.units)} uds</span></div></li>`;
+  }).join("");
+  return `<div class="dashboard-donut-layout"><svg viewBox="0 0 200 200" class="dashboard-donut-svg" role="img" aria-label="Ventas por categoría en ${esc(rangeLabel)}: ${esc(categories.map((row) => `${row.category}, ${usd(row.revenue)}`).join("; "))}"><circle cx="100" cy="100" r="69" class="dashboard-donut-track"/>${arcs}<text x="100" y="94" class="dashboard-donut-caption">VENTAS</text><text x="100" y="119" class="dashboard-donut-total">${esc(dashboardFormatValue(total, "sales", true))}</text></svg><ul class="dashboard-donut-legend">${legend}</ul></div>`;
+}
+function dashboardAnalytics(anchor) {
+  const rangeKey = DASHBOARD_RANGES[ui.dashboardRange] ? ui.dashboardRange : "7d";
+  const range = DASHBOARD_RANGES[rangeKey];
+  const metricKey = DASHBOARD_METRICS[ui.dashboardMetric] ? ui.dashboardMetric : "sales";
+  const chartType = ["line", "area", "bars"].includes(ui.dashboardType) ? ui.dashboardType : "line";
+  const movements = store.activeMovements();
+  const series = buildDashboardSeries(anchor, rangeKey, movements);
+  const from = series[0].from;
+  const to = series[series.length - 1].to;
+  const totals = dashboardSeriesTotals(series);
+  const previousFrom = addDays(from, -range.days);
+  const previousTo = addDays(to, -range.days);
+  const previous = dashboardAggregate(previousFrom, previousTo, movements);
+  const categories = dashboardCategorySales(from, to, movements);
+  return { rangeKey, range, metricKey, chartType, series, from, to, totals, previous, categories };
+}
+function dashboardSummaryMarkup(report) {
+  const { totals, previous } = report;
+  const delta = previous.revenue > 0 ? round2(((totals.revenue - previous.revenue) / previous.revenue) * 100) : null;
+  const margin = totals.profit != null && totals.revenue > 0 ? round2((totals.profit / totals.revenue) * 100) : null;
+  const comparison = delta == null
+    ? (totals.revenue > 0 ? "Sin base anterior" : "Sin ventas para comparar")
+    : `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta)}% frente al período anterior`;
+  const deltaClass = delta == null ? "" : delta >= 0 ? "positive" : "negative";
+  return `<div class="dashboard-summary-grid">
+    <div class="dashboard-summary-tile"><span>VENTAS</span><strong>${usd(totals.revenue)}</strong><small class="${deltaClass}">${comparison}</small></div>
+    <div class="dashboard-summary-tile"><span>COSTOS REGISTRADOS</span><strong>${usd(totals.cost)}</strong><small>${totals.lines ? `${totals.costLines} de ${totals.lines} líneas con costo` : "sin ventas en el período"}</small></div>
+    <div class="dashboard-summary-tile"><span>GANANCIA BRUTA ESTIMADA</span><strong>${totals.profit == null ? "—" : usd(totals.profit)}</strong><small>${totals.profit == null ? "Registra el costo unitario de todas las ventas" : margin == null ? "Ventas menos costo registrado" : `${margin}% de margen bruto · antes de gastos`}</small></div>
+    <div class="dashboard-summary-tile"><span>UNIDADES VENDIDAS</span><strong>${qty(totals.units)}</strong><small>en el período elegido</small></div>
+    <div class="dashboard-summary-tile"><span>LÍNEAS DE VENTA</span><strong>${totals.lines.toLocaleString("es-CU")}</strong><small>movimientos de venta registrados</small></div>
+  </div>`;
+}
 function homeView() {
   const prods = store.activeProducts();
   const movs = store.activeMovements();
   const d = lastDataDate();
+  const report = dashboardAnalytics(d);
   const c = store.cuadreFor(d);
   const t = cuadreCalc(c, movs.filter((m) => m.date === d));
   const low = prods.filter((p) => p.stockActual <= p.minStock && p.stockInicial > 0);
@@ -629,7 +890,7 @@ function homeView() {
     <section class="hero">
       <div class="hero-txt">
         <div class="eyebrow">${formatDate(todayISO())} · ${esc(store.state.settings.businessName)}</div>
-        <h1>${saludo}, ${esc(store.state.session.displayName.split(" ")[0])} ✨</h1>
+        <h1>${saludo}, ${esc(store.state.session.displayName.split(" ")[0])}</h1>
         <p>${t.cuadre === 0 ? "El último cuadre está perfecto. ¡Sigue así!" : "El último cuadre tiene diferencia: revísalo."} Tienes <b>${prods.length}</b> productos y <b>${low.length}</b> alertas de stock.</p>
         <div class="row mb14"><span class="plat-chip"><i></i> Inventario · Venta · Caja · Análisis</span></div>
         <div class="row">
@@ -642,7 +903,7 @@ function homeView() {
         <div class="ring" data-p="${Math.min(100, Math.round((t.venta / Math.max(1, maxV)) * 100))}" data-tip="Venta del día comparada con el mejor día de la semana">
           <div><b>${usd(t.venta).replace(".00", "")}</b><span>venta ${formatDate(d).slice(0, 5)}</span></div>
         </div>
-        ${topList.length ? `<div class="toplist"><div class="k toplight">Más vendidos</div>${topList.map(([n, v], i) => `<div><span>${["🥇", "🥈", "🥉"][i]} ${esc(n)}</span><b>${usd(v)}</b></div>`).join("")}</div>` : ""}
+        ${topList.length ? `<div class="toplist"><div class="k toplight">Más vendidos</div>${topList.map(([n, v], i) => `<div class="toplist-item"><span class="top-rank">${String(i + 1).padStart(2, "0")}</span><span class="top-product">${esc(n)}</span><b>${usd(v)}</b></div>`).join("")}</div>` : ""}
       </div>
     </section>
     ${low.length && store.state.settings.lowStockAlerts ? `<div class="banner">⚠ <strong>${low.length} productos</strong> con stock en el mínimo o agotados.</div>` : ""}
@@ -660,13 +921,25 @@ function homeView() {
       ${allowed("CUSTOMER_VIEW") ? `<a href="#customers" data-nav="customers"><span class="q-ico qc-wa">🤝</span><strong>Clientes y fiados</strong><span class="hint">${usd(store.totalReceivable())} por cobrar</span><span class="q-go">→</span></a>` : ""}
     </div>
     ${valuationMismatch ? `<div class="banner inventory-value-alert" role="alert">⚠ <strong>Los totales de valoración no coinciden.</strong> Por categoría: <b>${usd(categoryValue)}</b>; por almacén: <b>${usd(warehouseValue)}</b>; diferencia: <b>${usd(valuationDifference)}</b>. Revisa las existencias y sus almacenes.</div>` : ""}
-    <div class="grid-2 mt16">
-      <div class="card">
-        <div class="card-h"><span class="k">Ventas semana ${formatDate(w.from)} – ${formatDate(w.to)}</span></div>
-        <div class="chart">${days.map((x) => `<div class="bar" data-h="${(x.v / maxV) * 100}" title="${usd(x.v)}"><em>${x.v ? usd(x.v).replace(".00", "") : ""}</em><span>${weekday(x.day).slice(0, 3)}</span></div>`).join("")}</div>
+    <section class="card dashboard-chart-card mt16" aria-labelledby="dashboardChartTitle">
+      <div class="dashboard-chart-header">
+        <div class="dashboard-chart-heading"><div class="card-h"><span class="k" id="dashboardChartTitle">Evolución: ${esc(DASHBOARD_METRICS[report.metricKey].label)}</span><span class="tag mov">${esc(report.range.label)}</span></div><p class="hint">Cambia período, indicador o visualización; los datos se actualizan al instante.</p></div>
+        <div class="dashboard-chart-controls" role="group" aria-label="Opciones del gráfico">
+          <label class="dashboard-control"><span>Período</span><select id="dashboardRange" aria-label="Período del gráfico"><option value="7d" ${report.rangeKey === "7d" ? "selected" : ""}>Últimos 7 días</option><option value="4w" ${report.rangeKey === "4w" ? "selected" : ""}>4 semanas</option><option value="12w" ${report.rangeKey === "12w" ? "selected" : ""}>12 semanas</option></select></label>
+          <label class="dashboard-control"><span>Indicador</span><select id="dashboardMetric" aria-label="Indicador del gráfico"><option value="sales" ${report.metricKey === "sales" ? "selected" : ""}>Ventas (USD)</option><option value="costs" ${report.metricKey === "costs" ? "selected" : ""}>Costos registrados</option><option value="profit" ${report.metricKey === "profit" ? "selected" : ""}>Ganancia bruta estimada</option><option value="units" ${report.metricKey === "units" ? "selected" : ""}>Unidades vendidas</option><option value="lines" ${report.metricKey === "lines" ? "selected" : ""}>Líneas de venta</option></select></label>
+          <label class="dashboard-control"><span>Tipo</span><select id="dashboardType" aria-label="Tipo de gráfico"><option value="line" ${report.chartType === "line" ? "selected" : ""}>Línea</option><option value="area" ${report.chartType === "area" ? "selected" : ""}>Área</option><option value="bars" ${report.chartType === "bars" ? "selected" : ""}>Barras</option></select></label>
+        </div>
+      </div>
+      ${dashboardChartMarkup(report.series, report.metricKey, report.chartType, report.range.label)}
+      ${dashboardSummaryMarkup(report)}
+    </section>
+    <div class="grid-2 mt16 dashboard-lower-grid">
+      <div class="card dashboard-category-card">
+        <div class="card-h"><span class="k">Ventas por categoría</span><span class="hint">${esc(report.range.label)}</span></div>
+        ${dashboardCategoryChartMarkup(report.categories, report.range.label)}
       </div>
       <div class="card">
-        <div class="card-h"><span class="k">Valor por categoría</span></div>
+        <div class="card-h"><span class="k">Valor del inventario por categoría</span></div>
         ${cats.map(([k, v]) => `<div class="hbar"><span>${catBadge(k)}</span><div><i data-w="${(v / (cats[0][1] || 1)) * 100}" data-cat="${esc(k)}"></i></div><b class="mono">${usd(v)}</b></div>`).join("") || `<p class="hint">Sin productos en inventario.</p>`}
         <div class="hline dashboard-total"><span>Total por categoría</span><b class="mono">${usd(categoryValue)}</b></div>
       </div>
@@ -1430,11 +1703,21 @@ function legalCard() {
   const d = ui.legalData || {};
   const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
   if (!admin) return d.razonSocial ? `<div class="card mt14"><div class="card-h"><span class="k">Datos legales</span></div><p class="hint">${esc(d.razonSocial)} · ${esc(d.idFiscal || "")} · ${esc(d.domicilio || "")} · ${esc(d.contacto || "")}</p></div>` : "";
+  const campos = LEGAL_CAMPOS.map(([k, label, ayuda]) => {
+    const largo = LEGAL_CAMPOS_LARGOS.has(k);
+    const ancho = largo || ["razonSocial", "domicilio"].includes(k) ? "span-2" : "";
+    const value = esc(d[k] || "");
+    const control = largo
+      ? `<textarea name="${k}" rows="3" maxlength="1000">${value}</textarea>`
+      : `<input name="${k}" value="${value}" maxlength="300">`;
+    return `<label class="${ancho}"><span>${esc(label)}</span>${control}<small class="hint legal-field-help">${esc(ayuda)}</small></label>`;
+  }).join("");
   return `<form id="legalForm" class="card form-grid mt14">
-    <div class="span-2 card-h"><span class="k">Datos legales del negocio</span><span class="hint">Se muestran en Información legal y en el pie. Déjelos en blanco y se seguirá viendo [COMPLETAR: …]: no se inventa ningún dato.</span></div>
-    ${LEGAL_CAMPOS.map(([k, label]) => `<label class="${k === "razonSocial" || k === "domicilio" ? "span-2" : ""}">${label} <input name="${k}" value="${esc(d[k] || "")}" maxlength="${k === "retencion" || k === "reembolso" ? 1000 : 300}"></label>`).join("")}
+    <div class="span-2 card-h"><span class="k">Datos legales del negocio</span></div>
+    <p class="hint span-2">Esta información es pública: aparece en las cinco políticas, en el pie y en la respuesta pública de /api/legal. No ingreses contraseñas, claves ni datos que no quieras publicar. Completa solo datos confirmados; si algo sigue pendiente, déjalo vacío y quedará marcado como «[COMPLETAR]».</p>
+    ${campos}
     <div class="span-2 row"><button class="btn">Guardar datos legales</button><a class="btn ghost" href="#legal" data-legal-doc="aviso">Ver Información legal</a></div>
-    <p class="hint span-2">⚠ Rellenar estos datos no sustituye la revisión de los textos por un abogado antes de publicarlos.</p>
+    <p class="hint span-2">⚠ Los campos sobre ley, privacidad, cookies, responsabilidad y reembolsos deben confirmarse con un profesional de tu jurisdicción. Esta guía no es asesoría legal.</p>
   </form>`;
 }
 
@@ -1605,7 +1888,7 @@ function posView() {
         </div>
         <div class="chips mb12">
           <button class="chip ${ui.posCat === "TODAS" ? "on" : ""}" data-poscat="TODAS">Todas</button>
-          ${cats.map((c) => `<button class="chip ${ui.posCat === c ? "on" : ""}" data-poscat="${esc(c)}">${(CATEGORIES[c] || CATEGORIES.General).icon} ${esc(c)}</button>`).join("")}
+          ${cats.map((c) => `<button class="chip ${ui.posCat === c ? "on" : ""}" data-poscat="${esc(c)}">${categoryIcon(c, 16)} ${esc(c)}</button>`).join("")}
         </div>
         <div class="pos-grid">
           ${list.map((p) => {
@@ -2784,7 +3067,7 @@ function readFichaEditor() {
 
 /* ============================ RENDER ============================ */
 function page() {
-  const views = { license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
+  const views = { license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, fichas: fichasView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
   return (views[ui.route] || homeView)();
 }
 
@@ -2806,6 +3089,7 @@ function hydrateStyles(root = document) {
 }
 
 function render() {
+  rememberSidebarScroll();
   applyTheme();
   // Páginas legales: públicas, también sin licencia ni sesión.
   if (ui.route === "legal") {
@@ -2845,6 +3129,7 @@ function render() {
   document.querySelectorAll(".modal input, .modal select").forEach((el) => { if (el.name && el.type !== "file") formVals[el.name] = el.value; });
   const hadModal = !!$(".modal");
   app.innerHTML = shell(page());
+  restoreSidebarScroll($(".rail nav"));
   hydrateStyles(app);
   if (hadModal && ui.modal) document.querySelectorAll(".modal input, .modal select").forEach((el) => { if (el.name in formVals) el.value = formVals[el.name]; });
   if (scroll) { const c = $(".content"); if (c) c.scrollTop = scroll; }
@@ -2974,6 +3259,9 @@ function bindLogin() {
 
 function bindApp() {
   ensureClicks();
+  $("#dashboardRange")?.addEventListener("change", (e) => { ui.dashboardRange = e.target.value; render(); });
+  $("#dashboardMetric")?.addEventListener("change", (e) => { ui.dashboardMetric = e.target.value; render(); });
+  $("#dashboardType")?.addEventListener("change", (e) => { ui.dashboardType = e.target.value; render(); });
   // Editor de Ficha de Costo (en línea): guardar, autocompletar costo y foco.
   $("#fichaForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -3319,7 +3607,7 @@ function ensureClicks() {
 function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"); }
 
 function onClick(e) {
-  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit]");
+  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
