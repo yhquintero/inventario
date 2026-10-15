@@ -1,0 +1,79 @@
+name: "🐞 Informe de error"
+description: "Algo no funciona como debería en la Web, Android, el servidor o las herramientas."
+title: "[Error] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ¡Gracias por avisar! Completa los campos para que podamos reproducir el error.
+
+        > ⚠️ **¿Es un problema de seguridad?** No lo publiques aquí: sigue la [política de seguridad](https://github.com/yhquintero/inventario/blob/main/SECURITY.md).
+        > No incluyas datos personales, contraseñas, claves de licencia ni copias de seguridad.
+  - type: dropdown
+    id: componente
+    attributes:
+      label: Componente
+      description: ¿Dónde ocurre el error?
+      options:
+        - Aplicación Web (PWA)
+        - Aplicación Android
+        - Servidor / API
+        - Licencias (activación, solicitudes o generador)
+        - Panel de Control Visual (Windows)
+        - Importación de libros Excel
+        - Informes, PDF o exportaciones
+        - Otro
+    validations:
+      required: true
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: ¿Qué pasó?
+      description: Describe el error con claridad. Si aparece un mensaje, cópialo tal cual.
+      placeholder: "Al cerrar el día en Cuadre diario, aparece «…» y el resultado no se guarda."
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducirlo
+      placeholder: |
+        1. Ir a «…»
+        2. Pulsar «…»
+        3. Ver el error
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: ¿Qué esperabas que ocurriera?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión o commit
+      description: Versión de NovaGest (por ejemplo, 1.0.0) o el commit que usas.
+      placeholder: "1.0.0"
+  - type: input
+    id: entorno
+    attributes:
+      label: Entorno
+      description: Sistema operativo, navegador y forma de instalación (Windows con HTTPS, Docker, Android…).
+      placeholder: "Windows 11 · Chrome 141 · server\\iniciar-https.ps1"
+  - type: textarea
+    id: registros
+    attributes:
+      label: Registros o capturas
+      description: Fragmentos de `data/logs` o de la consola del navegador. Revisa que no contengan datos personales.
+      render: shell
+  - type: checkboxes
+    id: comprobaciones
+    attributes:
+      label: Comprobaciones
+      options:
+        - label: He buscado y no existe un issue abierto sobre este error.
+          required: true
+        - label: He eliminado datos personales, contraseñas y claves de licencia de este informe.
+          required: true

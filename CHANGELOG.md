@@ -1,5 +1,16 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-14 (IX) · Presentación del repositorio y documentación
+
+- **README rediseñado**: cabecera con logotipo, insignias y navegación, imagen principal, **capturas reales** de la aplicación (datos de demostración, sin datos personales), preguntas frecuentes plegables y **8 idiomas** (español como referencia + inglés, portugués, francés, italiano, alemán, ruso y chino simplificado en `docs/readme/`). Las cuentas de demostración siguen en el README (la pantalla de acceso remite a él).
+- **Guías nuevas** sin pérdida de contenido: `docs/INSTALACION.md` (servidor, Windows con HTTPS y Panel de Control Visual, Docker, Android y producción) y `docs/LICENCIAS.md` (sistema completo de licencias de uso), trasladadas desde el README.
+- **Archivos de comunidad**: `LICENSE` propietaria (todos los derechos reservados, ES/EN), `CONTRIBUTING.md`, `SECURITY.md` (reporte privado de vulnerabilidades, alcance y lista de endurecimiento para producción) y `THIRD_PARTY_NOTICES.md` (SheetJS, qrcode y librerías de `venv/`).
+- **GitHub**: plantillas de issues en español (error y mejora; sin issues en blanco y con enlace al reporte privado de seguridad) y plantilla de pull request.
+- **venv**: `venv/README.md` documenta las librerías de Python para Windows sin conexión, y `.gitattributes` las marca como *vendored* para que la barra de lenguajes refleje el código propio (antes ~86 % Python por el entorno virtual).
+- **Procedencia de imágenes**: `docs/IMAGENES.md` decía que las imágenes de categoría eran arte procedural, pero las actuales llegaron en el PR #23 sin origen documentado; queda marcado como **pendiente de confirmar** por el titular.
+- **Material para GitHub**: `docs/assets/social-preview.png` (1280 × 640) para la vista previa al compartir el enlace.
+- **Pendiente del titular en GitHub** (requiere permisos de administración): descripción «About» y temas, activar el reporte privado de vulnerabilidades y subir la vista previa social.
+
 ## NovaGest v1.0.0 · revisión 2026-10-14 (VIII) · WhatsApp condicionado, tipografía común y panel que responde
 
 - **«💬 SOLICITAR POR WHATSAPP» solo se activa con la autorización** (Web, Licencia de uso → Estado): el botón nace desactivado y se habilita al marcar la casilla *«Autorizo registrar los datos de esta solicitud…»* (`#licConsent`); al desmarcarla vuelve a desactivarse. El estado de la casilla se guarda en la sesión, así que sobrevive a los repintados de la página. Se mantiene la comprobación al hacer clic.

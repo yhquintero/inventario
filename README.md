@@ -1,37 +1,39 @@
 <div align="center">
 
-<img src="brand/novagest-icon.png" width="92" alt="NovaGest" />
+<img src="brand/novagest-icon.png" width="104" alt="Logotipo de NovaGest" />
 
 # NovaGest
 
-**Gestiona. Crece. Avanza.**
+### Gestiona. Crece. Avanza.
 
-Inventario · Punto de venta · Caja · Informes — **todo tu negocio en una sola plataforma.**
+**Inventario, punto de venta, caja diaria e informes para tu negocio — en la Web, en Android y sin conexión.**
 
-![Plataforma](https://img.shields.io/badge/plataforma-Web_%C2%B7_Android_%C2%B7_Servidor-4f46e5)
-![Versión](https://img.shields.io/badge/versi%C3%B3n-NovaGest_1.0.0-059669)
-![Pruebas](https://img.shields.io/badge/pruebas-65_en_verde-brightgreen)
-![Web](https://img.shields.io/badge/web-PWA_instalable_%C2%B7_sin_build-2563eb)
+🌐 **Español** · [English](docs/readme/README_en.md) · [Português](docs/readme/README_pt-BR.md) · [Français](docs/readme/README_fr.md) · [Italiano](docs/readme/README_it.md) · [Deutsch](docs/readme/README_de.md) · [Русский](docs/readme/README_ru.md) · [简体中文](docs/readme/README_zh-CN.md)
+
+[![Versión](https://img.shields.io/badge/versi%C3%B3n-1.0.0-4f46e5?style=flat-square)](CHANGELOG.md)
+[![Plataformas](https://img.shields.io/badge/plataformas-Web%20%C2%B7%20Android%20%C2%B7%20Servidor-1e1b4b?style=flat-square)](#-qué-incluye)
+[![PWA](https://img.shields.io/badge/PWA-funciona%20sin%20conexi%C3%B3n-059669?style=flat-square)](#-preguntas-frecuentes)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](#-inicio-rápido)
+[![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](app/)
+[![SQLite](https://img.shields.io/badge/SQLite-datos%20compartidos-003B57?style=flat-square&logo=sqlite&logoColor=white)](server/)
+[![Licencia](https://img.shields.io/badge/licencia-propietaria-475569?style=flat-square)](LICENSE)
+
+[Funciones](#-funciones) · [Capturas](#-capturas) · [Inicio rápido](#-inicio-rápido) · [Documentación](#-documentación) · [Preguntas frecuentes](#-preguntas-frecuentes) · [Seguridad](#-seguridad) · [Licencia](#-licencia)
 
 </div>
 
----
+<p align="center">
+  <img src="docs/assets/novagest-hero.png" width="100%" alt="NovaGest: el Panel en el navegador y la Venta rápida en el móvil" />
+</p>
 
-**NovaGest** reúne en un solo lugar lo que tu negocio necesita todos los días: **inventario multi-almacén**, **punto de venta**, **caja diaria** e **informes con análisis**. Nada de hojas sueltas ni cuadernos: la aplicación Web se instala como app y funciona sin conexión, la app Android lleva la operación al bolsillo, y el servidor compartido mantiene a todos trabajando sobre el mismo estado en tiempo real — con licencia de uso, roles, auditoría y copias de seguridad.
+> [!IMPORTANT]
+> **NovaGest es software propietario.** El código es visible en GitHub, pero usarlo en un negocio, copiarlo, modificarlo o distribuirlo requiere una **licencia de uso** del titular. Consulta [LICENSE](LICENSE) y la sección [Licencia](#-licencia).
+
+## 💡 ¿Qué es NovaGest?
+
+**NovaGest** reúne en un solo lugar lo que tu negocio necesita todos los días: **inventario multialmacén**, **punto de venta**, **caja diaria** e **informes con análisis**. Nada de hojas sueltas ni cuadernos: la aplicación Web se instala como app y sigue funcionando si se cae la conexión, la app Android lleva la operación al bolsillo y el servidor compartido mantiene a todos trabajando sobre el mismo estado en tiempo real — con licencia de uso, roles, auditoría y copias de seguridad.
 
 > 📊 **Tus datos mandan.** Los libros de Excel son solo fuentes de importación y referencia: la aplicación nunca importa ni sustituye datos operativos sin mostrarte una **vista previa** y recibir tu confirmación. Una instalación nueva puede arrancar con la semilla incluida en el proyecto.
-
-## 🧭 Contenido
-
-- [Qué incluye](#-qué-incluye)
-- [Funciones principales](#-funciones-principales)
-- [Importar los libros Excel](#-importar-los-libros-excel)
-- [Informes y PDF](#-informes-y-pdf)
-- [Puesta en marcha](#-puesta-en-marcha)
-- [Seguridad y cuentas iniciales](#-seguridad-y-cuentas-iniciales)
-- [Pruebas](#-pruebas)
-- [Estructura del proyecto](#-estructura-del-proyecto)
-- [Registro de cambios](#-registro-de-cambios)
 
 ## 🧩 Qué incluye
 
@@ -39,21 +41,98 @@ Inventario · Punto de venta · Caja · Informes — **todo tu negocio en una so
 |---|---|
 | 🌐 **Web (PWA)** | El centro de mando: inventario, almacenes, importación de valores, movimientos, venta rápida, cuadre diario, informe semanal, comprobación y administración — con búsqueda global (`Ctrl+K`), guía integrada, atajos de teclado y modo claro/oscuro. Se instala como aplicación y abre sin conexión. |
 | 📱 **Android** | La operación en movimiento: la misma gestión con Kotlin + Jetpack Compose, almacenamiento local, desbloqueo biométrico y sincronización con el servidor cuando hay conexión. |
-| 🗄️ **Servidor** | El corazón que une todo: API y sitio Web en un solo proceso de Python, datos compartidos en SQLite, sesiones y permisos validados en servidor, licencias firmadas, auditoría y copias cifradas automáticas. |
+| 🗄️ **Servidor** | El corazón que une todo: API y sitio Web en un solo proceso de Python, datos compartidos en SQLite, sesiones y permisos validados en el servidor, licencias firmadas, auditoría y copias cifradas automáticas. |
 
-## ✨ Funciones principales
+## ✨ Funciones
 
-- 📦 **Inventario multi-almacén** — cada almacén conserva sus propias existencias y el inventario general suma todos; importa valores, traspasa mercancía entre almacenes y ajusta diferencias con historial completo.
-- 🛒 **Punto de venta** — venta rápida que descuenta el stock del almacén en uso al instante, con **escáner de códigos de barras** (cámara o lector USB/Bluetooth), cobro **contado o a fiado** a un cliente, comisiones y domicilios calculados automáticamente.
+- 📦 **Inventario multialmacén** — cada almacén conserva sus propias existencias y el inventario general suma todos; importa valores, traspasa mercancía entre almacenes y ajusta diferencias con historial completo.
+- 🛒 **Punto de venta** — venta rápida que descuenta el stock del almacén en uso al instante, con **escáner de códigos de barras** (cámara o lector USB/Bluetooth), cobro **al contado o a fiado** a un cliente, y comisiones y domicilios calculados automáticamente.
 - 🤝 **Clientes y fiados** — libro de clientes con límite de crédito, cuentas por cobrar con vencimiento, estados (pendiente/parcial/vencido/pagado) y **abonos** con historial; el total por cobrar se ve en el Panel.
 - 🧮 **Caja diaria (cuadre)** — tasas CUP/USD y MXN/USD, cobros, entradas, extracciones, fondos y gastos: el día está «cuadrado» cuando el resultado da 0, y la aplicación te avisa si no lo está.
 - 🔄 **Movimientos** — ventas, entradas y salidas con almacén, centro de venta, cantidades, importes y observaciones; cada movimiento recalcula el stock y queda registrado.
-- 🧾 **Fichas de Costo e IPV** — ficha versionada por producto/servicio (componentes desde el propio inventario, costo total, rendimiento en comensales/copas y costo por ración, raciones posibles con el stock) con flujo Borrador → Aprobada, y **Control IPV** por período (`IPV-AAAA-NNNN`) que guarda la foto de la ficha y se valida contra ella. Web: **Fichas de costo · IPV**; Android: consulta sincronizada. Adaptado del repositorio [IPV · Fichas y Costos](https://github.com/yhquintero/IPV_Fichas-Costos) (verificado: sus 12 pruebas de flujo/numeración pasan) sin duplicar el catálogo de materiales. Los importes se guardan en la moneda de cada ficha (USD o CUP).
+- 🧾 **Fichas de Costo e IPV** — ficha versionada por producto o servicio (componentes del propio inventario, costo total, rendimiento y costo por ración) con flujo Borrador → Aprobada, y **Control IPV** por período (`IPV-AAAA-NNNN`) que se valida contra la ficha. Web: **Fichas de costo · IPV**; Android: consulta sincronizada. Adaptado de [IPV · Fichas y Costos](https://github.com/yhquintero/IPV_Fichas-Costos); los importes se guardan en la moneda de cada ficha (USD o CUP).
 - 📊 **Informes y comprobación** — cuadres diarios, resumen semanal y comprobación de inventario por día, semana, mes, año o rango personalizado, con exportación CSV/PDF lista para imprimir o enviar al contador.
-- 📈 **Análisis y metas** — ventas por período, utilidad bruta y neta, valor del inventario a precio de venta y a costo, progreso frente a metas diarias y semanales.
+- 📈 **Análisis y metas** — ventas por período, utilidad bruta y neta, valor del inventario a precio de venta y a costo, y progreso frente a metas diarias y semanales.
 - 🕵️ **Historial y auditoría** — precios, costos y tasas por día; registro de quién hizo qué y cuándo, según el rol de cada usuario.
-- ☁️ **Sincronización multiplataforma** — Web y Android trabajan sobre el mismo estado en tiempo real; sin conexión, la Web sigue operando y sincroniza al reconectar.
-- 🔐 **Seguridad de nivel empresarial** — licencia de uso firmada criptográficamente, verificación en dos pasos (TOTP) opcional, bloqueo tras intentos fallidos, cierre de días y copias de seguridad cifradas.
+- ☁️ **Sincronización multiplataforma** — Web y Android trabajan sobre el mismo estado; si se pierde la conexión, la Web sigue operando y sincroniza al reconectar.
+- 🔐 **Seguridad de nivel empresarial** — licencia de uso firmada criptográficamente, verificación en dos pasos (TOTP), bloqueo tras intentos fallidos, cierre de días y copias de seguridad cifradas.
+
+## 📸 Capturas
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/assets/capturas/venta-rapida.png" alt="Venta rápida con escáner de códigos, categorías, productos y carrito" /><br /><sub><b>Venta rápida</b> — escáner de códigos, carrito y cobro al contado o a fiado.</sub></td>
+    <td width="50%" valign="top"><img src="docs/assets/capturas/inventario.png" alt="Inventario con existencias, precios, costos y categorías" /><br /><sub><b>Inventario</b> — existencias por almacén, precios, costos, comisiones y categorías.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/assets/capturas/cuadre-diario.png" alt="Cuadre diario con tasas, fondos, gastos y resultado del día" /><br /><sub><b>Cuadre diario</b> — tasas CUP/USD, fondos y gastos; el resultado debe quedar en 0.</sub></td>
+    <td width="50%" valign="top"><img src="docs/assets/capturas/analisis-y-metas.png" alt="Análisis y metas con indicadores, metas, márgenes por categoría y tendencia de ventas" /><br /><sub><b>Análisis y metas</b> — indicadores, metas, margen por categoría y tendencia diaria.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/assets/capturas/panel.png" alt="Panel principal en modo claro" /><br /><sub><b>Panel</b> — resumen del día, alertas de stock y accesos directos (modo claro).</sub></td>
+    <td width="50%" valign="top"><img src="docs/assets/capturas/panel-oscuro.png" alt="Panel principal en modo oscuro" /><br /><sub><b>Panel</b> — el mismo resumen en modo oscuro.</sub></td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/assets/novagest-movil.png" width="100%" alt="La aplicación Web de NovaGest en el móvil: Panel, Venta rápida y modo oscuro" />
+  <br /><sub>La aplicación Web en el móvil: navegación inferior, instalable como app (PWA). Capturas con los datos de demostración del proyecto.</sub>
+</p>
+
+## 🚀 Inicio rápido
+
+### Servidor y aplicación Web
+
+```bash
+python3 -m pip install -r requirements.txt   # Python 3.10 o posterior
+python3 server/novagest_server.py            # Web + API en http://localhost:8080
+
+# En otra terminal: clave para esta instalación
+python3 tools/generate_license.py --client "Mi Tienda" --term MES
+```
+
+Abre `http://localhost:8080`, pega la clave en la pantalla **Licencia de Uso** y entra con una de las cuentas de demostración. Una instalación nueva queda bloqueada hasta activar una clave válida: el sistema completo se explica en [docs/LICENCIAS.md](docs/LICENCIAS.md).
+
+<details>
+<summary><b>Cuentas de demostración (solo para pruebas locales)</b></summary>
+
+<br />
+
+En una base de datos nueva se crean estas cuentas (ya no se muestran en la pantalla de acceso):
+
+| Usuario | Contraseña inicial | Rol |
+|---|---|---|
+| `admin` | `Admin123!` | Administrador |
+| `jefe` | `Jefe123!` | Jefe |
+| `economico` | `Eco123!` | Económico |
+| `almacenero` | `Alma123!` | Almacenero |
+
+El rol Administrador debe activar la verificación en dos pasos al entrar (`REQUIRE_ADMIN_TOTP=1`, por defecto).
+
+</details>
+
+> [!WARNING]
+> **Cambia las contraseñas iniciales antes de usar el sistema con datos reales.** En producción arranca el servidor con `NOVAGEST_DEMO_USERS=0 NOVAGEST_ADMIN_PASSWORD=<secreta, mín. 10>`, usa siempre HTTPS y conserva las claves de cifrado fuera del servidor. Lista completa en [SECURITY.md](SECURITY.md#-recomendaciones-para-producción).
+
+### Windows con HTTPS (una laptop)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1
+```
+
+Crea el certificado con mkcert, abre el Firewall del puerto 8443 y arranca el **Panel de Control Visual** (icono en la bandeja del sistema) con el servidor y el generador de licencias en segundo plano.
+
+### Docker con dominio propio
+
+```bash
+DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
+```
+
+### Android
+
+Abre la raíz del proyecto en Android Studio (JDK 17 y Gradle 8.9), ejecuta la configuración `app` y configura en el acceso la dirección HTTPS del servidor para sincronizar.
+
+📖 Guía paso a paso — HTTPS, Panel de Control Visual, Docker, Android y producción: [docs/INSTALACION.md](docs/INSTALACION.md).
 
 ## 📥 Importar los libros Excel
 
@@ -68,221 +147,181 @@ Las importaciones se inician desde la interfaz y muestran una **vista previa** a
 
 📅 **Año del resumen semanal:** el libro semanal no imprime el año. La importación propone el año de la última fecha con datos (o el año actual si no hay fecha) y lo enseña en la vista previa antes de guardar.
 
-### Importar valores a un almacén
+Además, el módulo **Importar valores** admite pegar columnas desde Excel, subir `.xlsx`, `.csv`, `.tsv` o `.txt`, o escribir filas a mano: eliges el almacén de destino, revisas los cambios y decides si se sobrescriben valores existentes o solo se completan los que faltan. Las columnas vacías no alteran datos guardados.
 
-Además de `PCH.xlsx`, el módulo **Importar valores** admite pegar columnas desde Excel, subir `.xlsx`, `.csv`, `.tsv` o `.txt`, o escribir filas manualmente. Permite elegir almacén de destino, revisar los cambios y decidir explícitamente si se sobrescriben valores existentes o solo se completan los que faltan. Las columnas vacías no alteran datos guardados.
+📖 Guías: [Almacenes e importación](docs/ALMACENES.md) · [Manual rápido](docs/MANUAL.md) · [Mapeo del Excel](docs/MAPEO_EXCEL.md).
 
-📖 Guías detalladas: [Almacenes e importación](docs/ALMACENES.md) · [Manual rápido](docs/MANUAL.md) · [Mapeo del Excel](docs/MAPEO_EXCEL.md).
+## 📑 Informes y PDF
 
-## 🖨️ Informes y PDF
+- **Web:** desde Inventario, Movimientos, Almacenes, Cuadre diario, Informe semanal o Comprobación puedes imprimir o guardar como PDF los datos visibles o el almacén elegido. En Comprobación eliges día, semana, mes, año o fechas **Desde/Hasta** y filtras por almacén: el informe compara existencias de apertura/cierre con los movimientos y usa los importes y costos históricos por venta. La impresión aplica página A4 horizontal, encabezado con el negocio y el período, y oculta los controles.
+- **Android:** Cuadre diario permite **Exportar cuadre a PDF** y Reportes permite **Exportar comprobación PDF**, con encabezados, cifras clave, tablas paginadas y pie de página, que se comparten con el diálogo estándar de Android. También hay exportaciones CSV y Excel de la comprobación —con costo, utilidad y comisión— y CSV de movimientos con el costo de cada momento.
 
-- **Web:** desde Inventario, Movimientos, Almacenes, Cuadre diario, Informe semanal o Comprobación puedes imprimir/guardar como PDF los datos visibles o el almacén elegido. En Comprobación elige día de referencia, semana, mes, año o fechas **Desde/Hasta** y filtra por almacén. El informe compara existencias de apertura/cierre y movimientos, y usa los importes y costos históricos por venta. Las hojas NOVA importadas muestran el detalle frente a la venta declarada y las diferencias de caja/stock. Pulsa **PDF** o **Imprimir / PDF** y selecciona *Guardar como PDF* en el diálogo del navegador. Inventario y comprobación mantienen los encabezados fijos mientras se desplazan sus filas. La impresión aplica página A4 horizontal, encabezado con el negocio y período, estilos de tabla y controles ocultos.
-- **Android:** Cuadre diario permite **Exportar cuadre a PDF** y Reportes permite **Exportar comprobación PDF**. Los documentos incluyen encabezados, cifras clave, tablas paginadas y pie de página; la comprobación muestra costo histórico, utilidad bruta y comisión CUP. Se comparten mediante el diálogo estándar de Android.
-- 📄 En Android también están disponibles exportaciones CSV y Excel de la comprobación —con costo, utilidad y comisión— y CSV de movimientos con snapshot de costo.
+## 🔑 Licencias de uso del producto
 
-## 🚀 Puesta en marcha
+NovaGest se activa con una **clave de licencia firmada** (HMAC-SHA256, prefijo `NG-`) que cada instalación verifica con su propio secreto.
 
-### Servidor y aplicación Web
+- **Ocho plazos** — día, semana, mes, trimestre, semestre, año, dos años o permanente; tipos FULL, TRIAL, ENTERPRISE y LIFETIME.
+- **Solicitud por WhatsApp** — desde la pantalla **Licencia de Uso** (Web y Android) el cliente pide su plan y la solicitud queda registrada en el servidor.
+- **Cuatro formas de emitir claves** — el panel 🔐 **Gestionar licencia** de la Web, el generador independiente `tools/license_studio.py` (HTTPS en su propio puerto), la terminal `tools/generate_license.py` y la API `POST /api/license/generate`.
+- **Control total** — licencias emitidas, equipos activados, renovación, revocación y exportación CSV, todo anotado en la auditoría.
 
-Requisitos: Python 3.10 o posterior y los paquetes `cryptography` (servidor) y `openpyxl` (regenerar las semillas desde los Excel).
+📖 Guía completa: [docs/LICENCIAS.md](docs/LICENCIAS.md).
 
-```bash
-python3 -m pip install cryptography openpyxl
-python3 server/novagest_server.py
-```
+## 🔒 Seguridad
 
-Para reconstruir `web/js/seed-data.js` y `app/src/main/assets/seed.json` desde todas las hojas fechadas de `xlsx/NovaGest SEPT.xlsx`, ejecuta `python3 tools/import_excel.py`. El generador conserva ventas, costos y comisiones por movimiento y anota los ajustes de apertura/cierre.
+- **Cuentas** — contraseñas PBKDF2-SHA256 (210 000 iteraciones), bloqueo de 5 minutos tras 5 intentos fallidos, verificación en dos pasos (TOTP) obligatoria por defecto para el Administrador y códigos de recuperación.
+- **Sesiones y permisos** — sesiones con caducidad por inactividad y por duración máxima, permisos validados en el servidor, cabecera anti-CSRF y límite de peticiones por IP en acceso, recuperación y solicitudes de licencia.
+- **Datos** — copias cifradas automáticas cada día con rotación, réplica opcional fuera del equipo (`BACKUP_MIRROR_DIRS`, regla 3-2-1), cierre de días y auditoría.
+- **Web** — cabeceras CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy` y HSTS cuando se sirve por HTTPS.
 
-El servidor escucha en `http://localhost:8080` por defecto y sirve la interfaz Web junto con la API. Para cambiar el puerto: `PORT=9090 python3 server/novagest_server.py`.
-
-### Despliegue con HTTPS
-
-**Windows (una laptop, con mkcert):** `server\iniciar-https.ps1` crea el certificado con mkcert para todas las IPs de la máquina (incluida `192.168.137.1` si está activa la Zona con cobertura inalámbrica móvil), abre la regla de Firewall del puerto 8443 (UAC la primera vez), imprime las URLs de cada red y **abre el Panel de Control Visual** (`server\panel-control.ps1`) con un **icono en la bandeja del sistema**, junto al reloj. Ese panel arranca solo, en segundo plano, el servidor (`https://0.0.0.0:8443`, registro en `data\logs\servidor_AAAA-MM-DD.log`) y el generador de licencias HTTPS (`tools\iniciar-generador-https.ps1`, puerto 8444, `data\logs\generador_AAAA-MM-DD.log`), y abre la Web en el navegador (`https://localhost:8443`) en cuanto el servidor escucha. Si la interfaz gráfica no pudiera cargarse, el lanzador continúa en modo consola para no dejar la Web sin servicio.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1
-```
-
-#### 🎛️ Panel de Control Visual (icono en la bandeja + menú)
-
-La ventana muestra una tarjeta por servicio con su estado (en ejecución, arrancando, detenido, sin respuesta) y los botones **▶ Iniciar**, **■ Detener**, **↻ Reiniciar**, **Abrir en el navegador** y **Ver registro** (últimas líneas de `data\logs\…`), más las acciones globales **Iniciar todo**, **Detener los servicios web**, **Reiniciar todo** y las casillas *Abrir la Web al iniciar los servicios*, *Reiniciar automáticamente si un servicio se cae* y *Al salir, detener los servicios*.
-
-El **icono de la bandeja** (junto al reloj) tiene menú con el **botón derecho**:
-
-| Opción del menú | Qué hace |
-| --- | --- |
-| **Mostrar el Panel de Control Visual** | Abre la ventana (también con doble clic izquierdo en el icono) |
-| **Abrir la Web / Abrir el generador** | Abre `https://localhost:8443` o `https://localhost:8444` en el navegador |
-| **▶ Iniciar todos los servicios** | Arranca el servidor principal y el generador |
-| **■ Detener los servicios web** | Detiene **todo** (servidor + generador) y libera los puertos |
-| **■ Detener el servidor principal (Web + API)** | Detiene solo el servidor de la Web y la API |
-| **■ Detener el generador (iniciar-generador-https.ps1)** | Detiene solo la herramienta de licencias |
-| **↻ Reiniciar todos los servicios** | Detiene y vuelve a arrancar ambos |
-| **Abrir la carpeta de registros** | Abre `data\logs` en el Explorador |
-| **Salir (detener los servicios y cerrar)** | Pregunta si detener los servicios y cierra el panel |
-
-Cerrar la ventana con la **X** no cierra el programa: lo **oculta en la bandeja** y los servicios siguen en segundo plano (solo «Salir» termina el panel). El panel también reconoce los servicios arrancados **fuera** de él (por ejemplo, una consola de `iniciar-https.ps1 -SinPanel` o de `iniciar-generador-https.ps1`) y puede detenerlos, comprobando antes que el proceso del puerto sea de NovaGest: si el puerto lo ocupa otro programa, avisa y **no** lo toca. Los procesos hijos se lanzan con la ventana oculta y su salida queda en `data\logs\consola-servidor.log`, `data\logs\consola-generador.log`, `data\logs\consola-panel.log` y el registro diario `data\logs\panel_AAAA-MM-DD.log`.
-
-Opciones del panel: `-Minimizado` (arranca solo en la bandeja), `-SinAutoInicio` (no arranca los servicios solo), `-SinGenerador`, `-SinServidor`, `-Puerto`, `-PuertoGenerador`, `-Datos` y `-SinNavegador` (o `-AbrirNavegador $false`, que es equivalente cuando ejecutas el script desde PowerShell). Para el arranque clásico en consola (servidor en primer plano): `server\iniciar-https.ps1 -SinPanel`. Pruebas del panel: `pwsh -NoProfile -File tools\test_panel_control.ps1`.
-
-**Con un dominio apuntado al servidor y Docker instalado:**
-
-```bash
-DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
-```
-
-El despliegue usa Caddy para HTTPS y conserva los datos en el volumen Docker. Revisa `deploy/docker-compose.yml` y `deploy/Caddyfile` antes de publicar. Conserva fuera del servidor la clave utilizada para cifrar las copias de seguridad.
-
-### Android
-
-1. Abre la raíz del proyecto en Android Studio.
-2. Usa JDK 17 y Gradle 8.9; sincroniza el proyecto y ejecuta la configuración `app` en un emulador o dispositivo.
-3. Para sincronizar Web y Android, configura en el acceso de la aplicación la dirección HTTPS del servidor.
-
-> 📱 El identificador de la app es `com.novagest.inventario`. Si vienes de la versión anterior
-> (`com.cuadrepinar.inventario`), Android la instalará como **aplicación nueva**: pasa tus datos
-> con una copia de seguridad (Copias → restaurar) o con la sincronización al servidor, y luego
-> desinstala la antigua.
-
-La aplicación Android utiliza Kotlin, Jetpack Compose, Room, Hilt y Navigation Compose. La Web no requiere un proceso de compilación de frontend: el servidor sirve los archivos de `web/` directamente.
-
-## 🔐 Seguridad y cuentas iniciales
-
-El servidor comprueba la licencia antes de permitir el acceso, pero no crea ni activa licencias automáticamente: una instalación nueva queda bloqueada hasta introducir una clave válida por la pantalla de activación o `POST /api/license/activate`. Si se elimina la última licencia, no se genera una prueba de reemplazo al reiniciar. Un administrador puede emitir manualmente licencias FULL, TRIAL, ENTERPRISE o LIFETIME. El servidor incluye sesiones con expiración, contraseñas PBKDF2-SHA256, permisos validados en servidor, autenticación TOTP opcional, bloqueo tras intentos fallidos, cierre de días, auditoría y copias cifradas automáticas.
-
-En **Ajustes → Licencia de Uso** la tarjeta resume el estado y abre el panel **🔐 Gestionar licencia** (también con el botón 🔐 de la barra superior), con cuatro pestañas: **Estado** (cliente, plan, vencimiento, días restantes, ID de licencia y de dispositivo, activar/renovar una clave), **Solicitudes** (las peticiones recibidas por WhatsApp desde la Web y la app Android, con el mensaje tal cual, el plan pedido, el teléfono y el ID de dispositivo; «Crear clave» genera la licencia con ese nombre y ese plazo en un clic y deja la solicitud atendida), **Generar clave** (los 8 plazos, tipo, días y límites; la clave se copia, se descarga en `.txt` o se envía por WhatsApp al cliente) y **Licencias y equipos** (listado numerado Nº, Cliente, Tipo, Expira, Activa y Clave, más los dispositivos que han activado una licencia).
-
-El rol **Administrador** puede generar licencias (FULL, TRIAL, ENTERPRISE o LIFETIME) y eliminarlas, una por una o todas a la vez (`DELETE /api/license/:id` y `POST /api/license/delete-all`, ambos validados en el servidor); el resto de los roles solo pueden consultarlas. Si se elimina la licencia activa, el sistema queda bloqueado hasta activar otra (la activación de una clave firmada no depende del listado, así que una clave guardada siempre sirve para recuperar el acceso).
-
-### Dónde se generan las licencias
-
-1. **Panel de la Web** — 🔐 **Gestionar licencia → 🆕 Generar clave** (o **Solicitudes** → «Crear clave»); requiere sesión de administrador.
-2. **Herramienta independiente** — `tools/license_studio.py`, el generador **aparte de la Web** con interfaz propia, **HTTPS en su propio puerto**, control de todas las licencias emitidas (activar, renovar, revocar, eliminar, CSV) y botón «Enviar por WhatsApp».
-3. **Terminal** — `tools/generate_license.py`, para dejar instalaciones listas desde la línea de comandos.
-4. **API** — `POST /api/license/generate`, para integraciones con sesión de administrador.
-
-### Generar licencias aparte de la Web (herramienta independiente)
-
-El generador se ejecuta como un **proceso propio, separado de la Web y del servidor** de NovaGest (su propio puerto), y sirve para crear la clave y **enviar la generación por WhatsApp** con un solo clic: prepara el enlace `wa.me` con el mensaje ya redactado (nombre, plan, vigencia y la clave) para que solo pulses **Enviar**.
-
-```bash
-python3 tools/license_studio.py                      # interfaz en http://localhost:8777
-python3 tools/license_studio.py --open               # además abre el navegador
-python3 tools/license_studio.py --port 9000          # otro puerto
-python3 tools/license_studio.py --host 127.0.0.1     # solo esta máquina (herramienta privada)
-python3 tools/license_studio.py --data /ruta/a/data  # secreto y BD de esa instalación
-python3 tools/license_studio.py --whatsapp 5351234567  # WhatsApp destino por defecto
-```
-
-En Windows puede lanzarse con `powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador.ps1`. La interfaz ofrece: formulario con los **8 plazos** (día … permanente), tipo y límites; la clave generada con **Copiar**, **Descargar `.txt`** y **💬 Enviar por WhatsApp** (enlace `wa.me` con el mensaje listo); y, si encuentra `data/novagest.db`, la lista de **solicitudes recibidas por WhatsApp** (Web y Android) con «Crear clave y enviar por WhatsApp» en un clic, que las deja marcadas como atendidas. Usa el **mismo formato de clave** (HMAC-SHA256) y el mismo mensaje que el panel de la Web, así que las claves activan sin cambios.
-
-#### 📥 Copiar desde el WhatsApp (solicitudes que llegan al chat)
-
-Cuando el cliente escribe directo al WhatsApp —sin pasar por «Solicitar por WhatsApp» de la Web o de la app— el mensaje se puede pegar en la herramienta con el botón **📥 Copiar desde el WhatsApp** de la pestaña **📨 Solicitudes**: se copia su mensaje en WhatsApp, se pega en el diálogo y se pulsa **🔍 Leer mensaje**. La herramienta reconoce el **usuario**, el **ID del dispositivo**, el **producto/versión**, el **plazo** (`1 día`, `3 meses`, `un año`, `Permanente`…) y la **fecha** del mensaje, sin depender de los emojis ni del orden de las líneas; lo que no reconoce lo avisa y se puede escribir a mano (usuario, plazo en el desplegable y teléfono del cliente para el reenvío).
-
-Al pulsar **📥 Importar a la lista** la solicitud aparece en **📨 Solicitudes recibidas por WhatsApp** (con la etiqueta *📥 importada de WhatsApp*, pendiente y resaltada) y se repele igual que una de la Web: **🔑 Crear clave y enviar por WhatsApp** genera la clave con ese nombre y ese plazo, deja la solicitud **atendida** y abre `wa.me` con el mensaje listo para reenviárselo al cliente; **📋 Copiar clave sin enviar**, **🚫 Descartar**, **↩ Volver a pendiente** y **🗑 Eliminar** funcionan igual. Si la base del servidor no está disponible (no existe o aún no la ha creado el servidor), la solicitud importada **vive en la sesión** —marcada *solo en esta sesión (sin BD)*— y su clave se crea igualmente.
-
-#### 🔒 Por HTTPS en su propio puerto (Windows)
-
-`tools\iniciar-generador-https.ps1` arranca la herramienta **por HTTPS en un puerto propio (8444 por defecto)**, aparte del servidor de NovaGest (8443) y de la Web: reutiliza el certificado del servidor si ya cubre las IPs de la laptop (`certs\cuadre.crt`) o crea el suyo con mkcert (`certs\licencias.crt`), abre la regla de Firewall del puerto (UAC la primera vez) e imprime las URLs de cada red — `https://localhost:8444`, la IP del router y la del hotspot `192.168.137.1` — además de la clave de acceso. Al arrancar con `server\iniciar-https.ps1`, el generador se inicia automáticamente en segundo plano (ventana oculta, controlado desde el Panel de Control Visual) con el mismo certificado y carpeta `data`; puedes omitirlo con `-SinGenerador` o cambiar su puerto con `-PuertoGenerador 9443`. También puedes iniciar el generador manualmente con su propio script, y detenerlo desde el menú del icono de la bandeja («■ Detener el generador (iniciar-generador-https.ps1)»). Los móviles solo necesitan la autoridad raíz de mkcert, la misma que ya usan para el servidor.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador-https.ps1
-powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador-https.ps1 -Puerto 9443 -WhatsApp 5351234567
-powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador-https.ps1 -SoloLocal      # solo esta PC, sin firewall
-powershell -ExecutionPolicy Bypass -File .\tools\iniciar-generador.ps1 -Https               # el lanzador HTTP delega en el HTTPS
-```
-
-En Linux/macOS (o con un certificado ya emitido) es lo mismo desde la terminal:
-
-```bash
-python3 tools/license_studio.py --ssl-cert certs/cuadre.crt --ssl-key certs/cuadre.key --port 8444
-```
-
-#### 🔑 Clave de acceso
-
-La interfaz pide una **clave de acceso** (sesión de 12 h que se renueva con el uso y bloqueo temporal tras 8 intentos fallidos). Se toma de `--clave`, de la variable `LICENSE_ADMIN_KEY` o de `data/licencia-acceso.txt`, que se crea sola la primera vez y se muestra en la consola al arrancar; se puede cambiar en la pestaña **🔑 Acceso y datos**. Sin HTTPS esa clave viaja sin cifrar en la red, así que use el lanzador HTTPS cuando abra la herramienta desde el móvil o desde otra PC.
-
-#### 🗂 Control de las licencias emitidas
-
-La pestaña **🗂 Licencias y equipos** lista **todas** las claves emitidas en esa instalación (las del panel de la Web, la app Android, la terminal y el generador) con su estado — **✔ Vigente · en uso**, **🔑 Emitida · sin activar**, **⌛ Vencida**, **⛔ Revocada** o **⚠ Firma no coincide** —, los días restantes, el ID de licencia, quién la creó y los **equipos que la activaron** (ID de dispositivo, IP, cuándo se activó y cuándo se vio por última vez). Desde cada tarjeta:
-
-- **✅ Usar como activa** — deja esa licencia como la del producto (las demás del mismo producto se desactivan).
-- **♻ Renovar con este plazo** — emite una clave **nueva** con el plazo elegido (día … permanente), deja la anterior revocada, la registra, la activa y prepara el mensaje de WhatsApp con la clave nueva.
-- **⛔ Revocar** / **↩ Reactivar** — el servidor deja de aceptarla o vuelve a aceptarla (se distingue de una licencia simplemente emitida y aún sin activar).
-- **⛔ Quitar equipo** — desactiva una instalación concreta que había activado esa licencia.
-- **💬 Enviar por WhatsApp**, **📋 Copiar clave**, **⬇ `.txt`** — reenvía la clave guardada con el mensaje ya redactado (solo si su firma coincide con el secreto de este servidor).
-- **🗑 Eliminar** — borra la licencia y sus equipos de la base de datos (no se puede deshacer).
-- **⬇ Exportar CSV** — descarga la hoja de control completa (`Nº;Cliente;Producto;Tipo;Emitida;Expira;Días restantes;Estado;Activa;…;Clave`), lista para Excel.
-
-Las solicitudes también se pueden **descartar**, volver a **pendiente** o **eliminar** desde su pestaña, y cada acción (generar, atender, renovar, revocar, reactivar, quitar equipo, eliminar) queda anotada en la **auditoría** del servidor con el usuario `license_studio`.
-
-> ⚠️ La clave solo verifica en la instalación que comparte el secreto (`LICENSE_SECRET` o `data/license.key`): si generas desde otra máquina, exporta el mismo `LICENSE_SECRET` o apunta `--data` a la carpeta `data` del servidor del cliente. La herramienta es privada del administrador: protégela con la clave de acceso y no la expongas en Internet.
-
-### Generar una licencia desde la terminal
-
-Para crear una clave sin entrar en la aplicación (por ejemplo, para dejar una instalación nueva lista para usar):
-
-```bash
-python3 tools/generate_license.py --client "NovaGest" --term PERMANENTE --users 20 --devices 10
-python3 tools/generate_license.py --client "Tienda" --term ANIO   # 1 año; plazos: DIA, SEMANA, MES, TRIMESTRE, SEMESTRE, ANIO, DOS_ANIOS, PERMANENTE
-python3 tools/generate_license.py --requests        # solicitudes recibidas por WhatsApp (Web y Android)
-python3 tools/generate_license.py --request 3       # clave de la solicitud #3, la marca atendida y da el enlace de WhatsApp
-```
-
-**Licencia por término por WhatsApp:** en la pantalla **Licencia de Uso** (Web y Android) el cliente escribe su nombre o empresa, su teléfono (opcional) y elige el plazo; al pulsar **Solicitar por WhatsApp** se abre el chat con el mensaje ya redactado y la solicitud queda **registrada en el servidor** (`POST /api/license/request`), de modo que el administrador la ve en **Gestionar licencia → Solicitudes** con su plan, su ID de dispositivo y su teléfono, y responde con la clave firmada (`POST /api/license/generate` con `request_id`, `tools/generate_license.py --request`). Al activarse la clave, las solicitudes pendientes de ese equipo pasan a **atendidas** automáticamente. El número destino es configurable en el servidor con `LICENSE_WHATSAPP` (solo dígitos, con código de país); si no se define, WhatsApp se abre sin número fijo para elegir el contacto.
-
-La clave se activa pegándola completa (incluido el punto del medio) en la pantalla **Licencia de Uso** de la Web o de la app Android, o con `POST /api/license/activate`. Las claves nuevas usan el prefijo `NG-`; las heredadas `CP-` también son válidas. Cada instalación firma con su propio secreto (`data/license.key` o la variable `LICENSE_SECRET`), por lo que una clave generada en un servidor **no** verifica en otro: para reutilizarla copia el mismo `LICENSE_SECRET` o genera una clave nueva en ese servidor.
-
-En una base de datos nueva se crean estas cuentas de demostración (**solo para pruebas locales**; ya no se muestran en la pantalla de acceso):
-
-| Usuario | Contraseña inicial | Rol |
-|---|---|---|
-| `admin` | `Admin123!` | Administrador |
-| `jefe` | `Jefe123!` | Jefe |
-| `economico` | `Eco123!` | Económico |
-| `almacenero` | `Alma123!` | Almacenero |
-
-⚠️ **Cambia las contraseñas iniciales antes de publicar o usar el sistema con datos reales.** No expongas el servidor por HTTP en Internet; utiliza HTTPS y conserva las claves de cifrado fuera de la instancia.
-
-**Producción sin cuentas conocidas:** arranca el servidor con `NOVAGEST_DEMO_USERS=0 NOVAGEST_ADMIN_PASSWORD=<secreta, mín. 10>` y solo se creará el administrador con esa contraseña. Además: el rol **Administrador debe activar la verificación en dos pasos** (`REQUIRE_ADMIN_TOTP=1`, por defecto; `=0` lo desactiva) — sin activarla, el servidor solo le deja entrar, cambiar su contraseña y activar el 2FA. Hay límite de peticiones por IP en acceso/recuperación/solicitud de licencia, y las copias pueden replicarse fuera del equipo con `BACKUP_MIRROR_DIRS="E:\Copias;/ruta/red"` (regla 3-2-1, siempre cifradas). Los datos legales públicos (#legal) se rellenan en **Ajustes → Datos legales**; lo no rellenado se muestra como `[COMPLETAR: …]`.
+Los datos legales públicos (#legal) se rellenan en **Ajustes → Datos legales** — guía: [docs/GUIA_DATOS_LEGALES.md](docs/GUIA_DATOS_LEGALES.md). ¿Encontraste una vulnerabilidad? **No abras un issue público**: sigue la [política de seguridad](SECURITY.md).
 
 ## ✅ Pruebas
 
-Desde la raíz del repositorio:
+Las mismas comprobaciones que ejecuta la integración continua (`.github/workflows/ci.yml`), desde la raíz del repositorio:
 
 ```bash
-node tools/test_excel_sources.mjs    # PCH, resumen semanal, NovaGest y los tres libros NOVA
-node tools/test_almacenes.mjs        # lógica de almacenes e importación
-node tools/test_customers_credits.mjs # clientes, fiados, abonos y códigos de barras
-node tools/smoke_web.mjs             # recorrido de pantallas Web con DOM simulado
-python3 tools/test_licencia.py       # solicitudes de licencia, plazos y texto del mensaje
-python3 tools/test_generador.py      # generador independiente: clave de acceso, HTTPS, claves firmadas, envío por WhatsApp y control de licencias
-node tools/test_generador_ui.mjs     # interfaz del generador con DOM simulado: pegar el mensaje de WhatsApp, importarlo, crear la clave y reenviarla
-```
+# Web e IPV (Node 22)
+node tools/test_ipv.mjs && node tools/test_calc.mjs && node tools/cobertura.mjs --min 80
+node tools/test_accesibilidad.mjs
+npm --prefix tools install --ignore-scripts && node tools/test_axe.mjs
+node tools/test_generador_ui.mjs && node tools/test_almacenes.mjs && node tools/test_customers_credits.mjs
+node tools/test_excel_sources.mjs && node tools/smoke_web.mjs
 
-Para ejecutar las pruebas unitarias Android, usa Android Studio o Gradle 8.9 desde la raíz:
+# Servidor y herramientas (Python)
+python3 tools/test_licencia.py && python3 tools/test_generador.py
+python3 tools/test_seguridad_servidor.py && python3 tools/test_restauracion.py
+python3 tools/test_carga.py --n 12
 
-```bash
+# Panel de Control Visual (PowerShell 7) y Android (JDK 17 + Gradle 8.9)
+pwsh -NoProfile -File tools/test_panel_control.ps1
 gradle testDebugUnitTest
 ```
 
-## 🗂️ Estructura del proyecto
+## 📁 Estructura del proyecto
 
 ```text
 app/       Aplicación Android (Kotlin + Jetpack Compose)
-web/       Interfaz Web, lógica y recursos (PWA sin build)
-server/    API, autenticación, SQLite y copias (Python)
-docs/      Manuales y documentación del mapeo Excel
-tools/     Pruebas, utilidades de importación y el generador/control de licencias
+web/       Interfaz Web, lógica y recursos (PWA sin proceso de compilación)
+server/    API, autenticación, SQLite, copias y lanzadores para Windows (Python, PowerShell)
+tools/     Pruebas, importación de Excel y generador/control de licencias
+deploy/    Docker Compose + Caddy para publicar con HTTPS y dominio propio
+docs/      Manuales, guías legales y de cumplimiento, traducciones y capturas
+xlsx/      Libros Excel de referencia para importar
+brand/     Logotipo de NovaGest
+venv/      Librerías de Python para Windows sin conexión (ver venv/README.md)
 ```
 
-📚 Referencia del modelo: [docs/MAPEO_EXCEL.md](docs/MAPEO_EXCEL.md). Los seis libros de referencia están en [`xlsx/`](xlsx/); la base de datos operativa, las copias y las claves generadas deben mantenerse fuera del control de versiones.
+La base de datos operativa, las copias, los certificados y las claves generadas (`data/`, `certs/`) se mantienen fuera del control de versiones.
 
-## 🗒 Registro de cambios
+## 📚 Documentación
 
-Las mejoras y correcciones de cada versión (Web y Android) quedan anotadas en [CHANGELOG.md](CHANGELOG.md).
+| Documento | Contenido |
+|---|---|
+| [Instalación y despliegue](docs/INSTALACION.md) | Servidor, Windows con HTTPS y Panel de Control Visual, Docker, Android y producción |
+| [Licencias de uso](docs/LICENCIAS.md) | Activación, plazos, solicitudes por WhatsApp, generador independiente y control de claves |
+| [Manual rápido](docs/MANUAL.md) | Uso diario de la aplicación paso a paso |
+| [Almacenes e importación](docs/ALMACENES.md) | Existencias por almacén, traspasos e importación de valores |
+| [Mapeo del Excel](docs/MAPEO_EXCEL.md) | Cómo se interpreta cada libro de `xlsx/` |
+| [Datos legales](docs/GUIA_DATOS_LEGALES.md) | Cómo completar la información legal del negocio |
+| [Cumplimiento](docs/CUMPLIMIENTO.md) · [Revisión legal](docs/REVISION_LEGAL.md) | Auditoría de cumplimiento, accesibilidad y seguridad, y lista de cierre legal |
+| [Certificación](docs/certificacion/00-INDICE-Y-FIRMAS.md) | Preparación para ISO 27001, SOC 2, OWASP ASVS, WCAG 2.2 e ISO 27701 |
+| [Mejora continua](docs/MEJORA_CONTINUA.md) · [Hoja de ruta](docs/ROADMAP.md) | Próximas mejoras priorizadas y cómo se verifican |
+| [Procedencia de las imágenes](docs/IMAGENES.md) | Origen y licencia de las imágenes del proyecto |
+| [Registro de cambios](CHANGELOG.md) | Mejoras y correcciones de cada versión (Web y Android) |
 
-## 🗺️ Hoja de ruta
+## ❓ Preguntas frecuentes
 
-Las próximas mejoras priorizadas — escáner de códigos, fiados, alertas predictivas, offline total en Android y más — están en [docs/ROADMAP.md](docs/ROADMAP.md).
+<details>
+<summary><b>¿Funciona sin internet?</b></summary>
+
+<br />
+
+Sí, en la red de tu negocio. El servidor puede ser una laptop con Windows en tu red local, sin salida a Internet. La aplicación Web se instala como app (PWA) y, si se pierde la conexión con el servidor, sigue operando y guarda los cambios al reconectar. La app Android trabaja con almacenamiento local y sincroniza cuando hay conexión.
+
+</details>
+
+<details>
+<summary><b>¿Necesito un servidor?</b></summary>
+
+<br />
+
+Sí: el servidor de Python sirve la aplicación Web y la API y guarda los datos compartidos en SQLite. Puede ser una laptop con Windows (`server\iniciar-https.ps1`), un equipo Linux o un servidor con Docker y dominio propio. Ver [Instalación y despliegue](docs/INSTALACION.md).
+
+</details>
+
+<details>
+<summary><b>¿Dónde se guardan mis datos?</b></summary>
+
+<br />
+
+En el servidor de tu negocio (`data/`), no en servicios de terceros. NovaGest no usa analíticas ni publicidad, y las copias de seguridad diarias se guardan cifradas.
+
+</details>
+
+<details>
+<summary><b>¿Cómo consigo una licencia de uso?</b></summary>
+
+<br />
+
+Desde la pantalla **Licencia de Uso** de la Web o de la app Android: escribe tu nombre o empresa, elige el plazo y pulsa **Solicitar por WhatsApp**. Recibirás una clave firmada que activas en esa misma pantalla.
+
+</details>
+
+<details>
+<summary><b>¿Puedo importar mis libros de Excel?</b></summary>
+
+<br />
+
+Sí. Los libros de cuadre diario, existencias por ubicación y resumen semanal se importan con vista previa y confirmación, sin sustituir datos sin tu permiso. Ver [Importar los libros Excel](#-importar-los-libros-excel).
+
+</details>
+
+<details>
+<summary><b>¿Qué pasa si se rompe el equipo o se va la corriente?</b></summary>
+
+<br />
+
+El servidor hace una copia cifrada cada día y conserva las más recientes; con `BACKUP_MIRROR_DIRS` también las replica en otro disco o carpeta de red. Para recuperar, restaura desde **Copias**. Guarda la clave de cifrado fuera del servidor.
+
+</details>
+
+<details>
+<summary><b>¿Funciona con lector de códigos de barras?</b></summary>
+
+<br />
+
+Sí: con lectores USB o Bluetooth (que escriben como un teclado) y con la cámara del móvil o de la PC desde **Venta rápida**.
+
+</details>
+
+<details>
+<summary><b>¿En qué monedas trabaja?</b></summary>
+
+<br />
+
+La caja diaria trabaja con tasas CUP/USD y MXN/USD, la venta rápida muestra el equivalente en CUP de cada cobro y cada ficha de costo guarda sus importes en USD o en CUP.
+
+</details>
+
+## 🤝 Contribuir
+
+Las contribuciones son bienvenidas: informes de errores, propuestas de mejora y pull requests. Lee la [guía de contribución](CONTRIBUTING.md) antes de empezar — explica cómo preparar el entorno, ejecutar las pruebas y proponer cambios.
+
+## 📄 Licencia
+
+**Software propietario — todos los derechos reservados.** © 2026 yhquintero.
+
+Ver el código en GitHub no concede ningún derecho de uso: instalar NovaGest en un negocio, copiarlo, modificarlo, distribuirlo o eludir su sistema de licencias requiere una licencia de uso del titular. Condiciones completas en [LICENSE](LICENSE). Los componentes de terceros conservan sus propias licencias: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## 📝 Registro de cambios y hoja de ruta
+
+Las mejoras y correcciones de cada versión están en [CHANGELOG.md](CHANGELOG.md); las próximas, priorizadas, en [docs/ROADMAP.md](docs/ROADMAP.md).
+
+---
+
+<div align="center">
+
+<sub><b>NovaGest</b> · Gestiona. Crece. Avanza. · © 2026 yhquintero · <a href="#novagest">Volver arriba ⬆</a></sub>
+
+</div>

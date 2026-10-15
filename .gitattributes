@@ -1,0 +1,8 @@
+# Estadísticas de lenguajes de GitHub (Linguist)
+# ------------------------------------------------
+# El entorno virtual de Python para Windows contiene librerías de terceros
+# (ver venv/README.md): no debe contar en la barra de lenguajes del repositorio.
+venv/** linguist-vendored
+
+# Librerías JavaScript de terceros (Linguist ya las excluye; se declara para que quede explícito).
+web/vendor/** linguist-vendored
