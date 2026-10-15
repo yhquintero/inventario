@@ -1,0 +1,52 @@
+name: "✨ Propuesta de mejora"
+description: "Sugiere una función nueva o una mejora para NovaGest."
+title: "[Mejora] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ¡Gracias por ayudar a mejorar NovaGest! Antes de proponer, revisa la [hoja de ruta](https://github.com/yhquintero/inventario/blob/main/docs/ROADMAP.md): quizá ya esté prevista.
+  - type: dropdown
+    id: componente
+    attributes:
+      label: Componente
+      options:
+        - Aplicación Web (PWA)
+        - Aplicación Android
+        - Servidor / API
+        - Licencias de uso
+        - Informes y análisis
+        - Inventario y almacenes
+        - Punto de venta y caja
+        - Documentación
+        - Otro
+    validations:
+      required: true
+  - type: textarea
+    id: problema
+    attributes:
+      label: ¿Qué problema resuelve?
+      description: Describe la situación del negocio que hoy resulta difícil o imposible.
+      placeholder: "Cuando recibo mercancía de varios proveedores el mismo día, tengo que…"
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Solución propuesta
+      description: ¿Cómo te gustaría que funcionara? Puedes adjuntar bocetos o capturas.
+    validations:
+      required: true
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas consideradas
+      description: Otras soluciones o formas de trabajar que hayas probado.
+  - type: checkboxes
+    id: comprobaciones
+    attributes:
+      label: Comprobaciones
+      options:
+        - label: He buscado y no existe una propuesta igual.
+          required: true
