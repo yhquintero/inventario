@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.novagest.inventario.ui.navigation
 
 import androidx.compose.foundation.layout.padding

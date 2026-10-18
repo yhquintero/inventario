@@ -84,7 +84,7 @@ class LicenseManager @Inject constructor(
                 reason = prefs.getString("reason", "") ?: "",
                 offline = false
             )
-        } catch {
+        } catch (_: Exception) {
             null
         }
     }
@@ -218,7 +218,7 @@ class LicenseManager @Inject constructor(
             val code = conn.responseCode
             val text = (if (code >= 400) conn.errorStream else conn.inputStream)?.bufferedReader()?.readText().orEmpty()
             conn.disconnect()
-            val json = try { JSONObject(text) } catch { JSONObject() }
+            val json = try { JSONObject(text) } catch (_: Exception) { JSONObject() }
             if (code == 200 && json.optBoolean("ok", false)) {
                 val status = LicenseStatus(
                     valid = true,
@@ -312,7 +312,7 @@ class LicenseManager @Inject constructor(
             val code = conn.responseCode
             val text = (if (code >= 400) conn.errorStream else conn.inputStream)?.bufferedReader()?.readText().orEmpty()
             conn.disconnect()
-            val json = try { JSONObject(text) } catch { JSONObject() }
+            val json = try { JSONObject(text) } catch (_: Exception) { JSONObject() }
             if (code == 200 && json.optBoolean("ok", false)) {
                 Result.success(json.optInt("id", 0).toString())
             } else {

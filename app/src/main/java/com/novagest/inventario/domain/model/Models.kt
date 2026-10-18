@@ -64,7 +64,8 @@ enum class Permission {
     AUDIT_VIEW,
     BACKUP_MANAGE,
     SETTINGS_EDIT,
-    EXCHANGE_EDIT
+    EXCHANGE_EDIT,
+    IPV_VIEW, IPV_EDIT
 }
 
 object RolePermissions {
