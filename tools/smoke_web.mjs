@@ -423,6 +423,20 @@ test("Movimientos ofrece CSV y PDF para el filtro visible", () => {
   assert.match(html, /data-act="print"/);
 });
 
+test("Cada venta se puede imprimir como ticket térmico (W-05)", () => {
+  const html = go("movements");
+  assert.match(html, /data-ticket-mov="/, "botón de ticket en las ventas");
+  assert.match(html, /title="Ticket 58 mm"/);
+  assert.match(html, /<th><\/th>/, "la columna de acciones está siempre disponible");
+});
+
+test("Informes compara el período con el anterior (W-06)", () => {
+  const html = go("reports");
+  assert.match(html, /Este período frente al anterior/);
+  assert.match(html, /Ventas reales[\s\S]*Utilidad bruta[\s\S]*Unidades vendidas/);
+  assert.match(html, /Variación/);
+});
+
 test("Almacenes: tarjetas, KPIs, entradas y sus filtros", () => {
   const html = go("warehouses");
   assert.match(html, /Nuevo almacén/);

@@ -537,6 +537,31 @@ textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 
   .wh-pick { display: none; }
 }
 
+/* ===================== Ticket térmico 58/80 mm ===================== */
+.ticket-area { display: none; }
+@page ticket58 { size: 58mm auto; margin: 2.5mm; }
+@page ticket80 { size: 80mm auto; margin: 3mm; }
+@media print {
+  html.print-ticket-58 #app, html.print-ticket-58 .toast, html.print-ticket-58 .celebrate,
+  html.print-ticket-80 #app, html.print-ticket-80 .toast, html.print-ticket-80 .celebrate { display: none !important; }
+  html.print-ticket-58 body, html.print-ticket-80 body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  html.print-ticket-58 .ticket-area, html.print-ticket-80 .ticket-area {
+    display: block !important; color: #000 !important; background: #fff !important;
+    font: 9pt/1.35 "DejaVu Sans Mono", ui-monospace, monospace;
+  }
+  html.print-ticket-58 .ticket-area { page: ticket58; width: 53mm; }
+  html.print-ticket-80 .ticket-area { page: ticket80; width: 74mm; }
+  .ticket-area .tk-center { text-align: center; }
+  .ticket-area .tk-brand { font-weight: 700; font-size: 11pt; text-transform: uppercase; letter-spacing: .04em; }
+  .ticket-area .tk-muted { color: #333 !important; font-size: 8pt; }
+  .ticket-area .tk-hr { border-top: 1px dashed #000; margin: 2mm 0; }
+  .ticket-area .tk-item { display: flex; justify-content: space-between; gap: 2mm; }
+  .ticket-area .tk-item span { flex: 1 1 auto; }
+  .ticket-area .tk-sub { margin: -0.5mm 0 1mm; }
+  .ticket-area .tk-line { display: flex; justify-content: space-between; gap: 2mm; }
+  .ticket-area .tk-big { font-size: 12pt; font-weight: 700; }
+}
+
 /* ===================== Exportación PDF / impresión ===================== */
 .print-report-header { display: none; }
 @page { size: A4 landscape; margin: 13mm 11mm 16mm; }

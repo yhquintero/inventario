@@ -5,8 +5,9 @@ Cada paso se revisa, se aprueba y se entrega en su propio pull request; las fila
 terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`ROADMAP.md`](ROADMAP.md).
 
 > **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola en Android) ✅ ·
-> **W-02** (cola en la Web) ✅ · **W-13** (CSV del mapa de calor) ✅ · **W-11** (reposición sugerida) ✅. Lo siguiente, por orden sugerido: **A-02** → **W-03** → **A-04** →
-> **S-01** → **W-10**. Las olas 2 y 3 de propuestas están al final.
+> **W-02** (cola en la Web) ✅ · **W-13** (CSV del mapa de calor) ✅ · **W-11** (reposición sugerida) ✅ ·
+> **D-07** (voz masculina del vídeo) ✅ · **W-05** (ticket 58/80 mm) ✅ · **W-06** (comparador de períodos) ✅.
+> Lo siguiente, por orden sugerido: **A-02** (recibo Bluetooth) → **W-04** → **A-04** → **S-01**. Las olas 2 y 3 al final.
 
 **Leyenda:** impacto 🔴 alto · 🟠 medio · 🟢 bajo — esfuerzo ⏱️ bajo (≤1 día) · ⏳ medio (2-5 días) ·
 🧱 alto (>1 semana).
@@ -21,7 +22,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | D-04 | Descripción aplicada a PWA, pestaña del navegador, sitio y bloques «Acerca de» | `web/`, `docs/index.html` | 🟠 | ⏱️ | ✅ |
 | D-05 | Las 7 traducciones alineadas (cabecera, CI, Keygen, roles) | `docs/readme/` | 🟠 | ⏳ | ✅ |
 | D-06 | Metadatos de GitHub listos para copiar (About, temas, Pages) | `docs/METADATOS_GITHUB.md` | 🟠 | ⏱️ | ✅ |
-| D-07 | Nueva locución del video (español neutro, sin acento inglés) | `docs/assets/video/` | 🟠 | ⏳ | ⬜ |
+| D-07 | Nueva locución del video (español neutro, sin acento inglés) · **voz masculina** | `docs/assets/video/` | 🟠 | ⏳ | ✅ |
 
 ## Paso 2 · Web App
 
@@ -31,8 +32,8 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | W-02 | **Cola de cambios sin conexión en el navegador** (`localStorage`) y **conflictos resueltos por `updatedAt`** | Recargar la pestaña o chocar con otro usuario ya no pierde trabajo | `web/js/merge.js`, `store.js` | 🔴 | 🧱 | ✅ |
 | W-03 | Alertas de reposición predictivas (velocidad de venta × stock) | Evita quedarse sin lo que más rota | Panel + Worker | 🟠 | ⏳ | ⬜ |
 | W-04 | Comando rápido en la búsqueda global (`Ctrl + K`): «vender arroz 2» | Vender en 5 segundos desde cualquier pantalla | `web/js/app.js` | 🟠 | ⏳ | ⬜ |
-| W-05 | Impresión de ticket 58/80 mm además de A4 | Impresoras térmicas de mostrador | `web/css/app.css` | 🟠 | ⏱️ | ⬜ |
-| W-06 | Comparador de períodos en Informes (mes actual vs anterior) | Decisiones con contexto, no cifras sueltas | `web/js/app.js` | 🟠 | ⏳ | ⬜ |
+| W-05 | **Ticket térmico 58/80 mm** de la última venta y de cualquier venta del historial | Impresoras térmicas de mostrador | `web/js/ticket.js`, `app.css` | 🟠 | ⏱️ | ✅ |
+| W-06 | **Comparador de períodos en Informes** (período actual vs anterior de igual duración) | Decisiones con contexto, no cifras sueltas | `web/js/app.js` | 🟠 | ⏳ | ✅ |
 | W-07 | Exportación XLSX nativa desde el servidor (`openpyxl`) | El contador trabaja en Excel | `server/`, export | 🟢 | ⏱️ | ⬜ |
 | W-08 | Modo kiosco para tablet de mostrador (sin barra del navegador) | Uso real en el punto de venta | PWA | 🟢 | ⏱️ | ⬜ |
 | W-09 | `aria-live` y foco gestionado en operaciones largas | Accesibilidad más allá de WCAG AA | `web/js/app.js` | 🟢 | ⏱️ | ⬜ |

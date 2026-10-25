@@ -1,5 +1,13 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXI) · Ticket térmico y comparador de períodos (W-05 · W-06)
+
+- **W-05 · Ticket térmico de 58 mm y 80 mm.** Después de cobrar, **Venta rápida** ofrece «🧾 Ticket 58 mm» y «🧾 80 mm» de la última venta; en **Movimientos**, el icono 🧾 imprime cualquier venta del historial. El ticket lleva negocio, fecha y hora, líneas con cantidad e importe, total USD, equivalente en CUP con la tasa del día, comisión, domicilio, forma de pago, cliente del fiado y quién atendió. Hoja de estilos con `@page ticket58` / `@page ticket80`: el navegador abre el diálogo con el ancho de papel ya puesto.
+- **Módulo nuevo `web/js/ticket.js`** (función pura, sin DOM): `saleTicket`, `ticketTotals`, `ticketDate`, `ticketTime`, `money`. Probado en `tools/test_ticket.mjs` (**7 pruebas**, **100 % de cobertura**) y añadido a la cobertura y al CI.
+- **W-06 · Comparador de períodos en Informes**: tarjeta «🔄 Este período frente al anterior» con ventas reales, utilidad bruta, unidades y comisiones del período elegido frente al **anterior de la misma duración**, con variación porcentual (▲/▼), «igual» y «sin base anterior».
+- **Service worker v20** con el módulo nuevo; `posCheckout` devuelve los identificadores de la venta para poder imprimirla.
+- **Manual** §6.6 (ticket, paso a paso) y §10.2 (comparador); `docs/MEJORAS_PROPUESTAS.md` con W-05, W-06 y D-07 en ✅.
+
 ## NovaGest v1.0.0 · revisión 2026-10-25 (XX) · Voz masculina en el vídeo (C-01b)
 
 - **Locución regrabada con voz masculina española** (español neutro, sin acento inglés), como pidió el titular: mismas palabras, mismo guion de `docs/PROPUESTA_VIDEO_PROMOCIONAL.md` §3.

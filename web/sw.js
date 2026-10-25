@@ -1,4 +1,5 @@
 /* Service worker: la interfaz abre al instante y sin conexión; los datos (/api) siempre van al servidor.
+   v20: ticket térmico 58/80 mm (módulo nuevo ticket.js) y comparador de períodos en Informes.
    v19: reposición sugerida en el Panel (ritmo de venta × existencia) y estilos de estado.
    v18: cola de cambios sin conexión en el navegador (módulo nuevo merge.js).
    v17: mapa de calor y gráfico por categoría en Análisis (módulo nuevo charts.js).
@@ -13,10 +14,10 @@
    v13: solicitud de licencia con consentimiento visible y accesible en el flujo de WhatsApp.
    v14: aviso de activación explícita; ya no se ofrece una prueba automática.
    v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos. */
-const CACHE = "novagest-v19";
+const CACHE = "novagest-v20";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
-  "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/merge.js", "./js/ux.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
+  "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
   "./js/excel-import.js", "./js/license.js", "./js/seed-data.js",
   "./vendor/qrcode.mjs",
   "./public/icon-app.png", "./public/icon-192.png", "./public/icon-512.png",
