@@ -7,7 +7,7 @@ personales y con avisos útiles cuando falta la licencia o las copias.
 
 Uso:  python3 tools/test_salud_servidor.py     (código de salida 0 = correcto)
 """
-import json, os, pathlib, subprocess, sys, tempfile, time, urllib.request
+import gzip, json, os, pathlib, subprocess, sys, tempfile, time, urllib.request
 
 ROOT = pathlib.Path(__file__).parent.parent
 PORT = 18195
@@ -81,6 +81,39 @@ try:
 
     # El contador de días cerrados es coherente con la base recién creada.
     ok("empieza sin días cerrados", salud.get("diasCerrados") == 0, str(salud.get("diasCerrados")))
+
+    # S-05: espacio en disco y vigencia de la licencia para el titular.
+    disco = salud.get("disco") or {}
+    ok("informa el espacio del disco", isinstance(disco.get("totalBytes"), int) and disco["totalBytes"] > 0, str(disco))
+    ok("informa el espacio libre", isinstance(disco.get("libreBytes"), int) and disco["libreBytes"] >= 0, str(disco.get("libreBytes")))
+    ok("informa el porcentaje libre", 0 <= (disco.get("librePct") or 0) <= 100, str(disco.get("librePct")))
+    licencia = salud.get("licencia") or {}
+    ok("incluye el bloque de licencia", isinstance(licencia, dict) and set(licencia) == {"tipo", "vence", "diasRestantes"}, str(licencia))
+    ok("sin licencia activa los días son nulos", licencia.get("diasRestantes") is None, str(licencia.get("diasRestantes")))
+    ok("sin licencia no hay tipo", licencia.get("tipo") is None, str(licencia.get("tipo")))
+    ok("los avisos son claves cortas conocidas",
+       all(a in {"licencia", "sin-copias", "copias-viejas", "disco-bajo", "licencia-vence"} for a in salud.get("avisos") or []),
+       str(salud.get("avisos")))
+
+    # S-11: la compresión llega al cliente y los archivos viajan comprimidos.
+    def pedir(path, gzip_ok=True):
+        cabeceras = {"X-CP": "1"}
+        if gzip_ok:
+            cabeceras["Accept-Encoding"] = "gzip"
+        req = urllib.request.Request(BASE + path, headers=cabeceras)
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.headers, r.read()
+
+    print("\nCompresión (S-11)")
+    cab, cuerpo = pedir("/css/app.css")
+    ok("el CSS viaja comprimido", cab.get("Content-Encoding") == "gzip", str(cab.get("Content-Encoding")))
+    ok("el CSS comprimido se descomprime", b"NovaGest" in gzip.decompress(cuerpo) or len(gzip.decompress(cuerpo)) > 1000)
+    cab2, cuerpo2 = pedir("/css/app.css", gzip_ok=False)
+    ok("sin Accept-Encoding no se comprime", cab2.get("Content-Encoding") is None)
+    ok("el CSS sin comprimir es mayor que comprimido", len(cuerpo2) > len(cuerpo))
+    ok("se anuncia Vary: Accept-Encoding", "Accept-Encoding" in (cab.get("Vary") or ""), str(cab.get("Vary")))
+    cab3, _ = pedir("/api/health")
+    ok("las respuestas pequeñas de la API no se comprimen", cab3.get("Content-Encoding") is None)
 finally:
     proc.terminate()
     try:

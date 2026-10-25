@@ -60,7 +60,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | S-02 | Restauración automática probada en CI nocturno (ya hay prueba; añadir aviso si falla) | Una copia que no se restaura no es una copia | `tools/`, CI | 🟠 | ⏱️ | ⬜ |
 | S-03 | API con paginación y `?since=` | Móviles y catálogos grandes | `server/` | 🟠 | ⏳ | ⬜ |
 | S-04 | Instalador de Windows con el entorno incluido | Instalar en 3 clics, sin Python | `deploy/` | 🟠 | ⏳ | ⬜ |
-| S-05 | Panel de salud para el titular (copias, espacio, licencia) | Prevenir antes de que falle | `server/` | 🟢 | ⏱️ | ⬜ |
+| S-05 | ✅ **Panel de salud para el titular** (copias, espacio, licencia) | Prevenir antes de que falle | `server/`, `app.js` | 🟢 | ⏱️ | ✅ |
 
 ## Segunda ola · propuestas nuevas (2026-10-24)
 
@@ -100,15 +100,18 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 | A-16 | **Prueba de instrumentación del flujo de venta + impresión simulada** | La lógica ESC/POS está probada; falta la pantalla real | `androidTest/` | 🟠 | ⏳ |
 | A-17 | ✅ **Aviso de cambios sin subir** con insignia, contador y acción «Sincronizar ahora» | Que nadie cierre la app con ventas pendientes | `ui/`, `SyncManager` | 🟠 | ⏱️ |
 | S-09 | ✅ **`/health` con métricas** (latencia, tamaño de la base, copias, días cerrados, sesiones) y avisos | Prevenir antes de que falle | `server/` | 🟠 | ⏱️ |
-| S-10 | **Auditoría de impresiones**: quién imprimió qué ticket y cuándo | Trazabilidad de documentos | `server/`, `app.js` | 🟢 | ⏱️ |
-| S-11 | **Compresión gzip de `/state` y límite de tamaño por petición** | Servidores modestos, respuestas grandes | `server/` | 🟠 | ⏱️ |
+| S-10 | ✅ **Auditoría de impresiones**: quién imprimió qué ticket y cuándo | Trazabilidad de documentos | `server/`, `app.js` | 🟢 | ⏱️ |
+| S-11 | ✅ **Compresión gzip de `/state` y límite de tamaño por petición** | Servidores modestos, respuestas grandes | `server/` | 🟠 | ⏱️ |
 | D-10 | ✅ **Guía de dos páginas para el mostrador** (imprimible en A4): vender, fiar, imprimir, verificar y cuadrar | El personal nuevo arranca sin formación | `docs/` | 🟠 | ⏱️ |
 | D-11 | **Vídeo vertical de 30 s para WhatsApp** con la venta y el ticket | Es el canal real de los clientes | `docs/assets/video/` | 🟢 | ⏳ |
 | D-12 | ✅ **Página de novedades** (`NOVEDADES.html`) generada desde `CHANGELOG.md` | El cliente ve que el producto avanza | `docs/` | 🟢 | ⏱️ |
 
 **Orden que propongo:** ~~W-15~~ → ~~A-17~~ → ~~W-16~~ → ~~A-15~~ → ~~S-09~~ → ~~D-10~~ → ~~W-12~~, y en
 paralelo los rápidos ~~W-09~~, ~~D-12~~ y ~~A-08~~. Entregados: **W-15, A-17, A-14** (revisión XXIII),
-**W-16, A-15** (XXIV), **S-09, D-10** (XXV) y **W-12, W-09, D-12, A-08** (XXVI).
+**W-16, A-15** (XXIV), **S-09, D-10** (XXV), **W-12, W-09, D-12, A-08** (XXVI) y **S-11, S-10, S-05**
+(XXVII). Siguiente: **W-14** (objetivo semanal por categoría) → **A-11** (recibo de fiado con QR)
+→ **W-04** (venta desde `Ctrl + K`) → **D-09** (guía de migración desde Excel), y al cierre
+**S-02** (aviso si falla la restauración nocturna) y **A-09** (diseño para tablet).
 
 ## Cómo se supervisa
 

@@ -1,4 +1,27 @@
-﻿# NovaGest — Registro de cambios
+﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXVII) · Servidor comprimido, impresiones auditadas y salud del sistema (S-11 · S-10 · S-05)
+
+- **S-11 · Respuestas comprimidas con gzip y límites de tamaño.** El servidor comprime con gzip
+  el estado del negocio y los archivos de texto (JS, CSS, HTML, JSON, SVG) de más de 1 KB cuando
+  el cliente lo admite, declara `Vary: Accept-Encoding` y responde **413** con un mensaje claro
+  cuando una petición supera el máximo. Dos variables nuevas: `MAX_STATE_MB` (12 por defecto,
+  para `PUT /api/state`) y `MAX_BODY_MB` (30, para el resto). En una instalación típica
+  `/api/state` baja de ~1 MB a ~120 KB. Documentado en `docs/INSTALACION.md`.
+- **S-10 · Auditoría de impresiones.** Cada ticket que se imprime desde la Web deja constancia
+  en la tabla `print_log` (usuario, venta, código de verificación, ancho del papel, tipo y
+  fecha) mediante `POST /api/prints`. La pestaña **Impresiones** de *Auditoría* muestra quién
+  imprimió qué y cuándo, distingue impresión de reimpresión y permite filtrar por usuario,
+  venta o código. No se guarda el contenido del ticket ni datos del cliente.
+- **S-05 · Salud del sistema para el titular.** Tarjeta nueva en *Ajustes* con copias de
+  seguridad, espacio libre en disco, tamaño de la base, días de licencia, uptime, latencia y
+  sesiones abiertas, más el botón **↻ Comprobar ahora**. `/api/health` añade los bloques
+  `disco` y `licencia` y dos avisos nuevos: `disco-bajo` y `licencia-vence`.
+- **Pruebas nuevas:** `tools/test_compresion.py` (21 comprobaciones, sin levantar el servidor) y
+  `tools/test_impresiones.py` (23, con licencia y sesiones reales); `test_salud_servidor.py`
+  sube a 38 y `smoke_web.mjs` a 62. Los dos scripts nuevos están en el CI.
+- **Manual:** «Salud del sistema» en *Ajustes* (§3.2), pestaña *Impresiones* en *Auditoría*
+  (§14.3) y límites/compresión en la guía de instalación.
+
+# NovaGest — Registro de cambios
 
 ## NovaGest v1.0.0 · revisión 2026-10-25 (XXVI) · Hoja imprimible del Análisis, accesibilidad, novedades y aviso de cierre (W-12 · W-09 · D-12 · A-08)
 

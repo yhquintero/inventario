@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 25 revisiones</title>
+<title>Novedades de NovaGest · 26 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 25 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 26 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,18 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>25</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>26</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXVII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Servidor comprimido, impresiones auditadas y salud del sistema (S-11 · S-10 · S-05)</h2>
+      <ul>
+      <li><b>S-11 · Respuestas comprimidas con gzip y límites de tamaño.</b> El servidor comprime con gzip</li>
+      <li><b>S-10 · Auditoría de impresiones.</b> Cada ticket que se imprime desde la Web deja constancia</li>
+      <li><b>S-05 · Salud del sistema para el titular.</b> Tarjeta nueva en <i>Ajustes</i> con copias de</li>
+      <li><b>Pruebas nuevas:</b> <code>tools/test_compresion.py</code> (21 comprobaciones, sin levantar el servidor) y</li>
+      <li><b>Manual:</b> «Salud del sistema» en <i>Ajustes</i> (§3.2), pestaña <i>Impresiones</i> en <i>Auditoría</i></li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXVI</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
       <h2>Hoja imprimible del Análisis, accesibilidad, novedades y aviso de cierre (W-12 · W-09 · D-12 · A-08)</h2>
@@ -197,18 +208,7 @@
       <li><b><code>docs/MEJORAS_PROPUESTAS.md</code></b>: resumen de avance al principio (paso 1, W-01 y A-01 en ✅, con el orden sugerido para seguir) y una <b>segunda ola de 14 propuestas</b> nacidas de lo ya construido: comparador de períodos y reposición sugerida en Análisis, hoja imprimible y exportación del mapa de calor, sincronización incremental, recibo con QR, widget de inicio, prueba de instrumentación de la cola, API por diferencias, panel de salud, instalador de Windows, manual en inglés y guía de migración desde Excel.</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XV</span><time datetime="2026-10-24">24 de octubre de 2026</time></div>
-      <h2>Cola de sincronización y conflictos en Android (A-01)</h2>
-      <ul>
-      <li><b>Los conflictos ya no descartan trabajo.</b> Cuando el servidor responde <b>409</b> (otra persona guardó antes), la App descarga la versión del servidor, la toma como base y <b>vuelve a aplicar los cambios del teléfono encima</b>: en cada producto gana el <code>updatedAt</code> más reciente y los cambios del servidor se conservan. Antes se recargaba y se perdían las ediciones locales.</li>
-      <li><b>Reintentos automáticos con espera creciente.</b> Si la subida falla por red, el intento queda programado (5 s, 15 s, 1 min, 5 min y 15 min, hasta 12 intentos) y un bucle en segundo plano lo reintenta sin que el usuario haga nada; el estado se conserva entre sesiones.</li>
-      <li><b>Aviso honesto en pantalla</b>: la franja superior muestra «N cambio(s) sin subir · reintento en X s» y el botón <b>Reintentar</b> sigue disponible.</li>
-      <li><b>Lógica pura y probada</b>: <code>data/sync/SyncQueue.kt</code> (<code>RetryPolicy</code> y <code>ConflictResolver</code>) con <b>12 pruebas</b> en <code>app/src/test/.../SyncQueueTest.kt</code> (espera creciente, tope de intentos, <code>updatedAt</code>, empates con borrados, fusión, orden y mensajes).</li>
-      <li><b>Manual</b> §16.5 explica la resolución de conflictos por <code>updatedAt</code> y la franja de cambios pendientes (HTML regenerado).</li>
-      </ul>
-    </article>
-<p class="older">Y 13 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 14 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

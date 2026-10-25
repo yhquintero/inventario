@@ -14,7 +14,7 @@ import { moneyIn } from "./ipv.js";
 import { categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, heatmapSummary, niceTicks } from "./charts.js";
 import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
-import { findSaleByCode, saleTicket, verifyTicket } from "./ticket.js";
+import { findSaleByCode, saleTicket, ticketCode, ticketTotals, verifyTicket } from "./ticket.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -1676,7 +1676,16 @@ function usersView() {
 function auditView() {
   const canSec = ["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role());
   const tab = ui.auditTab || "app";
-  const tabs = canSec ? `<div class="chips mb12"><button class="chip ${tab === "app" ? "on" : ""}" data-audit-tab="app">Actividad del negocio</button><button class="chip ${tab === "sec" ? "on" : ""}" data-audit-tab="sec">Seguridad (servidor)</button></div>` : "";
+  const tabs = canSec ? `<div class="chips mb12"><button class="chip ${tab === "app" ? "on" : ""}" data-audit-tab="app">Actividad del negocio</button><button class="chip ${tab === "sec" ? "on" : ""}" data-audit-tab="sec">Seguridad (servidor)</button><button class="chip ${tab === "prints" ? "on" : ""}" data-audit-tab="prints">Impresiones</button></div>` : "";
+  if (tab === "prints" && canSec) {
+    if (!ui.prints) { ui.prints = null; api("/prints?limit=200").then((r) => { ui.prints = r.prints || []; render(); }).catch(() => { ui.prints = []; render(); }); }
+    if (!ui.prints) return tabs + `<div class="card"><span class="k">🖨 Impresiones</span><p class="hint">Cargando el registro de impresiones…</p></div>`;
+    const filas = ui.prints.filter((a) => !ui.q || has(a.user || "", ui.q) || has(a.code || "", ui.q) || has(a.sale_id || "", ui.q));
+    return tabs + `<div class="card mb12"><div class="card-h"><span class="k">🖨 Quién imprimió cada ticket</span><span class="hint">${ui.prints.length} impresión(es) registradas</span></div>
+      <p class="hint">Se guarda la venta, el código de verificación, el ancho del papel y quién lo imprimió. No se guarda el contenido del ticket ni datos del cliente.</p></div>
+      <div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Código</th><th>Venta</th><th>Papel</th><th>Tipo</th></tr></thead>
+      <tbody>${filas.map((a) => `<tr><td class="hint">${new Date(a.ts * 1000).toLocaleString("es-CU")}</td><td>${esc(a.user)}</td><td class="mono">${esc(a.code || "—")}</td><td class="mono hint">${esc(a.sale_id || "—")}</td><td>${a.width} mm</td><td><span class="tag ${a.kind === "reimpresion" ? "mov" : "entrada"}">${esc(a.kind)}</span></td></tr>`).join("") || "<tr><td colspan=6 class=hint>Sin impresiones registradas.</td></tr>"}</tbody></table></div>`;
+  }
   if (tab === "sec" && canSec) {
     if (!ui.secLog) { ui.secLog = []; api("/security-log").then((r) => { ui.secLog = r.log || []; render(); }); }
     const rows = ui.secLog.filter((a) => !ui.q || has(a.action, ui.q) || has(a.user || "", ui.q) || has(a.details || "", ui.q) || has(a.ip || "", ui.q));
@@ -1736,6 +1745,52 @@ function backupView() {
       <span class="hint">Arrastra el archivo .xlsx aquí o haz clic. Elige la hoja del día (p. ej. «26 9 26»).</span>
       <input type="file" id="xlsxFile" accept=".xlsx,.xls" hidden>
     </label>`;
+}
+
+/**
+ * Panel de salud del sistema para el titular (S-05).
+ *
+ * Reúne en una tarjeta lo que suele fallar sin avisar: copias de seguridad,
+ * espacio en disco, licencia y tamaño de la base. Todo procede de `/api/health`,
+ * que no devuelve ningún dato del negocio.
+ */
+function healthCard() {
+  if (!["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role())) return "";
+  if (!ui.health) {
+    ui.health = { cargando: true };
+    api("/health").then((r) => { ui.health = r && r.salud ? r : { error: r?.error || "El servidor no respondió." }; render(); })
+      .catch((e) => { ui.health = { error: e?.message || "No se pudo consultar el estado." }; render(); });
+  }
+  if (ui.health.cargando) return `<div class="card mb14"><span class="k">🩺 Salud del sistema</span><p class="hint">Revisando copias, espacio y licencia…</p></div>`;
+  if (ui.health.error) return `<div class="card mb14"><div class="card-h"><span class="k">🩺 Salud del sistema</span><span class="tag salida">sin respuesta</span></div>
+    <p class="hint">${esc(ui.health.error)}</p><button class="btn small" data-act="health-refresh">↻ Reintentar</button></div>`;
+
+  const s = ui.health.salud || {};
+  const d = s.disco || {}, c = s.copias || {}, l = s.licencia || {};
+  const mb = (n) => (n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : Math.max(1, Math.ceil((n || 0) / 1048576)) + " MB");
+  const avisos = {
+    licencia: "La licencia no es válida: los usuarios no podrán entrar.",
+    "sin-copias": "Todavía no hay ninguna copia de seguridad guardada.",
+    "copias-viejas": "La última copia tiene más de 48 horas.",
+    "disco-bajo": "Queda muy poco espacio libre en el disco del servidor.",
+    "licencia-vence": "La licencia vence en menos de 15 días.",
+  };
+  const lista = s.avisos || [];
+  const bien = !lista.length;
+  return `<div class="card mb14" id="healthCard">
+    <div class="card-h"><span class="k">🩺 Salud del sistema</span>
+      <span class="tag ${bien ? "entrada" : "salida"}">${bien ? "Todo en orden" : `${lista.length} aviso(s)`}</span></div>
+    ${bien ? `<p class="hint">Copias al día, espacio suficiente y licencia vigente.</p>`
+      : `<ul class="hint">${lista.map((a) => `<li>${esc(avisos[a] || a)}</li>`).join("")}</ul>`}
+    <div class="kpis mini">
+      ${kpi("Copias", `${c.total ?? 0}`, c.haceHoras == null ? "ninguna guardada" : `última hace ${c.haceHoras} h`)}
+      ${kpi("Disco libre", `${d.librePct ?? 0} %`, `${mb(d.libreBytes)} de ${mb(d.totalBytes)}`)}
+      ${kpi("Base de datos", mb(s.bdBytes), `${s.diasCerrados ?? 0} día(s) cerrado(s)`)}
+      ${kpi("Licencia", l.diasRestantes == null ? "Permanente" : `${l.diasRestantes} días`, l.tipo ? `${l.tipo}` : "sin licencia activa")}
+    </div>
+    <p class="hint">Servidor activo desde hace ${Math.floor((s.uptimeSegundos || 0) / 3600)} h · respuesta ${s.latenciaMs ?? "—"} ms · ${s.sesionesActivas ?? 0} sesión(es) abierta(s).</p>
+    <button class="btn ghost small" data-act="health-refresh">↻ Comprobar ahora</button>
+  </div>`;
 }
 
 function licenseCard() {
@@ -1851,6 +1906,7 @@ function settingsView() {
   const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
   const dis = admin ? "" : "disabled";
   return `
+    ${healthCard()}
     ${licenseCard()}
     ${securityCard()}
     ${legalCard()}
@@ -3966,12 +4022,12 @@ function onClick(e) {
   else if (d.editMov) { movementModal(store.state.movements.find((x) => x.id === d.editMov)); render(); }
   else if (d.ticketMov) {
     const m = store.state.movements.find((x) => x.id === d.ticketMov);
-    if (m) printTicket(saleTicket([m], ticketOptions()));
+    if (m) { printTicket(saleTicket([m], ticketOptions())); recordPrint([m], 58); }
   }
   else if (d.ticketLast) {
     const movs = (ui.lastSaleIds || []).map((id) => store.state.movements.find((x) => x.id === id)).filter(Boolean);
     if (!movs.length) toast("Haz una venta primero: el ticket sale de la última venta.", "err");
-    else printTicket(saleTicket(movs, ticketOptions(d.ticketLast)), d.ticketLast);
+    else { printTicket(saleTicket(movs, ticketOptions(d.ticketLast)), d.ticketLast); recordPrint(movs, d.ticketLast); }
   }
   else if (d.delMov) { confirmModal("¿Enviar este movimiento a la papelera? El stock se recalculará.", () => result(store.deleteMovement(d.delMov), "Movimiento enviado a la papelera")); }
   else if (d.restoreProduct) { ui.modal = null; result(store.restoreProduct(d.restoreProduct), "Producto restaurado"); }
@@ -3983,7 +4039,7 @@ function onClick(e) {
   else if (d.toggleUser) { const u = store.state.users.find((x) => String(x.id) === d.toggleUser); store.toggleUser(u.id, !u.active).then((r) => result(r, "Estado actualizado")); }
   else if (d.editUser) { userModal(store.state.users.find((x) => String(x.id) === d.editUser)); render(); }
   else if (d.reset2fa) confirmModal("¿Quitar la verificación en dos pasos a este usuario? Deberá volver a activarla.", () => store.reset2fa(Number(d.reset2fa)).then((r) => result(r, "2FA eliminada")));
-  else if (d.auditTab) { ui.auditTab = d.auditTab; ui.secLog = null; render(); }
+  else if (d.auditTab) { ui.auditTab = d.auditTab; ui.secLog = null; ui.prints = null; render(); }
   else if (d.killSession) api("/sessions/" + d.killSession, { method: "DELETE" }).then(() => { ui.sec.sessions = null; toast("Sesión cerrada", "ok"); });
   else if (d.bkDl) api("/backups/" + encodeURIComponent(d.bkDl)).then((r) => { if (r.error) return toast(r.error, "err"); download(d.bkDl.replace(".bak", ".json"), JSON.stringify(r, null, 2), "application/json"); });
   else if (d.bkRestore) confirmModal(`¿Restaurar <b>${esc(d.bkRestore)}</b>? Los datos actuales se reemplazarán para todos los usuarios (antes se guarda una copia).`, () => api("/backups/" + encodeURIComponent(d.bkRestore), { method: "POST" }).then(async (r) => { if (r.error) return toast(r.error, "err"); await store.reload(); ui.backups = null; toast("Copia restaurada", "ok"); }));
@@ -4051,6 +4107,7 @@ function onClick(e) {
   else if (act === "iv-apply") ivApply();
   else if (act === "iv-clear") { const st = ivState(); st.rows = []; st.text = ""; st.last = null; st.warn = false; render(); }
   else if (act === "iv-template") ivTemplate();
+  else if (act === "health-refresh") { ui.health = null; render(); toast("Revisando el estado del servidor…", "ok"); }
   else if (act === "license-refresh") {
     if (!store.state.session) ui.license.loading = true;
     ui.license.error = null;
@@ -4297,6 +4354,31 @@ function onClick(e) {
 }
 
 /* ============================ EXPORTS ============================ */
+/**
+ * Deja constancia de que un ticket se imprimió (S-10).
+ *
+ * Solo se envía la referencia de la venta y el código: ni el contenido del
+ * ticket ni datos del cliente. Si el servidor no está disponible, la impresión
+ * sigue adelante y no se avisa de nada.
+ */
+function recordPrint(movs, width) {
+  try {
+    const list = Array.isArray(movs) ? movs.filter(Boolean) : [];
+    const first = list[0];
+    if (!first) return;
+    const saleId = list.every((m) => m.saleId && m.saleId === first.saleId) ? first.saleId : "";
+    const totals = ticketTotals(list);
+    const code = saleId
+      ? ticketCode({ saleId, date: first.date, total: totals.total, lines: totals.lines }, store.verifySecret())
+      : "";
+    if (!saleId && !code) return;
+    const kind = ui._lastPrintedSale === saleId ? "reimpresion" : "ticket";
+    ui._lastPrintedSale = saleId || ui._lastPrintedSale;
+    api("/prints", { method: "POST", body: { saleId, code, width: Number(width) === 80 ? 80 : 58, kind, copies: 1 } })
+      .catch(() => {});
+  } catch { /* la impresión nunca depende del registro */ }
+}
+
 function printCurrentView() {
   const date = ui.cuadreDate || lastDataDate();
   let label = "";

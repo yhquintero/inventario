@@ -1073,6 +1073,53 @@ semanas de correcciones. El orden importa.</p>
 </tbody>
 </table>
 <p>Pulse <strong>Guardar ajustes</strong>. ✅ El aviso «Ajustes guardados» confirma el cambio.</p>
+<h3 id="salud-del-sistema-arriba-de-los-ajustes">Salud del sistema (arriba de los ajustes)</h3>
+<p>La primera tarjeta de <strong>Ajustes</strong> se llama <strong>🩺 Salud del sistema</strong> y resume, de un vistazo, lo
+que suele fallar sin avisar. La ven <strong>Administrador</strong>, <strong>Jefe</strong> y <strong>Económico</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Indicador</th>
+<th>Qué muestra</th>
+<th>Cuándo hay que actuar</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Copias</strong></td>
+<td>Cuántas copias hay y cuántas horas tiene la última</td>
+<td>Si dice «ninguna guardada» o pasan de 48 horas</td>
+</tr>
+<tr>
+<td><strong>Disco libre</strong></td>
+<td>Porcentaje y espacio libre del disco del servidor</td>
+<td>Si baja del 10 % o de 500 MB</td>
+</tr>
+<tr>
+<td><strong>Base de datos</strong></td>
+<td>Tamaño del archivo de datos y días cerrados</td>
+<td>Para vigilar el crecimiento con los años</td>
+</tr>
+<tr>
+<td><strong>Licencia</strong></td>
+<td>Días que le quedan a la licencia activa</td>
+<td>Si queda menos de un mes, renueve con tiempo</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>La etiqueta de la cabecera dice <strong>Todo en orden</strong> (verde) o <strong>N aviso(s)</strong> (roja) y, cuando
+  hay avisos, los explica en una lista en lenguaje llano.</li>
+<li>El pie indica cuánto lleva encendido el servidor, cuánto tarda en responder y cuántas
+  sesiones hay abiertas.</li>
+<li><strong>↻ Comprobar ahora</strong> vuelve a preguntar al servidor sin recargar la página: úselo después
+  de crear una copia o de activar una licencia nueva.</li>
+</ul>
+<div class="callout note">
+<p class="callout-t">ℹ Nota</p>
+<p>La salud se consulta al endpoint público <strong><code>/api/health</code></strong>, que solo devuelve medidas
+operativas (tamaños, horas, latencia). Nunca datos del negocio ni de los clientes.</p>
+</div>
 <div class="callout note">
 <p class="callout-t">ℹ Nota</p>
 <p>En la Web solo <strong>Administrador</strong> y <strong>Jefe</strong> cambian los ajustes del negocio; el tema lo
@@ -3026,6 +3073,10 @@ desactivar un usuario, su historial se conserva: no se borra nada.</p>
 <td><strong>Seguridad (servidor)</strong></td>
 <td>Inicios de sesión, fallos, revocaciones, reaperturas de día, restauraciones, con IP</td>
 </tr>
+<tr>
+<td><strong>Impresiones</strong></td>
+<td>Quién imprimió cada ticket y cuándo, con el código de verificación, la venta, el ancho del papel y si fue impresión o reimpresión</td>
+</tr>
 </tbody>
 </table>
 <p><strong>Cómo investigar un problema con la auditoría</strong></p>
@@ -3035,6 +3086,15 @@ desactivar un usuario, su historial se conserva: no se borra nada.</p>
 <li>Lea el <strong>Detalle</strong> (valores antes → después cuando aplica).</li>
 <li>Si es un tema de acceso, revise la pestaña <strong>Seguridad</strong>.</li>
 </ol>
+<p><strong>La pestaña Impresiones, en detalle</strong> (solo Administrador, Jefe y Económico)</p>
+<ul>
+<li>Se llena sola cada vez que se imprime o reimprime un ticket desde la Web.</li>
+<li>Guarda <strong>la referencia de la venta y su código de verificación</strong>, el ancho del papel
+  (58 o 80 mm), el tipo (impresión o reimpresión), el usuario y la fecha. <strong>No guarda</strong> el
+  contenido del ticket ni datos del cliente.</li>
+<li>Sirve para responder preguntas del tipo «¿quién sacó este papel?» o «¿se reimprimió este
+  ticket dos veces?», y para cruzar con el código del ticket que trae el cliente.</li>
+</ul>
 <p>💡 La auditoría es su mejor defensa ante un descuadre inexplicable: casi siempre muestra la
 operación que lo provocó.</p>
 <hr />
