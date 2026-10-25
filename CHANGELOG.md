@@ -1,4 +1,19 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXVII) · Servidor comprimido, impresiones auditadas y salud del sistema (S-11 · S-10 · S-05)
+﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXVIII) · Vídeo con la locución definitiva (C-01)
+
+- **Locución rehecha con la voz elegida.** Las ocho escenas se grabaron otra vez con una
+  **voz en español latinoamericano neutro (es-419)**, sin acento inglés y con dicción natural;
+  es la voz que el titular escogió entre las propuestas. Se mantiene el texto de la narración
+  para que los subtítulos sigan coincidiendo palabra por palabra.
+- **Vídeo recompuesto:** `docs/assets/video/novagest-promo-720p.mp4`, **2:26** (147,0 s),
+  1280 × 720, H.264 High `yuv420p` 25 fps, AAC-LC 44,1 kHz estéreo, `+faststart`, 10,0 MB,
+  con **subtítulos quemados** y el `.srt` regenerado (56 líneas).
+- **Pista de narración** actualizada (`novagest-promo-narracion.mp3`, 128 kbps), para oírla
+  aparte o reutilizarla en redes.
+- **Duraciones y tiempos al día** en README, sitio del proyecto, manual y
+  `PROPUESTA_VIDEO_PROMOCIONAL.md` (tabla de escenas: 0:00 · 0:16 · 0:35 · 0:54 · 1:09 ·
+  1:27 · 1:47 · 2:06 – 2:26).
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXVII) · Servidor comprimido, impresiones auditadas y salud del sistema (S-11 · S-10 · S-05)
 
 - **S-11 · Respuestas comprimidas con gzip y límites de tamaño.** El servidor comprime con gzip
   el estado del negocio y los archivos de texto (JS, CSS, HTML, JSON, SVG) de más de 1 KB cuando
