@@ -11,6 +11,7 @@ import {
   normalizeBarcode, creditPending, creditStatus,
 } from "./calc.js";
 import { moneyIn } from "./ipv.js";
+import { categoryBreakdown, compactNumber, heatLevel, heatmapGrid, heatmapSummary, niceTicks } from "./charts.js";
 import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
 
@@ -2053,6 +2054,79 @@ function lineChart(series, goal) {
     ${series.map((s, i) => (i % Math.ceil(series.length / 10) === 0 ? `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" class="ax">${s.d.slice(8)}/${s.d.slice(5, 7)}</text>` : "")).join("")}
   </svg>${tablaDatos}`;
 }
+/* ---------- Mapa de calor de ventas (últimas 8 semanas) ---------- */
+function heatmapMarkup(grid) {
+  if (!grid || grid.isEmpty) {
+    return `<p class="hint">Aún no hay ventas registradas en las últimas ${grid?.weeks || 8} semanas. El mapa se llena en cuanto registres la primera venta.</p>`;
+  }
+  const CELL = 30, GAP = 4, LEFT = 76, TOP = 22;
+  const W = LEFT + grid.weeks * (CELL + GAP) + 8;
+  const H = TOP + 7 * (CELL + GAP) + 4;
+  const resumen = heatmapSummary(grid, usd);
+  const celdas = grid.rows.map((row, r) => row.cells.map((cell, i) => {
+    if (cell.future) return "";
+    const level = heatLevel(cell.value, grid.max);
+    const x = LEFT + i * (CELL + GAP), y = TOP + r * (CELL + GAP);
+    const tip = `${formatDate(cell.date)}: ${usd(cell.value)}${cell.sales ? ` · ${cell.sales} venta(s)` : ""}`;
+    return `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="6" class="heat-cell heat-l${level}"><title>${esc(tip)}</title></rect>`;
+  }).join("")).join("");
+  const dias = grid.rows.map((row, r) =>
+    `<text x="${LEFT - 8}" y="${TOP + r * (CELL + GAP) + CELL / 2 + 4}" text-anchor="end" class="heat-day">${esc(row.label.slice(0, 3))}</text>`).join("");
+  const semanas = (grid.rows[0]?.cells || []).map((cell, i) =>
+    `<text x="${LEFT + i * (CELL + GAP) + CELL / 2}" y="${TOP - 6}" text-anchor="middle" class="heat-week">${cell.date.slice(8)}/${cell.date.slice(5, 7)}</text>`).join("");
+  const filas = grid.rows.flatMap((row) => row.cells).filter((cell) => !cell.future && cell.value > 0)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((cell) => `<tr><td>${formatDate(cell.date)}</td><td>${weekday(cell.date)}</td><td class="mono r">${usd(cell.value)}</td><td class="mono r">${qty(cell.units)}</td><td class="mono r">${cell.sales}</td></tr>`).join("");
+  const leyenda = [0, 1, 2, 3, 4].map((l) => `<i class="heat-l${l}" aria-hidden="true"></i>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" class="heat-chart" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title>${semanas}${dias}${celdas}</svg>
+    <div class="heat-legend"><span>Menos</span>${leyenda}<span>Más</span><span class="hint">máximo ${usd(grid.max)} · total ${usd(grid.total)}</span></div>
+    <details class="chart-data"><summary>Ver datos del mapa en tabla</summary><div class="table-wrap"><table><thead><tr><th scope="col">Fecha</th><th scope="col">Día</th><th scope="col" class="r">Ventas</th><th scope="col" class="r">Unidades</th><th scope="col" class="r">Líneas</th></tr></thead><tbody>${filas || '<tr><td colspan="5">Sin ventas en el período.</td></tr>'}</tbody></table></div></details>`;
+}
+
+/* ---------- Ventas y utilidad por categoría ---------- */
+function categoryChartMarkup(rows) {
+  if (!rows.length) return `<p class="hint">Sin ventas registradas todavía.</p>`;
+  const top = rows.slice(0, 7);
+  const resto = rows.slice(7);
+  const datos = resto.length
+    ? [...top, {
+      category: `Otras (${resto.length})`,
+      revenue: round2(resto.reduce((a, r) => a + r.revenue, 0)),
+      cost: round2(resto.reduce((a, r) => a + r.cost, 0)),
+      profit: round2(resto.reduce((a, r) => a + r.profit, 0)),
+      units: round2(resto.reduce((a, r) => a + r.units, 0)),
+      share: round2(resto.reduce((a, r) => a + r.share, 0)),
+      margin: resto.reduce((a, r) => a + r.revenue, 0) > 0
+        ? round2((resto.reduce((a, r) => a + r.profit, 0) / resto.reduce((a, r) => a + r.revenue, 0)) * 100) : 0,
+    }]
+    : top;
+  const W = 720, ROW = 36, LEFT = 132, RIGHT = 96, TOP = 26, BOTTOM = 24;
+  const H = TOP + datos.length * ROW + BOTTOM;
+  const plot = W - LEFT - RIGHT;
+  const max = Math.max(...datos.map((d) => d.revenue), 1);
+  const ticks = niceTicks(max, 3);
+  const tope = ticks[ticks.length - 1] || 1;
+  const x = (v) => LEFT + Math.max(0, Math.min(1, v / tope)) * plot;
+  const total = datos.reduce((a, d) => a + d.revenue, 0);
+  const resumen = `Ventas por categoría: ${datos.length} categorías, ${usd(total)} en total; ` +
+    `la mayor es ${datos[0].category} con ${usd(datos[0].revenue)} (${datos[0].share} % del total).`;
+  const rejilla = ticks.map((t) => `<line x1="${x(t)}" x2="${x(t)}" y1="${TOP - 6}" y2="${H - BOTTOM + 2}" class="grid"/>` +
+    `<text x="${x(t)}" y="${H - 6}" text-anchor="middle" class="ax">${compactNumber(t)}</text>`).join("");
+  const barras = datos.map((d, i) => {
+    const y = TOP + i * ROW;
+    const tip = `${d.category}: venta ${usd(d.revenue)} · utilidad ${usd(d.profit)} · margen ${d.margin} % · ${d.share} % del total`;
+    return `<g><title>${esc(tip)}</title>
+      <text x="${LEFT - 10}" y="${y + 15}" text-anchor="end" class="cat-label">${esc(d.category.length > 16 ? `${d.category.slice(0, 15)}…` : d.category)}</text>
+      <rect x="${LEFT}" y="${y + 4}" width="${Math.max(1, x(d.revenue) - LEFT)}" height="7" rx="3" class="cat-rev"/>
+      <rect x="${LEFT}" y="${y + 13}" width="${Math.max(1, x(d.profit) - LEFT)}" height="7" rx="3" class="cat-profit"/>
+      <text x="${W - 6}" y="${y + 15}" text-anchor="end" class="cat-value">${usd(d.revenue)} · ${d.margin}%</text></g>`;
+  }).join("");
+  const tabla = datos.map((d) => `<tr><td>${esc(d.category)}</td><td class="mono r">${usd(d.revenue)}</td><td class="mono r">${usd(d.cost)}</td><td class="mono r">${usd(d.profit)}</td><td class="mono r">${d.margin} %</td><td class="mono r">${d.share} %</td></tr>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" class="cat-chart" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title>${rejilla}${barras}</svg>
+    <div class="cat-legend"><span><i class="cat-rev"></i>Venta</span><span><i class="cat-profit"></i>Utilidad</span><span class="hint">margen sobre la venta, según los costos registrados</span></div>
+    <details class="chart-data"><summary>Ver datos por categoría en tabla</summary><div class="table-wrap"><table><thead><tr><th scope="col">Categoría</th><th scope="col" class="r">Venta</th><th scope="col" class="r">Costo</th><th scope="col" class="r">Utilidad</th><th scope="col" class="r">Margen</th><th scope="col" class="r">% del total</th></tr></thead><tbody>${tabla}</tbody></table></div></details>`;
+}
+
 function goalBar(label, v, goal) {
   const p = goal ? Math.min(100, (v / goal) * 100) : 0;
   return `<div class="goal-bar" data-tip="${usd(v)} de ${usd(goal)}"><div class="row jc-b"><b>${label}</b><span class="mono">${usd(v)} / ${usd(goal)}</span></div>
@@ -2062,6 +2136,9 @@ function analyticsView() {
   const s = store.state.settings;
   const series = dailySeries();
   const last = series[series.length - 1] || { v: 0, d: todayISO() };
+  const movimientos = store.activeMovements();
+  const grid = heatmapGrid(movimientos, { weeks: 8, endDate: last.d || todayISO() });
+  const categorias = categoryBreakdown(movimientos, store.state.products);
   const wk = weeklyData(last.d);
   const prevWk = weeklyData(addDays(wk.w.from, -7));
   const diffPct = prevWk.ventas ? round2(((wk.ventas - prevWk.ventas) / prevWk.ventas) * 100) : null;
@@ -2090,6 +2167,16 @@ function analyticsView() {
       </div>
     </div>
     <div class="card mt16"><div class="card-h"><span class="k">📈 Tendencia de ventas diarias</span><span class="hint">línea discontinua = meta diaria</span></div>${lineChart(series, s.goalDaily)}</div>
+    <div class="grid-2 mt16">
+      <div class="card"><div class="card-h"><span class="k">🔥 Mapa de calor de ventas</span><span class="tag mov">últimas ${grid.weeks} semanas</span></div>
+        <p class="hint">Cada cuadro es un día; cuanto más oscuro, más se vendió. Sirve para ver de un golpe qué días flaquean.</p>
+        ${heatmapMarkup(grid)}
+      </div>
+      <div class="card"><div class="card-h"><span class="k">🏷️ Ventas y utilidad por categoría</span><span class="tag mov">${categorias.length} categoría(s)</span></div>
+        <p class="hint">La barra clara es la venta y la verde, la utilidad; el porcentaje es el margen sobre la venta.</p>
+        ${categoryChartMarkup(categorias)}
+      </div>
+    </div>
     <div class="card mt16"><div class="card-h"><span class="k">💤 Productos sin movimiento (más capital parado)</span></div>
       <div class="table-wrap"><table><thead><tr><th class="num">Nº</th><th></th><th>PRODUCTO</th><th class="r">STOCK</th><th class="r">CAPITAL</th></tr></thead>
       <tbody>${quietos.map((p, i) => `<tr><td class="num mono">${i + 1}</td><td>${thumb(p, 30)}</td><td>${esc(p.name)}</td><td class="mono r">${qty(p.stockActual)}</td><td class="mono r">${usd(p.stockActual * p.precioVentaUsd)}</td></tr>`).join("")}</tbody></table></div>

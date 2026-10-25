@@ -1245,10 +1245,15 @@ el Excel, con la tasa CUP/USD de cada día.
 | **🎯 Metas** | Barras de progreso de hoy, semana y mes contra sus metas (Ajustes) |
 | **Margen por categoría** | Porcentaje de margen de cada categoría, calculado con ventas reales |
 | **📈 Tendencia de ventas diarias** | Serie diaria con la meta como línea discontinua |
+| **🔥 Mapa de calor de ventas** | Las últimas 8 semanas por día de la semana: cuanto más oscuro el cuadro, más se vendió. Descubre de un vistazo los días flojos |
+| **🏷️ Ventas y utilidad por categoría** | Barras por categoría: la clara es la venta y la verde la utilidad, con el margen y el peso de cada categoría en el total |
 | **💤 Productos sin movimiento** | Capital parado: los que tienen stock y no se vendieron |
 
 💡 Use **Productos sin movimiento** para decidir rebajas o promociones: ordena por capital
 inmovilizado, no por unidades.
+
+📊 Cada gráfico trae **«Ver datos en tabla»** debajo: la misma información en cifras, para
+leerla con lector de pantalla, imprimirla o copiarla a una hoja de cálculo.
 
 ## 10.4 Panel: el resumen de cada mañana
 

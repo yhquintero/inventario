@@ -23,7 +23,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 
 | # | Mejora | Por qué | Dónde | Impacto | Esfuerzo | Estado |
 |---|---|---|---|---|---|---|
-| W-01 | Gráficos SVG en Panel y Análisis (tendencia 30 días, margen por categoría, mapa de calor) | Hoy son cifras; una tendencia se lee de un vistazo | `web/js/app.js` | 🔴 | ⏳ | ⬜ |
+| W-01 | **Mapa de calor de ventas (8 semanas) y barras de venta/utilidad por categoría en Análisis**, con tabla de datos equivalente | Los días flojos y la categoría que deja margen se ven de un vistazo | `web/js/charts.js`, `app.js` | 🔴 | ⏳ | ✅ |
 | W-02 | Cola de cambios sin conexión con resolución por `updatedAt` | Hoy se reenvía el estado completo al reconectar | `web/js/store.js` | 🔴 | 🧱 | ⬜ |
 | W-03 | Alertas de reposición predictivas (velocidad de venta × stock) | Evita quedarse sin lo que más rota | Panel + Worker | 🟠 | ⏳ | ⬜ |
 | W-04 | Comando rápido en la búsqueda global (`Ctrl + K`): «vender arroz 2» | Vender en 5 segundos desde cualquier pantalla | `web/js/app.js` | 🟠 | ⏳ | ⬜ |

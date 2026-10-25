@@ -1,5 +1,14 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-24 (XIV) · Gráficos de Análisis (W-01)
+
+- **Mapa de calor de ventas** en **Análisis y metas**: las últimas 8 semanas por día de la semana, con cinco niveles de intensidad, la fecha y el importe de cada día al pasar el puntero, leyenda con el máximo y el total, y **tabla de datos equivalente** para lectores de pantalla e impresión.
+- **Ventas y utilidad por categoría**: barras por categoría (venta en claro, utilidad en verde) con margen sobre la venta, peso en el total, ejes con marcas redondas y tabla de datos con costo, utilidad, margen y porcentaje del total.
+- **Módulo nuevo `web/js/charts.js`** (funciones puras, sin DOM): `heatmapGrid`, `categoryBreakdown`, `heatLevel`, `niceTicks`, `compactNumber` y `heatmapSummary`. Se prueba en `tools/test_charts.mjs` (**10 pruebas**, **100 % de cobertura de líneas**) y entra en `tools/cobertura.mjs` y en la integración continua.
+- **Accesibilidad y CSP**: cada gráfico lleva `role="img"` con resumen en `aria-label`, `<title>` por celda y su tabla de datos; los colores viven en la hoja de estilos (clases `heat-l0…heat-l4`), sin estilos en línea, y hay reglas para modo de alto contraste.
+- **Service worker v17**: `charts.js` añadido al precache (la app sigue abriendo sin conexión).
+- **Manual**: §10.3 documenta los dos gráficos nuevos y la tabla de datos de cada uno (HTML regenerado).
+
 ## NovaGest v1.0.0 · revisión 2026-10-24 (XIII) · Nueva locución del video promocional
 
 - **Locución regenerada por completo** (`docs/assets/video/novagest-promo-720p.mp4`): voz en **español neutro de Latinoamérica**, sin acento inglés y con dicción fluida en las ocho escenas; se mantiene el texto de la narración para que los subtítulos sigan coincidiendo palabra por palabra. Duración **2:39** (158,7 s), 1280 × 720, H.264 High `yuv420p` 25 fps, AAC-LC 44,1 kHz estéreo, `+faststart`, 10,8 MB.
