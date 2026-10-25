@@ -1,0 +1,223 @@
+1
+00:00:01,400 --> 00:00:04,577
+Bienvenido a NovaGest: la aplicación que
+
+2
+00:00:04,627 --> 00:00:07,642
+reúne inventario, punto de venta, caja
+
+3
+00:00:07,692 --> 00:00:10,305
+diaria e informes para tu negocio
+
+4
+00:00:10,355 --> 00:00:13,693
+En la Web y en Android, trabajando siempre
+
+5
+00:00:13,743 --> 00:00:15,468
+sobre los mismos datos
+
+6
+00:00:17,218 --> 00:00:20,964
+NovaGest termina con las hojas sueltas y los
+
+7
+00:00:21,014 --> 00:00:21,814
+cuadernos
+
+8
+00:00:21,854 --> 00:00:25,277
+Un servidor guarda toda la información, y
+
+9
+00:00:25,327 --> 00:00:28,987
+cada persona entra con su usuario y su rol,
+
+10
+00:00:29,037 --> 00:00:32,007
+con permisos, auditoría y copias de
+
+11
+00:00:32,057 --> 00:00:32,857
+seguridad
+
+12
+00:00:34,133 --> 00:00:36,478
+Paso uno: activar la licencia
+
+13
+00:00:36,528 --> 00:00:39,865
+Escribe el nombre de tu negocio, elige el
+
+14
+00:00:39,915 --> 00:00:43,003
+plazo y solicita la clave por WhatsApp
+
+15
+00:00:43,053 --> 00:00:45,977
+Cuando la recibas, pégala en Activar
+
+16
+00:00:46,027 --> 00:00:48,454
+licencia y pulsa Activar ahora
+
+17
+00:00:48,504 --> 00:00:51,923
+Sin una licencia válida no se puede entrar
+
+18
+00:00:53,273 --> 00:00:56,397
+Paso dos: configurar el negocio
+
+19
+00:00:56,447 --> 00:01:00,594
+En Ajustes escribe el nombre, la tasa CUP
+
+20
+00:01:00,644 --> 00:01:04,997
+por dólar, tus metas y la regla de comisión
+
+21
+00:01:05,047 --> 00:01:09,399
+Después crea tus almacenes, uno por local o
+
+22
+00:01:09,449 --> 00:01:13,084
+depósito, escribiendo solo su nombre
+
+23
+00:01:13,134 --> 00:01:17,077
+Cada almacén tiene su propia existencia
+
+24
+00:01:18,427 --> 00:01:20,943
+Paso tres: cargar la mercancía
+
+25
+00:01:20,993 --> 00:01:24,621
+Abre Importar valores y elige el almacén de
+
+26
+00:01:24,671 --> 00:01:25,471
+destino
+
+27
+00:01:25,511 --> 00:01:28,983
+Pega las columnas del Excel, sube el archivo
+
+28
+00:01:29,033 --> 00:01:30,779
+o escribe en la tabla
+
+29
+00:01:30,829 --> 00:01:34,542
+Revisa la vista previa: cada fila dice si es
+
+30
+00:01:34,592 --> 00:01:38,220
+nueva, si entra al almacén o si sobrescribe
+
+31
+00:01:38,270 --> 00:01:40,443
+Aplica solo lo que marques
+
+32
+00:01:41,793 --> 00:01:43,179
+Paso cuatro: vender
+
+33
+00:01:43,229 --> 00:01:46,428
+En Venta rápida escanea el código de barras
+
+34
+00:01:46,478 --> 00:01:47,788
+o toca el producto
+
+35
+00:01:47,838 --> 00:01:50,584
+Ajusta la cantidad y el precio si hay
+
+36
+00:01:50,634 --> 00:01:53,834
+descuento, revisa el almacén y pulsa cobrar
+
+37
+00:01:53,884 --> 00:01:56,554
+Puedes cobrar al contado o fiar a un
+
+38
+00:01:56,604 --> 00:01:59,728
+cliente, con su vencimiento y su límite de
+
+39
+00:01:59,778 --> 00:02:00,578
+crédito
+
+40
+00:02:01,607 --> 00:02:03,833
+Paso cinco: cuadrar la caja
+
+41
+00:02:03,883 --> 00:02:07,458
+En Cuadre diario anota la tasa, los fondos,
+
+42
+00:02:07,508 --> 00:02:10,999
+los gastos y las salidas, y los totales se
+
+43
+00:02:11,049 --> 00:02:12,685
+calculan al instante
+
+44
+00:02:12,735 --> 00:02:15,804
+El resultado tiene que quedar en cero
+
+45
+00:02:15,854 --> 00:02:19,345
+Cuando esté perfecto, cierra el día: nadie
+
+46
+00:02:19,395 --> 00:02:23,055
+podrá cambiar las ventas ni el cuadre de esa
+
+47
+00:02:23,105 --> 00:02:23,905
+fecha
+
+48
+00:02:24,826 --> 00:02:26,406
+Paso seis: revisar
+
+49
+00:02:26,456 --> 00:02:29,937
+En Informe semanal ves ventas, costos y
+
+50
+00:02:29,987 --> 00:02:30,787
+utilidad
+
+51
+00:02:30,827 --> 00:02:33,378
+en Análisis y metas, tu avance
+
+52
+00:02:33,428 --> 00:02:37,180
+y en Comprobación, si el inventario cuadra
+
+53
+00:02:37,230 --> 00:02:41,164
+Todo esto también en Android: vende desde el
+
+54
+00:02:41,214 --> 00:02:45,057
+teléfono, consulta existencias y sincroniza
+
+55
+00:02:45,107 --> 00:02:46,053
+al instante
+
+56
+00:02:46,103 --> 00:02:49,041
+NovaGest: gestiona, crece, avanza

@@ -6,3 +6,6 @@ venv/** linguist-vendored
 
 # Librerías JavaScript de terceros (Linguist ya las excluye; se declara para que quede explícito).
 web/vendor/** linguist-vendored
+
+# Material audiovisual del manual y del video promocional (no son texto: evita diffs binarios).
+docs/assets/video/** -text -diff linguist-generated
