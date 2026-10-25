@@ -103,9 +103,11 @@ class SyncQueueTest {
             "El servidor tenía 1 cambio(s) más reciente(s); se conservaron.",
             ConflictResolver.describe(ConflictResolver.merge(listOf(rec("p1", 9)), listOf(rec("p1", 1))))
         )
-        assertTrue(
-            ConflictResolver.describe(ConflictResolver.merge(listOf(rec("p1", 9)), listOf(rec("p1", 10))))
-                .startsWith("Se subieron 1 cambio(s) y se conservaron")
+        assertEquals(
+            "Se subieron 1 cambio(s) y se conservaron 1 del servidor.",
+            ConflictResolver.describe(
+                ConflictResolver.merge(listOf(rec("p1", 9), rec("p2", 50)), listOf(rec("p1", 10), rec("p2", 1)))
+            )
         )
     }
 
