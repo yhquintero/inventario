@@ -14,7 +14,7 @@ import { moneyIn } from "./ipv.js";
 import { categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, heatmapSummary, niceTicks } from "./charts.js";
 import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
-import { saleTicket } from "./ticket.js";
+import { findSaleByCode, saleTicket, verifyTicket } from "./ticket.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -37,6 +37,7 @@ const routes = {
   finance: { title: "Monedas", icon: "$", perm: "REPORTS_FINANCIAL", group: "Análisis" },
   fichas: { title: "Fichas de costo · IPV", icon: "▤", perm: "IPV_VIEW", group: "Análisis", search: true },
   legal: { title: "Información legal", icon: "§", perm: null, group: "Sistema", hidden: true },
+  verificar: { title: "Verificar ticket", icon: "✅", perm: "MOVEMENT_VIEW", group: "Sistema" },
   trash: { title: "Papelera", icon: "🗑", perm: "TRASH_VIEW", group: "Sistema", search: true },
   users: { title: "Usuarios", icon: "☺", perm: "USERS_VIEW", group: "Sistema" },
   audit: { title: "Auditoría", icon: "◉", perm: "AUDIT_VIEW", group: "Sistema", search: true },
@@ -76,6 +77,7 @@ let ui = {
     requests: null, counts: null, reqFilter: "TODAS", reqName: "", reqPhone: "", reqTerm: "MES", reqConsent: false,
     genClient: "", genPhone: "", genTerm: "ANIO", genRequest: null,
   },
+  verifyResult: null, verifyText: "",
   custTab: "clientes",
   fichaTab: "fichas", fichaSel: null, fichaEdit: null, fichaShowTrash: false, legalDoc: "aviso", legalData: null,
 };
@@ -3264,7 +3266,7 @@ function readFichaEditor() {
 
 /* ============================ RENDER ============================ */
 function page() {
-  const views = { license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, fichas: fichasView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
+  const views = { verificar: verifyView, license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, fichas: fichasView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
   return (views[ui.route] || homeView)();
 }
 
@@ -3634,6 +3636,11 @@ function bindApp() {
     if (r.ok) { ui.legalData = r.legal || body; toast("Datos legales guardados", "ok"); } else toast(r.error || "No se pudo guardar", "err");
     render();
   });
+  $("#verifyInput")?.addEventListener("input", (e) => { ui.verifyText = e.target.value; });
+  $("#verifyForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    doVerify(new FormData(e.target).get("codigo"));
+  });
   $("#settingsForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -3943,6 +3950,8 @@ function onClick(e) {
   else if (d.killSession) api("/sessions/" + d.killSession, { method: "DELETE" }).then(() => { ui.sec.sessions = null; toast("Sesión cerrada", "ok"); });
   else if (d.bkDl) api("/backups/" + encodeURIComponent(d.bkDl)).then((r) => { if (r.error) return toast(r.error, "err"); download(d.bkDl.replace(".bak", ".json"), JSON.stringify(r, null, 2), "application/json"); });
   else if (d.bkRestore) confirmModal(`¿Restaurar <b>${esc(d.bkRestore)}</b>? Los datos actuales se reemplazarán para todos los usuarios (antes se guarda una copia).`, () => api("/backups/" + encodeURIComponent(d.bkRestore), { method: "POST" }).then(async (r) => { if (r.error) return toast(r.error, "err"); await store.reload(); ui.backups = null; toast("Copia restaurada", "ok"); }));
+  else if (act === "verify-clear") { ui.verifyResult = null; ui.verifyText = ""; render(); }
+  else if (act === "verify-open") { ui.movDate = d.date || ""; navTo("movements"); }
   else if (act === "srv-backup") api("/backups", { method: "POST" }).then((r) => { if (r.error) return toast(r.error, "err"); ui.backups = null; toast("Copia cifrada creada", "ok"); render(); });
   else if (act === "tfa-setup") api("/2fa/setup", { method: "POST" }).then((r) => { if (r.error) return toast(r.error, "err"); ui.sec.setup = r; render(); });
   else if (act === "tfa-cancel") { ui.sec.setup = null; render(); }
@@ -4283,7 +4292,73 @@ function ticketOptions(width = 58) {
     cupUsd: store.rateOn("USD", todayISO()),
     seller: store.state.session?.displayName || "",
     width: Number(width) === 80 ? 80 : 58,
+    verifySecret: store.verifySecret(),
   };
+}
+
+/* ========================= VERIFICAR TICKET (W-16) ========================= */
+
+const VERIFY_MENSAJES = {
+  "no-entendido": ["✖ No se reconoce el texto", "Pegue el contenido del QR completo (empieza por NVG1) o escriba el código impreso, con su guion: ABC-DEF."],
+  "no-existe": ["✖ No consta ninguna venta con ese código", "Puede ser de otro negocio u otro equipo. Compruebe el código y que esté en la instalación correcta."],
+  anulado: ["✖ La venta fue anulada", "El ticket salió de una venta que después se envió a la papelera o se eliminó."],
+  "no-coincide": ["✖ Los datos no coinciden", "El código existe pero el total, la fecha o las líneas no cuadran con la venta registrada: el ticket pudo ser alterado."],
+};
+
+/** Comprueba el texto pegado (QR completo o solo el código). */
+function doVerify(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return toast("Escriba el código o pegue el texto del QR.", "err");
+  const secret = store.verifySecret();
+  let result;
+  if (raw.includes("NVG1|")) {
+    result = verifyTicket(raw, store.state.movements, secret);
+  } else {
+    const g = findSaleByCode(raw, store.state.movements, secret);
+    result = g
+      ? { ok: true, sale: g.saleId, total: g.total, date: g.date, lines: g.lines, code: raw.toUpperCase() }
+      : { ok: false, reason: "no-existe" };
+  }
+  ui.verifyResult = result;
+  ui.verifyText = raw;
+  render();
+}
+
+function verifyView() {
+  const r = ui.verifyResult;
+  const [titulo, detalle] = r && !r.ok ? (VERIFY_MENSAJES[r.reason] || VERIFY_MENSAJES["no-entendido"]) : ["", ""];
+  const resultado = !r ? "" : r.ok
+    ? `<div class="card mt14 verify-ok">
+        <div class="card-h"><span class="k">✔ Ticket auténtico</span><span class="tag venta">${esc(r.code || "")}</span></div>
+        <p>La venta existe en este negocio y sus importes coinciden con el ticket.</p>
+        <div class="hline"><span>Fecha</span><b>${formatDate(r.date)}</b></div>
+        <div class="hline"><span>Total</span><b>${usd(r.total)}</b></div>
+        <div class="hline"><span>Líneas</span><b>${qty(r.lines)}</b></div>
+        <div class="row mt10"><button class="btn small" data-act="verify-open" data-date="${esc(r.date)}">Ver la venta en Movimientos</button></div>
+      </div>`
+    : `<div class="card mt14 verify-bad">
+        <div class="card-h"><span class="k">${esc(titulo)}</span><span class="tag salida">Revisar</span></div>
+        <p>${esc(detalle)}</p>
+      </div>`;
+  return `<div class="card">
+    <div class="card-h"><span class="k">✅ Verificar un ticket</span><span class="hint">Comprueba que el papel salió de una venta real</span></div>
+    <p class="hint">Escriba el <b>código impreso</b> al pie del ticket (por ejemplo <span class="mono">ABC-DEF</span>) o pegue el texto del QR, que empieza por <span class="mono">NVG1</span>. La comprobación se hace contra las ventas de este negocio: no se envía nada fuera.</p>
+    <form id="verifyForm" class="form-grid">
+      <label class="span-2">Código o texto del QR
+        <input id="verifyInput" name="codigo" autocomplete="off" spellcheck="false" placeholder="ABC-DEF" value="${esc(ui.verifyText || "")}">
+      </label>
+      <div class="span-2 row"><button class="btn">Verificar ticket</button>${r ? `<button type="button" class="btn ghost" data-act="verify-clear">Limpiar</button>` : ""}</div>
+    </form>
+  </div>
+  ${resultado}
+  <div class="card mt14">
+    <div class="card-h"><span class="k">Cómo leerlo</span></div>
+    <div class="hline"><span><b>✔ Auténtico</b></span><b>Código, fecha, total y líneas coinciden con la venta registrada</b></div>
+    <div class="hline"><span><b>✖ No consta</b></span><b>No hay ninguna venta con ese código en este negocio</b></div>
+    <div class="hline"><span><b>✖ No coincide</b></span><b>El código existe pero los importes del papel no cuadran</b></div>
+    <div class="hline"><span><b>✖ Anulada</b></span><b>La venta se envió a la papelera después de imprimir</b></div>
+    <p class="hint mt10">Los tickets impresos antes de esta versión no llevan código: para esos papeles la comprobación es manual, en Movimientos.</p>
+  </div>`;
 }
 
 /**

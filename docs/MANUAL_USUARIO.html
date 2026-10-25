@@ -1755,6 +1755,9 @@ impresora térmica.</p>
 </ol>
 <p><strong>Ticket de una venta anterior:</strong> <strong>Menú → Operación → Movimientos</strong> → icono <strong>🧾</strong> en la
 fila de la venta.</p>
+<p>Al pie de cada ticket salen un <strong>QR</strong> y un <strong>código de verificación</strong> (<code>ABC-DEF</code>) para
+comprobar que el papel es auténtico: se explican en el apartado <strong>6.7 Verificar un ticket
+impreso</strong>.</p>
 <div class="callout tip">
 <p class="callout-t">💡 Consejo</p>
 <p>Si el navegador imprime en A4, abra el diálogo y elija la impresora térmica con el papel
@@ -1762,7 +1765,67 @@ correcto: el ancho ya está fijado por la aplicación, pero el navegador recuerd
 impresora usada. En Chrome puede marcar <strong>Guardar como PDF</strong> para enviar el ticket por
 WhatsApp.</p>
 </div>
-<h2 id="67-errores-frecuentes-en-la-venta">6.7 Errores frecuentes en la venta</h2>
+<h2 id="67-verificar-un-ticket-impreso">6.7 Verificar un ticket impreso</h2>
+<p>Cada ticket que imprime NovaGest lleva al pie un <strong>código de verificación</strong> y su <strong>QR</strong>. Sirven
+para responder a una pregunta muy concreta: <em>¿este papel salió de una venta real de este
+negocio y sus importes no se han tocado?</em></p>
+<p><strong>🧭 Menú → Sistema → Verificar ticket</strong></p>
+<ol>
+<li>Escriba el código impreso (formato <code>ABC-DEF</code>, con su guion) <strong>o</strong> pegue el texto del QR, que
+   empieza por <code>NVG1</code>.</li>
+<li>Pulse <strong>Verificar ticket</strong>.</li>
+<li>La respuesta sale en una tarjeta:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Resultado</th>
+<th>Qué significa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>✔ Ticket auténtico</strong></td>
+<td>El código, la fecha, el total y las líneas coinciden con la venta registrada. Debajo se muestra el total y un botón para ver la venta en <strong>Movimientos</strong></td>
+</tr>
+<tr>
+<td><strong>✖ No consta ninguna venta</strong></td>
+<td>Ninguna venta de este negocio tiene ese código: puede ser de otro negocio u otro equipo</td>
+</tr>
+<tr>
+<td><strong>✖ Los datos no coinciden</strong></td>
+<td>El código existe, pero el total, la fecha o las líneas del papel no cuadran: el ticket pudo alterarse</td>
+</tr>
+<tr>
+<td><strong>✖ La venta fue anulada</strong></td>
+<td>El ticket es real, pero la venta se envió después a la papelera o se eliminó</td>
+</tr>
+<tr>
+<td><strong>✖ No se reconoce el texto</strong></td>
+<td>Falta el guion del código o el QR se pegó incompleto</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cómo funciona, sin tecnicismos</strong></p>
+<ul>
+<li>El código se calcula con el <strong>identificador interno de la venta</strong>, su fecha, el total y el
+  número de líneas, más una <strong>clave del negocio</strong> que se crea sola la primera vez y viaja con
+  sus datos. Cambiar un céntimo en el papel cambia el código, y el código ya no cuadra.</li>
+<li>La comprobación se hace <strong>en su equipo</strong>, contra sus propias ventas: no se envía nada a
+  Internet.</li>
+<li>El QR no lleva datos personales del cliente: solo el identificador de la venta y los importes.</li>
+</ul>
+<div class="callout note">
+<p class="callout-t">ℹ Nota</p>
+<p>Los tickets impresos <strong>antes</strong> de esta versión no llevan código. Para esos papeles, la
+comprobación es la de siempre: buscar la venta en <strong>Movimientos</strong> y comparar a mano.</p>
+</div>
+<div class="callout tip">
+<p class="callout-t">💡 Consejo</p>
+<p>Si un cliente discute una devolución, pídale el ticket, escriba el código y verifique: en dos
+segundos sabe si el papel es bueno, si está alterado o si esa venta ya se anuló.</p>
+</div>
+<h2 id="68-errores-frecuentes-en-la-venta">6.8 Errores frecuentes en la venta</h2>
 <table>
 <thead>
 <tr>
@@ -1804,7 +1867,7 @@ WhatsApp.</p>
 </tr>
 </tbody>
 </table>
-<h2 id="68-buenas-prácticas-de-caja">6.8 Buenas prácticas de caja</h2>
+<h2 id="69-buenas-prácticas-de-caja">6.9 Buenas prácticas de caja</h2>
 <ol>
 <li><strong>Una venta, un cobro.</strong> No acumule varias ventas en el carrito si son clientes distintos.</li>
 <li><strong>Domicilio siempre en CUP</strong> y solo si lo cobró.</li>
@@ -3105,6 +3168,10 @@ servidor, o de forma <strong>local</strong> cuando no lo hay.</p>
 <li><strong>Alertas de stock</strong>: productos en el mínimo o agotados, con stock y mínimo.</li>
 <li><strong>Últimos movimientos</strong>: tipo, producto, cantidad, importe, centro y fecha.</li>
 </ul>
+<p><strong>🧾 Reimprimir último ticket.</strong> Si ya se imprimió un ticket en este teléfono, <strong>Inicio</strong> muestra
+la tarjeta <strong>Último ticket</strong> con el botón <strong>🧾 Reimprimir último ticket</strong>: saca otra copia con la
+misma impresora y el mismo ancho configurados en Ajustes, sin volver a Venta rápida. Es la salida
+cuando el papel se estropea o el cliente pide una segunda copia.</p>
 <h2 id="163-vender-en-el-teléfono">16.3 Vender en el teléfono</h2>
 <ol>
 <li><strong>Vender</strong> (barra inferior).</li>
@@ -3158,6 +3225,10 @@ así ninguna impresora muestra símbolos raros.</p>
   <code>P. COSTO (USD)</code>, <code>COMISION (CUP)</code>, <code>Stock mínimo</code>, <code>Categoría</code> y <code>Código de barras</code>.</li>
 <li><strong>Editar</strong> para modificar; <strong>Enviar a papelera</strong> para eliminarlo.</li>
 </ul>
+<p><strong>🧾 Imprimir una venta del historial.</strong> En <strong>Movimientos</strong>, cada venta lleva el botón
+<strong>🧾 Imprimir ticket</strong>: reconstruye el ticket de esa línea con su producto, cantidad, importe,
+fecha, hora y quién atendió, y lo manda a la impresora de Ajustes. La primera vez Android pedirá
+el permiso de Bluetooth.</p>
 <h2 id="165-sincronización-los-tres-iconos">16.5 Sincronización: los tres iconos</h2>
 <table>
 <thead>

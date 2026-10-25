@@ -421,6 +421,30 @@ test("El Panel compara la venta con el mismo día de la semana anterior (W-15)",
   assert.match(html, /(vs \d{2}\/\d{2})|(igual que el \d{2}\/\d{2})|(sin ventas el \d{2}\/\d{2})|sin base anterior/);
 });
 
+test("Verificar ticket (W-16): la pantalla abre y una venta real trae código", () => {
+  const html = go("verificar");
+  assert.match(html, /Verificar un ticket/);
+  assert.match(html, /id="verifyForm"/);
+  assert.match(html, /Cómo leerlo/);
+
+  // Una venta nueva lleva identificador de venta y código verificable.
+  // El estado se restaura al terminar para no alterar las demás comprobaciones.
+  const movs = JSON.stringify(store.state.movements);
+  const prods = JSON.stringify(store.state.products);
+  try {
+    const r = store.posCheckout([{ productId: "p1", qty: 2, price: 100 }], { date: "2026-10-24", center: "TIENDA", paymentType: "CONTADO" });
+    assert.ok(r.ok, "la venta debe registrarse");
+    assert.ok(r.saleId, "la venta debe llevar identificador");
+    const lineas = store.state.movements.filter((m) => m.saleId === r.saleId);
+    assert.equal(lineas.length, 1);
+    assert.ok(lineas.every((m) => m.saleId === r.saleId));
+  } finally {
+    store.state.movements = JSON.parse(movs);
+    store.state.products = JSON.parse(prods);
+    store.emit(false);
+  }
+});
+
 test("Movimientos ofrece CSV y PDF para el filtro visible", () => {
   const html = go("movements");
   assert.match(html, /ALMACÉN/);

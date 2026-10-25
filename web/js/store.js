@@ -1065,12 +1065,15 @@ class Store {
     const snapshot = JSON.stringify(this.state.movements);
     const ids = [];
     const movementIds = [];
+    // W-16: todas las líneas de una venta comparten identificador, para poder
+    // verificar el ticket impreso (y agrupar la venta en los informes).
+    const saleId = uid("sale");
     cart.forEach((it, i) => {
       const prod = this.state.products.find((p) => p.id === it.productId);
       const mid = uid("m");
       movementIds.push(mid);
       this.state.movements.unshift({
-        id: mid, date, productId: prod.id, productName: prod.name, type: "VENTA", quantity: Number(it.qty),
+        id: mid, saleId, date, productId: prod.id, productName: prod.name, type: "VENTA", quantity: Number(it.qty),
         warehouseId: wid,
         unitPriceUsd: Number(it.price), center, domicilioCup: i === 0 ? Number(domicilioCup) || 0 : 0,
         notes: notes || "Punto de venta", userName: this.state.session?.displayName, createdAt: Date.now() + i, deletedAt: null,
@@ -1093,7 +1096,7 @@ class Store {
     }
     this.audit("POS", "movement", `Venta rápida ${cart.length} líneas · $${total}${isFiado ? ` · FIADO a ${customer.name}` : ""}`);
     this.emit();
-    return { ok: true, total, creditId, movementIds, paymentType: isFiado ? "FIADO" : "CONTADO" };
+    return { ok: true, total, creditId, movementIds, saleId, paymentType: isFiado ? "FIADO" : "CONTADO" };
   }
 
   /* ================= IMPORTAR HOJA DEL EXCEL ================= */
@@ -1628,6 +1631,22 @@ class Store {
   }
   async toggleUser(id, active) { return this.saveUser({ id, active }); }
   async reset2fa(id) { return this.saveUser({ id, reset2fa: true }); }
+
+  /**
+   * Clave con la que se firman los tickets (W-16).
+   *
+   * Se crea la primera vez que se imprime un ticket y viaja con los datos, así
+   * que todos los equipos del negocio verifican con la misma clave. No pasa por
+   * la auditoría: es un valor técnico, no una decisión del usuario.
+   */
+  verifySecret() {
+    const actual = String(this.state.settings.verifySecret || "");
+    if (actual) return actual;
+    const nuevo = uid("vs") + Math.random().toString(36).slice(2, 8);
+    this.state.settings = { ...this.state.settings, verifySecret: nuevo };
+    this.emit();
+    return nuevo;
+  }
 
   saveSettings(s) {
     if (s.theme) localStorage.setItem(THEME, s.theme);
