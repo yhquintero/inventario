@@ -1,5 +1,12 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-24 (XIII) · Nueva locución del video promocional
+
+- **Locución regenerada por completo** (`docs/assets/video/novagest-promo-720p.mp4`): voz en **español neutro de Latinoamérica**, sin acento inglés y con dicción fluida en las ocho escenas; se mantiene el texto de la narración para que los subtítulos sigan coincidiendo palabra por palabra. Duración **2:39** (158,7 s), 1280 × 720, H.264 High `yuv420p` 25 fps, AAC-LC 44,1 kHz estéreo, `+faststart`, 10,8 MB.
+- **Subtítulos y pista de voz actualizados**: `novagest-promo-720p.srt` con los tiempos nuevos y `novagest-promo-narracion.mp3` (192 kbps) regenerados desde la misma mezcla.
+- **`tools/serve_docs.py`**: servidor estático mínimo con soporte de `Range`, para revisar el sitio y el video en local (permite avanzar y retroceder dentro del MP4).
+- **Timecodes y duración alineados** en `docs/PROPUESTA_VIDEO_PROMOCIONAL.md` (guion escena por escena, tabla técnica y plan de distribución), `README.md`, `docs/MANUAL_USUARIO.md` (HTML regenerado) y el sitio `docs/index.html`.
+
 ## NovaGest v1.0.0 · revisión 2026-10-24 (XII) · Una sola descripción en todos los canales
 
 - **`docs/DESCRIPCION.md`**: fuente única del mensaje del producto —lema, descripción corta (142 caracteres), descripción media (319), párrafo de portada, tres propuestas de valor, público, **vocabulario** (multialmacén, no «multi-almacén»; cuadre diario; licencia de uso, no «suscripción») y tabla de **en qué archivo vive cada texto**.
