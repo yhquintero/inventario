@@ -226,8 +226,8 @@ fun AppShell(
             // Ya las aplicó este Scaffold y, sin esto, dejaban una franja vacía arriba.
             Column(Modifier.padding(padding).consumeWindowInsets(padding)) {
                 // Aviso persistente: un snackbar desaparece y el usuario sigue sin guardar.
-                if (sync.offline && syncVm.sync.server().isNotBlank()) {
-                    OfflineBanner(onRetry = { syncVm.sync.syncNow() })
+                if ((sync.offline || sync.pending > 0) && syncVm.sync.server().isNotBlank()) {
+                    OfflineBanner(sync.pending, sync.retryIn, onRetry = { syncVm.sync.syncNow() })
                 }
                 NavHost(
                     nav,
@@ -257,7 +257,7 @@ fun AppShell(
 
 /** Franja de «sin conexión» con reintento manual, visible mientras la última llamada falle. */
 @Composable
-private fun OfflineBanner(onRetry: () -> Unit) {
+private fun OfflineBanner(pending: Int = 0, retryIn: Long = 0, onRetry: () -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer
@@ -267,7 +267,11 @@ private fun OfflineBanner(onRetry: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Sin conexión con el servidor",
+                when {
+                    pending > 0 && retryIn > 0 -> "$pending cambio(s) sin subir · reintento en $retryIn s"
+                    pending > 0 -> "$pending cambio(s) sin subir: se reintentará solo"
+                    else -> "Sin conexión con el servidor"
+                },
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodySmall
             )

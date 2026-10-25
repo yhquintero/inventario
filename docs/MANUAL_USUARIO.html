@@ -3038,7 +3038,7 @@ desde la Web.</p>
 <tbody>
 <tr>
 <td>Otra persona guardó antes (el servidor responde con conflicto)</td>
-<td><strong>Recarga los datos del servidor</strong> y avisa: sus cambios locales que no llegaron se descartan para no corromper el estado</td>
+<td><strong>Vuelve a aplicar los cambios del teléfono sobre la versión del servidor</strong>: en cada registro gana la edición más reciente (<code>updatedAt</code>). No se pierde su trabajo y se avisa «Conflicto resuelto»</td>
 </tr>
 <tr>
 <td>El día está cerrado</td>
@@ -3051,6 +3051,10 @@ desde la Web.</p>
 <tr>
 <td>Sin licencia válida (respuesta 402)</td>
 <td>Bloquea la operación y remite a la pantalla de licencia</td>
+</tr>
+<tr>
+<td>Se cae la red a mitad de una subida</td>
+<td>Los cambios se quedan en el teléfono y la app <strong>reintenta sola</strong>: 5 s, 15 s, 1 min, 5 min y 15 min (hasta 12 intentos). La franja superior dice cuántos cambios faltan y cuánto queda para el próximo intento</td>
 </tr>
 </tbody>
 </table>

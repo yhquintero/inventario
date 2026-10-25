@@ -1702,10 +1702,11 @@ configurado) o queda en el teléfono.
 
 | Situación | Qué hace la app |
 |---|---|
-| Otra persona guardó antes (el servidor responde con conflicto) | **Recarga los datos del servidor** y avisa: sus cambios locales que no llegaron se descartan para no corromper el estado |
+| Otra persona guardó antes (el servidor responde con conflicto) | **Vuelve a aplicar los cambios del teléfono sobre la versión del servidor**: en cada registro gana la edición más reciente (`updatedAt`). No se pierde su trabajo y se avisa «Conflicto resuelto» |
 | El día está cerrado | Rechaza el cambio y recarga los datos del servidor |
 | Sin permiso para esa sección | Rechaza la operación |
 | Sin licencia válida (respuesta 402) | Bloquea la operación y remite a la pantalla de licencia |
+| Se cae la red a mitad de una subida | Los cambios se quedan en el teléfono y la app **reintenta sola**: 5 s, 15 s, 1 min, 5 min y 15 min (hasta 12 intentos). La franja superior dice cuántos cambios faltan y cuánto queda para el próximo intento |
 
 > [!TIP]
 > Para evitar conflictos: **sincronice antes de empezar** un bloque de trabajo y **no edite

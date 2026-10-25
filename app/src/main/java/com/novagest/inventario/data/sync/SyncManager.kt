@@ -56,7 +56,11 @@ data class SyncStatus(
     val message: String? = null,
     val closedDays: Set<String> = emptySet(),
     /** true cuando la última llamada al servidor falló por red: la interfaz muestra el aviso. */
-    val offline: Boolean = false
+    val offline: Boolean = false,
+    /** Reintentos automáticos ya hechos por cambios que no se pudieron subir (0 = nada pendiente). */
+    val pending: Int = 0,
+    /** Espera estimada, en segundos, hasta el próximo reintento automático. */
+    val retryIn: Long = 0
 )
 
 /**
@@ -85,9 +89,16 @@ class SyncManager @Inject constructor(
     private var jobs: List<Job> = emptyList()
     @Volatile private var applying = false
     @Volatile private var lastLocalSig = ""
+    /** true cuando la última subida chocó con otro usuario (409): hay que resolver el conflicto. */
+    @Volatile private var conflict = false
 
     private val _status = MutableStateFlow(
-        SyncStatus(connected = token() != null, server = server(), user = prefs.getString("user", "") ?: "", role = prefs.getString("role", "") ?: "")
+        SyncStatus(
+            connected = token() != null, server = server(),
+            user = prefs.getString("user", "") ?: "", role = prefs.getString("role", "") ?: "",
+            // Si la sesión anterior terminó con cambios sin subir, el aviso sigue ahí al abrir.
+            pending = prefs.getInt("retry_attempts", 0)
+        )
     )
     val status: StateFlow<SyncStatus> = _status
 
@@ -208,7 +219,16 @@ class SyncManager @Inject constructor(
                 }
             }
         }
-        jobs = listOf(watcher, poller)
+        // Reintentos de la cola: si una subida falló (sin red o conflicto), se vuelve a intentar
+        // con espera creciente, sin que el usuario tenga que pulsar nada.
+        val retries = scope.launch {
+            while (isActive) {
+                delay(10_000)
+                refreshRetryStatus()
+                if (retryDue() && isConnected()) push()
+            }
+        }
+        jobs = listOf(watcher, poller, retries)
     }
 
     fun stop() { jobs.forEach { it.cancel() }; jobs = emptyList() }
@@ -218,6 +238,45 @@ class SyncManager @Inject constructor(
     private suspend fun flushIfDirty(): Boolean {
         if (!isConnected() || !stateFile.exists()) return false
         return if (localSig() != lastLocalSig) { push(); true } else false
+    }
+
+    // ------------------------------------------- cola de pendientes y reintentos (A-01)
+    private fun attempts(): Int = prefs.getInt("retry_attempts", 0)
+
+    /** Guarda el intento fallido y programa el siguiente con espera creciente ([RetryPolicy]). */
+    private fun scheduleRetry(error: String) {
+        val n = attempts() + 1
+        val at = RetryPolicy.nextAttemptAt(System.currentTimeMillis(), n)
+        prefs.edit().putInt("retry_attempts", n).putLong("retry_at", at).putString("retry_error", error).apply()
+        val seconds = ((at - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+        _status.value = _status.value.copy(
+            busy = false, pending = n, retryIn = seconds,
+            message = if (RetryPolicy.shouldGiveUp(n)) {
+                "No se pudo guardar: $error. Los cambios siguen guardados en el teléfono."
+            } else {
+                "Sin conexión: intento $n. Reintento en $seconds s."
+            }
+        )
+    }
+
+    /** Todo volvió a subir: se limpia el estado de reintentos. */
+    private fun clearRetry() {
+        if (attempts() == 0) return
+        prefs.edit().putInt("retry_attempts", 0).remove("retry_at").remove("retry_error").apply()
+        _status.value = _status.value.copy(pending = 0, retryIn = 0)
+    }
+
+    /** ¿Toca reintentar ya? (y todavía quedan intentos automáticos) */
+    private fun retryDue(): Boolean =
+        attempts() > 0 && !RetryPolicy.shouldGiveUp(attempts()) && System.currentTimeMillis() >= prefs.getLong("retry_at", 0L)
+
+    /** Refresca la cuenta atrás que ve el usuario. */
+    private fun refreshRetryStatus() {
+        val n = attempts()
+        val seconds = ((prefs.getLong("retry_at", 0L) - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+        if (n != _status.value.pending || seconds != _status.value.retryIn) {
+            _status.value = _status.value.copy(pending = n, retryIn = seconds)
+        }
     }
 
     // ------------------------------------------------------------------ cierre del día e historial
@@ -502,8 +561,39 @@ class SyncManager @Inject constructor(
     private fun isDeleted(o: JSONObject) = o.has("deletedAt") && !o.isNull("deletedAt")
 
     suspend fun push() {
+        conflict = false
         val reload = pushLocked()
+        // 409: otro usuario guardó antes. Antes se descartaban los cambios locales; ahora se
+        // resuelve por updatedAt y se reintenta una vez (ver resolveConflict).
+        if (conflict) { resolveConflict(); return }
         if (reload != null) { pull(force = true); _status.value = _status.value.copy(message = reload) }
+    }
+
+    /**
+     * Resuelve un 409 sin perder trabajo.
+     *
+     * Descarga la versión del servidor, la toma como base y vuelve a aplicar los cambios de Room
+     * encima: en cada registro gana el `updatedAt` más reciente (el servidor también actualiza su
+     * `updatedAt` al guardar). Si el reintento no pasa, queda programado con espera creciente.
+     */
+    private suspend fun resolveConflict() {
+        val fresh = call("/state")
+        if (!fresh.ok) { scheduleRetry(fresh.error); return }
+        val remote = fresh.body.optJSONObject("state")
+        if (remote == null) { scheduleRetry("respuesta del servidor incompleta"); return }
+        conflict = false
+        stateFile.writeText(remote.toString())
+        prefs.edit().putInt("version", fresh.body.optInt("version")).apply()
+        lastLocalSig = "" // obliga a volver a aplicar todos los cambios de Room
+        val again = pushLocked()
+        if (again == null && !conflict) {
+            clearRetry()
+            _status.value = _status.value.copy(message = "Conflicto resuelto: se conservaron los cambios más recientes ✔")
+            pull(force = true)
+        } else {
+            // No se descarta nada: los cambios siguen en Room y se reintentan más tarde.
+            scheduleRetry("otro usuario guardó antes")
+        }
     }
 
     /** Devuelve un mensaje si hay que recargar desde el servidor. */
@@ -522,6 +612,7 @@ class SyncManager @Inject constructor(
         val history = state.optJSONArray("priceHistory") ?: JSONArray().also { state.put("priceHistory", it) }
         val localProducts = db.products().all()
         var restored = false
+        var keptFromServer = 0
         val remoteOfLocal = HashMap<Long, String>()
         for (p in localProducts) {
             val o = p.remoteId?.let { pById[it] }
@@ -535,6 +626,9 @@ class SyncManager @Inject constructor(
                 continue
             }
             remoteOfLocal[p.id] = p.remoteId!!
+            // Conflicto por registro (A-01): si el servidor tiene una versión más reciente,
+            // se respeta y no se pisa lo que otro usuario acaba de cambiar.
+            if (o.num("updatedAt") > p.updatedAt) { keptFromServer += p.name; continue }
             if (!p.active && !isDeleted(o)) {
                 o.put("deletedAt", now).put("deletedBy", "$who (App)")
                 for (m in (state.optJSONArray("movements")).objects()) if (m.str("productId") == p.remoteId && !isDeleted(m)) m.put("deletedAt", now).put("deletedWith", p.remoteId)
@@ -650,12 +744,19 @@ class SyncManager @Inject constructor(
                 stateFile.writeText(state.toString())
                 prefs.edit().putInt("version", r.body.optInt("version")).apply()
                 lastLocalSig = localSig()
+                clearRetry()
                 _status.value = _status.value.copy(busy = false, version = r.body.optInt("version"), lastSync = now, message = "Guardado en el servidor ✔")
-                if (restored) "Producto restaurado con sus movimientos" else null
+                when {
+                    restored -> "Producto restaurado con sus movimientos"
+                    keptFromServer > 0 -> "Se conservó la versión más reciente del servidor en $keptFromServer producto(s)."
+                    else -> null
+                }
             }
             r.code == 401 -> { expired("La sesión del servidor caducó. Vuelve a entrar."); null }
-            r.code == 0 -> { _status.value = _status.value.copy(busy = false, message = "Sin conexión: se reintentará."); null }
-            // 409 conflicto · 403 permiso del rol · 423 día cerrado → se descartan los cambios locales y se recarga
+            r.code == 0 -> { scheduleRetry(r.error); null }
+            // 409 = otro usuario guardó antes → se resuelve por updatedAt (push() llama a resolveConflict)
+            r.code == 409 -> { conflict = true; _status.value = _status.value.copy(busy = false); r.error }
+            // 403 permiso del rol · 423 día cerrado → se recarga desde el servidor
             else -> { _status.value = _status.value.copy(busy = false); r.error }
         }
     }
