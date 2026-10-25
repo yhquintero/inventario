@@ -1,5 +1,13 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXV) · Salud del servidor y guía del mostrador (S-09 · D-10)
+
+- **S-09 · `/api/health` con métricas.** La comprobación pública del servidor devuelve ahora un bloque **`salud`**: estado (**ok** / **aviso**), avisos (`licencia`, `sin-copias`, `copias-viejas`), tiempo en marcha, **latencia** medida contra SQLite, **tamaño de la base**, copias de seguridad (total, última y horas desde la última), días cerrados y sesiones activas. No expone ningún dato de personas ni el contenido de la base.
+- **Prueba nueva `tools/test_salud_servidor.py`** (25 comprobaciones): arranca un servidor temporal y verifica el contrato de `/api/health`, los avisos y que no se filtre nada sensible. Añadida al CI.
+- **D-10 · Guía de dos páginas para el mostrador.** `docs/GUIA_MOSTRADOR.html` (+ su fuente `GUIA_MOSTRADOR.md`): hoja imprimible en **A4 y dos páginas** con los ocho bloques del turno (antes de abrir, vender, fiar, imprimir y verificar el ticket, cuadrar, qué mirar cada mañana, Android y qué hacer si algo va mal), casillas para marcar y tabla de problemas frecuentes. Autocontenida, sin recursos externos.
+- **Prueba nueva `tools/test_guia_mostrador.py`** (25 comprobaciones): estructura HTML, papel A4, corte de página, contenido de los ocho bloques y enlace al manual. Añadida al CI.
+- **Manual**: aviso con la guía al principio de la sección 6; `docs/MEJORAS_PROPUESTAS.md` con S-09 y D-10 en ✅.
+
 ## NovaGest v1.0.0 · revisión 2026-10-25 (XXIV) · Ticket verificable y reimpresión en Android (W-16 · A-15)
 
 - **W-16 · El ticket se puede verificar.** Cada ticket lleva al pie un **QR** y un **código corto** (`ABC-DEF`) calculado con el identificador de la venta, la fecha, el total, el número de líneas y una **clave del negocio** que se crea sola y viaja con los datos. Pantalla nueva **Verificar ticket** (Menú → Sistema): se escribe el código o se pega el texto del QR y responde **auténtico**, **no consta**, **no coincide** o **anulada**, con acceso directo a la venta en Movimientos.

@@ -45,6 +45,7 @@ import com.novagest.inventario.util.Dates
 import com.novagest.inventario.util.Money
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
@@ -71,8 +72,10 @@ class HomeViewModel @Inject constructor(
             printMessage = "Todavía no se ha impreso ningún ticket en este teléfono."
             return
         }
-        printMessage = printer.print(printer.savedAddress, EscPos.build(ticket))
-            ?: "🖨 Ticket reenviado a la impresora (${ticket.width.label})"
+        viewModelScope.launch {
+            printMessage = printer.print(printer.savedAddress, EscPos.build(ticket))
+                ?: "🖨 Ticket reenviado a la impresora (${ticket.width.label})"
+        }
     }
 
     val products = products.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

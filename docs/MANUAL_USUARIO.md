@@ -808,6 +808,12 @@ hoja con numeración para contar y anotar diferencias.
 
 ---
 
+> [!TIP]
+> **¿Busca algo para colgar junto a la caja?** La
+> [Guía rápida del mostrador](GUIA_MOSTRADOR.html) resume en **dos páginas A4** lo imprescindible:
+> vender, fiar, imprimir y verificar el ticket, y cuadrar el día. Se imprime con
+> **Ctrl + P** y es el mejor punto de partida para el personal nuevo.
+
 # 6. Venta rápida (punto de venta)
 
 Es la pantalla que más se usa en el día. Está diseñada para vender en segundos: escanear,

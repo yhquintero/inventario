@@ -99,16 +99,16 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 | A-15 | ✅ **Reimprimir el último ticket** desde Inicio y desde el historial de ventas | Se gasta papel o se estropea el ticket | `ui/pos`, `ui/movements` | 🟠 | ⏱️ |
 | A-16 | **Prueba de instrumentación del flujo de venta + impresión simulada** | La lógica ESC/POS está probada; falta la pantalla real | `androidTest/` | 🟠 | ⏳ |
 | A-17 | ✅ **Aviso de cambios sin subir** con insignia, contador y acción «Sincronizar ahora» | Que nadie cierre la app con ventas pendientes | `ui/`, `SyncManager` | 🟠 | ⏱️ |
-| S-09 | **`/health` con métricas** (latencia, tamaño de la base, copias, días cerrados) para el Panel de Control | Prevenir antes de que falle | `server/` | 🟠 | ⏱️ |
+| S-09 | ✅ **`/health` con métricas** (latencia, tamaño de la base, copias, días cerrados, sesiones) y avisos | Prevenir antes de que falle | `server/` | 🟠 | ⏱️ |
 | S-10 | **Auditoría de impresiones**: quién imprimió qué ticket y cuándo | Trazabilidad de documentos | `server/`, `app.js` | 🟢 | ⏱️ |
 | S-11 | **Compresión gzip de `/state` y límite de tamaño por petición** | Servidores modestos, respuestas grandes | `server/` | 🟠 | ⏱️ |
-| D-10 | **Guía de dos páginas para el mostrador** (imprimible): vender, fiar, imprimir ticket, cuadrar | El personal nuevo arranca sin formación | `docs/` | 🟠 | ⏱️ |
+| D-10 | ✅ **Guía de dos páginas para el mostrador** (imprimible en A4): vender, fiar, imprimir, verificar y cuadrar | El personal nuevo arranca sin formación | `docs/` | 🟠 | ⏱️ |
 | D-11 | **Vídeo vertical de 30 s para WhatsApp** con la venta y el ticket | Es el canal real de los clientes | `docs/assets/video/` | 🟢 | ⏳ |
 | D-12 | **Página de novedades en el sitio**, generada desde `CHANGELOG.md` | El cliente ve que el producto avanza | `docs/index.html` | 🟢 | ⏱️ |
 
-**Orden que propongo:** ~~W-15~~ → ~~A-17~~ → ~~W-16~~ → ~~A-15~~ → S-09 → D-10 → W-12 (cada uno con su
-prueba y su entrada en el `CHANGELOG`). Entregados: **W-15, A-17, A-14** (revisión XXIII) y
-**W-16, A-15** (revisión XXIV).
+**Orden que propongo:** ~~W-15~~ → ~~A-17~~ → ~~W-16~~ → ~~A-15~~ → ~~S-09~~ → ~~D-10~~ → W-12 (cada uno
+con su prueba y su entrada en el `CHANGELOG`). Entregados: **W-15, A-17, A-14** (revisión XXIII),
+**W-16, A-15** (revisión XXIV) y **S-09, D-10** (revisión XXV).
 
 ## Cómo se supervisa
 

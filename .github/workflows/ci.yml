@@ -56,9 +56,11 @@ jobs:
           bash tools/ci_paso.sh python3 -m py_compile server/novagest_server.py tools/license_studio.py
           bash tools/ci_paso.sh python3 -m pip install -r requirements.txt
           bash tools/ci_paso.sh python3 tools/test_sitio.py
+          bash tools/ci_paso.sh python3 tools/test_guia_mostrador.py
           bash tools/ci_paso.sh python3 tools/test_licencia.py
           bash tools/ci_paso.sh python3 tools/test_generador.py
           bash tools/ci_paso.sh python3 tools/test_seguridad_servidor.py
+          bash tools/ci_paso.sh python3 tools/test_salud_servidor.py
           bash tools/ci_paso.sh python3 tools/test_restauracion.py
           bash tools/ci_paso.sh python3 tools/test_carga.py --n 12
       - name: Inventario de pendientes no inventados (informativo)
