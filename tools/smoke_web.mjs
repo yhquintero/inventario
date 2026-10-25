@@ -810,7 +810,15 @@ test("El service worker cachea todos los módulos JS para el modo sin conexión"
   for (const f of readdirSync(join(root, "web/js")).filter((x) => x.endsWith(".js"))) {
     assert.match(sw, new RegExp("\\./js/" + f.replace(/\./g, "\\.")), `falta ./js/${f} en el SHELL del service worker`);
   }
-  assert.match(sw, /\.\/vendor\/xlsx\.full\.min\.js/, "el lector de Excel debe cachease para importar sin conexión");
+  // El lector de Excel (861 KB) ya no va en el precache: se descarga la primera vez que se
+  // importa un libro y el service worker lo guarda al usarse. Sin conexión esa primera vez,
+  // la app lo explica en lugar de fallar en silencio.
+  const shell = sw.slice(sw.indexOf("const SHELL"), sw.indexOf("self.addEventListener"));
+  assert.doesNotMatch(shell, /xlsx\.full\.min\.js/, "el lector de Excel no debe precargarse en el SHELL");
+  assert.match(sw, /se cachea al usarse por primera vez/, "el service worker debe cachear lo que no está en el shell al usarse");
+  const app = readFileSync(join(root, "web/js/app.js"), "utf8");
+  assert.match(app, /vendor\/xlsx\.full\.min\.js/, "app.js debe cargar el lector de Excel bajo demanda");
+  assert.match(app, /Conéctate una vez/, "sin conexión, la app debe explicar cómo guardar el lector de Excel");
   assert.match(sw, /destination === "image"/, "las imágenes se cachean la primera vez que se usan");
 });
 
