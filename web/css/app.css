@@ -220,6 +220,18 @@ tr.muted td { opacity: .55; }
 .dashboard-bar { fill: var(--primary); opacity: .88; }
 .dashboard-bar.negative { fill: var(--danger); }
 .dashboard-chart-note { margin: 4px 0 14px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+/* W-01 · comparador de períodos: la serie anterior va punteada y sin robar protagonismo */
+.dashboard-prev-line { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 6 5; stroke-linecap: round; opacity: .8; vector-effect: non-scaling-stroke; }
+.dashboard-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin: 6px 0 2px; font-size: 12px; color: var(--muted); }
+.dashboard-legend-item { display: inline-flex; align-items: center; gap: .45rem; }
+.dashboard-legend-item i { width: 22px; height: 0; border-top: 3px solid var(--primary); border-radius: 2px; }
+.dashboard-legend-item i.lg-prev { border-top: 2px dashed var(--muted); }
+.dashboard-compare { display: inline-flex; align-items: center; gap: .4rem; font-size: 12px; color: var(--muted); }
+.dashboard-compare input { accent-color: var(--primary); }
+@media (forced-colors: active) {
+  .dashboard-prev-line { stroke: GrayText; }
+  .dashboard-legend-item i.lg-prev { border-top-color: GrayText; }
+}
 .dashboard-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
 .dashboard-summary-tile { display: flex; min-width: 0; flex-direction: column; gap: 5px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
 .dashboard-summary-tile > span { color: var(--muted); font-size: 9.5px; font-weight: 800; letter-spacing: .07em; }

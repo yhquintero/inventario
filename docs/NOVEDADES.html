@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 26 revisiones</title>
+<title>Novedades de NovaGest · 28 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 26 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 28 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,28 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>26</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>28</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXIX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Comparador de períodos en el Panel (W-17)</h2>
+      <ul>
+      <li><b>W-17 · El gráfico del Panel se compara con el período anterior.</b> Un interruptor en la</li>
+      <li><b>Escala compartida</b>: el eje se calcula con las dos series, de modo que la comparación es</li>
+      <li><b>Leyenda, texto accesible y tabla</b>: la leyenda identifica cada línea, la descripción del</li>
+      <li><b>La elección se recuerda</b> en el navegador (<code>novagest.dashboardCompare</code>), así que quien</li>
+      <li>Estilos nuevos en <code>app.css</code> (<code>.dashboard-prev-line</code>, <code>.dashboard-legend</code>, <code>.dashboard-compare</code>)</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXVIII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Vídeo con la locución definitiva (C-01)</h2>
+      <ul>
+      <li><b>Locución rehecha con la voz elegida.</b> Las ocho escenas se grabaron otra vez con una</li>
+      <li><b>Vídeo recompuesto:</b> <code>docs/assets/video/novagest-promo-720p.mp4</code>, <b>2:26</b> (147,0 s),</li>
+      <li><b>Pista de narración</b> actualizada (<code>novagest-promo-narracion.mp3</code>, 128 kbps), para oírla</li>
+      <li><b>Duraciones y tiempos al día</b> en README, sitio del proyecto, manual y</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXVII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
       <h2>Servidor comprimido, impresiones auditadas y salud del sistema (S-11 · S-10 · S-05)</h2>
@@ -186,29 +207,7 @@
       <li><b>CHANGELOG</b> y <code>docs/MEJORAS_PROPUESTAS.md</code>: W-11 marcada como hecha.</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XVII</span><time datetime="2026-10-24">24 de octubre de 2026</time></div>
-      <h2>La Web no pierde trabajo sin conexión (W-02)</h2>
-      <ul>
-      <li><b>Cola de cambios en el navegador</b>: si se cae la red, el estado se guarda en <code>localStorage</code> (<code>novagest.pending</code>) y se sube al reconectar. Si la pestaña se cierra antes, la app <b>los recupera al volver a entrar</b> y avisa cuántos eran. También se guardan al cerrar la pestaña con cambios pendientes.</li>
-      <li><b>Conflictos resueltos por <code>updatedAt</code></b> (antes se recargaba y se descartaba lo local): al recibir <b>409</b>, la Web descarga la versión del servidor, <b>fusiona registro a registro</b> quedándose con la edición más reciente de cada uno, vuelve a guardar y avisa «Conflicto resuelto». Un borrado nunca pisa un cambio posterior.</li>
-      <li><b>Módulo nuevo <code>web/js/merge.js</code></b> (funciones puras, sin DOM ni red): <code>recordTime</code>, <code>localWins</code>, <code>mergeCollection</code>, <code>mergeState</code>, <code>describe</code>, <code>readPending</code>/<code>writePending</code>/<code>clearPending</code>. Probado en <code>tools/test_merge.mjs</code> (<b>12 pruebas</b>, <b>98 % de cobertura</b>) y añadido a <code>tools/cobertura.mjs</code> y al CI.</li>
-      <li><b>Service worker v18</b> con el módulo en el precache.</li>
-      <li><b>W-13 · CSV del mapa de calor</b>: botón <b>CSV</b> en el recuadro de Análisis que descarga una fila por día (fecha, día, ventas, unidades, líneas) con <code>;</code> y coma decimal para que Excel en español lo abra en columnas. Probado en <code>tools/test_charts.mjs</code> (11 pruebas).</li>
-      <li><b>Manual</b> §17.1, §17.4 y nota de conflictos actualizados (Web y Android fusionan igual); HTML regenerado.</li>
-      <li><b>Sitio del proyecto publicado en <code>docs/index.html</code></b> (GitHub Pages): portada con el resumen del producto, funciones, capturas reales, instalación en tres pasos, tabla de roles y enlaces al manual, al vídeo y al repositorio. Todo el estilo va incrustado, sin CDN ni fuentes externas, con modo oscuro automático, enlace «saltar al contenido» y textos alternativos.</li>
-      <li><b>Prueba nueva <code>tools/test_sitio.py</code></b> (31 comprobaciones): HTML bien formado, un solo <code>h1</code>, metadatos y descripción de buscadores, cero recursos externos, todos los recursos relativos existentes, imágenes con <code>alt</code> y tamaño, y publicación sin Jekyll (<code>docs/.nojekyll</code>). Enganchada al CI.</li>
-      <li><b>README</b>: enlace al sitio del proyecto, al manual y al vídeo en la cabecera.</li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="rev"><span class="n">XVI</span><time datetime="2026-10-24">24 de octubre de 2026</time></div>
-      <h2>Segunda ola de mejoras propuestas</h2>
-      <ul>
-      <li><b><code>docs/MEJORAS_PROPUESTAS.md</code></b>: resumen de avance al principio (paso 1, W-01 y A-01 en ✅, con el orden sugerido para seguir) y una <b>segunda ola de 14 propuestas</b> nacidas de lo ya construido: comparador de períodos y reposición sugerida en Análisis, hoja imprimible y exportación del mapa de calor, sincronización incremental, recibo con QR, widget de inicio, prueba de instrumentación de la cola, API por diferencias, panel de salud, instalador de Windows, manual en inglés y guía de migración desde Excel.</li>
-      </ul>
-    </article>
-<p class="older">Y 14 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 16 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

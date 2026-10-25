@@ -49,7 +49,7 @@ El manual está pensado para tres formas de lectura:
 
 ### Video de presentación
 
-El manual va acompañado de un **video de 2:37 min** (`docs/assets/video/novagest-promo-720p.mp4`,
+El manual va acompañado de un **video de 2:26 min** (`docs/assets/video/novagest-promo-720p.mp4`,
 720p, con narración y subtítulos) que resume los seis pasos esenciales para trabajar con las dos
 apps: activar la licencia, configurar el negocio, cargar la mercancía, vender, cuadrar la caja y
 revisar los resultados. El guion y el plan de producción están en
@@ -1409,6 +1409,26 @@ a la pregunta que el stock mínimo no contesta: **«¿cuánto me dura y cuánto 
 > Si el negocio vende por temporadas, mire la tarjeta después de una semana floja antes de
 > comprar de más: la sugerencia sigue el ritmo real de los últimos 30 días, no un promedio anual.
 
+### Comparar con el período anterior
+
+En la tarjeta **Evolución** del Panel, marque **Comparar con el período anterior**. El gráfico
+dibuja una **línea gris punteada** con lo que se vendió (o costó, o se ganó) en el **período
+inmediatamente anterior de la misma duración**:
+
+- Con **Últimos 7 días** compara con los 7 días de antes; con **4 semanas**, con las 4 anteriores;
+  con **12 semanas**, con las 12 anteriores.
+- Funciona con los tres tipos de gráfico y con los cinco indicadores.
+- La leyenda bajo el gráfico identifica cada línea y el texto del lector de pantalla resume la
+  comparación («Se compara con el período anterior, que sumó…»).
+- En **Ver datos del gráfico en tabla** aparece la columna **Ventas período anterior**, útil para
+  copiar a un informe.
+
+La elección se recuerda en el navegador: quien trabaja comparando períodos la deja activada.
+
+> [!TIP]
+> Use la comparación antes de sacar conclusiones de un mes flojo: a veces la caída es de todo
+> el comercio y no del negocio. La línea punteada lo dice en un segundo.
+
 ### Comparación con el mismo día de la semana
 
 Debajo de la cifra de **Venta del día** aparece una frase corta que compara el día que está
@@ -2302,7 +2322,7 @@ reconocer cada pantalla antes de usarla.
 
 ### Video de presentación (fotogramas)
 
-El video `assets/video/novagest-promo-720p.mp4` (2:37, 720p, narración y subtítulos) recorre
+El video `assets/video/novagest-promo-720p.mp4` (2:26, 720p, narración y subtítulos) recorre
 los seis pasos esenciales. Se puede ver desde el reproductor del sistema o desde cualquier
 navegador, y los subtítulos están también en `assets/video/novagest-promo-720p.srt`.
 

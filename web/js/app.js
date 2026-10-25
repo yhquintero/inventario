@@ -68,6 +68,7 @@ function restoreSidebarScroll(nav) {
 let ui = {
   route: "home", q: "", filter: "TODOS", cat: "TODAS", period: "semanal", reportDate: "", reportFrom: "", reportTo: "", reportWarehouse: null, modal: null, toast: null,
   dashboardRange: "7d", dashboardMetric: "sales", dashboardType: "line",
+  dashboardCompare: (() => { try { return localStorage.getItem("novagest.dashboardCompare") === "1"; } catch { return false; } })(),
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
   histTab: "precios",
   whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, pdfWarehouseId: null, iv: null,
@@ -754,15 +755,19 @@ function dashboardFormatValue(value, metricKey, compact = false) {
   }
   return metricKey === "lines" ? Math.round(Number(value)).toLocaleString("es-CU") : qty(value);
 }
-function dashboardChartMarkup(series, metricKey, chartType, rangeLabel) {
+function dashboardChartMarkup(series, metricKey, chartType, rangeLabel, previousSeries = null) {
   const metric = DASHBOARD_METRICS[metricKey] || DASHBOARD_METRICS.sales;
   const W = 900, H = 300, LEFT = 76, RIGHT = 22, TOP = 22, BOTTOM = 46;
   const plotWidth = W - LEFT - RIGHT;
   const plotHeight = H - TOP - BOTTOM;
   const values = series.map((point) => dashboardMetricValue(point, metricKey));
+  const prevValues = previousSeries && previousSeries.length === series.length
+    ? previousSeries.map((point) => dashboardMetricValue(point, metricKey))
+    : null;
   const finiteValues = values.filter((value) => value != null);
-  let low = Math.min(0, ...finiteValues);
-  let high = Math.max(0, ...finiteValues);
+  const allFinite = finiteValues.concat((prevValues || []).filter((value) => value != null));
+  let low = Math.min(0, ...allFinite);
+  let high = Math.max(0, ...allFinite);
   if (high === low) high = low + 1;
   const padding = (high - low) * 0.12;
   if (low < 0) low -= padding;
@@ -779,6 +784,11 @@ function dashboardChartMarkup(series, metricKey, chartType, rangeLabel) {
   const summary = finiteValues.length
     ? `${metric.label}, ${rangeName}. ${peak.point.label}: ${dashboardFormatValue(peak.value, metricKey)}.`
     : `No hay costos unitarios completos para mostrar ${metric.label.toLowerCase()} en ${rangeName}.`;
+  const prevTotal = prevValues ? prevValues.reduce((sum, value) => sum + (value || 0), 0) : null;
+  const compareNote = prevTotal == null
+    ? ""
+    : ` Se compara con el período anterior, que sumó ${dashboardFormatValue(prevTotal, metricKey)}.`;
+  const summaryFull = summary + compareNote;
   const grid = Array.from({ length: 5 }, (_, index) => {
     const value = high - (span * index) / 4;
     const gy = y(value);
@@ -814,19 +824,34 @@ function dashboardChartMarkup(series, metricKey, chartType, rangeLabel) {
     const dots = points.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="4.5" class="dashboard-dot"><title>${esc(series[point.index].label)}: ${esc(dashboardFormatValue(point.value, metricKey))}</title></circle>`).join("");
     return `<polyline points="${polyline}" class="dashboard-line"/>${dots}`;
   }).join("");
+  const prevLine = prevValues ? (() => {
+    const chunks = [];
+    let run = [];
+    prevValues.forEach((value, index) => {
+      if (value == null) { if (run.length) chunks.push(run); run = []; }
+      else run.push({ x: chartType === "bars" ? LEFT + (plotWidth / series.length) * (index + 0.5) : x(index), y: y(value) });
+    });
+    if (run.length) chunks.push(run);
+    return chunks.map((points) => `<polyline points="${points.map((p) => `${p.x},${p.y}`).join(" ")}" class="dashboard-prev-line"><title>Período anterior</title></polyline>`).join("");
+  })() : "";
+  const legend = prevValues
+    ? `<div class="dashboard-legend"><span class="dashboard-legend-item"><i class="lg-current"></i>${esc(rangeName)}</span><span class="dashboard-legend-item"><i class="lg-prev"></i>Período anterior (misma duración)</span></div>`
+    : "";
   const labels = series.map((point, index) => {
     const labelX = chartType === "bars" ? LEFT + (plotWidth / series.length) * (index + 0.5) : x(index);
     const anchor = index === 0 ? "start" : index === series.length - 1 ? "end" : "middle";
     return `<text x="${labelX}" y="${H - 12}" text-anchor="${anchor}" class="dashboard-axis-label">${esc(point.label)}</text>`;
   }).join("");
-  const rangeRows = series.map((point) => {
+  const rangeRows = series.map((point, index) => {
     const period = point.from === point.to ? formatDate(point.from) : `${formatDate(point.from)} – ${formatDate(point.to)}`;
-    return `<tr><td>${period}</td><td class="mono">${usd(point.revenue)}</td><td class="mono">${usd(point.cost)}</td><td class="mono">${point.profit == null ? "—" : usd(point.profit)}</td><td class="mono">${qty(point.units)}</td><td class="mono">${point.lines.toLocaleString("es-CU")}</td></tr>`;
+    const prev = previousSeries && previousSeries[index] ? previousSeries[index] : null;
+    const prevCell = prev ? `<td class="mono">${usd(prev.revenue)}</td>` : "";
+    return `<tr><td>${period}</td><td class="mono">${usd(point.revenue)}</td>${prevCell}<td class="mono">${usd(point.cost)}</td><td class="mono">${point.profit == null ? "—" : usd(point.profit)}</td><td class="mono">${qty(point.units)}</td><td class="mono">${point.lines.toLocaleString("es-CU")}</td></tr>`;
   }).join("");
-  const table = `<details class="chart-data dashboard-data"><summary>Ver datos del gráfico en tabla</summary><div class="table-wrap"><table><thead><tr><th scope="col">Período</th><th scope="col">Ventas</th><th scope="col">Costos registrados</th><th scope="col">Ganancia bruta estimada</th><th scope="col">Unidades</th><th scope="col">Líneas de venta</th></tr></thead><tbody>${rangeRows}</tbody></table></div></details>`;
-  return `<svg viewBox="0 0 ${W} ${H}" class="dashboard-chart-svg" data-chart-type="${chartType}" role="img" aria-label="${esc(summary)}"><title>${esc(summary)}</title>
+  const table = `<details class="chart-data dashboard-data"><summary>Ver datos del gráfico en tabla</summary><div class="table-wrap"><table><thead><tr><th scope="col">Período</th><th scope="col">Ventas</th>${previousSeries ? '<th scope="col">Ventas período anterior</th>' : ""}<th scope="col">Costos registrados</th><th scope="col">Ganancia bruta estimada</th><th scope="col">Unidades</th><th scope="col">Líneas de venta</th></tr></thead><tbody>${rangeRows}</tbody></table></div></details>`;
+  return `${legend}<svg viewBox="0 0 ${W} ${H}" class="dashboard-chart-svg" data-chart-type="${chartType}" role="img" aria-label="${esc(summaryFull)}"><title>${esc(summaryFull)}</title>
     <defs><linearGradient id="dashboardAreaGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" class="dashboard-gradient-top"/><stop offset="100%" class="dashboard-gradient-bottom"/></linearGradient></defs>
-    ${grid}${area}${line}${labels}
+    ${grid}${area}${prevLine}${line}${labels}
   </svg><p class="dashboard-chart-note">Ventas = importe registrado. Los costos son los asociados a las ventas; la ganancia bruta estimada los resta y no incluye gastos operativos. Si faltan costos unitarios, la ganancia se muestra como no disponible.</p>${table}`;
 }
 function dashboardCategoryChartMarkup(rows, rangeLabel) {
@@ -865,8 +890,9 @@ function dashboardAnalytics(anchor) {
   const previousFrom = addDays(from, -range.days);
   const previousTo = addDays(to, -range.days);
   const previous = dashboardAggregate(previousFrom, previousTo, movements);
+  const previousSeries = buildDashboardSeries(addDays(anchor, -range.days), rangeKey, movements);
   const categories = dashboardCategorySales(from, to, movements);
-  return { rangeKey, range, metricKey, chartType, series, from, to, totals, previous, categories };
+  return { rangeKey, range, metricKey, chartType, series, previousSeries, from, to, totals, previous, categories };
 }
 function dashboardSummaryMarkup(report) {
   const { totals, previous } = report;
@@ -985,9 +1011,10 @@ function homeView() {
           <label class="dashboard-control"><span>Período</span><select id="dashboardRange" aria-label="Período del gráfico"><option value="7d" ${report.rangeKey === "7d" ? "selected" : ""}>Últimos 7 días</option><option value="4w" ${report.rangeKey === "4w" ? "selected" : ""}>4 semanas</option><option value="12w" ${report.rangeKey === "12w" ? "selected" : ""}>12 semanas</option></select></label>
           <label class="dashboard-control"><span>Indicador</span><select id="dashboardMetric" aria-label="Indicador del gráfico"><option value="sales" ${report.metricKey === "sales" ? "selected" : ""}>Ventas (USD)</option><option value="costs" ${report.metricKey === "costs" ? "selected" : ""}>Costos registrados</option><option value="profit" ${report.metricKey === "profit" ? "selected" : ""}>Ganancia bruta estimada</option><option value="units" ${report.metricKey === "units" ? "selected" : ""}>Unidades vendidas</option><option value="lines" ${report.metricKey === "lines" ? "selected" : ""}>Líneas de venta</option></select></label>
           <label class="dashboard-control"><span>Tipo</span><select id="dashboardType" aria-label="Tipo de gráfico"><option value="line" ${report.chartType === "line" ? "selected" : ""}>Línea</option><option value="area" ${report.chartType === "area" ? "selected" : ""}>Área</option><option value="bars" ${report.chartType === "bars" ? "selected" : ""}>Barras</option></select></label>
+          <label class="dashboard-control dashboard-compare"><input type="checkbox" id="dashboardCompare" ${ui.dashboardCompare ? "checked" : ""}> <span>Comparar con el período anterior</span></label>
         </div>
       </div>
-      ${dashboardChartMarkup(report.series, report.metricKey, report.chartType, report.range.label)}
+      ${dashboardChartMarkup(report.series, report.metricKey, report.chartType, report.range.label, ui.dashboardCompare ? report.previousSeries : null)}
       ${dashboardSummaryMarkup(report)}
     </section>
     <div class="grid-2 mt16 dashboard-lower-grid">
@@ -3578,6 +3605,11 @@ function bindApp() {
   $("#dashboardRange")?.addEventListener("change", (e) => { ui.dashboardRange = e.target.value; render(); });
   $("#dashboardMetric")?.addEventListener("change", (e) => { ui.dashboardMetric = e.target.value; render(); });
   $("#dashboardType")?.addEventListener("change", (e) => { ui.dashboardType = e.target.value; render(); });
+  $("#dashboardCompare")?.addEventListener("change", (e) => {
+    ui.dashboardCompare = !!e.target.checked;
+    try { localStorage.setItem("novagest.dashboardCompare", ui.dashboardCompare ? "1" : "0"); } catch {}
+    render();
+  });
   // Editor de Ficha de Costo (en línea): guardar, autocompletar costo y foco.
   $("#fichaForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
