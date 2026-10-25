@@ -590,9 +590,9 @@ function loginView() {
   return `
     <div class="login-wrap">
       <div class="login-hero">
-        <div class="eyebrow">Plataforma todo-en-uno para negocios</div>
+        <div class="eyebrow">Gestión comercial · Web y Android</div>
         <h1>Gestiona. Crece.<br>Avanza.</h1>
-        <p><strong>Inventario, punto de venta, caja e informes</strong> de tu negocio en una sola aplicación: multi-almacén y sincronización entre Web y Android cuando hay conexión.</p>
+        <p><strong>Inventario, punto de venta, caja diaria y fiados</strong> de tu negocio en una sola aplicación: multialmacén, informes con análisis y los mismos datos en la Web y en Android.</p>
         <div class="hero-cats">${Object.values(CATEGORIES).filter((c) => c.img).slice(0, 6).map((c) => `<img src="./public/cat/${c.img}.jpg" alt="">`).join("")}</div>
         ${expiring ? `<div class="banner mt16">⚠ Licencia vence en ${ui.license.status.daysLeft} días (${LicenseManager.fmtDate(ui.license.status.expiresAt)}). Renueve pronto.</div>` : ""}
         <div class="card mt12"><div class="card-h"><span class="k">🔐 Licencia de uso</span><span class="tag entrada">${esc(ui.license.status.type)} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}</span></div>
@@ -1762,7 +1762,7 @@ function settingsView() {
     <div class="card mt14">
       <div class="card-h"><span class="k">Acerca de</span><span class="tag mov">Web v${APP_VERSION}</span></div>
       <p><b>NovaGest</b> — Gestiona. Crece. Avanza.<br>
-      <span class="hint">La plataforma todo-en-uno de tu negocio: inventario multi-almacén, punto de venta, caja diaria e informes con análisis. Funciona sin conexión, se instala como aplicación y sincroniza en tiempo real con el servidor y la app Android.</span></p>
+      <span class="hint">Sistema de gestión comercial para pequeños y medianos negocios: inventario multialmacén, punto de venta, caja diaria, clientes y fiados, e informes con análisis. Funciona sin conexión, se instala como aplicación y sincroniza con el servidor y la app Android.</span></p>
       <div class="hline"><span>🌐 Plataformas</span><b>Web · Android · Servidor</b></div>
       <div class="hline"><span>🔐 Acceso</span><b>Licencia firmada · roles y permisos</b></div>
       <div class="hline"><span>📊 Datos</span><b>Importación Excel con vista previa</b></div>

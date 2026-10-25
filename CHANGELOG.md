@@ -1,5 +1,13 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-24 (XII) · Una sola descripción en todos los canales
+
+- **`docs/DESCRIPCION.md`**: fuente única del mensaje del producto —lema, descripción corta (142 caracteres), descripción media (319), párrafo de portada, tres propuestas de valor, público, **vocabulario** (multialmacén, no «multi-almacén»; cuadre diario; licencia de uso, no «suscripción») y tabla de **en qué archivo vive cada texto**.
+- **La descripción se aplicó en todo el producto**: `web/manifest.webmanifest` y `web/index.html` (instalación como app y pestaña del navegador, ahora «Gestión comercial»), `docs/index.html` (meta y `og:description`), el **acceso Web** (se retiró «Plataforma todo-en-uno» y «multi-almacén») y el bloque **Acerca de** de `web/js/app.js`, más el subtítulo del acceso en Android (`Auth.kt`).
+- **Las siete traducciones del README** (`docs/readme/`) se alinearon con la versión en español: nueva cabecera de posicionamiento, insignia de CI, fila de **Keygen** en el ecosistema y sección de **roles y permisos** (10 áreas × 4 roles) en inglés, portugués, francés, italiano, alemán, ruso y chino simplificado.
+- **`docs/METADATOS_GITHUB.md`** usa ya los textos oficiales para el «About» del repositorio.
+- **`docs/MEJORAS_PROPUESTAS.md`**: lista de trabajo en tablas por pasos (descripción, Web, Android, servidor) con impacto, esfuerzo y columna de **estado** para supervisar cada entrega; enlazada desde `docs/ROADMAP.md` y el README.
+
 ## NovaGest v1.0.0 · revisión 2026-10-24 (XI) · Descripción del proyecto reescrita
 
 - **`README.md` nuevo, en tono profesional y con la información completa del proyecto**: cabecera centrada con logotipo, lema, insignias (CI, versión, plataformas, PWA, Python, Kotlin, SQLite, licencia) y navegación; **ficha del proyecto** en tabla (qué es, para quién, con qué está hecho, dónde corre, estado, modelo de licencia); **ecosistema** descrito pieza por pieza (Web PWA, Android, servidor, Keygen) con esquema ASCII; **funciones** agrupadas en operación diaria, análisis y control y administración y seguridad; capturas reales; requisitos; inicio rápido en seis pasos (servidor, licencia, Windows con HTTPS, Docker, Android, Keygen); **tabla de roles y permisos** de los cuatro roles; un día con NovaGest; importación de los libros Excel; informes y PDF; licencias de uso; seguridad; calidad y pruebas; estructura del proyecto y documentación.

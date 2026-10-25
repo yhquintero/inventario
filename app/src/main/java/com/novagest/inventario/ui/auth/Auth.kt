@@ -154,7 +154,7 @@ fun LoginScreen(vm: AuthViewModel = hiltViewModel(), onLogged: (UserAccount) -> 
         )
         Spacer(Modifier.height(12.dp))
         Text("NovaGest", style = MaterialTheme.typography.headlineMedium)
-        Text("Gestiona. Crece. Avanza. · Inventario, venta y caja en una sola app", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Gestiona. Crece. Avanza. · Inventario, venta, caja e informes", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(28.dp))
         if (state.recovering) {
             OutlinedTextField(user, { user = it }, label = { Text("Usuario") }, modifier = Modifier.fillMaxWidth())

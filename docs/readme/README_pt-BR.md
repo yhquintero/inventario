@@ -6,10 +6,12 @@
 
 ### Gerencie. Cresça. Avance.
 
-**Estoque, ponto de venda, conferência de caixa diária e relatórios para o seu negócio — na Web, no Android e sem conexão.**
+**Estoque multialmoxarifado, ponto de venda, caixa diária e relatórios para o seu negócio.**
+**Web instalável, aplicativo Android e servidor próprio — também sem conexão.**
 
 🌐 [Español](../../README.md) · [English](README_en.md) · **Português** · [Français](README_fr.md) · [Italiano](README_it.md) · [Deutsch](README_de.md) · [Русский](README_ru.md) · [简体中文](README_zh-CN.md)
 
+[![CI](https://github.com/yhquintero/inventario/actions/workflows/ci.yml/badge.svg)](https://github.com/yhquintero/inventario/actions/workflows/ci.yml)
 [![Versão](https://img.shields.io/badge/vers%C3%A3o-1.0.0-4f46e5?style=flat-square)](../../CHANGELOG.md)
 [![Plataformas](https://img.shields.io/badge/plataformas-Web%20%C2%B7%20Android%20%C2%B7%20Servidor-1e1b4b?style=flat-square)](#-o-que-está-incluído)
 [![PWA](https://img.shields.io/badge/PWA-funciona%20sem%20conex%C3%A3o-059669?style=flat-square)](#-perguntas-frequentes)
@@ -45,6 +47,7 @@ O **NovaGest** reúne em um só lugar o que o seu negócio precisa todos os dias
 | 🌐 **Web (PWA)** | A central de comando: estoque, depósitos, importação de valores, movimentações, venda rápida, conferência de caixa diária, relatório semanal, conferência de estoque e administração — com busca global (`Ctrl+K`), guia integrado, atalhos de teclado e modo claro/escuro. Instala-se como aplicativo e abre sem conexão. |
 | 📱 **Android** | A operação em movimento: a mesma gestão com Kotlin + Jetpack Compose, armazenamento local, desbloqueio biométrico e sincronização com o servidor quando há conexão. |
 | 🗄️ **Servidor** | O coração que une tudo: API e site Web em um único processo Python, dados compartilhados em SQLite, sessões e permissões validadas no servidor, licenças assinadas, auditoria e cópias criptografadas automáticas. |
+| 🔑 **Keygen** *(interno)* | Aplicativo Android separado, **sem permissão de INTERNET**: o titular emite e verifica chaves de licença pelo celular, sem depender do notebook nem do servidor. |
 
 ## ✨ Funcionalidades
 
@@ -59,6 +62,23 @@ O **NovaGest** reúne em um só lugar o que o seu negócio precisa todos os dias
 - 🕵️ **Histórico e auditoria** — preços, custos e taxas por dia; registro de quem fez o quê e quando, conforme o perfil de cada usuário.
 - ☁️ **Sincronização entre plataformas** — Web e Android trabalham sobre o mesmo estado; se a conexão cair, a Web continua operando e sincroniza ao reconectar.
 - 🔐 **Segurança de nível empresarial** — licença de uso assinada criptograficamente, verificação em duas etapas (TOTP), bloqueio após tentativas falhas, fechamento de dias e cópias de segurança criptografadas.
+
+## 👥 Papéis e permissões
+
+Cada pessoa entra com a própria conta; o papel decide o que vê e o que pode alterar, e **o servidor valida as mesmas permissões** que a interface.
+
+| Área | Administrador | Gerente | Financeiro | Almoxarife |
+|---|:--:|:--:|:--:|:--:|
+| Painel, estoque e movimentos (consulta) | ✅ | ✅ | ✅ | ✅ |
+| Criar e editar produtos | ✅ | ✅ | — | ✅ |
+| Armazéns, transferências e importar valores | ✅ | ✅ | somente ver | ✅ |
+| Vender e registrar movimentos | ✅ | ✅ | — | ✅ |
+| Caixa diária | ✅ | ✅ | editar | somente ver |
+| Relatórios, conferência e finanças | ✅ | ✅ | ✅ | — |
+| Clientes e fiados | ✅ | ✅ | ✅ | ✅ |
+| Fichas de custo e IPV | ✅ | ✅ | ✅ | somente ver |
+| Usuários e ajustes do negócio | ✅ | ✅ | — | — |
+| Auditoria · cópias · licença | ✅ | ✅ | só auditoria | — |
 
 ## 📸 Capturas de tela
 

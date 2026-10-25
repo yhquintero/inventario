@@ -1,8 +1,10 @@
 # Hoja de ruta — NovaGest
 
-Opciones priorizadas para llevar la plataforma al siguiente nivel. Cada una indica impacto,
-esfuerzo estimado y dónde encaja en la arquitectura actual (Web `web/`, Android `app/`,
-servidor `server/novagest_server.py`).
+Opciones priorizadas para llevar la plataforma al siguiente nivel. La lista de trabajo **por pasos y con la
+columna de estado para supervisión** está en [`MEJORAS_PROPUESTAS.md`](MEJORAS_PROPUESTAS.md).
+
+Cada opción de esta hoja indica impacto, esfuerzo estimado y dónde encaja en la arquitectura actual
+(Web `web/`, Android `app/`, servidor `server/novagest_server.py`).
 
 ## 🥇 Prioridad 1 — Impacto alto, esfuerzo bajo
 
