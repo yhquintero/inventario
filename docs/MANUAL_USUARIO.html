@@ -2344,7 +2344,7 @@ el Excel, con la tasa CUP/USD de cada día.</p>
 </tr>
 <tr>
 <td><strong>🔥 Mapa de calor de ventas</strong></td>
-<td>Las últimas 8 semanas por día de la semana: cuanto más oscuro el cuadro, más se vendió. Descubre de un vistazo los días flojos</td>
+<td>Las últimas 8 semanas por día de la semana: cuanto más oscuro el cuadro, más se vendió. Descubre de un vistazo los días flojos. El botón <strong>CSV</strong> del recuadro descarga esos días (fecha, ventas, unidades, número de ventas) listos para Excel</td>
 </tr>
 <tr>
 <td><strong>🏷️ Ventas y utilidad por categoría</strong></td>
@@ -3205,9 +3205,16 @@ versión de datos y los días cerrados, con el botón <strong>Sincronizar ahora<
 <li>El servidor guarda <strong>un único estado</strong> con número de versión.</li>
 <li>La Web y el Android <strong>leen</strong> ese estado y <strong>escriben</strong> sobre él; el servidor valida
   permisos, licencia y días cerrados.</li>
-<li>Si dos personas editan a la vez, gana el primero y el segundo <strong>recarga</strong> (conflicto). Por
-  eso conviene repartir el trabajo por secciones.</li>
+<li>Si dos personas editan a la vez, <strong>no se pierde el trabajo</strong>: la segunda aplicación fusiona
+  por <code>updatedAt</code> y, en cada registro, se queda con la edición más reciente (Web y Android).
+  Aun así conviene repartir el trabajo por secciones.</li>
 </ul>
+<div class="callout note">
+<p class="callout-t">ℹ Nota</p>
+<p><strong>Conflictos.</strong> Si dos personas guardan a la vez, la app descarga la versión del servidor, vuelve
+a aplicar lo propio encima y guarda: se conserva lo más reciente de cada registro y aparece el
+aviso «Conflicto resuelto». Nadie tiene que volver a escribir lo perdido.</p>
+</div>
 <h2 id="172-flujo-recomendado-para-un-equipo-pequeño">17.2 Flujo recomendado para un equipo pequeño</h2>
 <table>
 <thead>
@@ -3271,8 +3278,8 @@ versión de datos y los días cerrados, con el botón <strong>Sincronizar ahora<
 <tbody>
 <tr>
 <td>🌐 <strong>Web instalada (PWA)</strong></td>
-<td>Sigue abierta y operando con los datos cargados</td>
-<td>Continúe; al volver la red se sincroniza. Evite operaciones críticas si el servidor lleva mucho tiempo caído</td>
+<td>Sigue abierta y operando con los datos cargados; los cambios se <strong>guardan en el equipo</strong></td>
+<td>Continúe. Al volver la red se suben solos; si cierra la pestaña antes, al volver a entrar la app los recupera y avisa cuántos eran</td>
 </tr>
 <tr>
 <td>📱 <strong>Android con servidor</strong></td>

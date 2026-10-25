@@ -1,5 +1,6 @@
 import { SEED } from "./seed-data.js";
 import { api, setToken, getToken, setUnauthorizedHandler } from "./api.js";
+import { clearPending, describe as describeMerge, hasChanges, mergeState, readPending, writePending } from "./merge.js";
 import {
   categorize, importeUsd, round2, stockFinal, todayISO, normName, CUADRE_FIELDS, can,
   classifyValueRow, rowFieldKeys, warehouseValues, WAREHOUSE_DEFAULT_ID,
@@ -156,21 +157,86 @@ class Store {
     this.saving = true;
     this.dirty = false;
     this.setSync("saving");
-    const r = await api("/state", { method: "PUT", body: { version: this.version, state: this.shared() } });
+    const payload = this.shared();
+    const r = await api("/state", { method: "PUT", body: { version: this.version, state: payload } });
     this.saving = false;
     if (r.ok) {
       this.version = r.version;
       this.lastSaved = Date.now();
       this.setSync("ok");
+      clearPending(localStorage); // ya está todo en el servidor
       if (this.dirty) this.flush();
       return true;
     }
-    if (r.status === 0) { this.dirty = true; this.setSync("offline"); if (this._offNote) return false; this._offNote = true; this.onNotice("Sin conexión: los cambios se guardarán al reconectar.", "error"); return false; }
+    if (r.status === 0) {
+      // Sin conexión: los cambios se guardan en este navegador para no perderlos al recargar.
+      this.dirty = true;
+      writePending(localStorage, payload);
+      this.setSync("offline");
+      if (this._offNote) return false;
+      this._offNote = true;
+      this.onNotice("Sin conexión: los cambios se guardan en este equipo y se subirán al reconectar.", "error");
+      return false;
+    }
+    if (r.status === 409) { await this.resolveConflict(); return false; }
     this.setSync("error");
-    // 409 conflicto, 403 permiso, 423 día cerrado: se recarga la versión del servidor
+    // 403 permiso, 423 día cerrado: se recarga la versión del servidor
     this.onNotice(r.error, "error");
     await this.reload();
     return false;
+  }
+
+  /**
+   * Conflicto (otro usuario guardó antes): en vez de descartar lo hecho en este navegador, se
+   * fusiona por `updatedAt` —gana el cambio más reciente de cada registro— y se vuelve a guardar.
+   */
+  async resolveConflict() {
+    const fresh = await api("/state");
+    if (fresh.status !== 200) {
+      this.dirty = true;
+      writePending(localStorage, this.shared());
+      this.setSync("offline");
+      return;
+    }
+    const merged = mergeState(fresh.state || {}, this.shared(), SHARED);
+    const keep = { session: this.state.session, users: this.state.users };
+    this.state = { ...this.state, ...merged.state, ...keep };
+    if (!hasChanges(merged)) {
+      // Nada local más reciente: manda el servidor.
+      clearPending(localStorage);
+      this.version = fresh.version;
+      this.setSync("ok");
+      this.onNotice("Se cargó la versión más reciente del servidor.", "info");
+      this.emit(false);
+      return;
+    }
+    const r = await api("/state", { method: "PUT", body: { version: fresh.version, state: merged.state } });
+    if (r.ok) {
+      this.version = r.version;
+      this.lastSaved = Date.now();
+      this.setSync("ok");
+      clearPending(localStorage);
+      this.onNotice(`Conflicto resuelto: ${describeMerge(merged)}`, "info");
+      this.emit(false);
+      return;
+    }
+    // Sigue chocando: se conserva lo local en la cola y se adopta lo del servidor.
+    writePending(localStorage, this.shared());
+    this.onNotice("Otro usuario guardó antes: se cargó su versión y sus cambios quedan pendientes.", "error");
+    await this.reload();
+  }
+
+  /** Recupera los cambios que quedaron sin subir en una sesión anterior (W-02). */
+  restorePending() {
+    const pending = readPending(localStorage);
+    if (!pending?.state) return 0;
+    const merged = mergeState(this.shared(), pending.state, SHARED);
+    if (!hasChanges(merged)) { clearPending(localStorage); return 0; }
+    this.state = { ...this.state, ...merged.state };
+    this.dirty = true;
+    this.scheduleSave();
+    this.onNotice(`Se recuperaron ${merged.applied} cambio(s) sin guardar de la sesión anterior.`, "info");
+    return merged.applied;
   }
 
   setSync(v) {
@@ -207,6 +273,8 @@ class Store {
     this.emit(false);
     setInterval(() => this.poll(), 12000);
     window.addEventListener?.("online", () => this.dirty && this.flush());
+    // Al cerrar la pestaña con cambios sin guardar, se quedan en este equipo.
+    window.addEventListener?.("beforeunload", () => { if (this.dirty) writePending(localStorage, this.shared()); });
   }
 
   async startSession(r) {
@@ -223,6 +291,7 @@ class Store {
         if (res.ok) this.version = res.version;
       } else this.onNotice("El servidor aún no tiene datos. Un administrador debe entrar primero.", "error");
     }
+    this.restorePending();
     this.ready = true;
   }
 

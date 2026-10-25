@@ -4,9 +4,9 @@ Lista de trabajo para llevar la Web y el Android al máximo, ordenada por **impa
 Cada paso se revisa, se aprueba y se entrega en su propio pull request; las filas se marcan al
 terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`ROADMAP.md`](ROADMAP.md).
 
-> **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola de
-> sincronización en Android) ✅. Lo siguiente, por orden sugerido: **W-02** → **A-02** → **W-03** →
-> **A-04** → **S-01**. La segunda ola de propuestas está al final.
+> **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola en Android) ✅ ·
+> **W-02** (cola en la Web) ✅ · **W-13** (CSV del mapa de calor) ✅. Lo siguiente, por orden sugerido: **A-02** → **W-11** → **A-04** →
+> **S-01** → **W-10**. Las olas 2 y 3 de propuestas están al final.
 
 **Leyenda:** impacto 🔴 alto · 🟠 medio · 🟢 bajo — esfuerzo ⏱️ bajo (≤1 día) · ⏳ medio (2-5 días) ·
 🧱 alto (>1 semana).
@@ -28,7 +28,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | # | Mejora | Por qué | Dónde | Impacto | Esfuerzo | Estado |
 |---|---|---|---|---|---|---|
 | W-01 | **Mapa de calor de ventas (8 semanas) y barras de venta/utilidad por categoría en Análisis**, con tabla de datos equivalente | Los días flojos y la categoría que deja margen se ven de un vistazo | `web/js/charts.js`, `app.js` | 🔴 | ⏳ | ✅ |
-| W-02 | Cola de cambios sin conexión con resolución por `updatedAt` | Hoy se reenvía el estado completo al reconectar | `web/js/store.js` | 🔴 | 🧱 | ⬜ |
+| W-02 | **Cola de cambios sin conexión en el navegador** (`localStorage`) y **conflictos resueltos por `updatedAt`** | Recargar la pestaña o chocar con otro usuario ya no pierde trabajo | `web/js/merge.js`, `store.js` | 🔴 | 🧱 | ✅ |
 | W-03 | Alertas de reposición predictivas (velocidad de venta × stock) | Evita quedarse sin lo que más rota | Panel + Worker | 🟠 | ⏳ | ⬜ |
 | W-04 | Comando rápido en la búsqueda global (`Ctrl + K`): «vender arroz 2» | Vender en 5 segundos desde cualquier pantalla | `web/js/app.js` | 🟠 | ⏳ | ⬜ |
 | W-05 | Impresión de ticket 58/80 mm además de A4 | Impresoras térmicas de mostrador | `web/css/app.css` | 🟠 | ⏱️ | ⬜ |
@@ -70,7 +70,7 @@ Ideas que salen de lo ya construido; ninguna está aprobada todavía.
 | W-10 | **Comparador de períodos** en Análisis: superponer las ventas de esta semana y la anterior | Saber si se mejora o empeora sin restar a mano | `web/js/charts.js` | 🔴 | ⏳ |
 | W-11 | **Reposición sugerida** en el mapa de calor y en alertas: días que tarda en agotarse cada producto | Comprar antes de quedarse sin lo que más rota | `calc.js` + Panel | 🔴 | ⏳ |
 | W-12 | **Hoja imprimible del Análisis**: los tres gráficos + KPIs en una sola página A4 | Entregar el resumen al dueño o al contador | `app.css` (`@media print`) | 🟠 | ⏱️ |
-| W-13 | **Exportar el mapa de calor a CSV** (fecha, día, ventas, unidades) | Análisis propio en Excel | `app.js` | 🟢 | ⏱️ |
+| W-13 | **Exportar el mapa de calor a CSV** (fecha, día, ventas, unidades, líneas) | Análisis propio en Excel, con `;` y coma decimal para Excel en español | `charts.js` + `app.js` | 🟢 | ⏱️ ✅ |
 | W-14 | **Objetivo semanal por categoría** con barra de avance | Dirigir la venta, no solo medirla | `analyticsView` | 🟠 | ⏳ |
 | A-10 | **Sincronización incremental** (`?since=`): subir y bajar solo lo cambiado | Móvil con datos lentos y catálogos grandes | `SyncManager` + servidor | 🔴 | 🧱 |
 | A-11 | **Recibo con QR** para fiados y ventas: el cliente comprueba su saldo | Menos discusiones en el mostrador | Android + Web `#pos` | 🟠 | ⏳ |
