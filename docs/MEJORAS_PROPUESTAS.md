@@ -5,9 +5,9 @@ Cada paso se revisa, se aprueba y se entrega en su propio pull request; las fila
 terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`ROADMAP.md`](ROADMAP.md).
 
 > **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola en Android) ✅ ·
-> **W-02** (cola en la Web) ✅ · **W-13** (CSV del mapa de calor) ✅ · **W-11** (reposición sugerida) ✅ ·
-> **D-07** (voz masculina del vídeo) ✅ · **W-05** (ticket 58/80 mm) ✅ · **W-06** (comparador de períodos) ✅.
-> Lo siguiente, por orden sugerido: **A-02** (recibo Bluetooth) → **W-04** → **A-04** → **S-01**. Las olas 2 y 3 al final.
+> **Hecho:** D-01…D-07 · W-01, W-02, W-05, W-06, W-11, W-13 · A-01, A-02.
+> **Lo siguiente, por orden sugerido:** **W-04** (venta desde `Ctrl+K`) → **A-04** (widget) → **S-01** (auditoría encadenada) → **W-07** (XLSX).
+> La segunda ola de propuestas nuevas está al final del documento.
 
 **Leyenda:** impacto 🔴 alto · 🟠 medio · 🟢 bajo — esfuerzo ⏱️ bajo (≤1 día) · ⏳ medio (2-5 días) ·
 🧱 alto (>1 semana).
@@ -43,7 +43,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | # | Mejora | Por qué | Dónde | Impacto | Esfuerzo | Estado |
 |---|---|---|---|---|---|---|
 | A-01 | **Cola persistente con reintentos (espera creciente) y conflictos resueltos por `updatedAt`**, con aviso de «cambios sin subir» | Trabajar sin red y con varias personas sin perder trabajo | `data/sync/SyncQueue.kt`, `SyncManager.kt` | 🔴 | ⏳ | ✅ |
-| A-02 | Receipt Bluetooth ESC/POS (58/80 mm) | Cobrar e imprimir desde el móvil | `ui/pos/` | 🟠 | ⏳ | ⬜ |
+| A-02 | **Recibo Bluetooth ESC/POS 58/80 mm** desde Venta rápida (ticket de la última venta) | Cobrar e imprimir desde el móvil | `data/printer/`, `ui/pos/` | 🟠 | ⏳ | ✅ |
 | A-03 | Escáner con CameraX (sin depender de servicios de Google) | Móviles sin Play Services | `ui/pos/` | 🟠 | ⏳ | ⬜ |
 | A-04 | Widget de inicio: ventas del día y stock bajo | Abrir con la información, sin entrar | `appwidget/` | 🟠 | ⏳ | ⬜ |
 | A-05 | Base local cifrada (SQLCipher) y bloqueo por inactividad | Teléfono perdido = datos protegidos | `data/` | 🟠 | ⏳ | ⬜ |

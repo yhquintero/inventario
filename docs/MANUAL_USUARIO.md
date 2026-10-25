@@ -1739,6 +1739,25 @@ configurado) o queda en el teléfono.
 > dice «Sin clientes sincronizados: créelos en la Web», primero sincronice o cree el cliente
 > desde la Web.
 
+### 🖨 Imprimir el ticket desde el teléfono (impresora Bluetooth)
+
+Al cobrar, debajo del botón de cobro aparecen **🖨 58 mm** y **🖨 80 mm**: imprimen el ticket de
+esa venta en una impresora térmica Bluetooth.
+
+1. **Empareje la impresora** una sola vez en los ajustes de Bluetooth del teléfono (PIN
+   habitual: `0000` o `1234`).
+2. Cobre la venta y pulse el ancho de su rollo (58 mm el pequeño de mostrador, 80 mm el de
+   las cajas).
+3. La primera vez Android pedirá **permiso de Bluetooth**: acéptelo.
+4. El ticket sale con negocio, fecha y hora, productos, **total USD**, equivalente en CUP,
+   forma de pago, cliente del fiado y quién atendió. La app recuerda la última impresora
+   usada.
+
+> [!TIP]
+> Si no imprime, revise el orden: impresora **encendida** y con papel, **emparejada** en el
+> teléfono y permiso de Bluetooth concedido. Los acentos se imprimen sin tilde a propósito:
+> así ninguna impresora muestra símbolos raros.
+
 ## 16.4 Inventario en Android
 
 - Lista de productos con búsqueda y existencias.

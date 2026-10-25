@@ -1,5 +1,9 @@
 package com.novagest.inventario.ui.pos
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -31,12 +35,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.novagest.inventario.data.local.AppDatabase
+import com.novagest.inventario.data.printer.BluetoothPrinter
+import com.novagest.inventario.data.printer.EscPos
+import com.novagest.inventario.data.printer.PaperWidth
+import com.novagest.inventario.data.printer.TicketData
+import com.novagest.inventario.data.printer.TicketLine
 import com.novagest.inventario.data.repository.MovementRepository
 import com.novagest.inventario.data.repository.ProductRepository
 import com.novagest.inventario.domain.model.AppResult
@@ -53,6 +65,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 data class CartLine(val product: Product, val qty: Int)
@@ -61,12 +75,17 @@ data class CartLine(val product: Product, val qty: Int)
 class PosViewModel @Inject constructor(
     products: ProductRepository,
     private val movements: MovementRepository,
-    private val sync: com.novagest.inventario.data.sync.SyncManager
+    private val sync: com.novagest.inventario.data.sync.SyncManager,
+    private val db: AppDatabase,
+    private val printer: BluetoothPrinter
 ) : ViewModel() {
     val products = products.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val cart = mutableStateListOf<CartLine>()
     var message by mutableStateOf<String?>(null)
     var busy by mutableStateOf(false)
+
+    /** Última venta cobrada, lista para imprimir el ticket (58/80 mm). */
+    var lastTicket by mutableStateOf<TicketData?>(null)
 
     fun add(p: Product) {
         val i = cart.indexOfFirst { it.product.id == p.id }
@@ -110,6 +129,22 @@ class PosViewModel @Inject constructor(
                 }
             }
             val sum = done.sumOf { it.qty * it.product.precioVentaUsd }
+            if (done.isNotEmpty()) {
+                val conf = db.settings().get()
+                lastTicket = TicketData(
+                    businessName = conf?.businessName ?: "NovaGest",
+                    date = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                    time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")),
+                    lines = done.map {
+                        TicketLine(it.product.name, it.qty.toDouble(), it.product.precioVentaUsd, it.qty * it.product.precioVentaUsd)
+                    },
+                    totalUsd = sum,
+                    rateCupUsd = conf?.defaultCupUsd ?: 0.0,
+                    paymentType = if (isFiado) "FIADO" else "CONTADO",
+                    customer = if (isFiado) sync.customers().firstOrNull { it.id == customerId }?.name ?: "" else "",
+                    seller = actor.displayName
+                )
+            }
             cart.removeAll(done)
             message = when {
                 error != null -> error
@@ -119,6 +154,22 @@ class PosViewModel @Inject constructor(
             busy = false
         }
     }
+
+    /** Manda el ticket de la última venta a la impresora térmica. */
+    fun printLast(width: PaperWidth) {
+        val ticket = lastTicket
+        if (ticket == null) { message = "Haz una venta para imprimir su ticket."; return }
+        if (busy) return
+        busy = true
+        viewModelScope.launch {
+            val error = printer.print(printer.savedAddress, EscPos.build(ticket.copy(width = width)))
+            message = error ?: "🖨 Ticket enviado a la impresora (${width.label})"
+            busy = false
+        }
+    }
+
+    /** Impresoras emparejadas en el teléfono. */
+    fun printers() = printer.paired()
 }
 
 /** Venta rápida: toca productos para añadirlos al carrito y cobra en un paso. */
@@ -135,6 +186,15 @@ fun PosScreen(user: UserAccount, vm: PosViewModel = hiltViewModel()) {
     val customers = remember(products) { vm.customers() }
     val cats = remember(products) { listOf("TODAS") + products.map { it.category }.distinct().sorted() }
     val list = products.filter { it.stockActual > 0 && (cat == "TODAS" || it.category == cat) && (q.isBlank() || it.name.contains(q, true) || it.barcode.contains(q.trim(), true)) }
+    val context = LocalContext.current
+    val printPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) vm.printLast(PaperWidth.MM_58) else vm.message = "Sin permiso de Bluetooth no se puede imprimir."
+    }
+    val doPrint: (PaperWidth) -> Unit = { width ->
+        val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (needsPermission) printPermission.launch(Manifest.permission.BLUETOOTH_CONNECT) else vm.printLast(width)
+    }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         Spacer(Modifier.height(8.dp))
@@ -205,6 +265,13 @@ fun PosScreen(user: UserAccount, vm: PosViewModel = hiltViewModel()) {
                     if (vm.cart.isNotEmpty()) OutlinedButton(onClick = { vm.cart.clear() }) { Text("Vaciar") }
                     Button(onClick = { vm.checkout(center, user, payment, customerId, dueDate) }, enabled = vm.cart.isNotEmpty() && !vm.busy, modifier = Modifier.weight(1f)) {
                         Text(if (vm.cart.isEmpty()) "Toca productos para vender" else (if (payment == "FIADO") "Fiar " else "Cobrar ") + Money.usd(vm.total))
+                    }
+                }
+                if (vm.lastTicket != null) {
+                    Text("Ticket de la última venta", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedButton(onClick = { doPrint(PaperWidth.MM_58) }, enabled = !vm.busy) { Text("🖨 58 mm") }
+                        OutlinedButton(onClick = { doPrint(PaperWidth.MM_80) }, enabled = !vm.busy) { Text("🖨 80 mm") }
                     }
                 }
             }

@@ -1,5 +1,13 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXII) · Recibo Bluetooth en Android (A-02)
+
+- **Impresión de tickets en impresoras térmicas Bluetooth** desde **Venta rápida**: tras cobrar aparecen **🖨 58 mm** y **🖨 80 mm** y el ticket sale por el perfil SPP con el formato ESC/POS.
+- **Módulo `data/printer/EscPos.kt`** (Kotlin puro, sin Android): cabecera, líneas con cantidad e importe, total USD, equivalente CUP, forma de pago, cliente del fiado, vendedor, avance y corte de papel. Los acentos se pliegan a ASCII para que ninguna impresora muestre símbolos raros.
+- **`data/printer/BluetoothPrinter.kt`**: impresoras **ya emparejadas**, conexión RFCOMM con tiempo de espera y memoria de la última usada; permiso `BLUETOOTH_CONNECT` solicitado en pantalla (Android 12+).
+- **Pruebas `EscPosTest.kt`** (10 casos): inicialización, corte, contenido, fiado, alineación a 32/48 columnas, recorte de nombres largos y plegado de acentos.
+- **Manual** §16.3 con el paso a paso de emparejar e imprimir; `MANIFEST` con los permisos nuevos; `docs/MEJORAS_PROPUESTAS.md` con A-02 en ✅.
+
 ## NovaGest v1.0.0 · revisión 2026-10-25 (XXI) · Ticket térmico y comparador de períodos (W-05 · W-06)
 
 - **W-05 · Ticket térmico de 58 mm y 80 mm.** Después de cobrar, **Venta rápida** ofrece «🧾 Ticket 58 mm» y «🧾 80 mm» de la última venta; en **Movimientos**, el icono 🧾 imprime cualquier venta del historial. El ticket lleva negocio, fecha y hora, líneas con cantidad e importe, total USD, equivalente en CUP con la tasa del día, comisión, domicilio, forma de pago, cliente del fiado y quién atendió. Hoja de estilos con `@page ticket58` / `@page ticket80`: el navegador abre el diálogo con el ancho de papel ya puesto.
