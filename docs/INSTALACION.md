@@ -112,9 +112,36 @@ publicar detrás del proxy sin riesgo.
 | `licencia` | No hay licencia activa | Activar la clave en la pantalla de licencia |
 | `sin-copias` | No hay ninguna copia cifrada | Revisar `BACKUP_KEY` y el programador de copias |
 | `copias-viejas` | La última copia tiene más de 48 h | Arrancar el servidor (las copias son diarias) o crear una a mano |
+| `disco-bajo` | Queda menos del 10 % o menos de 500 MB libres donde vive la base | Liberar espacio o mover `DATA_DIR` a un disco mayor |
+| `licencia-vence` | La licencia caduca en 15 días o menos | Renovar la clave con tiempo |
 
 Es la misma llamada que usa el Panel de Control y cualquier monitor externo (Uptime Kuma,
 Healthchecks…) para avisar si el servidor se cae.
+
+## Compresión y tamaño de las peticiones (S-11)
+
+El servidor **comprime con gzip** las respuestas de más de 1 KB (el estado del negocio, los
+módulos JavaScript, el CSS y los informes) cuando el navegador lo admite, y anuncia
+`Vary: Accept-Encoding` para que ningún proxy entregue contenido comprimido a un cliente que no
+lo entiende. En una instalación típica, `/api/state` pasa de ~1 MB a ~120 KB: en una red local
+modesta la app abre y sincroniza varias veces más rápido, y el servidor gasta menos datos.
+
+Los dos límites de tamaño se ajustan sin tocar el código:
+
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `MAX_STATE_MB` | `12` | Tamaño máximo del cuerpo que se acepta al guardar el estado (`PUT /api/state`) |
+| `MAX_BODY_MB` | `30` | Tope general del resto de peticiones |
+
+```bash
+# Ejemplo: servidor con muchos años de historial y fotos de productos
+MAX_STATE_MB=24 MAX_BODY_MB=40 python3 server/novagest_server.py
+```
+
+Si una petición se pasa del tope, el servidor responde **413** con un mensaje que dice el
+máximo permitido; la app no se queda «colgada» esperando. Subir el límite es la última opción:
+antes conviene vaciar la papelera, archivar años anteriores o mover las fotos a un almacén
+externo.
 
 ## Producción
 

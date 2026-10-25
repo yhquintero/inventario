@@ -13,7 +13,7 @@ Servidor de NovaGest: API + archivos estáticos.
 Variables: PORT, DATA_DIR, SSL_CERT, SSL_KEY, BACKUP_KEY, TRUST_PROXY (1), SESSION_IDLE_MIN (20),
 SESSION_MAX_HOURS (12), BACKUP_HOUR (2), BACKUP_KEEP (30).
 """
-import base64, datetime as dt, gzip, hashlib, hmac, json, os, re, secrets, sqlite3, struct, threading, time
+import base64, datetime as dt, gzip, hashlib, hmac, json, os, re, secrets, shutil, sqlite3, struct, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, quote
 
@@ -26,6 +26,10 @@ HTTPS = bool(CERT and KEY)
 TRUST_PROXY = os.environ.get("TRUST_PROXY", "1") == "1"
 IDLE = int(os.environ.get("SESSION_IDLE_MIN", "20")) * 60
 MAXAGE = int(os.environ.get("SESSION_MAX_HOURS", "12")) * 3600
+# Límites de tamaño de las peticiones (S-11). El estado es el único que crece de verdad.
+MAX_BODY = int(os.environ.get("MAX_BODY_MB", "30")) * 1024 * 1024
+MAX_STATE = int(os.environ.get("MAX_STATE_MB", "12")) * 1024 * 1024
+GZIP_MIN = 1024  # por debajo de esto comprimir no compensa
 BACKUP_HOUR = int(os.environ.get("BACKUP_HOUR", "2"))
 BACKUP_KEEP = int(os.environ.get("BACKUP_KEEP", "30"))
 ISSUER = "NovaGest"
@@ -561,6 +565,17 @@ def init_db():
       license_preview TEXT,
       created_at INTEGER);
     CREATE INDEX IF NOT EXISTS license_requests_status ON license_requests(status, created_at DESC);
+    CREATE TABLE IF NOT EXISTS print_log(
+        id INTEGER PRIMARY KEY,
+        ts INTEGER,
+        user TEXT,
+        sale_id TEXT,
+        code TEXT,
+        width INTEGER,
+        kind TEXT,
+        copies INTEGER,
+        ip TEXT
+    );
     CREATE TABLE IF NOT EXISTS legal_info(id INTEGER PRIMARY KEY CHECK(id=1), data TEXT, updated_at INTEGER, updated_by TEXT);
     CREATE TABLE IF NOT EXISTS rate_hits(k TEXT PRIMARY KEY, hits TEXT);
     """)
@@ -814,25 +829,39 @@ class Api(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header("Permissions-Policy", "geolocation=(), microphone=(), camera=(self)")
         self.send_header("Content-Security-Policy", CSP)
+        self.send_header("Vary", "Accept-Encoding")
         if self.secure(): self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+
+    def accepts_gzip(self):
+        return "gzip" in (self.headers.get("Accept-Encoding") or "").lower()
 
     def send_json(self, code, obj, cookies=()):
         body = json.dumps(obj, ensure_ascii=False).encode()
+        encoded = self.maybe_gzip(body)
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         for c in cookies: self.send_header("Set-Cookie", c)
         self.headers_common()
-        self.send_header("Content-Length", str(len(body)))
+        if encoded is not None:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Content-Length", str(len(encoded if encoded is not None else body)))
         self.end_headers()
-        self.wfile.write(body)
+        self.wfile.write(encoded if encoded is not None else body)
+
+    def maybe_gzip(self, body, min_bytes=GZIP_MIN):
+        """Comprime si el cliente lo acepta y el cuerpo lo justifica (S-11)."""
+        if len(body) < min_bytes or not self.accepts_gzip():
+            return None
+        return gzip.compress(body, 6)
 
     def err(self, code, msg):
         self.send_json(code, {"error": msg})
 
-    def body(self):
+    def body(self, max_bytes=None):
         n = int(self.headers.get("Content-Length") or 0)
-        if n > 30 * 1024 * 1024: raise ValueError("Petición demasiado grande")
+        tope = MAX_BODY if max_bytes is None else max_bytes
+        if n > tope: raise PayloadTooLarge(tope)
         return json.loads(self.rfile.read(n) or b"{}")
 
     def cookie(self, token, clear=False):
@@ -903,6 +932,8 @@ class Api(BaseHTTPRequestHandler):
             if not h: return self.err(404, "No encontrado")
             ident = path.rsplit("/", 1)[-1]
             h(self, ident)
+        except PayloadTooLarge as e:
+            self.err(413, str(e))
         except ValueError as e:
             self.err(400, str(e))
         except Exception as e:
@@ -917,13 +948,18 @@ class Api(BaseHTTPRequestHandler):
         if not full.startswith(os.path.realpath(WEB) + os.sep) or ("/." in path and not oculta_ok) or not os.path.isfile(full):
             return self.err(404, "No encontrado")
         data = open(full, "rb").read()
+        mime = MIME.get(os.path.splitext(full)[1], "application/octet-stream")
+        # S-11: los archivos de texto (JS, CSS, HTML, JSON, SVG) viajan comprimidos.
+        compressible = any(t in mime for t in ("javascript", "json", "html", "css", "svg", "text/"))
+        encoded = self.maybe_gzip(data) if compressible else None
         self.send_response(200)
-        self.send_header("Content-Type", MIME.get(os.path.splitext(full)[1], "application/octet-stream"))
+        self.send_header("Content-Type", mime)
         self.send_header("Cache-Control", "no-cache")
         self.headers_common()
-        self.send_header("Content-Length", str(len(data)))
+        if encoded is not None: self.send_header("Content-Encoding", "gzip")
+        self.send_header("Content-Length", str(len(encoded if encoded is not None else data)))
         self.end_headers()
-        self.wfile.write(data)
+        self.wfile.write(encoded if encoded is not None else data)
 
     def log_message(self, fmt, *args):
         # HTTPServer pasa códigos HTTPStatus (no cadenas) en algunos send_error;
@@ -935,6 +971,14 @@ class Api(BaseHTTPRequestHandler):
         message = str(message)
         if "/api/state/version" not in message:
             print("[%s] %s %s" % (self.log_date_time_string(), self.ip(), message), flush=True)
+
+
+class PayloadTooLarge(Exception):
+    """Petición más grande de lo permitido (S-11): se responde 413, no 500."""
+
+    def __init__(self, limit):
+        self.limit = limit
+        super().__init__(f"La petición supera el máximo permitido ({limit // (1024 * 1024)} MB). Divídala o revise los datos.")
 
 
 ROUTES = {}
@@ -1359,6 +1403,29 @@ def backup_health():
     return {"total": len(archivos), "ultima": ultima, "haceHoras": hace}
 
 
+def disk_health():
+    """Espacio libre donde vive la base de datos (S-05)."""
+    try:
+        uso = shutil.disk_usage(DATA)
+        libre_pct = round(uso.free * 100 / uso.total, 1) if uso.total else 0.0
+        return {"totalBytes": uso.total, "libreBytes": uso.free, "librePct": libre_pct}
+    except OSError:
+        return {"totalBytes": 0, "libreBytes": 0, "librePct": 0.0}
+
+
+def license_health():
+    """Días que le quedan a la licencia activa, para avisar antes de que venza (S-05)."""
+    info = get_active_license_info()
+    if not info["valid"]:
+        return {"tipo": None, "vence": None, "diasRestantes": None}
+    payload = info.get("payload") or {}
+    exp = payload.get("expires_at") or 0
+    if not exp:
+        return {"tipo": payload.get("type"), "vence": None, "diasRestantes": None}
+    dias = max(0, int((exp - now()) // 86400))
+    return {"tipo": payload.get("type"), "vence": int(exp), "diasRestantes": dias}
+
+
 @route("GET", "/api/health", need=False)
 def health(h, u, _):
     """Estado del servidor en una sola llamada, sin datos personales (S-09).
@@ -1374,6 +1441,9 @@ def health(h, u, _):
     copias = backup_health()
     cerrados = q("SELECT COUNT(*) n FROM closed_days", one=True)["n"] or 0
     conectados = q("SELECT COUNT(*) n FROM sessions WHERE last_seen > ?", (now() - IDLE,), one=True)["n"] or 0
+    disco = disk_health()
+    licencia = license_health()
+    bd_bytes = os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0
     avisos = []
     if not lic["valid"]:
         avisos.append("licencia")
@@ -1381,6 +1451,10 @@ def health(h, u, _):
         avisos.append("sin-copias")
     elif (copias["haceHoras"] or 0) > 48:
         avisos.append("copias-viejas")
+    if disco["libreBytes"] and (disco["librePct"] < 10 or disco["libreBytes"] < 500 * 1024 * 1024):
+        avisos.append("disco-bajo")
+    if licencia["diasRestantes"] is not None and licencia["diasRestantes"] <= 15:
+        avisos.append("licencia-vence")
     h.send_json(200, {
         "ok": True, "app": "NovaGest", "version": APP_VERSION, "https": h.secure(), "time": now(),
         "licenseValid": lic["valid"], "licenseType": (lic["payload"] or {}).get("type") if lic["valid"] else None,
@@ -1389,10 +1463,12 @@ def health(h, u, _):
             "avisos": avisos,
             "uptimeSegundos": int(time.time() - STARTED_AT),
             "latenciaMs": latencia,
-            "bdBytes": os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0,
+            "bdBytes": bd_bytes,
             "copias": copias,
             "diasCerrados": cerrados,
             "sesionesActivas": conectados,
+            "disco": disco,
+            "licencia": licencia,
         },
     })
 
@@ -1626,7 +1702,7 @@ def state_version(h, u, _):
 
 @route("PUT", "/api/state")
 def state_put(h, u, _):
-    b = h.body()
+    b = h.body(max_bytes=MAX_STATE)
     with _lock:
         r = q("SELECT * FROM app_state WHERE id=1", one=True)
         if int(b.get("version", -1)) != r["version"]:
@@ -1769,6 +1845,48 @@ def metrics(h, u, _):
         "bdBytes": os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0,
         "licencia": {"tipo": (lic.get("payload") or {}).get("type"), "valida": bool(lic.get("valid"))},
     })
+
+
+PRINT_KINDS = {"ticket", "reimpresion", "prueba"}
+
+
+@route("POST", "/api/prints", roles=ADMINS | {"ECONOMICO", "ALMACENERO"})
+def print_record(h, u, _):
+    """Registra que se imprimió un ticket (S-10).
+
+    Solo guarda la referencia de la venta y el código de verificación: ni el
+    contenido del ticket ni datos del cliente. Sirve para responder «¿quién
+    sacó este papel y cuándo?».
+    """
+    b = h.body()
+    sale_id = str(b.get("saleId", "")).strip()[:60]
+    code = str(b.get("code", "")).strip().upper()[:12]
+    width = 80 if int(b.get("width", 58) or 58) == 80 else 58
+    kind = str(b.get("kind", "ticket")).strip().lower()
+    if kind not in PRINT_KINDS: kind = "ticket"
+    copies = max(1, min(20, int(b.get("copies", 1) or 1)))
+    if not sale_id and not code:
+        return h.err(400, "Falta la venta o el código del ticket.")
+    q("INSERT INTO print_log(ts,user,sale_id,code,width,kind,copies,ip) VALUES(?,?,?,?,?,?,?,?)",
+      (now(), u["username"], sale_id, code, width, kind, copies, h.ip()))
+    h.send_json(200, {"ok": True})
+
+
+@route("GET", "/api/prints", roles=ADMINS | {"ECONOMICO"})
+def print_list(h, u, _):
+    """Últimas impresiones registradas, de la más reciente a la más antigua (S-10)."""
+    qs = parse_qs(urlparse(h.path).query)
+    try:
+        limit = max(1, min(500, int((qs.get("limit") or ["100"])[0])))
+    except ValueError:
+        limit = 100
+    donde, args = "", []
+    if qs.get("sale") and re.fullmatch(r"[\w\-]{1,60}", qs["sale"][0]):
+        donde, args = " WHERE sale_id=?", [qs["sale"][0]]
+    filas = q(f"SELECT ts,user,sale_id,code,width,kind,copies FROM print_log{donde} ORDER BY id DESC LIMIT ?",
+              (*args, limit))
+    total = q("SELECT COUNT(*) n FROM print_log", one=True)["n"] or 0
+    h.send_json(200, {"total": total, "prints": [dict(x) for x in filas]})
 
 
 @route("GET", "/api/security-log", roles=ADMINS | {"ECONOMICO"})

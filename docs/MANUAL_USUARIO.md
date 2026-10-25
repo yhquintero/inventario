@@ -460,6 +460,29 @@ semanas de correcciones. El orden importa.
 
 Pulse **Guardar ajustes**. ✅ El aviso «Ajustes guardados» confirma el cambio.
 
+### Salud del sistema (arriba de los ajustes)
+
+La primera tarjeta de **Ajustes** se llama **🩺 Salud del sistema** y resume, de un vistazo, lo
+que suele fallar sin avisar. La ven **Administrador**, **Jefe** y **Económico**.
+
+| Indicador | Qué muestra | Cuándo hay que actuar |
+|---|---|---|
+| **Copias** | Cuántas copias hay y cuántas horas tiene la última | Si dice «ninguna guardada» o pasan de 48 horas |
+| **Disco libre** | Porcentaje y espacio libre del disco del servidor | Si baja del 10 % o de 500 MB |
+| **Base de datos** | Tamaño del archivo de datos y días cerrados | Para vigilar el crecimiento con los años |
+| **Licencia** | Días que le quedan a la licencia activa | Si queda menos de un mes, renueve con tiempo |
+
+- La etiqueta de la cabecera dice **Todo en orden** (verde) o **N aviso(s)** (roja) y, cuando
+  hay avisos, los explica en una lista en lenguaje llano.
+- El pie indica cuánto lleva encendido el servidor, cuánto tarda en responder y cuántas
+  sesiones hay abiertas.
+- **↻ Comprobar ahora** vuelve a preguntar al servidor sin recargar la página: úselo después
+  de crear una copia o de activar una licencia nueva.
+
+> [!NOTE]
+> La salud se consulta al endpoint público **`/api/health`**, que solo devuelve medidas
+> operativas (tamaños, horas, latencia). Nunca datos del negocio ni de los clientes.
+
 > [!NOTE]
 > En la Web solo **Administrador** y **Jefe** cambian los ajustes del negocio; el tema lo
 > puede cambiar cualquier usuario. En Android, los ajustes (nombre, tasas, alertas, tema y
@@ -1656,6 +1679,7 @@ deja escrita), **Desactivar / Activar** y **Quitar 2FA** (si el usuario perdió 
 |---|---|
 | **Actividad del negocio** | Quién creó, modificó, eliminó o restauró qué, con fecha, entidad y detalle (últimos 300 registros) |
 | **Seguridad (servidor)** | Inicios de sesión, fallos, revocaciones, reaperturas de día, restauraciones, con IP |
+| **Impresiones** | Quién imprimió cada ticket y cuándo, con el código de verificación, la venta, el ancho del papel y si fue impresión o reimpresión |
 
 **Cómo investigar un problema con la auditoría**
 
@@ -1663,6 +1687,15 @@ deja escrita), **Desactivar / Activar** y **Quitar 2FA** (si el usuario perdió 
 2. Filtre por usuario o por palabra clave (producto, acción, importe).
 3. Lea el **Detalle** (valores antes → después cuando aplica).
 4. Si es un tema de acceso, revise la pestaña **Seguridad**.
+
+**La pestaña Impresiones, en detalle** (solo Administrador, Jefe y Económico)
+
+- Se llena sola cada vez que se imprime o reimprime un ticket desde la Web.
+- Guarda **la referencia de la venta y su código de verificación**, el ancho del papel
+  (58 o 80 mm), el tipo (impresión o reimpresión), el usuario y la fecha. **No guarda** el
+  contenido del ticket ni datos del cliente.
+- Sirve para responder preguntas del tipo «¿quién sacó este papel?» o «¿se reimprimió este
+  ticket dos veces?», y para cruzar con el código del ticket que trae el cliente.
 
 💡 La auditoría es su mejor defensa ante un descuadre inexplicable: casi siempre muestra la
 operación que lo provocó.

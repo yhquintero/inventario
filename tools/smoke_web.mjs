@@ -119,6 +119,17 @@ globalThis.fetch = async (url, opts = {}) => {
     data = { ok: true, deleted: 2, activations: 0 };
   } else if (/\/api\/license\/\d+$/.test(u)) {
     data = { ok: true, deleted: 1 };
+  } else if (u.includes("/api/health")) {
+    data = { ok: true, app: "NovaGest", version: "1.0.0", https: false, time: 1791855900, licenseValid: true, licenseType: "FULL",
+      salud: { estado: "aviso", avisos: ["copias-viejas"], uptimeSegundos: 7200, latenciaMs: 1.2, bdBytes: 3145728,
+        copias: { total: 3, ultima: "novagest-2026-10-24.bak", haceHoras: 61.5 }, diasCerrados: 4, sesionesActivas: 2,
+        disco: { totalBytes: 64000000000, libreBytes: 24159191040, librePct: 37.7 },
+        licencia: { tipo: "FULL", vence: 1794447900, diasRestantes: 30 } } };
+  } else if (u.includes("/api/prints")) {
+    data = { ok: true, total: 2, prints: [
+      { ts: 1791855900, user: "almacenero", sale_id: "sale-001", code: "ABC-DEFG", width: 58, kind: "ticket", copies: 1 },
+      { ts: 1791855000, user: "jefe", sale_id: "sale-001", code: "ABC-DEFG", width: 80, kind: "reimpresion", copies: 1 },
+    ] };
   }
   return { status: 200, ok: true, json: async () => data };
 };
@@ -941,6 +952,62 @@ test("El cliente de la API corta las peticiones que tardan demasiado", () => {
   const apiSrc = readFileSync(join(root, "web/js/api.js"), "utf8");
   assert.match(apiSrc, /AbortController/);
   assert.match(apiSrc, /tardó demasiado/);
+});
+
+await atest("Ajustes muestra la salud del sistema con copias, espacio y licencia (S-05)", async () => {
+  go("settings");
+  await flush();
+  const html = go("settings");
+  assert.match(html, /Salud del sistema/);
+  assert.match(html, /La última copia tiene más de 48 horas/, "debe explicar el aviso de copias viejas");
+  assert.match(html, /Disco libre/);
+  assert.match(html, /Base de datos/);
+  assert.match(html, /30 días/, "muestra los días de licencia");
+  assert.match(html, /data-act="health-refresh"/);
+});
+
+await atest("«Comprobar ahora» vuelve a pedir /api/health", async () => {
+  const antes = fetchCalls.filter((c) => c.url.includes("/api/health")).length;
+  click({ act: "health-refresh" });
+  await flush();
+  const despues = fetchCalls.filter((c) => c.url.includes("/api/health")).length;
+  assert.ok(despues > antes, "no se repitió la consulta de salud");
+  assert.match(go("settings"), /Salud del sistema/);
+});
+
+await atest("La tarjeta de salud no aparece para el almacenero", async () => {
+  const previo = store.state.session;
+  try {
+    store.state.session = { ...previo, role: "ALMACENERO" };
+    const html = go("settings");
+    assert.doesNotMatch(html, /Salud del sistema/);
+  } finally {
+    store.state.session = previo;
+    go("home");
+  }
+});
+
+await atest("Auditoría → Impresiones muestra quién imprimió cada ticket (S-10)", async () => {
+  go("audit");
+  await flush();
+  clickMatching("audit-tab", { auditTab: "prints" });
+  await flush();
+  await flush();
+  const html = go("audit");
+  assert.match(html, /Quién imprimió cada ticket/);
+  assert.match(html, /ABC-DEFG/);
+  assert.match(html, /reimpresion/);
+  assert.match(html, /No se guarda el contenido del ticket|No se guarda el contenido del ticket ni datos del cliente/);
+  assert.match(html, /80 mm/);
+});
+
+test("La impresión de un ticket deja constancia en el servidor (S-10)", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  assert.match(source, /function recordPrint\(/);
+  assert.match(source, /api\("\/prints", \{ method: "POST"/);
+  assert.match(source, /recordPrint\(\[m\], 58\)/);
+  assert.match(source, /recordPrint\(movs, d\.ticketLast\)/);
+  assert.match(source, /ui\._lastPrintedSale === saleId \? "reimpresion" : "ticket"/);
 });
 
 console.log(`\n${ok} comprobaciones correctas, ${fail} fallidas\n`);
