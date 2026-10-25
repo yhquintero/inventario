@@ -901,7 +901,30 @@ Si el código **no existe**, la app ofrece **crear el producto** con ese código
 salir de la venta. Si el producto existe pero **no tiene existencia en el almacén en uso**,
 avisa con un mensaje claro y no lo añade.
 
-## 6.6 Errores frecuentes en la venta
+## 6.6 Imprimir el ticket (papel de 58 mm o 80 mm)
+
+Después de cobrar, en la misma pantalla de **Venta rápida** aparecen dos botones:
+**🧾 Ticket 58 mm** y **🧾 80 mm**. Imprimen **la última venta** en el ancho del papel de su
+impresora térmica.
+
+1. Elija el ancho según su impresora (58 mm es el rollo pequeño de mostrador; 80 mm, el
+   ancho de las cajas registradoras).
+2. Se abre el diálogo de impresión del navegador: elija la **impresora térmica** y pulse
+   **Imprimir**. El tamaño de papel ya viene configurado por la aplicación.
+3. El ticket sale con: nombre del negocio, fecha y hora, **productos con cantidad e
+   importe**, **total en USD**, equivalente en CUP con la tasa del día, comisión y domicilio
+   (si los hubo), forma de pago, cliente (en los fiados) y el nombre de quien atendió.
+
+**Ticket de una venta anterior:** **Menú → Operación → Movimientos** → icono **🧾** en la
+fila de la venta.
+
+> [!TIP]
+> Si el navegador imprime en A4, abra el diálogo y elija la impresora térmica con el papel
+> correcto: el ancho ya está fijado por la aplicación, pero el navegador recuerda la última
+> impresora usada. En Chrome puede marcar **Guardar como PDF** para enviar el ticket por
+> WhatsApp.
+
+## 6.7 Errores frecuentes en la venta
 
 | Mensaje o síntoma | Causa | Solución |
 |---|---|---|
@@ -912,7 +935,7 @@ avisa con un mensaje claro y no lo añade.
 | La cámara no abre | El sitio no es HTTPS o falta permiso | Use HTTPS y permita la cámara en el navegador |
 | El carrito se vació al recargar | El carrito vive en la sesión | Vuelva a cargar; registre la venta antes de recargar |
 
-## 6.7 Buenas prácticas de caja
+## 6.8 Buenas prácticas de caja
 
 1. **Una venta, un cobro.** No acumule varias ventas en el carrito si son clientes distintos.
 2. **Domicilio siempre en CUP** y solo si lo cobró.
@@ -1227,6 +1250,20 @@ Tabla por día: **Día · Venta · Costo · Domicilio · Comisión · Cuadre** (
 4. Los encabezados quedan fijos al desplazar, y los importes y costos **históricos** se
    mantienen aunque el catálogo cambie después.
 5. **Exportar CSV** o **PDF** para el contador.
+
+**🔄 Este período frente al anterior.** Debajo de los indicadores, la tarjeta compara el
+período elegido con el **anterior de la misma duración** (un mes contra el mes anterior, una
+semana contra la semana anterior…):
+
+| Columna | Qué muestra |
+|---|---|
+| **Este período** | Ventas reales, utilidad bruta, unidades vendidas y comisiones del período elegido |
+| **Anterior** | Los mismos indicadores en el período inmediatamente anterior |
+| **Variación** | ▲ sube, ▼ baja, con el porcentaje; «igual» o «sin base anterior» cuando no hay con qué comparar |
+
+> [!TIP]
+> Es la forma más rápida de saber si un mes fue bueno **de verdad**: una venta alta con
+> utilidad plana suele significar precios de venta bajos o compras más caras.
 
 **Sección de referencias NOVA** (cuando se importaron libros diarios): muestra el detalle
 frente a la venta declarada, las **diferencias de caja** y el cierre de stock comparado con

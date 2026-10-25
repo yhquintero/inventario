@@ -14,6 +14,7 @@ import { moneyIn } from "./ipv.js";
 import { categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, heatmapSummary, niceTicks } from "./charts.js";
 import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
+import { saleTicket } from "./ticket.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -1107,7 +1108,7 @@ function movementsView() {
     <div class="summary"><span><b>${list.length}</b> movimientos</span><span>Ventas <b>${usd(ventas.reduce((a, m) => a + m.importeUsd, 0))}</b></span><span>Comisiones <b>${cup(ventas.reduce((a, m) => a + m.comisionCup, 0))}</b></span><span>Domicilios <b>${cup(ventas.reduce((a, m) => a + (m.domicilioCup || 0), 0))}</b></span></div>
     <div class="card table-wrap flush">
       <table>
-        <thead><tr><th class="num">Nº</th><th>Fecha</th><th>PRODUCTO</th><th>MOVIMIENTO</th><th class="r">CANT.</th><th class="r">PRECIO</th><th class="r">IMPORTE</th><th>TIPO</th><th>ALMACÉN</th><th class="r">COMISIÓN</th><th class="r">DOMICILIO</th><th class="r">STOCK</th><th>Obs.</th>${canE ? "<th></th>" : ""}</tr></thead>
+        <thead><tr><th class="num">Nº</th><th>Fecha</th><th>PRODUCTO</th><th>MOVIMIENTO</th><th class="r">CANT.</th><th class="r">PRECIO</th><th class="r">IMPORTE</th><th>TIPO</th><th>ALMACÉN</th><th class="r">COMISIÓN</th><th class="r">DOMICILIO</th><th class="r">STOCK</th><th>Obs.</th><th></th></tr></thead>
         <tbody>
           ${list.map((m, i) => `
             <tr>
@@ -1124,8 +1125,8 @@ function movementsView() {
               <td class="mono r">${m.domicilioCup ? cup(m.domicilioCup) : "—"}</td>
               <td class="mono r">${qty(m.stockInicial)} → ${qty(m.stockFinal)}</td>
               <td class="hint">${esc(m.notes || "")}</td>
-              ${canE ? `<td class="actions"><button class="icon-btn" data-edit-mov="${m.id}" title="Modificar">✎</button><button class="icon-btn danger" data-del-mov="${m.id}" title="Enviar a papelera">🗑</button></td>` : ""}
-            </tr>`).join("") || `<tr><td colspan="${13 + (canE ? 1 : 0)}" class="empty">Sin movimientos.</td></tr>`}
+              <td class="actions">${m.type === "VENTA" ? `<button class="icon-btn" data-ticket-mov="${m.id}" title="Ticket 58 mm">🧾</button>` : ""}${canE ? `<button class="icon-btn" data-edit-mov="${m.id}" title="Modificar">✎</button><button class="icon-btn danger" data-del-mov="${m.id}" title="Enviar a papelera">🗑</button>` : ""}</td>
+            </tr>`).join("") || `<tr><td colspan="14" class="empty">Sin movimientos.</td></tr>`}
         </tbody>
       </table>
     </div>
@@ -1407,6 +1408,51 @@ function comprobacionRows(from, to, warehouseId = null) {
   }).filter((row) => (row.v || row.e || row.s || row.opening || row.closing) && (!ui.q || has(row.p.name, ui.q)));
 }
 
+/**
+ * Período anterior de la misma duración, para comparar (W-06).
+ *
+ * Devuelve las fechas y las filas de comprobación de ese período, de modo que
+ * el informe pueda mostrar «este período vs el anterior» sin recargar nada.
+ */
+function periodComparison(from, to, warehouseId) {
+  const ms = (iso) => new Date(`${iso}T00:00:00Z`).getTime();
+  const days = Math.max(1, Math.round((ms(to) - ms(from)) / 86400000) + 1);
+  const prevTo = addDays(from, -1);
+  const prevFrom = addDays(prevTo, -(days - 1));
+  const rows = comprobacionRows(prevFrom, prevTo, warehouseId);
+  const sum = (key) => round2(rows.reduce((total, row) => total + (Number(row[key]) || 0), 0));
+  return { prevFrom, prevTo, days, rows, sum, empty: rows.every((row) => !row.v && !row.e && !row.s) };
+}
+
+/** Variación porcentual redondeada; `null` si el período anterior estaba en cero. */
+function variation(now, before) {
+  if (!before) return now ? null : 0;
+  return round2(((now - before) / before) * 100);
+}
+
+function compareCard(cmp, nowSum) {
+  if (!cmp) return "";
+  const filas = [
+    { label: "Ventas reales", now: nowSum("real"), before: cmp.sum("real"), fmt: usd },
+    { label: "Utilidad bruta", now: nowSum("profit"), before: cmp.sum("profit"), fmt: usd },
+    { label: "Unidades vendidas", now: nowSum("v"), before: cmp.sum("v"), fmt: qty },
+    { label: "Comisiones", now: nowSum("commissionCup"), before: cmp.sum("commissionCup"), fmt: cup },
+  ];
+  return `<div class="card mt14">
+      <div class="card-h"><span class="k">🔄 Este período frente al anterior</span><span class="hint">${formatDate(cmp.prevFrom)} – ${formatDate(cmp.prevTo)} · ${cmp.days} día(s), igual que el período elegido</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Indicador</th><th class="r">Este período</th><th class="r">Anterior</th><th class="r">Variación</th></tr></thead>
+        <tbody>${filas.map((f) => {
+          const pct = variation(f.now, f.before);
+          const tono = pct == null ? "mov" : pct > 0 ? "entrada" : pct < 0 ? "salida" : "mov";
+          const texto = pct == null ? "sin base anterior" : pct === 0 ? "igual" : `${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}%`;
+          return `<tr><td>${f.label}</td><td class="mono r">${f.fmt(f.now)}</td><td class="mono r">${f.fmt(f.before)}</td><td class="r"><span class="tag ${tono}">${texto}</span></td></tr>`;
+        }).join("")}</tbody>
+      </table></div>
+      ${cmp.empty ? `<p class="hint pad">En el período anterior no hay movimientos registrados: las variaciones se mostrarán en cuanto exista esa base.</p>` : ""}
+    </div>`;
+}
+
 function reportsView() {
   const { from, to, anchor, warehouseId, valid } = reportContext();
   const rows = valid ? comprobacionRows(from, to, warehouseId) : [];
@@ -1476,6 +1522,7 @@ function reportsView() {
       ${kpi("Entradas / salidas", `${qty(sum("e"))} / ${qty(sum("s"))}`, "unidades del período", "gold")}
       ${kpi("Δ precio / venta", usd(sum("diff")), "precio registrado − importe real", sum("diff") ? "gold" : "green")}
     </div>
+    ${valid ? compareCard(periodComparison(from, to, warehouseId), sum) : ""}
     <div class="card table-wrap flush sticky-data-wrap reports-table-scroll" id="printArea" class="mt14">
       <div class="card-h pad"><span class="k">INVENTARIO · ${periodLabel}</span><span class="hint">Existencia de apertura, movimientos y cierre calculados para el período</span></div>
       <table><thead><tr><th class="num">Nº</th><th>PRODUCTOS</th><th class="r">STOCK APERTURA</th><th class="r">VENTAS</th><th class="r">ENTRADAS</th><th class="r">SALIDAS</th><th class="r">STOCK CALCULADO</th><th class="r">STOCK CIERRE</th><th class="r">IMP. LISTA</th><th class="r">IMP. REAL</th><th class="r">COSTO</th><th class="r">UTILIDAD BRUTA</th></tr></thead>
@@ -1958,6 +2005,7 @@ function posView() {
         <div class="cart-total"><span>${qty(uds)} uds</span><b>${usd(total)}</b></div>
         <div class="hint ta-r">≈ ${cup(total * store.rateOn("USD", ui.posDate || todayISO()))}</div>
         <button class="btn full big" data-act="checkout" ${ui.cart.length ? "" : "disabled"}>${isFiado ? "✔ Fiar" : "✔ Cobrar"} ${usd(total)}</button>
+        ${(ui.lastSaleIds || []).length ? `<div class="row mt10"><button class="btn ghost small" type="button" data-ticket-last="58" data-tip="Imprime el ticket de la última venta en papel de 58 mm">🧾 Ticket 58 mm</button><button class="btn ghost small" type="button" data-ticket-last="80" data-tip="Imprime el ticket de la última venta en papel de 80 mm">🧾 80 mm</button></div>` : ""}
       </aside>
     </div>`;
 }
@@ -3755,7 +3803,7 @@ function ensureClicks() {
 function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"); }
 
 function onClick(e) {
-  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit]");
+  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
@@ -3846,6 +3894,15 @@ function onClick(e) {
     confirmModal(`¿Enviar <b>${esc(p.name)}</b> y sus movimientos a la papelera? Podrás restaurarlo.`, () => result(store.deleteProduct(p.id), "Producto enviado a la papelera"));
   }
   else if (d.editMov) { movementModal(store.state.movements.find((x) => x.id === d.editMov)); render(); }
+  else if (d.ticketMov) {
+    const m = store.state.movements.find((x) => x.id === d.ticketMov);
+    if (m) printTicket(saleTicket([m], ticketOptions()));
+  }
+  else if (d.ticketLast) {
+    const movs = (ui.lastSaleIds || []).map((id) => store.state.movements.find((x) => x.id === id)).filter(Boolean);
+    if (!movs.length) toast("Haz una venta primero: el ticket sale de la última venta.", "err");
+    else printTicket(saleTicket(movs, ticketOptions(d.ticketLast)), d.ticketLast);
+  }
   else if (d.delMov) { confirmModal("¿Enviar este movimiento a la papelera? El stock se recalculará.", () => result(store.deleteMovement(d.delMov), "Movimiento enviado a la papelera")); }
   else if (d.restoreProduct) { ui.modal = null; result(store.restoreProduct(d.restoreProduct), "Producto restaurado"); }
   else if (d.purgeProduct) confirmModal("¿Eliminar DEFINITIVAMENTE este producto y todos sus movimientos? No se puede deshacer.", () => result(store.purgeProduct(d.purgeProduct), "Eliminado definitivamente"));
@@ -3878,6 +3935,7 @@ function onClick(e) {
     const r = store.posCheckout(ui.cart, { date: ui.posDate || todayISO(), center: ui.posCenter, domicilioCup: ui.posDom || 0, warehouseId: store.activeWarehouseId(), paymentType: ui.posPayment || "CONTADO", customerId, dueDate: ui.posDue || "" });
     if (r.error) return toast(r.error, "err");
     ui.cart = []; ui.posDom = 0;
+    ui.lastSaleIds = r.movementIds || [];
     confetti(isFiado ? `<b>¡Fiado registrado!</b><span>${usd(r.total)} a ${esc(store.customerById(customerId)?.name || "cliente")}</span>` : `<b>¡Venta registrada!</b><span>${usd(r.total)}</span>`);
     const dd = ui.posDate || todayISO();
     const dayTotal = store.activeMovements().filter((m) => m.date === dd && m.type === "VENTA").reduce((a, m) => a + m.importeUsd, 0);
@@ -4190,6 +4248,46 @@ function printCurrentView() {
   };
   window.addEventListener("afterprint", cleanup, { once: true });
   window.print();
+}
+
+/** Datos del negocio y del día que necesitan los tickets. */
+function ticketOptions(width = 58) {
+  return {
+    businessName: store.state.settings.businessName,
+    cupUsd: store.rateOn("USD", todayISO()),
+    seller: store.state.session?.displayName || "",
+    width: Number(width) === 80 ? 80 : 58,
+  };
+}
+
+/**
+ * Imprime un ticket térmico (58/80 mm) sin tocar el resto de la interfaz.
+ *
+ * El HTML se coloca en un contenedor aparte y se marca el documento con
+ * `print-ticket-58` / `print-ticket-80`: la hoja de estilos cambia el tamaño de
+ * página (`@page ticket58` / `@page ticket80`) y oculta la aplicación.
+ */
+function printTicket(html, width = 58) {
+  if (!html) return;
+  const w = Number(width) === 80 ? 80 : 58;
+  let box = $("#ticketArea");
+  if (!box) {
+    box = document.createElement("section");
+    box.id = "ticketArea";
+    box.setAttribute("aria-hidden", "true");
+    document.body.appendChild(box);
+  }
+  box.className = `ticket-area ticket-${w}`;
+  box.innerHTML = html;
+  const root = document.documentElement;
+  root.classList.add(`print-ticket-${w}`);
+  const cleanup = () => {
+    root.classList.remove(`print-ticket-${w}`);
+    box.remove();
+  };
+  window.addEventListener("afterprint", cleanup, { once: true });
+  window.print();
+  setTimeout(() => { if (root.classList.contains(`print-ticket-${w}`)) cleanup(); }, 60000);
 }
 
 function exportComprobacion() {

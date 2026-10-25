@@ -1740,7 +1740,29 @@ información de caja, no lo sume otra vez a la venta.</p>
 <p>Si el código <strong>no existe</strong>, la app ofrece <strong>crear el producto</strong> con ese código ya escrito, sin
 salir de la venta. Si el producto existe pero <strong>no tiene existencia en el almacén en uso</strong>,
 avisa con un mensaje claro y no lo añade.</p>
-<h2 id="66-errores-frecuentes-en-la-venta">6.6 Errores frecuentes en la venta</h2>
+<h2 id="66-imprimir-el-ticket-papel-de-58-mm-o-80-mm">6.6 Imprimir el ticket (papel de 58 mm o 80 mm)</h2>
+<p>Después de cobrar, en la misma pantalla de <strong>Venta rápida</strong> aparecen dos botones:
+<strong>🧾 Ticket 58 mm</strong> y <strong>🧾 80 mm</strong>. Imprimen <strong>la última venta</strong> en el ancho del papel de su
+impresora térmica.</p>
+<ol>
+<li>Elija el ancho según su impresora (58 mm es el rollo pequeño de mostrador; 80 mm, el
+   ancho de las cajas registradoras).</li>
+<li>Se abre el diálogo de impresión del navegador: elija la <strong>impresora térmica</strong> y pulse
+   <strong>Imprimir</strong>. El tamaño de papel ya viene configurado por la aplicación.</li>
+<li>El ticket sale con: nombre del negocio, fecha y hora, <strong>productos con cantidad e
+   importe</strong>, <strong>total en USD</strong>, equivalente en CUP con la tasa del día, comisión y domicilio
+   (si los hubo), forma de pago, cliente (en los fiados) y el nombre de quien atendió.</li>
+</ol>
+<p><strong>Ticket de una venta anterior:</strong> <strong>Menú → Operación → Movimientos</strong> → icono <strong>🧾</strong> en la
+fila de la venta.</p>
+<div class="callout tip">
+<p class="callout-t">💡 Consejo</p>
+<p>Si el navegador imprime en A4, abra el diálogo y elija la impresora térmica con el papel
+correcto: el ancho ya está fijado por la aplicación, pero el navegador recuerda la última
+impresora usada. En Chrome puede marcar <strong>Guardar como PDF</strong> para enviar el ticket por
+WhatsApp.</p>
+</div>
+<h2 id="67-errores-frecuentes-en-la-venta">6.7 Errores frecuentes en la venta</h2>
 <table>
 <thead>
 <tr>
@@ -1782,7 +1804,7 @@ avisa con un mensaje claro y no lo añade.</p>
 </tr>
 </tbody>
 </table>
-<h2 id="67-buenas-prácticas-de-caja">6.7 Buenas prácticas de caja</h2>
+<h2 id="68-buenas-prácticas-de-caja">6.8 Buenas prácticas de caja</h2>
 <ol>
 <li><strong>Una venta, un cobro.</strong> No acumule varias ventas en el carrito si son clientes distintos.</li>
 <li><strong>Domicilio siempre en CUP</strong> y solo si lo cobró.</li>
@@ -2301,6 +2323,36 @@ originales. Si un dato importado contradice la operación real, manda la operaci
    mantienen aunque el catálogo cambie después.</li>
 <li><strong>Exportar CSV</strong> o <strong>PDF</strong> para el contador.</li>
 </ol>
+<p><strong>🔄 Este período frente al anterior.</strong> Debajo de los indicadores, la tarjeta compara el
+período elegido con el <strong>anterior de la misma duración</strong> (un mes contra el mes anterior, una
+semana contra la semana anterior…):</p>
+<table>
+<thead>
+<tr>
+<th>Columna</th>
+<th>Qué muestra</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Este período</strong></td>
+<td>Ventas reales, utilidad bruta, unidades vendidas y comisiones del período elegido</td>
+</tr>
+<tr>
+<td><strong>Anterior</strong></td>
+<td>Los mismos indicadores en el período inmediatamente anterior</td>
+</tr>
+<tr>
+<td><strong>Variación</strong></td>
+<td>▲ sube, ▼ baja, con el porcentaje; «igual» o «sin base anterior» cuando no hay con qué comparar</td>
+</tr>
+</tbody>
+</table>
+<div class="callout tip">
+<p class="callout-t">💡 Consejo</p>
+<p>Es la forma más rápida de saber si un mes fue bueno <strong>de verdad</strong>: una venta alta con
+utilidad plana suele significar precios de venta bajos o compras más caras.</p>
+</div>
 <p><strong>Sección de referencias NOVA</strong> (cuando se importaron libros diarios): muestra el detalle
 frente a la venta declarada, las <strong>diferencias de caja</strong> y el cierre de stock comparado con
 el Excel, con la tasa CUP/USD de cada día.</p>

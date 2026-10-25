@@ -1093,7 +1093,7 @@ class Store {
     }
     this.audit("POS", "movement", `Venta rápida ${cart.length} líneas · $${total}${isFiado ? ` · FIADO a ${customer.name}` : ""}`);
     this.emit();
-    return { ok: true, total, creditId, paymentType: isFiado ? "FIADO" : "CONTADO" };
+    return { ok: true, total, creditId, movementIds, paymentType: isFiado ? "FIADO" : "CONTADO" };
   }
 
   /* ================= IMPORTAR HOJA DEL EXCEL ================= */

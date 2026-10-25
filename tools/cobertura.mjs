@@ -10,11 +10,11 @@ import { join } from "node:path";
 
 const min = Number(process.argv[process.argv.indexOf("--min") + 1]) || 80;
 const dir = mkdtempSync(join(tmpdir(), "ngcov-"));
-for (const t of ["test_calc.mjs", "test_ipv.mjs", "test_charts.mjs", "test_merge.mjs", "test_almacenes.mjs", "test_customers_credits.mjs"]) {
+for (const t of ["test_calc.mjs", "test_ipv.mjs", "test_charts.mjs", "test_merge.mjs", "test_ticket.mjs", "test_almacenes.mjs", "test_customers_credits.mjs"]) {
   const r = spawnSync("node", [`tools/${t}`], { env: { ...process.env, NODE_V8_COVERAGE: dir }, encoding: "utf8" });
   if (r.status !== 0) { console.error(`La suite ${t} falló; cobertura no válida`); process.exit(1); }
 }
-const wanted = { "calc.js": null, "ipv.js": null, "charts.js": null, "merge.js": null };
+const wanted = { "calc.js": null, "ipv.js": null, "charts.js": null, "merge.js": null, "ticket.js": null };
 for (const f of readdirSync(dir)) {
   const data = JSON.parse(readFileSync(join(dir, f), "utf8"));
   for (const s of data.result) {
