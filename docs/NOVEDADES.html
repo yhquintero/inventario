@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Novedades de NovaGest · 25 revisiones</title>
+<meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
+<meta name="theme-color" content="#312e81">
+<meta property="og:title" content="Novedades de NovaGest · 25 revisiones">
+<meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
+<meta property="og:type" content="website">
+<style>
+  :root {
+    --ink:#14142b; --muted:#5b5b76; --line:#e3e4ee; --soft:#f6f7fb;
+    --brand:#312e81; --brand2:#4338ca; --ok:#059669; --paper:#fff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--soft); color:var(--ink); }
+  body { font: 16px/1.6 "Segoe UI", system-ui, -apple-system, Arial, sans-serif; }
+  a { color: var(--brand2); }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--brand2); outline-offset: 2px; }
+  .skip { position:absolute; left:-999px; }
+  .skip:focus { left: 12px; top: 12px; z-index: 9; background:#fff; padding:8px 12px; border-radius:8px; }
+  header.top { background: linear-gradient(135deg, #1e1b4b, #312e81 55%, #4338ca); color:#fff; padding: 28px 20px 34px; }
+  header.top .wrap { max-width: 880px; margin: 0 auto; }
+  header.top .brand { display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.02em; }
+  header.top .brand svg { width:28px; height:28px; }
+  header.top h1 { margin: 14px 0 6px; font-size: clamp(26px, 4vw, 38px); line-height:1.15; }
+  header.top p { margin: 0; color:#dcdcf7; max-width: 62ch; }
+  header.top nav { margin-top: 16px; display:flex; gap: 14px; flex-wrap: wrap; font-size: 14px; }
+  header.top nav a { color:#fff; text-decoration: none; border-bottom: 1px solid #ffffff66; padding-bottom: 1px; }
+  main { max-width: 880px; margin: -18px auto 40px; padding: 0 20px; }
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; box-shadow: 0 6px 24px #312e8112; }
+  .card + .card { margin-top: 16px; }
+  .rev { display:flex; align-items:baseline; gap:10px; flex-wrap: wrap; margin-bottom: 2px; }
+  .rev .n { font: 700 13px/1 ui-monospace, Consolas, monospace; color:#fff; background: var(--brand2); border-radius: 999px; padding: 4px 9px; letter-spacing:.06em; }
+  .rev time { color: var(--muted); font-size: 13px; }
+  .card h2 { font-size: 19px; margin: 6px 0 10px; line-height: 1.3; }
+  .card ul { margin: 0; padding-left: 20px; }
+  .card li { margin-bottom: 8px; }
+  .card li b, .card li strong { color: #0f172a; }
+  code { font: 13px/1.4 ui-monospace, Consolas, monospace; background: var(--soft); border:1px solid var(--line); border-radius: 5px; padding: 0 4px; }
+  .intro { font-size: 15px; color: var(--muted); }
+  .older { text-align:center; color: var(--muted); font-size: 14px; margin-top: 18px; }
+  footer { max-width: 880px; margin: 0 auto 40px; padding: 0 20px; color: var(--muted); font-size: 13px; display:flex; gap:14px; flex-wrap:wrap; justify-content: space-between; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#e8e9f6; --muted:#a6a8c2; --line:#2b2d47; --soft:#14152a; --paper:#1b1c34; }
+    .card li b, .card li strong { color:#fff; }
+    code { background:#22243f; }
+  }
+  @media print {
+    html, body { background:#fff; }
+    header.top { background:#fff; color:#111; border-bottom: 2px solid var(--brand); }
+    header.top p, header.top nav a { color:#333; }
+    header.top nav, .older { display:none; }
+    .card { box-shadow:none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#novedades">Saltar al contenido</a>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10m-4-12 9-4"/></svg>
+      NovaGest
+    </div>
+    <h1>Novedades del producto</h1>
+    <p>Todo lo que se ha añadido, corregido y mejorado, en el orden en que llegó. Esta página se genera sola desde el registro de cambios: lo que ve aquí es exactamente lo que hay en el código.</p>
+    <nav aria-label="Enlaces del proyecto">
+      <a href="./index.html">Página del proyecto</a>
+      <a href="./MANUAL_USUARIO.html">Manual de usuario</a>
+      <a href="./GUIA_MOSTRADOR.html">Guía del mostrador</a>
+      <a href="https://github.com/yhquintero/inventario">Repositorio</a>
+    </nav>
+  </div>
+</header>
+<main id="novedades">
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>25</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXVI</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Hoja imprimible del Análisis, accesibilidad, novedades y aviso de cierre (W-12 · W-09 · D-12 · A-08)</h2>
+      <ul>
+      <li><b>W-12 · Hoja imprimible del Análisis.</b> Botón <b>🖨 Hoja imprimible</b> en <i>Análisis y metas</i>: cabecera con negocio y período, los cuatro indicadores, los tres gráficos (tendencia con meta, mapa de calor y categorías) y las metas, todo en <b>una A4 apaisada</b>; fuera van botones, ayudas y la tabla de productos sin movimiento. Reglas nuevas en <code>@media print</code> (<code>analytics-sheet</code>).</li>
+      <li><b>W-09 · Lo que pasa se anuncia.</b> Región viva permanente <code>#live</code> fuera de <code>#app</code> (<code>role=&quot;status&quot;</code>, <code>aria-live=&quot;polite&quot;</code>), función <code>announce()</code> conectada a todos los avisos, estado <b><code>aria-busy</code></b> mientras corre una operación larga (importación de Excel, copia cifrada) y <b>retorno del foco</b> al botón que abrió un diálogo.</li>
+      <li><b>D-12 · Página de novedades.</b> <code>docs/NOVEDADES.html</code> se <b>genera sola</b> desde <code>CHANGELOG.md</code> con <code>tools/build_novedades.py</code> (últimas 12 revisiones, sin dependencias), enlazada desde la portada y desde el pie del sitio. <code>--check</code> falla si la página queda desfasada.</li>
+      <li><b>A-08 · Aviso de cierre a las 20:00 (Android).</b> <code>DayCloseWorker</code> (WorkManager + Hilt) avisa solo si hubo ventas y el día <b>no está cuadrado</b>; <code>DayCloseCheck</code> concentra la decisión y los textos, con <b>4 pruebas</b> nuevas (<code>DayCloseCheckTest.kt</code>). Interruptor en <b>Ajustes → Aviso de cierre</b>.</li>
+      <li><b>Pruebas nuevas</b>: <code>tools/test_novedades.py</code> (23 comprobaciones) y 2 casos más en <code>tools/smoke_web.mjs</code> (<b>57 en total</b>). Manual §10.3 (hoja imprimible), §18.3 (accesibilidad) y §16.9 (aviso de cierre); <code>docs/INSTALACION.md</code> con la sección de <code>/api/health</code>. Service worker <b>v23</b>.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Salud del servidor y guía del mostrador (S-09 · D-10)</h2>
+      <ul>
+      <li><b>S-09 · <code>/api/health</code> con métricas.</b> La comprobación pública del servidor devuelve ahora un bloque <b><code>salud</code></b>: estado (<b>ok</b> / <b>aviso</b>), avisos (<code>licencia</code>, <code>sin-copias</code>, <code>copias-viejas</code>), tiempo en marcha, <b>latencia</b> medida contra SQLite, <b>tamaño de la base</b>, copias de seguridad (total, última y horas desde la última), días cerrados y sesiones activas. No expone ningún dato de personas ni el contenido de la base.</li>
+      <li><b>Prueba nueva <code>tools/test_salud_servidor.py</code></b> (25 comprobaciones): arranca un servidor temporal y verifica el contrato de <code>/api/health</code>, los avisos y que no se filtre nada sensible. Añadida al CI.</li>
+      <li><b>D-10 · Guía de dos páginas para el mostrador.</b> <code>docs/GUIA_MOSTRADOR.html</code> (+ su fuente <code>GUIA_MOSTRADOR.md</code>): hoja imprimible en <b>A4 y dos páginas</b> con los ocho bloques del turno (antes de abrir, vender, fiar, imprimir y verificar el ticket, cuadrar, qué mirar cada mañana, Android y qué hacer si algo va mal), casillas para marcar y tabla de problemas frecuentes. Autocontenida, sin recursos externos.</li>
+      <li><b>Prueba nueva <code>tools/test_guia_mostrador.py</code></b> (25 comprobaciones): estructura HTML, papel A4, corte de página, contenido de los ocho bloques y enlace al manual. Añadida al CI.</li>
+      <li><b>Manual</b>: aviso con la guía al principio de la sección 6; <code>docs/MEJORAS_PROPUESTAS.md</code> con S-09 y D-10 en ✅.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXIV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Ticket verificable y reimpresión en Android (W-16 · A-15)</h2>
+      <ul>
+      <li><b>W-16 · El ticket se puede verificar.</b> Cada ticket lleva al pie un <b>QR</b> y un <b>código corto</b> (<code>ABC-DEF</code>) calculado con el identificador de la venta, la fecha, el total, el número de líneas y una <b>clave del negocio</b> que se crea sola y viaja con los datos. Pantalla nueva <b>Verificar ticket</b> (Menú → Sistema): se escribe el código o se pega el texto del QR y responde <b>auténtico</b>, <b>no consta</b>, <b>no coincide</b> o <b>anulada</b>, con acceso directo a la venta en Movimientos.</li>
+      <li><b>Identificador de venta.</b> <code>posCheckout</code> marca todas las líneas de una venta con el mismo <code>saleId</code>: permite agrupar la venta y firmarla. Los movimientos antiguos siguen imprimiéndose igual, sin bloque de verificación.</li>
+      <li><b>Módulo <code>web/js/ticket.js</code></b>: funciones nuevas <code>ticketSignature</code>, <code>ticketCode</code>, <code>verificationPayload</code>, <code>parseVerification</code>, <code>verifyTicket</code>, <code>saleGroups</code>, <code>findSaleByCode</code> y <code>ticketQrSvg</code> (QR en SVG con el generador ya incluido, sin CDN ni imágenes). <b>5 pruebas nuevas</b> en <code>tools/test_ticket.mjs</code> (<b>12 en total</b>, <code>ticket.js</code> al <b>99 % de cobertura</b>).</li>
+      <li><b>A-15 · Reimprimir sin volver a la caja.</b> Android: <b>Inicio</b> muestra la tarjeta <b>Último ticket</b> con <b>🧾 Reimprimir último ticket</b> (misma impresora y ancho de Ajustes) y <b>Movimientos</b> ofrece <b>🧾 Imprimir ticket</b> en cada venta. El ticket se guarda en el teléfono al imprimirlo (<code>TicketFactory.encode</code> / <code>decode</code>, prefs <code>printer</code>), así que la copia sobrevive al cierre de la app.</li>
+      <li><b>Pruebas nuevas</b> <code>TicketFactoryTest.kt</code> (5 casos: fecha y hora, fiado, varias líneas, ida y vuelta del ticket guardado y texto ilegible).</li>
+      <li><b>Manual</b> §6.6 (QR y código), <b>§6.7 nuevo</b> (verificar un ticket), §16.2 y §16.4 (reimpresión); service worker <b>v22</b>; <code>docs/MEJORAS_PROPUESTAS.md</code> con W-16 y A-15 en ✅.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXIII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Panel comparado, aviso de pendientes e impresora en Ajustes (W-15 · A-17 · A-14)</h2>
+      <ul>
+      <li><b>W-15 · La venta del día, comparada.</b> El KPI <b>Venta del día</b> del Panel añade una frase con la variación frente al <b>mismo día de la semana anterior</b> («▲ 12% vs 18/10», «▼ 8% vs 18/10», «igual que el 18/10», «sin ventas el 18/10» o «sin base anterior»). Funciones nuevas <code>dayTotals(iso, movements)</code> y <code>sameWeekdayComparison(today, previous, previousISO)</code>, probadas en <code>tools/smoke_web.mjs</code> (<b>54 comprobaciones</b>).</li>
+      <li><b>A-17 · Aviso de cambios sin subir.</b> La nube de la barra superior lleva una <b>insignia con el número de cambios pendientes</b>; el aviso inferior dice cuántos son y en cuántos segundos se reintenta, y su botón pasa a <b>«Sincronizar ahora»</b>. La lógica vive en <code>ui/components/SyncHint.kt</code> (puro, sin Android) con <b>5 pruebas nuevas</b> en <code>SyncHintTest.kt</code>, y <b>Ajustes</b> resume el estado de la cola.</li>
+      <li><b>A-14 · Impresora y ancho en Ajustes.</b> Tarjeta <b>Impresora de tickets</b>: lista las impresoras <b>emparejadas</b> (<code>BluetoothPrinter.paired()</code>), guarda la elegida junto con el ancho (<b>58 / 80 mm</b>) mediante <code>remember(address, width)</code>, y ofrece <b>Imprimir prueba</b>. <b>Venta rápida</b> usa esa configuración en el botón principal <b>🖨 Reimprimir</b> (los botones 58 y 80 mm siguen ahí para el otro rollo) y avisa si no hay impresora configurada.</li>
+      <li><b>Manual</b> §10.4 (tabla de la comparación) y §16.3 / §16.5 (impresora, insignia y cola); <b>service worker v21</b>; <code>docs/MEJORAS_PROPUESTAS.md</code> con W-15, A-17 y A-14 en ✅.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Recibo Bluetooth en Android (A-02)</h2>
+      <ul>
+      <li><b>Impresión de tickets en impresoras térmicas Bluetooth</b> desde <b>Venta rápida</b>: tras cobrar aparecen <b>🖨 58 mm</b> y <b>🖨 80 mm</b> y el ticket sale por el perfil SPP con el formato ESC/POS.</li>
+      <li><b>Módulo <code>data/printer/EscPos.kt</code></b> (Kotlin puro, sin Android): cabecera, líneas con cantidad e importe, total USD, equivalente CUP, forma de pago, cliente del fiado, vendedor, avance y corte de papel. Los acentos se pliegan a ASCII para que ninguna impresora muestre símbolos raros.</li>
+      <li><b><code>data/printer/BluetoothPrinter.kt</code></b>: impresoras <b>ya emparejadas</b>, conexión RFCOMM con tiempo de espera y memoria de la última usada; permiso <code>BLUETOOTH_CONNECT</code> solicitado en pantalla (Android 12+).</li>
+      <li><b>Pruebas <code>EscPosTest.kt</code></b> (10 casos): inicialización, corte, contenido, fiado, alineación a 32/48 columnas, recorte de nombres largos y plegado de acentos.</li>
+      <li><b>Manual</b> §16.3 con el paso a paso de emparejar e imprimir; <code>MANIFEST</code> con los permisos nuevos; <code>docs/MEJORAS_PROPUESTAS.md</code> con A-02 en ✅.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXI</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Ticket térmico y comparador de períodos (W-05 · W-06)</h2>
+      <ul>
+      <li><b>W-05 · Ticket térmico de 58 mm y 80 mm.</b> Después de cobrar, <b>Venta rápida</b> ofrece «🧾 Ticket 58 mm» y «🧾 80 mm» de la última venta; en <b>Movimientos</b>, el icono 🧾 imprime cualquier venta del historial. El ticket lleva negocio, fecha y hora, líneas con cantidad e importe, total USD, equivalente en CUP con la tasa del día, comisión, domicilio, forma de pago, cliente del fiado y quién atendió. Hoja de estilos con <code>@page ticket58</code> / <code>@page ticket80</code>: el navegador abre el diálogo con el ancho de papel ya puesto.</li>
+      <li><b>Módulo nuevo <code>web/js/ticket.js</code></b> (función pura, sin DOM): <code>saleTicket</code>, <code>ticketTotals</code>, <code>ticketDate</code>, <code>ticketTime</code>, <code>money</code>. Probado en <code>tools/test_ticket.mjs</code> (<b>7 pruebas</b>, <b>100 % de cobertura</b>) y añadido a la cobertura y al CI.</li>
+      <li><b>W-06 · Comparador de períodos en Informes</b>: tarjeta «🔄 Este período frente al anterior» con ventas reales, utilidad bruta, unidades y comisiones del período elegido frente al <b>anterior de la misma duración</b>, con variación porcentual (▲/▼), «igual» y «sin base anterior».</li>
+      <li><b>Service worker v20</b> con el módulo nuevo; <code>posCheckout</code> devuelve los identificadores de la venta para poder imprimirla.</li>
+      <li><b>Manual</b> §6.6 (ticket, paso a paso) y §10.2 (comparador); <code>docs/MEJORAS_PROPUESTAS.md</code> con W-05, W-06 y D-07 en ✅.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Voz masculina en el vídeo (C-01b)</h2>
+      <ul>
+      <li><b>Locución regrabada con voz masculina española</b> (español neutro, sin acento inglés), como pidió el titular: mismas palabras, mismo guion de <code>docs/PROPUESTA_VIDEO_PROMOCIONAL.md</code> §3.</li>
+      <li><b>Vídeo recompuesto</b>: <b>2:37</b> (156,8 s), 1280 × 720, H.264 High <code>yuv420p</code> 25 fps, audio AAC-LC 44,1 kHz estéreo, <code>+faststart</code>, 10,6 MB.</li>
+      <li><b>Subtítulos y MP3 de la narración regenerados</b> con la voz nueva; timecodes de la propuesta actualizados escena por escena.</li>
+      <li>README, manual y sitio citan <b>2:37</b>; la portada del sitio dice «El producto en 2 minutos y medio».</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XIX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Voz nueva en el vídeo de presentación (C-01)</h2>
+      <ul>
+      <li><b>Narración regenerada</b> con una voz española natural (español neutro de Latinoamérica), sin acento inglés y con ritmo pausado: las ocho escenas se han vuelto a locutar con el guion de <code>docs/PROPUESTA_VIDEO_PROMOCIONAL.md</code> §3, sin cambiar una coma del texto.</li>
+      <li><b>Vídeo recompuesto</b>: <b>2:41</b> (160,9 s, por debajo del límite de 3 minutos), 1280 × 720, H.264 High <code>yuv420p</code> 25 fps, audio <b>AAC-LC 44,1 kHz estéreo</b> 148 kb/s, <code>+faststart</code>, 11,4 MB.</li>
+      <li><b>Subtítulos regenerados</b> y sincronizados con la voz nueva (56 rótulos), más el MP3 de la narración actualizado (<code>novagest-promo-narracion.mp3</code>).</li>
+      <li><b>Prueba <code>tools/test_sitio.py</code> ampliada</b> a 37 comprobaciones: el vídeo existe y no está vacío, la narración dura menos de 3 minutos, los subtítulos tienen al menos 20 rótulos y el MP3 está publicado.</li>
+      <li><b>Timecodes</b> de la propuesta actualizados escena por escena; README y manual citan <b>2:41</b>.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XVIII</span><time datetime="2026-10-24">24 de octubre de 2026</time></div>
+      <h2>Reposición sugerida en el Panel (W-11)</h2>
+      <ul>
+      <li><b>Nueva tarjeta «🧾 Reposición sugerida»</b> en el Panel: con las ventas reales de los últimos <b>30 días</b> calcula el ritmo diario de cada producto, <b>cuántos días dura la existencia</b> y <b>cuántas unidades comprar</b> para cubrir <b>14 días</b>, descontando lo que ya hay en el almacén. Ordenada por urgencia: <b>Agotado</b> → <b>Urgente</b> (≤3 días) → <b>Pronto</b> (≤7 días) → <b>Planificar</b>. Los productos sin ventas en la ventana no aparecen (no se inventa un ritmo); para ellos siguen las alertas de <b>Stock bajo</b>.</li>
+      <li><b>Lógica pura en <code>calc.js</code></b>: <code>reorderSuggestions(products, movements, { days, cover, today, warehouseId, limit })</code> y <code>reorderSummary(list)</code>; cuentan solo ventas vivas, en fecha y —si se indica— del almacén elegido.</li>
+      <li><b>Pruebas</b>: 3 bloques nuevos en <code>tools/test_calc.mjs</code> (13 pruebas en total) y cobertura de <code>calc.js</code> al <b>98,7 %</b>.</li>
+      <li><b>Manual</b> §10.4 con la tabla de columnas, cómo leerlo y qué hacer al abrir el negocio; <b>service worker v19</b> (estilos y precache) por los cambios de CSS.</li>
+      <li><b>CHANGELOG</b> y <code>docs/MEJORAS_PROPUESTAS.md</code>: W-11 marcada como hecha.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XVII</span><time datetime="2026-10-24">24 de octubre de 2026</time></div>
+      <h2>La Web no pierde trabajo sin conexión (W-02)</h2>
+      <ul>
+      <li><b>Cola de cambios en el navegador</b>: si se cae la red, el estado se guarda en <code>localStorage</code> (<code>novagest.pending</code>) y se sube al reconectar. Si la pestaña se cierra antes, la app <b>los recupera al volver a entrar</b> y avisa cuántos eran. También se guardan al cerrar la pestaña con cambios pendientes.</li>
+      <li><b>Conflictos resueltos por <code>updatedAt</code></b> (antes se recargaba y se descartaba lo local): al recibir <b>409</b>, la Web descarga la versión del servidor, <b>fusiona registro a registro</b> quedándose con la edición más reciente de cada uno, vuelve a guardar y avisa «Conflicto resuelto». Un borrado nunca pisa un cambio posterior.</li>
+      <li><b>Módulo nuevo <code>web/js/merge.js</code></b> (funciones puras, sin DOM ni red): <code>recordTime</code>, <code>localWins</code>, <code>mergeCollection</code>, <code>mergeState</code>, <code>describe</code>, <code>readPending</code>/<code>writePending</code>/<code>clearPending</code>. Probado en <code>tools/test_merge.mjs</code> (<b>12 pruebas</b>, <b>98 % de cobertura</b>) y añadido a <code>tools/cobertura.mjs</code> y al CI.</li>
+      <li><b>Service worker v18</b> con el módulo en el precache.</li>
+      <li><b>W-13 · CSV del mapa de calor</b>: botón <b>CSV</b> en el recuadro de Análisis que descarga una fila por día (fecha, día, ventas, unidades, líneas) con <code>;</code> y coma decimal para que Excel en español lo abra en columnas. Probado en <code>tools/test_charts.mjs</code> (11 pruebas).</li>
+      <li><b>Manual</b> §17.1, §17.4 y nota de conflictos actualizados (Web y Android fusionan igual); HTML regenerado.</li>
+      <li><b>Sitio del proyecto publicado en <code>docs/index.html</code></b> (GitHub Pages): portada con el resumen del producto, funciones, capturas reales, instalación en tres pasos, tabla de roles y enlaces al manual, al vídeo y al repositorio. Todo el estilo va incrustado, sin CDN ni fuentes externas, con modo oscuro automático, enlace «saltar al contenido» y textos alternativos.</li>
+      <li><b>Prueba nueva <code>tools/test_sitio.py</code></b> (31 comprobaciones): HTML bien formado, un solo <code>h1</code>, metadatos y descripción de buscadores, cero recursos externos, todos los recursos relativos existentes, imágenes con <code>alt</code> y tamaño, y publicación sin Jekyll (<code>docs/.nojekyll</code>). Enganchada al CI.</li>
+      <li><b>README</b>: enlace al sitio del proyecto, al manual y al vídeo en la cabecera.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XVI</span><time datetime="2026-10-24">24 de octubre de 2026</time></div>
+      <h2>Segunda ola de mejoras propuestas</h2>
+      <ul>
+      <li><b><code>docs/MEJORAS_PROPUESTAS.md</code></b>: resumen de avance al principio (paso 1, W-01 y A-01 en ✅, con el orden sugerido para seguir) y una <b>segunda ola de 14 propuestas</b> nacidas de lo ya construido: comparador de períodos y reposición sugerida en Análisis, hoja imprimible y exportación del mapa de calor, sincronización incremental, recibo con QR, widget de inicio, prueba de instrumentación de la cola, API por diferencias, panel de salud, instalador de Windows, manual en inglés y guía de migración desde Excel.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XV</span><time datetime="2026-10-24">24 de octubre de 2026</time></div>
+      <h2>Cola de sincronización y conflictos en Android (A-01)</h2>
+      <ul>
+      <li><b>Los conflictos ya no descartan trabajo.</b> Cuando el servidor responde <b>409</b> (otra persona guardó antes), la App descarga la versión del servidor, la toma como base y <b>vuelve a aplicar los cambios del teléfono encima</b>: en cada producto gana el <code>updatedAt</code> más reciente y los cambios del servidor se conservan. Antes se recargaba y se perdían las ediciones locales.</li>
+      <li><b>Reintentos automáticos con espera creciente.</b> Si la subida falla por red, el intento queda programado (5 s, 15 s, 1 min, 5 min y 15 min, hasta 12 intentos) y un bucle en segundo plano lo reintenta sin que el usuario haga nada; el estado se conserva entre sesiones.</li>
+      <li><b>Aviso honesto en pantalla</b>: la franja superior muestra «N cambio(s) sin subir · reintento en X s» y el botón <b>Reintentar</b> sigue disponible.</li>
+      <li><b>Lógica pura y probada</b>: <code>data/sync/SyncQueue.kt</code> (<code>RetryPolicy</code> y <code>ConflictResolver</code>) con <b>12 pruebas</b> en <code>app/src/test/.../SyncQueueTest.kt</code> (espera creciente, tope de intentos, <code>updatedAt</code>, empates con borrados, fusión, orden y mensajes).</li>
+      <li><b>Manual</b> §16.5 explica la resolución de conflictos por <code>updatedAt</code> y la franja de cambios pendientes (HTML regenerado).</li>
+      </ul>
+    </article>
+<p class="older">Y 13 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+</main>
+<footer>
+  <span>NovaGest · Gestiona. Crece. Avanza.</span>
+  <span>Generado desde CHANGELOG.md por tools/build_novedades.py</span>
+</footer>
+</body>
+</html>

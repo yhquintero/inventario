@@ -77,7 +77,7 @@ let ui = {
     requests: null, counts: null, reqFilter: "TODAS", reqName: "", reqPhone: "", reqTerm: "MES", reqConsent: false,
     genClient: "", genPhone: "", genTerm: "ANIO", genRequest: null,
   },
-  verifyResult: null, verifyText: "",
+  verifyResult: null, verifyText: "", busy: false, modalReturn: null, _hadModal: false,
   custTab: "clientes",
   fichaTab: "fichas", fichaSel: null, fichaEdit: null, fichaShowTrash: false, legalDoc: "aviso", legalData: null,
 };
@@ -116,7 +116,28 @@ function categoryIcon(category, size = 18) {
   return `<svg class="category-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${CATEGORY_ICON_MARKUP[key] || CATEGORY_ICON_MARKUP.box}</svg>`;
 }
 
+/**
+ * Anuncia un mensaje a los lectores de pantalla (W-09).
+ *
+ * La región `#live` vive fuera de `#app`, así que sobrevive a los repintados:
+ * un aviso de «procesando» no se pierde cuando la vista se vuelve a dibujar.
+ */
+function announce(text) {
+  const el = document.getElementById("live");
+  if (!el) return;
+  el.textContent = "";
+  setTimeout(() => { el.textContent = String(text ?? ""); }, 30);
+}
+
+/** Marca la app como ocupada mientras corre una operación larga (W-09). */
+function setBusy(busy, label = "") {
+  ui.busy = !!busy;
+  app.setAttribute?.("aria-busy", busy ? "true" : "false");
+  if (busy && label) announce(`${label}…`);
+}
+
 function toast(msg, kind = "") {
+  announce(msg);
   ui.toast = { msg, kind };
   render();
   clearTimeout(toast._t);
@@ -2248,6 +2269,11 @@ function analyticsView() {
   const sold = new Set(ventas.map((m) => m.productId));
   const quietos = store.activeProducts().filter((p) => p.stockActual > 0 && !sold.has(p.id)).sort((a, b) => b.stockActual * b.precioVentaUsd - a.stockActual * a.precioVentaUsd).slice(0, 10);
   return `
+    ${printReportHeader("Análisis y metas", `${formatDate(series[0]?.d || last.d)} — ${formatDate(last.d)}`)}
+    <div class="analytics-sheet">
+    <div class="row no-print analytics-tools">
+      <button class="btn ghost small" data-act="print" data-tip="Imprime los tres gráficos y los indicadores en una hoja A4">🖨 Hoja imprimible</button>
+    </div>
     <div class="kpis">
       ${kpi("Esta semana", usd(wk.ventas), diffPct == null ? "sin semana previa" : `${diffPct >= 0 ? "▲" : "▼"} ${Math.abs(diffPct)}% vs semana anterior`, diffPct == null || diffPct >= 0 ? "green" : "red")}
       ${kpi("Mejor día", usd(best.v), best.d ? `${weekday(best.d)} ${formatDate(best.d)}` : "—", "gold")}
@@ -2278,6 +2304,7 @@ function analyticsView() {
     <div class="card mt16"><div class="card-h"><span class="k">💤 Productos sin movimiento (más capital parado)</span></div>
       <div class="table-wrap"><table><thead><tr><th class="num">Nº</th><th></th><th>PRODUCTO</th><th class="r">STOCK</th><th class="r">CAPITAL</th></tr></thead>
       <tbody>${quietos.map((p, i) => `<tr><td class="num mono">${i + 1}</td><td>${thumb(p, 30)}</td><td>${esc(p.name)}</td><td class="mono r">${qty(p.stockActual)}</td><td class="mono r">${usd(p.stockActual * p.precioVentaUsd)}</td></tr>`).join("")}</tbody></table></div>
+    </div>
     </div>`;
 }
 
@@ -2327,6 +2354,7 @@ function handleNovaWorkbook(XLSX, wb, fileName) {
 }
 
 async function handleExcel(file) {
+  setBusy(true, "Leyendo el archivo");
   try {
     const XLSX = await loadXLSX();
     const wb = XLSX.read(await file.arrayBuffer(), { cellFormula: true, cellDates: false });
@@ -2356,6 +2384,7 @@ async function handleExcel(file) {
     }
     render();
   } catch (e) { toast("No se pudo leer el archivo: " + e.message, "err"); }
+  finally { setBusy(false); }
 }
 
 function novaImportModal() {
@@ -3338,6 +3367,13 @@ function render() {
   }
   applyTips(app);
   if (ui._lastRoute !== ui.route) { ui._lastRoute = ui.route; animateCounters(app); $(".content")?.classList.add("enter"); }
+  // W-09: al cerrar un diálogo, el foco vuelve a quien lo abrió.
+  if (ui._hadModal && !ui.modal) {
+    const opener = ui.modalReturn;
+    ui.modalReturn = null;
+    opener?.focus?.();
+  }
+  ui._hadModal = !!ui.modal;
   bindApp();
   // Accesibilidad: al abrir un modal, el foco pasa a su primer campo editable.
   if (ui.modal) {
@@ -3836,6 +3872,7 @@ function ensureClicks() {
 function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"); }
 
 function onClick(e) {
+  const openerBefore = document.activeElement;
   const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last]");
   if (!t) return;
   const d = t.dataset;
@@ -3952,7 +3989,7 @@ function onClick(e) {
   else if (d.bkRestore) confirmModal(`¿Restaurar <b>${esc(d.bkRestore)}</b>? Los datos actuales se reemplazarán para todos los usuarios (antes se guarda una copia).`, () => api("/backups/" + encodeURIComponent(d.bkRestore), { method: "POST" }).then(async (r) => { if (r.error) return toast(r.error, "err"); await store.reload(); ui.backups = null; toast("Copia restaurada", "ok"); }));
   else if (act === "verify-clear") { ui.verifyResult = null; ui.verifyText = ""; render(); }
   else if (act === "verify-open") { ui.movDate = d.date || ""; navTo("movements"); }
-  else if (act === "srv-backup") api("/backups", { method: "POST" }).then((r) => { if (r.error) return toast(r.error, "err"); ui.backups = null; toast("Copia cifrada creada", "ok"); render(); });
+  else if (act === "srv-backup") { setBusy(true, "Creando la copia cifrada"); api("/backups", { method: "POST" }).then((r) => { setBusy(false); if (r.error) return toast(r.error, "err"); ui.backups = null; toast("Copia cifrada creada", "ok"); render(); }); }
   else if (act === "tfa-setup") api("/2fa/setup", { method: "POST" }).then((r) => { if (r.error) return toast(r.error, "err"); ui.sec.setup = r; render(); });
   else if (act === "tfa-cancel") { ui.sec.setup = null; render(); }
   else if (act === "codes-done") { ui.sec.codes = null; render(); }
@@ -4255,6 +4292,8 @@ function onClick(e) {
     if (evt) { evt.prompt(); evt.userChoice?.then?.(() => render()); }
   }
   else if (act === "print") printCurrentView();
+  // W-09: si este clic abrió un diálogo, se recuerda el botón para devolverle el foco.
+  if (ui.modal && !ui.modalReturn && openerBefore && openerBefore !== document.body) ui.modalReturn = openerBefore;
 }
 
 /* ============================ EXPORTS ============================ */

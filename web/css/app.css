@@ -574,6 +574,12 @@ textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 
 
 /* ===================== Exportación PDF / impresión ===================== */
 .print-report-header { display: none; }
+/* W-09: texto solo para lectores de pantalla y estado ocupado de la app */
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+#app[aria-busy="true"] { cursor: progress; }
+#app[aria-busy="true"] .content { opacity: .72; transition: opacity .2s ease; }
+/* W-12: hoja imprimible del Análisis (tres gráficos + indicadores en una A4) */
+.analytics-tools { margin-bottom: 10px; justify-content: flex-end; }
 @page { size: A4 landscape; margin: 13mm 11mm 16mm; }
 @page {
   @bottom-right {
@@ -592,6 +598,16 @@ textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 
   .main { display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; }
   .content { padding: 0 !important; margin: 0 !important; overflow: visible !important; }
   .content.enter > * { animation: none !important; transform: none !important; }
+  /* W-12: la hoja del Análisis cabe en una A4 apaisada */
+  .analytics-sheet .no-print, .analytics-sheet .hint, .analytics-sheet .toolbar { display: none !important; }
+  .analytics-sheet { display: block !important; }
+  .analytics-sheet .kpis { display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 6pt; margin: 0 0 8pt; }
+  .analytics-sheet .card { border: 1px solid #cbd5e1 !important; box-shadow: none !important; break-inside: avoid; page-break-inside: avoid; padding: 6pt !important; margin: 0 0 6pt !important; }
+  .analytics-sheet .grid-2 { display: grid !important; grid-template-columns: 1fr 1fr; gap: 6pt; }
+  .analytics-sheet svg { max-height: 46mm !important; }
+  .analytics-sheet .table-wrap { display: none !important; }
+  .analytics-sheet .card-h { border-bottom: 1px solid #cbd5e1 !important; margin-bottom: 3pt !important; }
+  .analytics-sheet .hbar { font-size: 8pt !important; }
   .print-report-header {
     display: flex !important;
     align-items: flex-end;

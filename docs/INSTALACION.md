@@ -93,6 +93,29 @@ El despliegue usa Caddy para HTTPS y conserva los datos en el volumen Docker. Re
 
 La aplicación Android utiliza Kotlin, Jetpack Compose, Room, Hilt y Navigation Compose.
 
+## Comprobar que el servidor está bien (S-09)
+
+El servidor publica `/api/health`, que responde **sin iniciar sesión** y en una sola llamada:
+
+```bash
+curl -s http://127.0.0.1:8080/api/health | python -m json.tool
+```
+
+Devuelve el estado (`ok` o `aviso`), los avisos activos (`licencia`, `sin-copias`,
+`copias-viejas`), el tiempo en marcha, la **latencia** contra la base, el **tamaño** de la base,
+las **copias de seguridad** (total, última y horas desde la última), los **días cerrados** y las
+**sesiones activas**. Nunca devuelve el contenido de la base ni datos de personas: se puede
+publicar detrás del proxy sin riesgo.
+
+| Aviso | Qué significa | Qué hacer |
+|---|---|---|
+| `licencia` | No hay licencia activa | Activar la clave en la pantalla de licencia |
+| `sin-copias` | No hay ninguna copia cifrada | Revisar `BACKUP_KEY` y el programador de copias |
+| `copias-viejas` | La última copia tiene más de 48 h | Arrancar el servidor (las copias son diarias) o crear una a mano |
+
+Es la misma llamada que usa el Panel de Control y cualquier monitor externo (Uptime Kuma,
+Healthchecks…) para avisar si el servidor se cae.
+
 ## Producción
 
 Antes de usar NovaGest con datos reales, sigue la lista de endurecimiento de [SECURITY.md](../SECURITY.md#-recomendaciones-para-producción): servidor sin cuentas de demostración (`NOVAGEST_DEMO_USERS=0`), verificación en dos pasos para el Administrador, solo HTTPS, claves de cifrado fuera del servidor y copias replicadas fuera del equipo.

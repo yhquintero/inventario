@@ -2482,6 +2482,19 @@ el Excel, con la tasa CUP/USD de cada día.</p>
 inmovilizado, no por unidades.</p>
 <p>📊 Cada gráfico trae <strong>«Ver datos en tabla»</strong> debajo: la misma información en cifras, para
 leerla con lector de pantalla, imprimirla o copiarla a una hoja de cálculo.</p>
+<h3 id="hoja-imprimible-del-análisis-una-sola-página">Hoja imprimible del Análisis (una sola página)</h3>
+<p>Arriba de <strong>Análisis y metas</strong> está el botón <strong>🖨 Hoja imprimible</strong>. Imprime en <strong>una A4
+apaisada</strong> lo que el dueño o el contador quieren ver de un golpe:</p>
+<ol>
+<li>La cabecera con el <strong>negocio</strong>, el título y el <strong>período</strong> de los datos, y la fecha de generación.</li>
+<li>Los <strong>cuatro indicadores</strong>: esta semana, mejor día, promedio diario y utilidad neta.</li>
+<li>Los <strong>tres gráficos</strong>: tendencia de ventas diarias con la meta, mapa de calor de las últimas
+   semanas y ventas/utilidad por categoría.</li>
+<li>Las <strong>metas</strong> (hoy, semana y mes) con su barra de avance.</li>
+</ol>
+<p>Lo que no va al papel: botones, ayudas emergentes y la tabla de productos sin movimiento (esa se
+consulta en pantalla). Para guardarla como PDF, en el diálogo de impresión elija
+<strong>Guardar como PDF</strong>.</p>
 <h2 id="104-panel-el-resumen-de-cada-mañana">10.4 Panel: el resumen de cada mañana</h2>
 <p>El <strong>Panel</strong> reúne, en una sola vista: venta del día, estado del cuadre, ítems y valor del
 inventario, alertas de stock (<strong>productos en el mínimo o agotados</strong>), accesos directos a
@@ -3387,6 +3400,10 @@ del <strong>servidor</strong> (capítulo 13): esas son las que hay que descargar
 <td>Activar o desactivar la copia programada</td>
 </tr>
 <tr>
+<td><strong>Aviso de cierre a las 20:00</strong></td>
+<td>Si hubo ventas y el día no está cuadrado, el teléfono avisa a esa hora (se puede desactivar)</td>
+</tr>
+<tr>
 <td><strong>Tema</strong></td>
 <td>Claro / oscuro / sistema (se guarda y sobrevive al reinicio)</td>
 </tr>
@@ -3603,6 +3620,11 @@ aviso «Conflicto resuelto». Nadie tiene que volver a escribir lo perdido.</p>
   por su código, sin venderlo.</li>
 </ul>
 <h2 id="183-accesibilidad">18.3 Accesibilidad</h2>
+<p><strong>Anuncios y foco (W-09).</strong> Cada vez que la aplicación termina algo —guardar, importar, generar
+una copia, enviar un ticket— lo <strong>anuncia</strong> a los lectores de pantalla (región <code>aria-live</code>), sin
+que haga falta mirar la pantalla. Mientras una operación larga está en marcha, la app se marca
+como <strong>ocupada</strong> (<code>aria-busy</code>) y lo dice; al cerrar un diálogo, el <strong>foco vuelve al botón</strong> que lo
+abrió, así no se pierde el sitio con el teclado.</p>
 <ul>
 <li>Contraste alto y <strong>tema claro/oscuro</strong> seleccionable.</li>
 <li>Navegación por teclado con foco visible y <strong>textos alternativos</strong> en iconos y botones.</li>

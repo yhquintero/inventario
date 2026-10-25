@@ -1340,6 +1340,21 @@ inmovilizado, no por unidades.
 📊 Cada gráfico trae **«Ver datos en tabla»** debajo: la misma información en cifras, para
 leerla con lector de pantalla, imprimirla o copiarla a una hoja de cálculo.
 
+### Hoja imprimible del Análisis (una sola página)
+
+Arriba de **Análisis y metas** está el botón **🖨 Hoja imprimible**. Imprime en **una A4
+apaisada** lo que el dueño o el contador quieren ver de un golpe:
+
+1. La cabecera con el **negocio**, el título y el **período** de los datos, y la fecha de generación.
+2. Los **cuatro indicadores**: esta semana, mejor día, promedio diario y utilidad neta.
+3. Los **tres gráficos**: tendencia de ventas diarias con la meta, mapa de calor de las últimas
+   semanas y ventas/utilidad por categoría.
+4. Las **metas** (hoy, semana y mes) con su barra de avance.
+
+Lo que no va al papel: botones, ayudas emergentes y la tabla de productos sin movimiento (esa se
+consulta en pantalla). Para guardarla como PDF, en el diálogo de impresión elija
+**Guardar como PDF**.
+
 ## 10.4 Panel: el resumen de cada mañana
 
 El **Panel** reúne, en una sola vista: venta del día, estado del cuadre, ítems y valor del
@@ -1919,6 +1934,7 @@ Para pasar de local a servidor: **cierre sesión** y vuelva a entrar escribiendo
 | **CUP/USD por defecto**, **MXN/USD por defecto** | Tasas base del dispositivo |
 | **Alertas de stock bajo** | Activar o desactivar |
 | **Copia automática diaria** | Activar o desactivar la copia programada |
+| **Aviso de cierre a las 20:00** | Si hubo ventas y el día no está cuadrado, el teléfono avisa a esa hora (se puede desactivar) |
 | **Tema** | Claro / oscuro / sistema (se guarda y sobrevive al reinicio) |
 | **Guardar ajustes** | Confirma los cambios |
 
@@ -2016,6 +2032,12 @@ versión de datos y los días cerrados, con el botón **Sincronizar ahora**.
   por su código, sin venderlo.
 
 ## 18.3 Accesibilidad
+
+**Anuncios y foco (W-09).** Cada vez que la aplicación termina algo —guardar, importar, generar
+una copia, enviar un ticket— lo **anuncia** a los lectores de pantalla (región `aria-live`), sin
+que haga falta mirar la pantalla. Mientras una operación larga está en marcha, la app se marca
+como **ocupada** (`aria-busy`) y lo dice; al cerrar un diálogo, el **foco vuelve al botón** que lo
+abrió, así no se pierde el sitio con el teclado.
 
 - Contraste alto y **tema claro/oscuro** seleccionable.
 - Navegación por teclado con foco visible y **textos alternativos** en iconos y botones.
