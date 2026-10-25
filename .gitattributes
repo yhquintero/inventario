@@ -11,3 +11,6 @@ web/vendor/** linguist-vendored
 # falla en Linux (CI) con «bad interpreter».
 gradlew text eol=lf
 *.sh text eol=lf
+
+# Material audiovisual del manual y del video promocional (no son texto: evita diffs binarios).
+docs/assets/video/** -text -diff linguist-generated

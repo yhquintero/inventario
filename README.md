@@ -26,6 +26,12 @@
   <img src="docs/assets/novagest-hero.png" width="100%" alt="NovaGest: el Panel en el navegador y la Venta rápida en el móvil" />
 </p>
 
+> [!TIP]
+> **¿Primera vez?** El [Manual de Usuario](docs/MANUAL_USUARIO.md) explica el sistema completo
+> paso a paso ([versión imprimible en HTML](docs/MANUAL_USUARIO.html)), y el
+> [video de presentación de 2:50 min](docs/assets/video/novagest-promo-720p.mp4) resume en
+> seis pasos cómo trabajar con la Web y con Android.
+
 > [!IMPORTANT]
 > **NovaGest es software propietario.** El código es visible en GitHub, pero usarlo en un negocio, copiarlo, modificarlo o distribuirlo requiere una **licencia de uso** del titular. Consulta [LICENSE](LICENSE) y la sección [Licencia](#-licencia).
 
@@ -220,6 +226,7 @@ La base de datos operativa, las copias, los certificados y las claves generadas 
 |---|---|
 | [Instalación y despliegue](docs/INSTALACION.md) | Servidor, Windows con HTTPS y Panel de Control Visual, Docker, Android y producción |
 | [Licencias de uso](docs/LICENCIAS.md) | Activación, plazos, solicitudes por WhatsApp, generador independiente y control de claves |
+| [**Manual de Usuario**](docs/MANUAL_USUARIO.md) · [versión imprimible](docs/MANUAL_USUARIO.html) | Manual completo paso a paso: activación, almacenes, venta, fiados, cuadre, informes, copias, roles, Android, solución de problemas y listas de verificación |
 | [Manual rápido](docs/MANUAL.md) | Uso diario de la aplicación paso a paso |
 | [Almacenes e importación](docs/ALMACENES.md) | Existencias por almacén, traspasos e importación de valores |
 | [Mapeo del Excel](docs/MAPEO_EXCEL.md) | Cómo se interpreta cada libro de `xlsx/` |
@@ -228,6 +235,8 @@ La base de datos operativa, las copias, los certificados y las claves generadas 
 | [Certificación](docs/certificacion/00-INDICE-Y-FIRMAS.md) | Preparación para ISO 27001, SOC 2, OWASP ASVS, WCAG 2.2 e ISO 27701 |
 | [Mejora continua](docs/MEJORA_CONTINUA.md) · [Hoja de ruta](docs/ROADMAP.md) | Próximas mejoras priorizadas y cómo se verifican |
 | [Procedencia de las imágenes](docs/IMAGENES.md) | Origen y licencia de las imágenes del proyecto |
+| [Propuesta de video promocional](docs/PROPUESTA_VIDEO_PROMOCIONAL.md) | Guion, planos, textos en pantalla y plan de producción del video de presentación |
+| [Rotación del secreto de licencias](docs/ROTACION_SECRETO.md) | Cuándo y cómo cambiar el secreto que firma las licencias |
 | [Registro de cambios](CHANGELOG.md) | Mejoras y correcciones de cada versión (Web y Android) |
 
 ## ❓ Preguntas frecuentes
