@@ -106,6 +106,7 @@ interna para quien administra las licencias.
 - 📥 **Importar valores** — pega columnas del Excel, sube `.xlsx/.csv/.tsv/.txt` o escribe en la tabla; la vista previa clasifica cada fila (**nuevo**, **entra al almacén**, **igual** o **sobrescribe**) y avisa antes de pisar datos.
 - 🛒 **Punto de venta** — venta rápida que descuenta el stock del almacén en uso al instante, con **escáner de códigos de barras** (cámara o lector USB/Bluetooth), cobro **al contado o a fiado**, y comisiones y domicilios calculados automáticamente.
 - 🤝 **Clientes y fiados** — libro de clientes con **límite de crédito**, cuentas por cobrar con vencimiento, estados (pendiente/parcial/vencido/pagado) y **abonos** con historial; el total por cobrar se ve en el Panel.
+- 🧾 **Ticket de venta** — después de cobrar, la venta se imprime en **58 mm o 80 mm** desde la Web (diálogo de impresión con el ancho ya puesto) o en una **impresora térmica Bluetooth** desde el Android, con el formato ESC/POS: negocio, fecha, líneas, total USD, equivalente en CUP, forma de pago y quién atendió.
 - 🔄 **Movimientos** — ventas, entradas y salidas con almacén, centro de venta, cantidades, importes y observaciones; cada movimiento recalcula el stock y **nunca deja existencias negativas**.
 - 🧮 **Caja diaria (cuadre)** — tasas CUP/USD y MXN/USD, cobros, entradas, extracciones, fondos y gastos: el día está «cuadrado» cuando el resultado da **0**, y la aplicación avisa si no lo está.
 
@@ -121,7 +122,7 @@ interna para quien administra las licencias.
 - 🔐 **Licencia de uso** — clave firmada criptográficamente, ocho plazos, solicitud por WhatsApp y panel de control de claves y equipos.
 - 👥 **Roles y permisos** — Administrador, Jefe, Económico y Almacenero; el servidor valida cada permiso, no solo la interfaz.
 - 🔒 **Seguridad** — verificación en dos pasos (TOTP), bloqueo tras intentos fallidos, caducidad de sesión, **cierre de días** y copias de seguridad cifradas con rotación.
-- ☁️ **Sincronización multiplataforma** — Web y Android sobre el mismo estado; si se pierde la conexión, la Web sigue operando y sincroniza al reconectar, y el Android guarda en local y sube al volver la red.
+- ☁️ **Sincronización multiplataforma** — Web y Android sobre el mismo estado; si se pierde la conexión, la Web sigue operando y sincroniza al reconectar, y el Android guarda en local y sube al volver la red. La barra superior muestra una **insignia con los cambios sin subir** y **Ajustes** resume la cola con su próximo reintento.
 
 ---
 
