@@ -628,7 +628,7 @@ class SyncManager @Inject constructor(
             remoteOfLocal[p.id] = p.remoteId!!
             // Conflicto por registro (A-01): si el servidor tiene una versión más reciente,
             // se respeta y no se pisa lo que otro usuario acaba de cambiar.
-            if (o.num("updatedAt") > p.updatedAt) { keptFromServer += p.name; continue }
+            if (o.num("updatedAt") > p.updatedAt) { keptFromServer++; continue }
             if (!p.active && !isDeleted(o)) {
                 o.put("deletedAt", now).put("deletedBy", "$who (App)")
                 for (m in (state.optJSONArray("movements")).objects()) if (m.str("productId") == p.remoteId && !isDeleted(m)) m.put("deletedAt", now).put("deletedWith", p.remoteId)
