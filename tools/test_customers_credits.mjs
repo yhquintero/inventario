@@ -20,7 +20,11 @@ const mem = new Map();
 globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 
 const { store } = await import(pathToFileURL(join(tmp, "store.js")).href);
-const { normalizeBarcode, creditPending, creditStatus } = await import(pathToFileURL(join(tmp, "calc.js")).href);
+const { normalizeBarcode, creditPending, creditStatus, addDays, todayISO } = await import(pathToFileURL(join(tmp, "calc.js")).href);
+
+// Fechas relativas a hoy: una prueba con fecha fija («2026-10-20») deja de ser «parcial»
+// en cuanto el reloj la supera y empieza a fallar sin que cambie el código.
+const enDias = (n) => addDays(todayISO(), n);
 
 let ok = 0, fail = 0;
 const test = (name, fn) => {
@@ -68,7 +72,7 @@ test("código de barras único y localizable", () => {
 
 test("fiado manual, límite y abonos parciales", () => {
   const c = store.activeCustomers()[0];
-  const cr = store.createCredit({ customerId: c.id, totalUsd: 400, dueDate: "2026-10-20", concept: "Panel a crédito" });
+  const cr = store.createCredit({ customerId: c.id, totalUsd: 400, dueDate: enDias(30), concept: "Panel a crédito" });
   assert.equal(cr.error, undefined);
   assert.equal(store.customerBalance(c.id), 400);
   assert.equal(store.totalReceivable(), 400);
@@ -88,7 +92,7 @@ test("fiado manual, límite y abonos parciales", () => {
 
 test("estado VENCIDO según fecha de vencimiento", () => {
   const c = store.activeCustomers()[0];
-  const old = store.createCredit({ customerId: c.id, date: "2026-09-01", dueDate: "2026-09-10", totalUsd: 50 });
+  const old = store.createCredit({ customerId: c.id, date: enDias(-20), dueDate: enDias(-10), totalUsd: 50 });
   assert.equal(old.error, undefined);
   assert.equal(creditStatus(store.creditById(old.id)), "VENCIDO");
   assert.equal(creditPending(store.creditById(old.id)), 50);

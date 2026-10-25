@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Carga ligera local: N logins + PUT /api/state concurrentes; exige p95 < umbral.
 Uso: python3 tools/test_carga.py [--n 20] [--umbral-ms 1500]  (arranca su propio servidor temporal)"""
-import concurrent.futures, http.cookiejar, json, os, pathlib, statistics, subprocess, sys, tempfile, time, urllib.request
+import concurrent.futures, http.cookiejar, json, os, pathlib, re, secrets, statistics, subprocess, sys, tempfile, time, urllib.request
 ROOT = pathlib.Path(__file__).parent.parent
 n = int(sys.argv[sys.argv.index("--n") + 1]) if "--n" in sys.argv else 20
 umbral = float(sys.argv[sys.argv.index("--umbral-ms") + 1]) if "--umbral-ms" in sys.argv else 1500.0
 PORT = 18191
 tmp = tempfile.mkdtemp(prefix="ng-carga-")
-env = {**os.environ, "DATA_DIR": tmp, "PORT": str(PORT), "NOVAGEST_DEMO_USERS": "1"}
+# El servidor verifica la licencia ANTES del login (402 sin licencia), así que la instalación
+# temporal usa un secreto propio y activa una clave emitida para ella con las mismas variables.
+SECRET = "carga-" + secrets.token_hex(16)
+env = {**os.environ, "DATA_DIR": tmp, "PORT": str(PORT), "NOVAGEST_DEMO_USERS": "1", "LICENSE_SECRET": SECRET}
 proc = subprocess.Popen([sys.executable, str(ROOT / "server" / "novagest_server.py")], env=env,
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 BASE = f"http://127.0.0.1:{PORT}"
@@ -29,6 +32,20 @@ try:
             urllib.request.urlopen(BASE + "/api/health", timeout=2); break
         except Exception: time.sleep(0.5)
     else: sys.exit("El servidor temporal no arrancó")
+
+    # 1) Emitir la clave con el mismo secreto que la instalación temporal.
+    gen = subprocess.run([sys.executable, str(ROOT / "tools" / "generate_license.py"),
+                          "--client", "Carga", "--term", "MES"],
+                         env=env, capture_output=True, text=True)
+    encontrada = re.search(r"NG-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", gen.stdout or "")
+    if not encontrada:
+        sys.exit(f"No se pudo emitir la clave de carga:\n{gen.stdout}\n{gen.stderr}")
+    # 2) Activarla en la instalación temporal (antes del login).
+    activar = http.cookiejar.CookieJar()
+    op_activar = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(activar))
+    _, code = call(op_activar, "POST", "/api/license/activate", {"license_key": encontrada.group(0)})
+    if code not in (200, 201):
+        sys.exit(f"No se pudo activar la licencia de la prueba de carga (código {code})")
 
     def worker(i):
         cj = http.cookiejar.CookieJar()

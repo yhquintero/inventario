@@ -7,6 +7,13 @@
 - **Video promocional 720p** (`docs/assets/video/novagest-promo-720p.mp4`): 2:50 min, 1280 × 720, H.264/AAC y `+faststart`, con **narración en off y subtítulos quemados**. Recorre los seis pasos esenciales (licencia → configuración y almacenes → importar mercancía → vender → cuadrar la caja → revisar) y cierra con el lema y la llamada a la acción por WhatsApp. Se acompaña de los subtítulos editables (`.srt`) y de la pista de narración (`.mp3`).
 - **Propuesta de video** (`docs/PROPUESTA_VIDEO_PROMOCIONAL.md`): objetivo y decisiones creativas, guion escena por escena con timecodes, textos en pantalla, narración literal, especificaciones técnicas, plan de rodaje alternativo, cortes de 30 s y vertical de 15 s para redes, distribución, lista de verificación de calidad y métricas.
 - **Herramientas nuevas**: `tools/build_manual_html.py` (Markdown → HTML imprimible) y `tools/build_promo_video.py` (composición, sincronización de la narración, subtítulos y montaje del video con Pillow y ffmpeg).
+- **CI en verde otra vez** (pruebas que se habían quedado atrás respecto al código):
+  `tools/test_customers_credits.mjs` usaba una fecha de vencimiento fija («2026-10-20») y el fiado pasaba a
+  **VENCIDO** en cuanto el reloj la superaba; ahora las fechas se calculan respecto a hoy (`addDays(todayISO(), n)`).
+  `tools/smoke_web.mjs` exigía el lector de Excel en el precache, cuando el service worker v16 lo carga bajo demanda
+  (la prueba comprueba ahora el diseño nuevo y que sin conexión la app lo explica). `tools/test_carga.py` arranca una
+  instalación temporal y el servidor ya exige licencia antes del login: emite una clave con el mismo secreto y la
+  activa antes de medir.
 - **Documentación alineada con el repositorio actual**: el manual incorpora la app interna **NovaGest Keygen** (emisión y verificación de claves desde el teléfono, custodia del secreto y rotación como medida de emergencia), el aviso de la primera descarga del lector de Excel sin conexión y los detalles de accesibilidad de los diálogos y del estado de guardado. `README.md` y `docs/MANUAL.md` enlazan al manual y al video, y `.gitattributes` marca los archivos de `docs/assets/video/` como generados.
 
 ## NovaGest v1.0.0 · revisión 2026-10-14 (IX) · Presentación del repositorio y documentación
