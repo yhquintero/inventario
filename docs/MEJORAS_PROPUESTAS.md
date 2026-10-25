@@ -5,7 +5,7 @@ Cada paso se revisa, se aprueba y se entrega en su propio pull request; las fila
 terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`ROADMAP.md`](ROADMAP.md).
 
 > **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola en Android) ✅ ·
-> **Hecho:** D-01…D-07 · W-01, W-02, W-05, W-06, W-11, W-13 · A-01, A-02.
+> **Hecho:** D-01…D-07 · W-01, W-02, W-05, W-06, W-11, W-13, W-17 · A-01, A-02.
 > **Lo siguiente, por orden sugerido:** **W-04** (venta desde `Ctrl+K`) → **A-04** (widget) → **S-01** (auditoría encadenada) → **W-07** (XLSX).
 > La segunda ola de propuestas nuevas está al final del documento.
 
@@ -105,6 +105,7 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 | D-10 | ✅ **Guía de dos páginas para el mostrador** (imprimible en A4): vender, fiar, imprimir, verificar y cuadrar | El personal nuevo arranca sin formación | `docs/` | 🟠 | ⏱️ |
 | D-11 | **Vídeo vertical de 30 s para WhatsApp** con la venta y el ticket | Es el canal real de los clientes | `docs/assets/video/` | 🟢 | ⏳ |
 | D-12 | ✅ **Página de novedades** (`NOVEDADES.html`) generada desde `CHANGELOG.md` | El cliente ve que el producto avanza | `docs/` | 🟢 | ⏱️ |
+| W-17 | ✅ **Comparador de períodos en el gráfico del Panel** (serie anterior punteada, leyenda y columna en la tabla) | Decidir mirando la tendencia, no un número suelto | `homeView`, `app.css` | 🟠 | ⏱️ |
 
 **Orden que propongo:** ~~W-15~~ → ~~A-17~~ → ~~W-16~~ → ~~A-15~~ → ~~S-09~~ → ~~D-10~~ → ~~W-12~~, y en
 paralelo los rápidos ~~W-09~~, ~~D-12~~ y ~~A-08~~. Entregados: **W-15, A-17, A-14** (revisión XXIII),

@@ -1010,5 +1010,33 @@ test("La impresión de un ticket deja constancia en el servidor (S-10)", () => {
   assert.match(source, /ui\._lastPrintedSale === saleId \? "reimpresion" : "ticket"/);
 });
 
+await atest("W-01 · el Panel compara el período con el anterior cuando se activa", async () => {
+  const previo = localStorage.getItem("novagest.dashboardCompare");
+  try {
+    localStorage.removeItem("novagest.dashboardCompare");
+    go("home");
+    await flush();
+    assert.doesNotMatch(app.innerHTML, /dashboard-prev-line/, "no debe comparar por defecto");
+    assert.doesNotMatch(app.innerHTML, /Período anterior \(misma duración\)/);
+
+    const chk = getEl("dashboardCompare");
+    assert.ok(chk, "el control Comparar debe existir en la cabecera del gráfico");
+    chk.checked = true;
+    assert.equal(chk.dispatch("change", { target: chk }), true);
+
+    const html = go("home");
+    assert.match(html, /dashboard-prev-line/, "la serie anterior debe dibujarse punteada");
+    assert.match(html, /Período anterior \(misma duración\)/, "debe explicarse en la leyenda");
+    assert.match(html, /Se compara con el período anterior/, "el texto accesible debe mencionarlo");
+    assert.match(html, /Ventas período anterior/, "la tabla de datos debe traer la columna anterior");
+    assert.equal(localStorage.getItem("novagest.dashboardCompare"), "1", "la elección debe recordarse");
+    assert.match(html, /id="dashboardCompare" checked/, "el control debe quedar marcado");
+  } finally {
+    if (previo === null) localStorage.removeItem("novagest.dashboardCompare");
+    else localStorage.setItem("novagest.dashboardCompare", previo);
+    go("home");
+  }
+});
+
 console.log(`\n${ok} comprobaciones correctas, ${fail} fallidas\n`);
 process.exit(fail ? 1 : 0);

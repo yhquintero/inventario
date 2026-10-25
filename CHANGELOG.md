@@ -1,4 +1,19 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXVIII) · Vídeo con la locución definitiva (C-01)
+﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXIX) · Comparador de períodos en el Panel (W-17)
+
+- **W-17 · El gráfico del Panel se compara con el período anterior.** Un interruptor en la
+  cabecera de *Evolución* superpone la serie del **período inmediatamente anterior de la misma
+  duración** como línea gris punteada: sirve para los tres tipos de gráfico (línea, área y
+  barras), los cinco indicadores y los tres rangos (7 días, 4 y 12 semanas).
+- **Escala compartida**: el eje se calcula con las dos series, de modo que la comparación es
+  honesta y no se recorta.
+- **Leyenda, texto accesible y tabla**: la leyenda identifica cada línea, la descripción del
+  gráfico resume la comparación y la tabla de datos añade la columna **Ventas período anterior**.
+- **La elección se recuerda** en el navegador (`novagest.dashboardCompare`), así que quien
+  trabaja comparando períodos no tiene que activarla cada mañana.
+- Estilos nuevos en `app.css` (`.dashboard-prev-line`, `.dashboard-legend`, `.dashboard-compare`)
+  con modo de **alto contraste** para la línea punteada.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXVIII) · Vídeo con la locución definitiva (C-01)
 
 - **Locución rehecha con la voz elegida.** Las ocho escenas se grabaron otra vez con una
   **voz en español latinoamericano neutro (es-419)**, sin acento inglés y con dicción natural;

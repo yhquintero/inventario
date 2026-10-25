@@ -1409,6 +1409,26 @@ a la pregunta que el stock mínimo no contesta: **«¿cuánto me dura y cuánto 
 > Si el negocio vende por temporadas, mire la tarjeta después de una semana floja antes de
 > comprar de más: la sugerencia sigue el ritmo real de los últimos 30 días, no un promedio anual.
 
+### Comparar con el período anterior
+
+En la tarjeta **Evolución** del Panel, marque **Comparar con el período anterior**. El gráfico
+dibuja una **línea gris punteada** con lo que se vendió (o costó, o se ganó) en el **período
+inmediatamente anterior de la misma duración**:
+
+- Con **Últimos 7 días** compara con los 7 días de antes; con **4 semanas**, con las 4 anteriores;
+  con **12 semanas**, con las 12 anteriores.
+- Funciona con los tres tipos de gráfico y con los cinco indicadores.
+- La leyenda bajo el gráfico identifica cada línea y el texto del lector de pantalla resume la
+  comparación («Se compara con el período anterior, que sumó…»).
+- En **Ver datos del gráfico en tabla** aparece la columna **Ventas período anterior**, útil para
+  copiar a un informe.
+
+La elección se recuerda en el navegador: quien trabaja comparando períodos la deja activada.
+
+> [!TIP]
+> Use la comparación antes de sacar conclusiones de un mes flojo: a veces la caída es de todo
+> el comercio y no del negocio. La línea punteada lo dice en un segundo.
+
 ### Comparación con el mismo día de la semana
 
 Debajo de la cifra de **Venta del día** aparece una frase corta que compara el día que está
