@@ -6,10 +6,12 @@
 
 ### Gestisci. Cresci. Avanza.
 
-**Magazzino, punto vendita, quadratura di cassa giornaliera e report per la tua attività — sul Web, su Android e offline.**
+**Magazzino multi-deposito, punto vendita, cassa giornaliera e report per la tua attività.**
+**Web installabile, app Android e server proprio — anche offline.**
 
 🌐 [Español](../../README.md) · [English](README_en.md) · [Português](README_pt-BR.md) · [Français](README_fr.md) · **Italiano** · [Deutsch](README_de.md) · [Русский](README_ru.md) · [简体中文](README_zh-CN.md)
 
+[![CI](https://github.com/yhquintero/inventario/actions/workflows/ci.yml/badge.svg)](https://github.com/yhquintero/inventario/actions/workflows/ci.yml)
 [![Versione](https://img.shields.io/badge/versione-1.0.0-4f46e5?style=flat-square)](../../CHANGELOG.md)
 [![Piattaforme](https://img.shields.io/badge/piattaforme-Web%20%C2%B7%20Android%20%C2%B7%20Server-1e1b4b?style=flat-square)](#-cosa-include)
 [![PWA](https://img.shields.io/badge/PWA-funziona%20offline-059669?style=flat-square)](#-domande-frequenti)
@@ -45,6 +47,7 @@
 | 🌐 **Web (PWA)** | Il centro di comando: magazzino, depositi, importazione di valori, movimenti, vendita rapida, quadratura di cassa, report settimanale, verifica delle giacenze e amministrazione — con ricerca globale (`Ctrl+K`), guida integrata, scorciatoie da tastiera e tema chiaro/scuro. Si installa come applicazione e si apre offline. |
 | 📱 **Android** | L'operatività in movimento: la stessa gestione con Kotlin + Jetpack Compose, archiviazione locale, sblocco biometrico e sincronizzazione con il server quando c'è connessione. |
 | 🗄️ **Server** | Il cuore che unisce tutto: API e sito Web in un unico processo Python, dati condivisi in SQLite, sessioni e permessi verificati sul server, licenze firmate, audit e backup cifrati automatici. |
+| 🔑 **Keygen** *(interno)* | App Android separata, **senza permesso INTERNET**: il titolare emette e verifica le chiavi di licenza dal telefono, senza dipendere dal portatile o dal server. |
 
 ## ✨ Funzionalità
 
@@ -59,6 +62,23 @@
 - 🕵️ **Storico e audit** — prezzi, costi e tassi per giorno; registro di chi ha fatto cosa e quando, in base al ruolo di ogni utente.
 - ☁️ **Sincronizzazione multipiattaforma** — Web e Android lavorano sullo stesso stato; se la connessione si interrompe, il Web continua a funzionare e si sincronizza alla riconnessione.
 - 🔐 **Sicurezza di livello aziendale** — licenza d'uso firmata crittograficamente, verifica in due passaggi (TOTP), blocco dopo tentativi falliti, chiusura delle giornate e backup cifrati.
+
+## 👥 Ruoli e permessi
+
+Ognuno accede con il proprio account; il ruolo decide cosa vede e cosa può modificare, e **il server applica gli stessi permessi** dell'interfaccia.
+
+| Area | Amministratore | Responsabile | Amministrazione | Magazziniere |
+|---|:--:|:--:|:--:|:--:|
+| Pannello, magazzino e movimenti (consultazione) | ✅ | ✅ | ✅ | ✅ |
+| Creare e modificare prodotti | ✅ | ✅ | — | ✅ |
+| Depositi, trasferimenti e importazione valori | ✅ | ✅ | sola lettura | ✅ |
+| Vendere e registrare movimenti | ✅ | ✅ | — | ✅ |
+| Cassa giornaliera | ✅ | ✅ | modifica | sola lettura |
+| Report, verifica e finanze | ✅ | ✅ | ✅ | — |
+| Clienti e conti a credito | ✅ | ✅ | ✅ | ✅ |
+| Schede di costo e IPV | ✅ | ✅ | ✅ | sola lettura |
+| Utenti e impostazioni | ✅ | ✅ | — | — |
+| Audit · backup · licenza | ✅ | ✅ | solo audit | — |
 
 ## 📸 Screenshot
 

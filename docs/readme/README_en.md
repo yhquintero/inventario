@@ -6,10 +6,12 @@
 
 ### Manage. Grow. Advance.
 
-**Inventory, point of sale, daily cash reconciliation, and reports for your business — on the Web, on Android, and offline.**
+**Multi-warehouse inventory, point of sale, daily cash reconciliation, and reports for your business.**
+**Installable Web app, Android app, and your own server — offline too.**
 
 🌐 [Español](../../README.md) · **English** · [Português](README_pt-BR.md) · [Français](README_fr.md) · [Italiano](README_it.md) · [Deutsch](README_de.md) · [Русский](README_ru.md) · [简体中文](README_zh-CN.md)
 
+[![CI](https://github.com/yhquintero/inventario/actions/workflows/ci.yml/badge.svg)](https://github.com/yhquintero/inventario/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-1.0.0-4f46e5?style=flat-square)](../../CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/platforms-Web%20%C2%B7%20Android%20%C2%B7%20Server-1e1b4b?style=flat-square)](#-whats-included)
 [![PWA](https://img.shields.io/badge/PWA-works%20offline-059669?style=flat-square)](#-faq)
@@ -45,6 +47,7 @@
 | 🌐 **Web (PWA)** | The command center: inventory, warehouses, value imports, stock movements, quick sale, daily reconciliation, weekly report, stock verification, and administration — with global search (`Ctrl+K`), a built-in guided tour, keyboard shortcuts, and light/dark mode. It installs as an app and opens offline. |
 | 📱 **Android** | Operations on the go: the same management with Kotlin + Jetpack Compose, local storage, biometric unlock, and sync with the server whenever there is a connection. |
 | 🗄️ **Server** | The heart that ties everything together: API and Web site in a single Python process, shared data in SQLite, server-side sessions and permissions, signed licenses, auditing, and automatic encrypted backups. |
+| 🔑 **Keygen** *(internal)* | A separate Android app with **no INTERNET permission**: the owner issues and verifies licence keys from their phone, without depending on the laptop or the server. |
 
 ## ✨ Features
 
@@ -59,6 +62,23 @@
 - 🕵️ **History and auditing** — prices, costs, and exchange rates by day; a record of who did what and when, according to each user's role.
 - ☁️ **Cross-platform sync** — Web and Android work on the same state; if the connection is lost, the Web keeps working and syncs when it reconnects.
 - 🔐 **Enterprise-grade security** — cryptographically signed usage license, two-step verification (TOTP), lockout after failed attempts, day closing, and encrypted backups.
+
+## 👥 Roles and permissions
+
+Everyone signs in with their own account; the role decides what they see and what they can change, and **the server enforces the same permissions** as the interface.
+
+| Area | Administrator | Manager | Finance | Warehouse keeper |
+|---|:--:|:--:|:--:|:--:|
+| Dashboard, inventory and movements (view) | ✅ | ✅ | ✅ | ✅ |
+| Create and edit products | ✅ | ✅ | — | ✅ |
+| Warehouses, transfers and value imports | ✅ | ✅ | view only | ✅ |
+| Sell and record movements | ✅ | ✅ | — | ✅ |
+| Daily reconciliation | ✅ | ✅ | edit | view only |
+| Reports, verification and finance | ✅ | ✅ | ✅ | — |
+| Customers and store credit | ✅ | ✅ | ✅ | ✅ |
+| Cost sheets and IPV | ✅ | ✅ | ✅ | view only |
+| Users and business settings | ✅ | ✅ | — | — |
+| Audit · backups · licence | ✅ | ✅ | audit only | — |
 
 ## 📸 Screenshots
 

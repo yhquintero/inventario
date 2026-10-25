@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "NovaGest · Gestión de negocio",
+  "name": "NovaGest · Gestión comercial",
   "short_name": "NovaGest",
-  "description": "Inventario multi-almacén, punto de venta, caja e informes: todo tu negocio en una plataforma",
+  "description": "Inventario multialmacén, punto de venta, caja diaria, fiados e informes. Web instalable, app Android y servidor propio; funciona sin conexión.",
   "lang": "es",
   "start_url": "./#home",
   "scope": "./",

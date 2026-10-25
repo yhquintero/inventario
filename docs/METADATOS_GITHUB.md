@@ -8,14 +8,16 @@ cambiarlos (la API responde `403 Resource not accessible by integration`).
 
 **Settings → General → Description.** Máximo recomendado: una línea, sin punto final.
 
+Usar el texto oficial de `docs/DESCRIPCION.md` (descripción media):
+
 ```text
-Sistema de gestión comercial: inventario multialmacén, punto de venta, caja diaria, fiados e informes. Web PWA, app Android y servidor propio; funciona sin conexión.
+Sistema de gestión comercial para pequeños y medianos negocios: inventario multialmacén, punto de venta, caja diaria, clientes y fiados, e informes con exportación a CSV y PDF. Web instalable (PWA), aplicación Android en Kotlin y servidor propio en Python; funciona sin conexión y guarda los datos en el propio negocio.
 ```
 
-Alternativa corta (si se prefiere una sola idea):
+Alternativa corta (descripción corta de `docs/DESCRIPCION.md`):
 
 ```text
-Inventario multialmacén, punto de venta, caja diaria e informes. Web PWA, Android y servidor propio, también sin conexión.
+Inventario multialmacén, punto de venta, caja diaria, fiados e informes. Web instalable, app Android y servidor propio; funciona sin conexión.
 ```
 
 ## 2 · Temas (`topics`)

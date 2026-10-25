@@ -380,6 +380,7 @@ se mantienen fuera del control de versiones.
 |---|---|
 | [**Manual de Usuario**](docs/MANUAL_USUARIO.md) · [versión imprimible](docs/MANUAL_USUARIO.html) | Manual completo paso a paso: activación, almacenes, venta, fiados, cuadre, informes, copias, roles, Android, solución de problemas y listas de verificación |
 | [Manual rápido](docs/MANUAL.md) | Uso diario de la aplicación en una página |
+| [Descripción del producto](docs/DESCRIPCION.md) | Texto oficial (lema, descripción corta y larga, propuestas de valor y vocabulario) y en qué archivo vive cada uno |
 | [Sitio de presentación](docs/index.html) | Página de producto autocontenida con módulos, capturas y guía de inicio; lista para publicar con **GitHub Pages** desde la carpeta `docs/` |
 | [Instalación y despliegue](docs/INSTALACION.md) | Servidor, Windows con HTTPS y Panel de Control Visual, Docker, Android y producción |
 | [Licencias de uso](docs/LICENCIAS.md) · [Rotación del secreto](docs/ROTACION_SECRETO.md) · [Keygen](keygen/README.md) | Activación, plazos, solicitudes por WhatsApp, emisión de claves y control de equipos |
@@ -389,7 +390,7 @@ se mantienen fuera del control de versiones.
 | [Cumplimiento](docs/CUMPLIMIENTO.md) · [Revisión legal](docs/REVISION_LEGAL.md) | Auditoría de cumplimiento, accesibilidad y seguridad, y lista de cierre legal |
 | [Certificación](docs/certificacion/00-INDICE-Y-FIRMAS.md) | Preparación para ISO 27001, SOC 2, OWASP ASVS, WCAG 2.2 e ISO 27701 |
 | [Seguridad](SECURITY.md) · [Terceros](THIRD_PARTY_NOTICES.md) | Política de reporte, endurecimiento para producción y licencias de componentes |
-| [Mejora continua](docs/MEJORA_CONTINUA.md) · [Hoja de ruta](docs/ROADMAP.md) | Próximas mejoras priorizadas y cómo se verifican |
+| [Mejora continua](docs/MEJORA_CONTINUA.md) · [Hoja de ruta](docs/ROADMAP.md) · [Mejoras propuestas](docs/MEJORAS_PROPUESTAS.md) | Próximas mejoras priorizadas, cómo se verifican y la lista de trabajo por pasos para supervisión |
 | [Procedencia de las imágenes](docs/IMAGENES.md) | Origen y licencia de las imágenes del proyecto |
 | [Video promocional](docs/PROPUESTA_VIDEO_PROMOCIONAL.md) | Guion, escenas, textos en pantalla y plan de producción del video de presentación |
 | [Registro de cambios](CHANGELOG.md) | Mejoras y correcciones de cada versión (Web y Android) |

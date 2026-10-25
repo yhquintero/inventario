@@ -6,10 +6,12 @@
 
 ### Gérez. Grandissez. Avancez.
 
-**Stock, point de vente, rapprochement de caisse quotidien et rapports pour votre commerce — sur le Web, sur Android et hors ligne.**
+**Stock multi-entrepôts, point de vente, caisse quotidienne et rapports pour votre commerce.**
+**Web installable, application Android et serveur propre — même hors ligne.**
 
 🌐 [Español](../../README.md) · [English](README_en.md) · [Português](README_pt-BR.md) · **Français** · [Italiano](README_it.md) · [Deutsch](README_de.md) · [Русский](README_ru.md) · [简体中文](README_zh-CN.md)
 
+[![CI](https://github.com/yhquintero/inventario/actions/workflows/ci.yml/badge.svg)](https://github.com/yhquintero/inventario/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-1.0.0-4f46e5?style=flat-square)](../../CHANGELOG.md)
 [![Plateformes](https://img.shields.io/badge/plateformes-Web%20%C2%B7%20Android%20%C2%B7%20Serveur-1e1b4b?style=flat-square)](#-ce-qui-est-inclus)
 [![PWA](https://img.shields.io/badge/PWA-fonctionne%20hors%20ligne-059669?style=flat-square)](#-questions-fréquentes)
@@ -45,6 +47,7 @@
 | 🌐 **Web (PWA)** | Le poste de commande : stock, entrepôts, import de valeurs, mouvements, vente rapide, rapprochement de caisse, rapport hebdomadaire, contrôle de stock et administration — avec recherche globale (`Ctrl+K`), visite guidée intégrée, raccourcis clavier et mode clair/sombre. S'installe comme une application et s'ouvre hors ligne. |
 | 📱 **Android** | L'activité en déplacement : la même gestion avec Kotlin + Jetpack Compose, stockage local, déverrouillage biométrique et synchronisation avec le serveur dès qu'il y a une connexion. |
 | 🗄️ **Serveur** | Le cœur qui relie tout : API et site Web dans un seul processus Python, données partagées dans SQLite, sessions et permissions vérifiées côté serveur, licences signées, audit et sauvegardes chiffrées automatiques. |
+| 🔑 **Keygen** *(interne)* | Application Android séparée, **sans autorisation INTERNET** : le titulaire émet et vérifie les clés de licence depuis son téléphone, sans dépendre de l'ordinateur ni du serveur. |
 
 ## ✨ Fonctionnalités
 
@@ -59,6 +62,23 @@
 - 🕵️ **Historique et audit** — prix, coûts et taux par jour ; trace de qui a fait quoi et quand, selon le rôle de chaque utilisateur.
 - ☁️ **Synchronisation multiplateforme** — Web et Android travaillent sur le même état ; si la connexion est perdue, le Web continue de fonctionner et se synchronise à la reconnexion.
 - 🔐 **Sécurité de niveau entreprise** — licence d'utilisation signée cryptographiquement, vérification en deux étapes (TOTP), blocage après plusieurs échecs, clôture des journées et sauvegardes chiffrées.
+
+## 👥 Rôles et permissions
+
+Chacun se connecte avec son propre compte ; le rôle décide de ce qu'il voit et de ce qu'il peut modifier, et **le serveur applique les mêmes permissions** que l'interface.
+
+| Domaine | Administrateur | Chef | Finance | Magasinier |
+|---|:--:|:--:|:--:|:--:|
+| Tableau de bord, stock et mouvements (consultation) | ✅ | ✅ | ✅ | ✅ |
+| Créer et modifier des produits | ✅ | ✅ | — | ✅ |
+| Entrepôts, transferts et import de valeurs | ✅ | ✅ | lecture seule | ✅ |
+| Vendre et enregistrer des mouvements | ✅ | ✅ | — | ✅ |
+| Caisse quotidienne | ✅ | ✅ | modifier | lecture seule |
+| Rapports, vérification et finances | ✅ | ✅ | ✅ | — |
+| Clients et crédits | ✅ | ✅ | ✅ | ✅ |
+| Fiches de coût et IPV | ✅ | ✅ | ✅ | lecture seule |
+| Utilisateurs et paramètres | ✅ | ✅ | — | — |
+| Audit · sauvegardes · licence | ✅ | ✅ | audit seul | — |
 
 ## 📸 Captures d'écran
 

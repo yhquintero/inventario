@@ -6,10 +6,12 @@
 
 ### Verwalten. Wachsen. Vorankommen.
 
-**Lagerbestand, Kasse, täglicher Kassenabgleich und Berichte für Ihr Geschäft — im Web, auf Android und offline.**
+**Lager über mehrere Lagerorte, Kasse, täglicher Kassenabgleich und Berichte für Ihr Geschäft.**
+**Installierbare Web-App, Android-App und eigener Server — auch offline.**
 
 🌐 [Español](../../README.md) · [English](README_en.md) · [Português](README_pt-BR.md) · [Français](README_fr.md) · [Italiano](README_it.md) · **Deutsch** · [Русский](README_ru.md) · [简体中文](README_zh-CN.md)
 
+[![CI](https://github.com/yhquintero/inventario/actions/workflows/ci.yml/badge.svg)](https://github.com/yhquintero/inventario/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/Version-1.0.0-4f46e5?style=flat-square)](../../CHANGELOG.md)
 [![Plattformen](https://img.shields.io/badge/Plattformen-Web%20%C2%B7%20Android%20%C2%B7%20Server-1e1b4b?style=flat-square)](#-was-enthalten-ist)
 [![PWA](https://img.shields.io/badge/PWA-funktioniert%20offline-059669?style=flat-square)](#-häufige-fragen)
@@ -45,6 +47,7 @@
 | 🌐 **Web (PWA)** | Die Kommandozentrale: Lagerbestand, Lager, Werteimport, Bewegungen, Schnellverkauf, täglicher Kassenabgleich, Wochenbericht, Bestandsprüfung und Verwaltung — mit globaler Suche (`Ctrl+K`), integrierter Einführung, Tastenkürzeln und hellem/dunklem Modus. Lässt sich als App installieren und öffnet offline. |
 | 📱 **Android** | Der Betrieb unterwegs: dieselbe Verwaltung mit Kotlin + Jetpack Compose, lokaler Speicherung, biometrischer Entsperrung und Synchronisierung mit dem Server, sobald eine Verbindung besteht. |
 | 🗄️ **Server** | Das Herz, das alles verbindet: API und Website in einem einzigen Python-Prozess, gemeinsame Daten in SQLite, serverseitig geprüfte Sitzungen und Berechtigungen, signierte Lizenzen, Protokollierung und automatische verschlüsselte Sicherungen. |
+| 🔑 **Keygen** *(intern)* | Separate Android-App **ohne INTERNET-Berechtigung**: Der Inhaber stellt Lizenzschlüssel am Telefon aus und prüft sie – ohne Laptop oder Server. |
 
 ## ✨ Funktionen
 
@@ -59,6 +62,23 @@
 - 🕵️ **Verlauf und Protokollierung** — Preise, Kosten und Kurse pro Tag; Nachweis, wer was wann getan hat, je nach Rolle des Benutzers.
 - ☁️ **Plattformübergreifende Synchronisierung** — Web und Android arbeiten auf demselben Stand; bricht die Verbindung ab, arbeitet das Web weiter und synchronisiert bei erneuter Verbindung.
 - 🔐 **Sicherheit auf Unternehmensniveau** — kryptografisch signierte Nutzungslizenz, Zwei-Faktor-Verifizierung (TOTP), Sperre nach Fehlversuchen, Tagesabschluss und verschlüsselte Sicherungen.
+
+## 👥 Rollen und Rechte
+
+Jede Person meldet sich mit dem eigenen Konto an; die Rolle entscheidet, was sie sieht und ändern darf, und **der Server prüft dieselben Rechte** wie die Oberfläche.
+
+| Bereich | Administrator | Leiter | Finanzen | Lagerverwalter |
+|---|:--:|:--:|:--:|:--:|
+| Übersicht, Lager und Bewegungen (Ansicht) | ✅ | ✅ | ✅ | ✅ |
+| Produkte anlegen und bearbeiten | ✅ | ✅ | — | ✅ |
+| Lagerorte, Umlagerungen und Werteimport | ✅ | ✅ | nur Ansicht | ✅ |
+| Verkaufen und Bewegungen erfassen | ✅ | ✅ | — | ✅ |
+| Täglicher Kassenabgleich | ✅ | ✅ | bearbeiten | nur Ansicht |
+| Berichte, Prüfung und Finanzen | ✅ | ✅ | ✅ | — |
+| Kunden und Kreditverkäufe | ✅ | ✅ | ✅ | ✅ |
+| Kostenblätter und IPV | ✅ | ✅ | ✅ | nur Ansicht |
+| Benutzer und Einstellungen | ✅ | ✅ | — | — |
+| Audit · Sicherungen · Lizenz | ✅ | ✅ | nur Audit | — |
 
 ## 📸 Screenshots
 
