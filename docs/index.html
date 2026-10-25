@@ -139,6 +139,14 @@
   figure img { border-radius: 12px; border: 1px solid var(--line); box-shadow: var(--shadow); }
   figcaption { font-size: .85rem; color: var(--muted); margin-top: .55rem; }
 
+  /* Vídeo */
+  .video-caja { margin-top: 1.75rem; }
+  .video-caja video {
+    width: 100%; height: auto; display: block; border-radius: var(--radius);
+    border: 1px solid var(--line); box-shadow: var(--shadow); background: #000;
+  }
+  .video-pie { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+
   /* Pasos */
   .pasos { counter-reset: paso; display: grid; gap: 1.1rem; margin-top: 2rem; }
   .paso { position: relative; padding-left: 3.2rem; }
@@ -195,6 +203,7 @@
     <nav aria-label="Secciones">
       <a href="#funciones">Funciones</a>
       <a href="#capturas" class="oculto">Capturas</a>
+      <a href="#video" class="oculto">Vídeo</a>
       <a href="#empezar">Cómo empezar</a>
       <a href="#roles" class="oculto">Roles</a>
       <a href="MANUAL_USUARIO.html">Manual</a>
@@ -215,7 +224,7 @@
         </p>
         <div class="acciones">
           <a class="btn primario" href="MANUAL_USUARIO.html">Leer el manual</a>
-          <a class="btn secundario" href="assets/video/novagest-promo-720p.mp4">Ver el vídeo (3 min)</a>
+          <a class="btn secundario" href="#video">Ver el vídeo (2:41)</a>
           <a class="btn secundario" href="https://github.com/yhquintero/inventario">Descargar el proyecto</a>
         </div>
       </div>
@@ -291,6 +300,28 @@
                alt="Pantalla de análisis con gráficos de ventas, mapa de calor y metas por categoría." />
           <figcaption>Análisis: gráficos, mapa de calor y metas.</figcaption>
         </figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="video">
+    <div class="wrap">
+      <h2>El producto en 2 minutos y 41 segundos</h2>
+      <p class="introduccion">
+        Recorrido completo con narración: activar la licencia, configurar el negocio y sus almacenes,
+        importar la mercancía, vender, cuadrar la caja y revisar. Subtítulos en español incluidos.
+      </p>
+      <div class="video-caja">
+        <video controls preload="none" playsinline poster="assets/social-preview.png" width="1280" height="720">
+          <source src="assets/video/novagest-promo-720p.mp4" type="video/mp4" />
+          <track kind="subtitles" src="assets/video/novagest-promo-720p.srt" srclang="es" label="Español" default />
+          Tu navegador no puede reproducir el vídeo. <a href="assets/video/novagest-promo-720p.mp4">Descárgalo aquí</a>.
+        </video>
+        <div class="video-pie">
+          <a class="btn primario" href="assets/video/novagest-promo-720p.mp4">Descargar el vídeo (720p)</a>
+          <a class="btn secundario" href="assets/video/novagest-promo-narracion.mp3">Solo la narración (MP3)</a>
+          <a class="btn secundario" href="assets/video/novagest-promo-720p.srt">Subtítulos (.srt)</a>
+        </div>
       </div>
     </div>
   </section>
@@ -385,6 +416,7 @@ python3 server/novagest_server.py</code></pre>
   <div class="wrap">
     <ul>
       <li><a href="MANUAL_USUARIO.html">Manual de usuario</a></li>
+      <li><a href="#video">Vídeo de presentación</a></li>
       <li><a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">Novedades</a></li>
       <li><a href="https://github.com/yhquintero/inventario/blob/main/LICENSE">Licencia</a></li>
       <li><a href="https://github.com/yhquintero/inventario">Repositorio</a></li>

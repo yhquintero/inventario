@@ -33,7 +33,7 @@
 > [!TIP]
 > **¿Primera vez?** Empieza por el **[Manual de Usuario](docs/MANUAL_USUARIO.md)** —paso a paso,
 > también en [versión imprimible](docs/MANUAL_USUARIO.html)— o mira el
-> **[video de presentación de 2:39 min](docs/assets/video/novagest-promo-720p.mp4)**, que resume
+> **[video de presentación de 2:41 min](docs/assets/video/novagest-promo-720p.mp4)**, que resume
 > los seis pasos esenciales para trabajar con la Web y con Android.
 
 > [!IMPORTANT]
@@ -149,7 +149,7 @@ interna para quien administra las licencias.
   <br /><sub>La aplicación Web en el móvil: navegación inferior, instalable como app (PWA).</sub>
 </p>
 
-▶️ **Video:** [presentación de 2:39 min (720p, con narración y subtítulos)](docs/assets/video/novagest-promo-720p.mp4) · [guion y plan de producción](docs/PROPUESTA_VIDEO_PROMOCIONAL.md).
+▶️ **Video:** [presentación de 2:41 min (720p, con narración y subtítulos)](docs/assets/video/novagest-promo-720p.mp4) · [guion y plan de producción](docs/PROPUESTA_VIDEO_PROMOCIONAL.md).
 
 ---
 
