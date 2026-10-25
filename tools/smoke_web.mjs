@@ -822,6 +822,22 @@ test("El service worker cachea todos los módulos JS para el modo sin conexión"
   assert.match(sw, /destination === "image"/, "las imágenes se cachean la primera vez que se usan");
 });
 
+test("Análisis incluye el mapa de calor y las ventas por categoría (SVG con datos)", () => {
+  const html = go("analytics");
+  assert.match(html, /class="heat-chart"/, "mapa de calor en SVG");
+  assert.match(html, /aria-label="Mapa de calor de ventas de 8 semanas/, "resumen accesible del mapa");
+  assert.match(html, /heat-cell heat-l[1-4]/, "celdas con intensidad según la venta");
+  assert.match(html, /class="heat-legend"/, "leyenda del mapa");
+  assert.match(html, /class="cat-chart"/, "gráfico de categorías");
+  assert.match(html, /class="cat-rev"/, "barra de venta por categoría");
+  assert.match(html, /class="cat-profit"/, "barra de utilidad por categoría");
+  assert.match(html, /Ver datos del mapa en tabla/, "tabla equivalente para lectores de pantalla");
+  assert.match(html, /Ver datos por categoría en tabla/, "tabla por categoría");
+  const styles = readFileSync(join(root, "web/css/app.css"), "utf8");
+  assert.match(styles, /\.heat-chart \.heat-l4/, "los colores del mapa viven en la hoja de estilos (CSP)");
+  assert.ok(!/style="/.test(html.split("heat-chart")[0] || ""), "sin estilos en línea");
+});
+
 test("El manifest declara una PWA instalable completa", () => {
   const m = JSON.parse(readFileSync(join(root, "web/manifest.webmanifest"), "utf8"));
   assert.ok(m.id, "id de la aplicación");
