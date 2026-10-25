@@ -83,4 +83,64 @@ ok("valores por almacén, encabezados y parseo", () => {
   assert.equal(C.classifyValueRow({ ...p, deletedAt: "x" }, "w1", { stock: 1 }).status, "papelera");
   assert.deepEqual(C.rowFieldKeys({ stock: 1, observaciones: "" }), ["stock"]);
 });
+ok("reposición sugerida: ritmo, días que alcanza y orden por urgencia", () => {
+  const prod = (id, stock, min = 1) => ({ id, name: id, stockActual: stock, minStock: min, precioVentaUsd: 1 });
+  const venta = (id, quantity, date) => ({ type: "VENTA", productId: id, quantity, date, importeUsd: quantity });
+  const productos = [prod("agotado", 0, 3), prod("urgente", 6, 1), prod("holgado", 400, 1), prod("sinventa", 2, 1)];
+  const movimientos = [
+    venta("agotado", 2, "2026-10-20"),
+    venta("urgente", 30, "2026-10-20"),
+    venta("holgado", 3, "2026-10-20"),
+    { type: "ENTRADA", productId: "urgente", quantity: 50, date: "2026-10-21", importeUsd: 0 },
+  ];
+  const lista = C.reorderSuggestions(productos, movimientos, { days: 30, cover: 14, today: "2026-10-24" });
+  assert.deepEqual(lista.map((f) => f.product.id), ["agotado", "urgente"], "lo agotado primero y sin productos holgados");
+  assert.equal(lista[0].level, "agotado");
+  assert.equal(lista[0].suggested, 3, "sin existencia se repone al menos el mínimo");
+  assert.equal(lista[1].perDay, 1);
+  assert.equal(lista[1].daysLeft, 6);
+  assert.equal(lista[1].suggested, 8, "cubre 14 días contando lo que ya hay");
+  assert.equal(lista[0].days, 30);
+  assert.equal(lista[0].cover, 14);
+});
+
+ok("reposición sugerida: filtros y casos límite", () => {
+  const prod = (id, stock, extra = {}) => ({ id, name: id, stockActual: stock, minStock: 1, ...extra });
+  const venta = (id, quantity, date, extra = {}) => ({ type: "VENTA", productId: id, quantity, date, importeUsd: quantity, ...extra });
+  const movs = [
+    venta("p1", 30, "2026-10-20"),
+    venta("p1", 100, "2026-01-01"),           // fuera de la ventana
+    venta("p1", 5, "2026-10-20", { deletedAt: 1 }), // borrado
+    venta("p1", 7, "2026-10-20", { warehouseId: "w2" }), // otro almacén
+  ];
+  const suelto = C.reorderSuggestions([prod("p1", 6)], movs, { days: 30, cover: 14, today: "2026-10-24" });
+  assert.equal(suelto[0].sold, 37, "sin filtro de almacén suma todos; descarta borradas y fuera de fecha");
+  const porAlmacen = C.reorderSuggestions([prod("p1", 1)], movs, { days: 30, cover: 14, today: "2026-10-24", warehouseId: "w2" });
+  assert.equal(porAlmacen[0].sold, 7, "con almacén indicado solo cuenta ese almacén");
+  assert.equal(C.reorderSuggestions([prod("p1", 6)], movs, { days: 30, cover: 14, today: "2026-10-24" }).length, 1);
+  assert.equal(C.reorderSuggestions([prod("p9", 0, { deletedAt: 5 })], movs, { today: "2026-10-24" }).length, 0);
+  assert.equal(C.reorderSuggestions([], movs).length, 0);
+  const top = C.reorderSuggestions([prod("a", 0), prod("b", 0, { minStock: 5 })], [], { today: "2026-10-24", limit: 1 });
+  assert.equal(top.length, 1, "el límite se respeta");
+});
+
+ok("resumen de la reposición en una línea", () => {
+  const sin = C.reorderSummary([]);
+  assert.equal(sin.texto, "Sin reposición pendiente.");
+  assert.equal(sin.unidades, 0);
+  const lista = [
+    { level: "agotado", suggested: 3 },
+    { level: "urgente", suggested: 8 },
+    { level: "pronto", suggested: 2 },
+  ];
+  const r = C.reorderSummary(lista);
+  assert.equal(r.count, 3);
+  assert.equal(r.agotados, 1);
+  assert.equal(r.urgentes, 1);
+  assert.equal(r.unidades, 13);
+  assert.ok(r.texto.includes("3 producto(s) para reponer"));
+  assert.ok(r.texto.includes("13 unidad(es)"));
+  assert.equal(C.reorderSummary(undefined).count, 0);
+});
+
 console.log(`\n${n} pruebas de calc.js en verde`);

@@ -1,5 +1,13 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-24 (XVIII) · Reposición sugerida en el Panel (W-11)
+
+- **Nueva tarjeta «🧾 Reposición sugerida»** en el Panel: con las ventas reales de los últimos **30 días** calcula el ritmo diario de cada producto, **cuántos días dura la existencia** y **cuántas unidades comprar** para cubrir **14 días**, descontando lo que ya hay en el almacén. Ordenada por urgencia: **Agotado** → **Urgente** (≤3 días) → **Pronto** (≤7 días) → **Planificar**. Los productos sin ventas en la ventana no aparecen (no se inventa un ritmo); para ellos siguen las alertas de **Stock bajo**.
+- **Lógica pura en `calc.js`**: `reorderSuggestions(products, movements, { days, cover, today, warehouseId, limit })` y `reorderSummary(list)`; cuentan solo ventas vivas, en fecha y —si se indica— del almacén elegido.
+- **Pruebas**: 3 bloques nuevos en `tools/test_calc.mjs` (13 pruebas en total) y cobertura de `calc.js` al **98,7 %**.
+- **Manual** §10.4 con la tabla de columnas, cómo leerlo y qué hacer al abrir el negocio; **service worker v19** (estilos y precache) por los cambios de CSS.
+- **CHANGELOG** y `docs/MEJORAS_PROPUESTAS.md`: W-11 marcada como hecha.
+
 ## NovaGest v1.0.0 · revisión 2026-10-24 (XVII) · La Web no pierde trabajo sin conexión (W-02)
 
 - **Cola de cambios en el navegador**: si se cae la red, el estado se guarda en `localStorage` (`novagest.pending`) y se sube al reconectar. Si la pestaña se cierra antes, la app **los recupera al volver a entrar** y avisa cuántos eran. También se guardan al cerrar la pestaña con cambios pendientes.

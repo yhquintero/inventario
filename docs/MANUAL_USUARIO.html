@@ -2365,8 +2365,53 @@ leerla con lector de pantalla, imprimirla o copiarla a una hoja de cálculo.</p>
 inventario, alertas de stock (<strong>productos en el mínimo o agotados</strong>), accesos directos a
 Venta rápida / Importar valores / Cuadre / Análisis / Clientes, existencias por almacén,
 evolución de ventas y accesos rápidos.</p>
-<p><strong>Rutina de apertura (2 minutos):</strong> abra el Panel, revise alertas de stock, confirme el
-cuadre del día anterior y entre a vender.</p>
+<h3 id="reposición-sugerida">Reposición sugerida</h3>
+<p>Debajo de <strong>Stock bajo</strong> el Panel muestra la tarjeta <strong>🧾 Reposición sugerida</strong>, que responde
+a la pregunta que el stock mínimo no contesta: <strong>«¿cuánto me dura y cuánto debo comprar?»</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Columna</th>
+<th>Qué significa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Vendidos</strong></td>
+<td>Unidades vendidas del producto en los últimos 30 días</td>
+</tr>
+<tr>
+<td><strong>Por día</strong></td>
+<td>Ritmo de venta diario (vendidos ÷ 30)</td>
+</tr>
+<tr>
+<td><strong>Alcanza</strong></td>
+<td>Días que dura la existencia al ritmo actual; «agotado» si ya no queda</td>
+</tr>
+<tr>
+<td><strong>Sugerido</strong></td>
+<td>Unidades a comprar para cubrir <strong>14 días</strong> de venta al mismo ritmo</td>
+</tr>
+<tr>
+<td><strong>Estado</strong></td>
+<td><strong>Agotado</strong> (nada en existencia), <strong>Urgente</strong> (3 días o menos), <strong>Pronto</strong> (7 días o menos) o <strong>Planificar</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cómo se lee</strong></p>
+<ol>
+<li>Empiece por las filas <strong>Agotado</strong> y <strong>Urgente</strong>: son ventas que se pierden esta semana.</li>
+<li>La columna <strong>Sugerido</strong> ya descuenta lo que hay en el almacén, así que es la cantidad a pedir.</li>
+<li>Si un producto <strong>nunca se vendió</strong> en esos 30 días, no aparece: el sistema no inventa un
+   ritmo de venta que no existe. Para eso siguen las alertas de <strong>Stock bajo</strong>, que usan el mínimo.</li>
+</ol>
+<div class="callout tip">
+<p class="callout-t">💡 Consejo</p>
+<p>Si el negocio vende por temporadas, mire la tarjeta después de una semana floja antes de
+comprar de más: la sugerencia sigue el ritmo real de los últimos 30 días, no un promedio anual.</p>
+</div>
+<p><strong>Rutina de apertura (2 minutos):</strong> abra el Panel, revise la <strong>reposición sugerida</strong> y las
+alertas de stock, confirme el cuadre del día anterior y entre a vender.</p>
 <hr />
 <h1 id="11-historial-de-precios-y-monedas">11. Historial de precios y monedas</h1>
 <h2 id="111-historial-de-precios">11.1 Historial de precios</h2>
