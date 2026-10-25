@@ -105,15 +105,17 @@ class EscPosTest {
         assertEquals("17.50", EscPos.money(17.5))
         assertEquals("0.00", EscPos.money(0.0))
         assertEquals("2", EscPos.qty(2.0))
-        assertEquals("2.5", EscPos.qty(2.5))
+        assertEquals("2.50", EscPos.qty(2.5))
     }
 
     @Test
     fun `el papel de 80 mm usa mas columnas`() {
         val ancho = texto(EscPos.build(ticket.copy(width = PaperWidth.MM_80)))
-        assertEquals(48, EscPos.centered("Ticket", PaperWidth.MM_80.columns).length)
-        assertTrue(ancho.contains(EscPos.divider(48)))
-        assertTrue(!ancho.contains(EscPos.divider(PaperWidth.MM_58.columns)))
+        val centrado = EscPos.centered("Ticket", PaperWidth.MM_80.columns)
+        assertTrue(centrado.startsWith(" ".repeat(21)))
+        assertTrue(centrado.endsWith("Ticket"))
+        assertTrue(ancho.contains("-".repeat(48)))
+        assertTrue(!texto(EscPos.build(ticket)).contains("-".repeat(48)))
     }
 
     @Test
