@@ -1,5 +1,13 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-25 (XIX) · Voz nueva en el vídeo de presentación (C-01)
+
+- **Narración regenerada** con una voz española natural (español neutro de Latinoamérica), sin acento inglés y con ritmo pausado: las ocho escenas se han vuelto a locutar con el guion de `docs/PROPUESTA_VIDEO_PROMOCIONAL.md` §3, sin cambiar una coma del texto.
+- **Vídeo recompuesto**: **2:41** (160,9 s, por debajo del límite de 3 minutos), 1280 × 720, H.264 High `yuv420p` 25 fps, audio **AAC-LC 44,1 kHz estéreo** 148 kb/s, `+faststart`, 11,4 MB.
+- **Subtítulos regenerados** y sincronizados con la voz nueva (56 rótulos), más el MP3 de la narración actualizado (`novagest-promo-narracion.mp3`).
+- **Prueba `tools/test_sitio.py` ampliada** a 37 comprobaciones: el vídeo existe y no está vacío, la narración dura menos de 3 minutos, los subtítulos tienen al menos 20 rótulos y el MP3 está publicado.
+- **Timecodes** de la propuesta actualizados escena por escena; README y manual citan **2:41**.
+
 ## NovaGest v1.0.0 · revisión 2026-10-24 (XVIII) · Reposición sugerida en el Panel (W-11)
 
 - **Nueva tarjeta «🧾 Reposición sugerida»** en el Panel: con las ventas reales de los últimos **30 días** calcula el ritmo diario de cada producto, **cuántos días dura la existencia** y **cuántas unidades comprar** para cubrir **14 días**, descontando lo que ya hay en el almacén. Ordenada por urgencia: **Agotado** → **Urgente** (≤3 días) → **Pronto** (≤7 días) → **Planificar**. Los productos sin ventas en la ventana no aparecen (no se inventa un ritmo); para ellos siguen las alertas de **Stock bajo**.

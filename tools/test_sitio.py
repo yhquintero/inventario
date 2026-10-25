@@ -143,6 +143,27 @@ def main() -> int:
        f"{PAGINA.stat().st_size // 1024} KB")
     ok("se publica sin Jekyll (archivo .nojekyll)", (RAIZ / "docs" / ".nojekyll").is_file())
 
+    print("\nVídeo y audio")
+    video = RAIZ / "docs" / "assets" / "video" / "novagest-promo-720p.mp4"
+    srt = RAIZ / "docs" / "assets" / "video" / "novagest-promo-720p.srt"
+    mp3 = RAIZ / "docs" / "assets" / "video" / "novagest-promo-narracion.mp3"
+    ok("el vídeo de presentación existe", video.is_file())
+    ok("el vídeo pesa más de 1 MB (no es un archivo vacío)",
+       video.is_file() and video.stat().st_size > 1_000_000,
+       f"{video.stat().st_size // 1024 // 1024} MB" if video.is_file() else "no existe")
+    ok("los subtítulos acompañan al vídeo", srt.is_file())
+    if srt.is_file():
+        tiempos = re.findall(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})", srt.read_text(encoding="utf-8"))
+        fin = max((int(h) * 3600 + int(m) * 60 + int(se) + int(ms) / 1000) for h, m, se, ms in tiempos) if tiempos else 0
+        ok("la narración dura menos de 3 minutos", 0 < fin < 180, f"{fin:.1f} s")
+        ok("el vídeo tiene subtítulos suficientes para seguir la narración",
+           len(re.findall(r"^\d+$", srt.read_text(encoding="utf-8"), re.M)) >= 20)
+    ok("la narración en audio está publicada", mp3.is_file())
+    ok("la página trae el reproductor de vídeo", "<video" in html and 'src="assets/video/novagest-promo-720p.mp4"' in html)
+    ok("el reproductor ofrece los subtítulos en español",
+       '<track kind="subtitles"' in html and 'srclang="es"' in html)
+    ok("el vídeo no se descarga al abrir la página (preload=\"none\")", 'preload="none"' in html)
+
     print(f"\n{pruebas - len(fallos)}/{pruebas} comprobaciones correctas")
     if fallos:
         print("Fallos: " + ", ".join(fallos))
