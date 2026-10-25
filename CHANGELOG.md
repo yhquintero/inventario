@@ -1,5 +1,12 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-25 (XX) · Voz masculina en el vídeo (C-01b)
+
+- **Locución regrabada con voz masculina española** (español neutro, sin acento inglés), como pidió el titular: mismas palabras, mismo guion de `docs/PROPUESTA_VIDEO_PROMOCIONAL.md` §3.
+- **Vídeo recompuesto**: **2:37** (156,8 s), 1280 × 720, H.264 High `yuv420p` 25 fps, audio AAC-LC 44,1 kHz estéreo, `+faststart`, 10,6 MB.
+- **Subtítulos y MP3 de la narración regenerados** con la voz nueva; timecodes de la propuesta actualizados escena por escena.
+- README, manual y sitio citan **2:37**; la portada del sitio dice «El producto en 2 minutos y medio».
+
 ## NovaGest v1.0.0 · revisión 2026-10-25 (XIX) · Voz nueva en el vídeo de presentación (C-01)
 
 - **Narración regenerada** con una voz española natural (español neutro de Latinoamérica), sin acento inglés y con ritmo pausado: las ocho escenas se han vuelto a locutar con el guion de `docs/PROPUESTA_VIDEO_PROMOCIONAL.md` §3, sin cambiar una coma del texto.
