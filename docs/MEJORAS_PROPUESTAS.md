@@ -37,7 +37,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 
 | # | Mejora | Por qué | Dónde | Impacto | Esfuerzo | Estado |
 |---|---|---|---|---|---|---|
-| A-01 | Cola local persistente con reintentos y conflicto por `updatedAt` | Trabajar días sin red sin perder ventas | `data/sync/` | 🔴 | 🧱 | ⬜ |
+| A-01 | **Cola persistente con reintentos (espera creciente) y conflictos resueltos por `updatedAt`**, con aviso de «cambios sin subir» | Trabajar sin red y con varias personas sin perder trabajo | `data/sync/SyncQueue.kt`, `SyncManager.kt` | 🔴 | ⏳ | ✅ |
 | A-02 | Receipt Bluetooth ESC/POS (58/80 mm) | Cobrar e imprimir desde el móvil | `ui/pos/` | 🟠 | ⏳ | ⬜ |
 | A-03 | Escáner con CameraX (sin depender de servicios de Google) | Móviles sin Play Services | `ui/pos/` | 🟠 | ⏳ | ⬜ |
 | A-04 | Widget de inicio: ventas del día y stock bajo | Abrir con la información, sin entrar | `appwidget/` | 🟠 | ⏳ | ⬜ |

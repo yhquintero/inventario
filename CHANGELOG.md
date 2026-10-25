@@ -1,5 +1,13 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-24 (XV) · Cola de sincronización y conflictos en Android (A-01)
+
+- **Los conflictos ya no descartan trabajo.** Cuando el servidor responde **409** (otra persona guardó antes), la App descarga la versión del servidor, la toma como base y **vuelve a aplicar los cambios del teléfono encima**: en cada producto gana el `updatedAt` más reciente y los cambios del servidor se conservan. Antes se recargaba y se perdían las ediciones locales.
+- **Reintentos automáticos con espera creciente.** Si la subida falla por red, el intento queda programado (5 s, 15 s, 1 min, 5 min y 15 min, hasta 12 intentos) y un bucle en segundo plano lo reintenta sin que el usuario haga nada; el estado se conserva entre sesiones.
+- **Aviso honesto en pantalla**: la franja superior muestra «N cambio(s) sin subir · reintento en X s» y el botón **Reintentar** sigue disponible.
+- **Lógica pura y probada**: `data/sync/SyncQueue.kt` (`RetryPolicy` y `ConflictResolver`) con **12 pruebas** en `app/src/test/.../SyncQueueTest.kt` (espera creciente, tope de intentos, `updatedAt`, empates con borrados, fusión, orden y mensajes).
+- **Manual** §16.5 explica la resolución de conflictos por `updatedAt` y la franja de cambios pendientes (HTML regenerado).
+
 ## NovaGest v1.0.0 · revisión 2026-10-24 (XIV) · Gráficos de Análisis (W-01)
 
 - **Mapa de calor de ventas** en **Análisis y metas**: las últimas 8 semanas por día de la semana, con cinco niveles de intensidad, la fecha y el importe de cada día al pasar el puntero, leyenda con el máximo y el total, y **tabla de datos equivalente** para lectores de pantalla e impresión.
