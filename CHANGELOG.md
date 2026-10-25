@@ -1,5 +1,13 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXVI) · Hoja imprimible del Análisis, accesibilidad, novedades y aviso de cierre (W-12 · W-09 · D-12 · A-08)
+
+- **W-12 · Hoja imprimible del Análisis.** Botón **🖨 Hoja imprimible** en *Análisis y metas*: cabecera con negocio y período, los cuatro indicadores, los tres gráficos (tendencia con meta, mapa de calor y categorías) y las metas, todo en **una A4 apaisada**; fuera van botones, ayudas y la tabla de productos sin movimiento. Reglas nuevas en `@media print` (`analytics-sheet`).
+- **W-09 · Lo que pasa se anuncia.** Región viva permanente `#live` fuera de `#app` (`role="status"`, `aria-live="polite"`), función `announce()` conectada a todos los avisos, estado **`aria-busy`** mientras corre una operación larga (importación de Excel, copia cifrada) y **retorno del foco** al botón que abrió un diálogo.
+- **D-12 · Página de novedades.** `docs/NOVEDADES.html` se **genera sola** desde `CHANGELOG.md` con `tools/build_novedades.py` (últimas 12 revisiones, sin dependencias), enlazada desde la portada y desde el pie del sitio. `--check` falla si la página queda desfasada.
+- **A-08 · Aviso de cierre a las 20:00 (Android).** `DayCloseWorker` (WorkManager + Hilt) avisa solo si hubo ventas y el día **no está cuadrado**; `DayCloseCheck` concentra la decisión y los textos, con **4 pruebas** nuevas (`DayCloseCheckTest.kt`). Interruptor en **Ajustes → Aviso de cierre**.
+- **Pruebas nuevas**: `tools/test_novedades.py` (23 comprobaciones) y 2 casos más en `tools/smoke_web.mjs` (**57 en total**). Manual §10.3 (hoja imprimible), §18.3 (accesibilidad) y §16.9 (aviso de cierre); `docs/INSTALACION.md` con la sección de `/api/health`. Service worker **v23**.
+
 ## NovaGest v1.0.0 · revisión 2026-10-25 (XXV) · Salud del servidor y guía del mostrador (S-09 · D-10)
 
 - **S-09 · `/api/health` con métricas.** La comprobación pública del servidor devuelve ahora un bloque **`salud`**: estado (**ok** / **aviso**), avisos (`licencia`, `sin-copias`, `copias-viejas`), tiempo en marcha, **latencia** medida contra SQLite, **tamaño de la base**, copias de seguridad (total, última y horas desde la última), días cerrados y sesiones activas. No expone ningún dato de personas ni el contenido de la base.

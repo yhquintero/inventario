@@ -44,6 +44,9 @@ import java.util.Date
 import com.novagest.inventario.domain.model.UserAccount
 import com.novagest.inventario.ui.components.ChipRow
 import com.novagest.inventario.ui.components.SyncHint
+import android.content.Context
+import com.novagest.inventario.worker.WorkScheduler
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -53,8 +56,20 @@ class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
     val sync: SyncManager,
     val appLock: com.novagest.inventario.security.AppLock,
-    private val printer: BluetoothPrinter
+    private val printer: BluetoothPrinter,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    /** Aviso de cierre de las 20:00 (A-08): se guarda en las preferencias del teléfono. */
+    private val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
+    var dayCloseEnabled by mutableStateOf(prefs.getBoolean("dayClose", true))
+        private set
+
+    fun setDayClose(enabled: Boolean) {
+        dayCloseEnabled = enabled
+        prefs.edit().putBoolean("dayClose", enabled).apply()
+        WorkScheduler.scheduleDayClose(context, enabled)
+    }
     var entity by mutableStateOf(SettingsEntity())
 
     /** Impresora y ancho del papel elegidos en Ajustes (A-14). */
@@ -177,6 +192,17 @@ fun SettingsScreen(user: UserAccount, themeMode: String, vm: SettingsViewModel =
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Copia automática diaria")
             Switch(e.autoBackupEnabled, { e = e.copy(autoBackupEnabled = it) })
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Aviso de cierre a las ${com.novagest.inventario.domain.usecase.DayCloseCheck.HOUR}:00")
+                Text(
+                    "Si hubo ventas y el día no está cuadrado, el teléfono avisa a esa hora.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(vm.dayCloseEnabled, { vm.setDayClose(it) })
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {

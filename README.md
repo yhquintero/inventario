@@ -9,7 +9,7 @@
 **Inventario multialmacén, punto de venta, caja diaria e informes para tu negocio.**
 **Web instalable, aplicación Android y servidor propio — también sin conexión.**
 
-🌐 **[Sitio del proyecto](https://yhquintero.github.io/inventario/) · [Manual de usuario](docs/MANUAL_USUARIO.html) · [Vídeo (3 min)](docs/assets/video/novagest-promo-720p.mp4)**
+🌐 **[Sitio del proyecto](https://yhquintero.github.io/inventario/) · [Manual de usuario](docs/MANUAL_USUARIO.html) · [Guía del mostrador (2 páginas)](docs/GUIA_MOSTRADOR.html) · [Novedades](docs/NOVEDADES.html) · [Vídeo (3 min)](docs/assets/video/novagest-promo-720p.mp4)**
 
 🌐 **Español** · [English](docs/readme/README_en.md) · [Português](docs/readme/README_pt-BR.md) · [Français](docs/readme/README_fr.md) · [Italiano](docs/readme/README_it.md) · [Deutsch](docs/readme/README_de.md) · [Русский](docs/readme/README_ru.md) · [简体中文](docs/readme/README_zh-CN.md)
 

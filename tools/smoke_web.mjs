@@ -445,6 +445,32 @@ test("Verificar ticket (W-16): la pantalla abre y una venta real trae código", 
   }
 });
 
+test("Hoja imprimible del Análisis (W-12): cabecera, hoja y botón", () => {
+  const html = go("analytics");
+  assert.match(html, /class="print-report-header"/);
+  assert.match(html, /class="analytics-sheet"/);
+  assert.match(html, /data-act="print"/);
+  assert.match(html, /Hoja imprimible/);
+  // Los tres gráficos siguen dentro de la hoja.
+  assert.match(html, /Tendencia de ventas diarias/);
+  assert.match(html, /Mapa de calor de ventas/);
+  assert.match(html, /Ventas y utilidad por categoría/);
+});
+
+test("Anuncios accesibles (W-09): región viva, estado ocupado y retorno del foco", () => {
+  const index = readFileSync(join(root, "web", "index.html"), "utf8");
+  assert.match(index, /id="live"[^>]*class="sr-only"|class="sr-only"[^>]*id="live"/);
+  assert.match(index, /id="live"[^>]*aria-live="polite"/);
+  const src = readFileSync(join(root, "web", "js", "app.js"), "utf8");
+  assert.match(src, /function announce\(/);
+  assert.match(src, /function setBusy\(/);
+  assert.match(src, /aria-busy/);
+  assert.match(src, /ui\.modalReturn/);
+  const css = readFileSync(join(root, "web", "css", "app.css"), "utf8");
+  assert.match(css, /\.sr-only\s*\{/);
+  assert.match(css, /#app\[aria-busy="true"\]/);
+});
+
 test("Movimientos ofrece CSV y PDF para el filtro visible", () => {
   const html = go("movements");
   assert.match(html, /ALMACÉN/);

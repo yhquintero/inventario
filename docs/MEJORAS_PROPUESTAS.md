@@ -36,7 +36,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | W-06 | **Comparador de períodos en Informes** (período actual vs anterior de igual duración) | Decisiones con contexto, no cifras sueltas | `web/js/app.js` | 🟠 | ⏳ | ✅ |
 | W-07 | Exportación XLSX nativa desde el servidor (`openpyxl`) | El contador trabaja en Excel | `server/`, export | 🟢 | ⏱️ | ⬜ |
 | W-08 | Modo kiosco para tablet de mostrador (sin barra del navegador) | Uso real en el punto de venta | PWA | 🟢 | ⏱️ | ⬜ |
-| W-09 | `aria-live` y foco gestionado en operaciones largas | Accesibilidad más allá de WCAG AA | `web/js/app.js` | 🟢 | ⏱️ | ⬜ |
+| W-09 | ✅ `aria-live`, estado ocupado y foco gestionado en operaciones largas | Accesibilidad más allá de WCAG AA | `web/js/app.js` | 🟢 | ⏱️ | ✅ |
 
 ## Paso 3 · App Android
 
@@ -49,7 +49,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | A-05 | Base local cifrada (SQLCipher) y bloqueo por inactividad | Teléfono perdido = datos protegidos | `data/` | 🟠 | ⏳ | ⬜ |
 | A-06 | Sincronización incremental (delta) en vez de estado completo | Menos datos, más rápido en 3G | `data/sync/` | 🟠 | 🧱 | ⬜ |
 | A-07 | Edición de fichas de costo e IPV (hoy solo consulta) | Paridad real con la Web | `ui/` | 🟠 | ⏳ | ⬜ |
-| A-08 | Aviso a la hora de cierre si el día no está cuadrado | Cierra la caja todos los días | `notifications/` | 🟢 | ⏱️ | ⬜ |
+| A-08 | ✅ Aviso a las 20:00 si el día no está cuadrado, con interruptor en Ajustes | Cierra la caja todos los días | `worker/` | 🟢 | ⏱️ | ✅ |
 | A-09 | Diseño para tablet (dos paneles, apaisado) | Mostrador y almacén | `ui/` | 🟢 | ⏳ | ⬜ |
 
 ## Paso 4 · Servidor y plataforma
@@ -70,7 +70,7 @@ Ideas que salen de lo ya construido; ninguna está aprobada todavía.
 |---|---|---|---|---|---|
 | W-10 | **Comparador de períodos** en Análisis: superponer las ventas de esta semana y la anterior | Saber si se mejora o empeora sin restar a mano | `web/js/charts.js` | 🔴 | ⏳ |
 | W-11 | **Reposición sugerida** en el Panel: ritmo de venta de 30 días, días que dura el stock y unidades a comprar para cubrir 14 días, ordenado por urgencia | Comprar antes de quedarse sin lo que más rota | `calc.js` + Panel | 🔴 | ⏳ ✅ |
-| W-12 | **Hoja imprimible del Análisis**: los tres gráficos + KPIs en una sola página A4 | Entregar el resumen al dueño o al contador | `app.css` (`@media print`) | 🟠 | ⏱️ |
+| W-12 | ✅ **Hoja imprimible del Análisis**: los tres gráficos + KPIs en una sola página A4 | Entregar el resumen al dueño o al contador | `app.css` (`@media print`) | 🟠 | ⏱️ |
 | W-13 | **Exportar el mapa de calor a CSV** (fecha, día, ventas, unidades, líneas) | Análisis propio en Excel, con `;` y coma decimal para Excel en español | `charts.js` + `app.js` | 🟢 | ⏱️ ✅ |
 | W-14 | **Objetivo semanal por categoría** con barra de avance | Dirigir la venta, no solo medirla | `analyticsView` | 🟠 | ⏳ |
 | A-10 | **Sincronización incremental** (`?since=`): subir y bajar solo lo cambiado | Móvil con datos lentos y catálogos grandes | `SyncManager` + servidor | 🔴 | 🧱 |
@@ -104,11 +104,11 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 | S-11 | **Compresión gzip de `/state` y límite de tamaño por petición** | Servidores modestos, respuestas grandes | `server/` | 🟠 | ⏱️ |
 | D-10 | ✅ **Guía de dos páginas para el mostrador** (imprimible en A4): vender, fiar, imprimir, verificar y cuadrar | El personal nuevo arranca sin formación | `docs/` | 🟠 | ⏱️ |
 | D-11 | **Vídeo vertical de 30 s para WhatsApp** con la venta y el ticket | Es el canal real de los clientes | `docs/assets/video/` | 🟢 | ⏳ |
-| D-12 | **Página de novedades en el sitio**, generada desde `CHANGELOG.md` | El cliente ve que el producto avanza | `docs/index.html` | 🟢 | ⏱️ |
+| D-12 | ✅ **Página de novedades** (`NOVEDADES.html`) generada desde `CHANGELOG.md` | El cliente ve que el producto avanza | `docs/` | 🟢 | ⏱️ |
 
-**Orden que propongo:** ~~W-15~~ → ~~A-17~~ → ~~W-16~~ → ~~A-15~~ → ~~S-09~~ → ~~D-10~~ → W-12 (cada uno
-con su prueba y su entrada en el `CHANGELOG`). Entregados: **W-15, A-17, A-14** (revisión XXIII),
-**W-16, A-15** (revisión XXIV) y **S-09, D-10** (revisión XXV).
+**Orden que propongo:** ~~W-15~~ → ~~A-17~~ → ~~W-16~~ → ~~A-15~~ → ~~S-09~~ → ~~D-10~~ → ~~W-12~~, y en
+paralelo los rápidos ~~W-09~~, ~~D-12~~ y ~~A-08~~. Entregados: **W-15, A-17, A-14** (revisión XXIII),
+**W-16, A-15** (XXIV), **S-09, D-10** (XXV) y **W-12, W-09, D-12, A-08** (XXVI).
 
 ## Cómo se supervisa
 
