@@ -8,6 +8,9 @@
 - **Service worker v18** con el módulo en el precache.
 - **W-13 · CSV del mapa de calor**: botón **CSV** en el recuadro de Análisis que descarga una fila por día (fecha, día, ventas, unidades, líneas) con `;` y coma decimal para que Excel en español lo abra en columnas. Probado en `tools/test_charts.mjs` (11 pruebas).
 - **Manual** §17.1, §17.4 y nota de conflictos actualizados (Web y Android fusionan igual); HTML regenerado.
+- **Sitio del proyecto publicado en `docs/index.html`** (GitHub Pages): portada con el resumen del producto, funciones, capturas reales, instalación en tres pasos, tabla de roles y enlaces al manual, al vídeo y al repositorio. Todo el estilo va incrustado, sin CDN ni fuentes externas, con modo oscuro automático, enlace «saltar al contenido» y textos alternativos.
+- **Prueba nueva `tools/test_sitio.py`** (31 comprobaciones): HTML bien formado, un solo `h1`, metadatos y descripción de buscadores, cero recursos externos, todos los recursos relativos existentes, imágenes con `alt` y tamaño, y publicación sin Jekyll (`docs/.nojekyll`). Enganchada al CI.
+- **README**: enlace al sitio del proyecto, al manual y al vídeo en la cabecera.
 
 ## NovaGest v1.0.0 · revisión 2026-10-24 (XVI) · Segunda ola de mejoras propuestas
 
