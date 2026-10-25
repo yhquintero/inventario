@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,7 +52,17 @@ fun KpiCard(
             Spacer(Modifier.height(10.dp))
             Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(6.dp))
-            Text(value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold, color = tone)
+            Text(
+                value,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = tone,
+                // Con la fuente del sistema al 130 % la cifra se partía a mitad de número
+                // («$96,502.8» + «2»): una sola línea siempre.
+                maxLines = 1,
+                softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
             if (subtitle.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
                 Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -75,12 +87,33 @@ fun RoleGate(role: Role, permission: Permission, content: @Composable () -> Unit
     if (RolePermissions.can(role, permission)) content()
 }
 
+/**
+ * Fila de chips que se reparte en varias líneas cuando no cabe en el ancho del teléfono.
+ *
+ * Con un `Row` fijo, los últimos chips se comprimían hasta dibujar el texto letra a letra
+ * en vertical (pasaba con «SALIDA» en Movimientos y con «3 meses»/«Permanente» en la
+ * licencia). `FlowRow` conserva el ancho natural de cada chip y baja el resto de línea.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ChipRow(options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+fun <T> ChipRow(
+    options: List<T>,
+    selected: T?,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
         options.forEach { opt ->
-            FilterChip(selected = selected == opt, onClick = { onSelect(opt) }, label = { Text(opt) })
-            Spacer(Modifier.width(0.dp))
+            FilterChip(
+                selected = opt == selected,
+                onClick = { onSelect(opt) },
+                label = { Text(label(opt)) }
+            )
         }
     }
 }

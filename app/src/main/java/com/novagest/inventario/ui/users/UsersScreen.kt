@@ -37,6 +37,7 @@ import com.novagest.inventario.domain.model.Permission
 import com.novagest.inventario.domain.model.Role
 import com.novagest.inventario.domain.model.RolePermissions
 import com.novagest.inventario.domain.model.UserAccount
+import com.novagest.inventario.ui.components.ChipRow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -73,7 +74,7 @@ fun UsersScreen(user: UserAccount, vm: UsersViewModel = hiltViewModel()) {
             open = true
         }) { Icon(Icons.Outlined.Add, "Nuevo") }
     }) { pad ->
-        LazyColumn(Modifier.fillMaxSize().padding(pad).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(Modifier.fillMaxSize().padding(pad).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp)) {
             item { Text("Usuarios y roles", style = MaterialTheme.typography.headlineMedium) }
             vm.msg?.let { item { Text(it, color = MaterialTheme.colorScheme.primary) } }
             items(users, key = { it.id }) { u ->
@@ -114,11 +115,12 @@ private fun UserDialog(account: UserAccount, onDismiss: () -> Unit, onSave: (Use
                 OutlinedTextField(name, { name = it }, label = { Text("Nombre") }, singleLine = true)
                 OutlinedTextField(email, { email = it }, label = { Text("Correo") }, singleLine = true)
                 OutlinedTextField(pass, { pass = it }, label = { Text("Contraseña") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Role.entries.forEach { r ->
-                        FilterChip(selected = role == r, onClick = { role = r }, label = { Text(r.label) })
-                    }
-                }
+                ChipRow(
+                    options = Role.entries,
+                    selected = role,
+                    label = { it.label },
+                    onSelect = { role = it }
+                )
                 OutlinedTextField(q, { q = it }, label = { Text("Pregunta de seguridad") })
                 OutlinedTextField(ans, { ans = it }, label = { Text("Respuesta") })
             }

@@ -185,7 +185,7 @@ function shell(body) {
           <div class="tb-title"><h2 class="dashboard-page-title">${r?.title || ""}</h2><span class="hint">${formatDate(todayISO())} · 1 USD = ${store.rateOn("USD")} CUP ${ui.license.status?.valid ? `· 🔐 ${esc(ui.license.status.type)} ${ui.license.status.daysLeft === -1 ? "· Permanente" : `· ${ui.license.status.daysLeft}d`}` : ""}</span></div>
           ${r?.search ? `<div class="search-box"><span>⌕</span><input class="search" id="globalSearch" placeholder="Buscar en ${r.title.toLowerCase()}…" value="${esc(ui.q)}" autocomplete="off" aria-label="Buscar en ${r.title.toLowerCase()}" />${ui.q ? `<button class="x" data-act="clear-q" aria-label="Borrar búsqueda">✕</button>` : ""}</div>` : `<div class="flex1"></div>`}
           ${whPicker()}
-          <span class="sync-dot ${store.sync}" id="syncDot" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
+          <span class="sync-dot ${store.sync}" id="syncDot" role="status" aria-live="polite" aria-atomic="true" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
           <button class="btn ghost small lic-btn ${ui.route === "license" ? "on" : ""}" data-act="license-manage" title="Gestionar la licencia de uso" aria-label="Licencia de uso" data-tip="Gestionar la licencia de uso · Licencia ${ui.license.status?.valid ? `${ui.license.status.type} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}` : "no válida"}${pendingReq ? ` · ${pendingReq} solicitud(es) pendiente(s)` : ""}">🔐${pendingReq ? `<span class="pill">${pendingReq}</span>` : ""}</button>
           <button class="btn ghost small kbd-btn" data-act="palette" aria-label="Búsqueda rápida (Ctrl+K)">⌘K</button>
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
@@ -445,7 +445,7 @@ function licenseRequestModal(id) {
   const r = (ui.license.requests || []).find((x) => String(x.id) === String(id));
   if (!r) return toast("Solicitud no encontrada.", "err");
   ui.license.msgRequest = r.id;
-  ui.modal = `<div class="modal-back" data-act="close-modal"><div class="modal">
+  ui.modal = `<div class="modal-back" data-act="close-modal"><div class="modal" role="dialog" aria-modal="true">
     <div class="h2">📨 Solicitud #${r.id} · ${esc(r.clientName)}</div>
     <p class="hint">${esc(r.createdText || LicenseManager.fmtDate(r.createdAt))} · ${esc(r.channel || "web")} · ${esc(r.deviceId)}${r.phone ? ` · 📱 ${esc(r.phone)}` : ""}</p>
     <pre class="mono pre-box">${esc(r.message || "")}</pre>
@@ -2097,9 +2097,17 @@ function analyticsView() {
 }
 
 /* ============================ IMPORTAR EXCEL ============================ */
+// El lector de Excel (861 KB) no va en el precache: se descarga la primera vez que se usa y
+// queda guardado para las siguientes. Si esa primera vez es sin conexión, el aviso lo explica.
 function loadXLSX() {
   if (window.XLSX) return Promise.resolve(window.XLSX);
-  return new Promise((res, rej) => { const s = document.createElement("script"); s.src = "./vendor/xlsx.full.min.js"; s.onload = () => res(window.XLSX); s.onerror = rej; document.head.appendChild(s); });
+  return new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "./vendor/xlsx.full.min.js";
+    s.onload = () => res(window.XLSX);
+    s.onerror = () => rej(new Error("No se pudo cargar el lector de Excel. Conéctate una vez para guardarlo en el teléfono; después funcionará sin conexión."));
+    document.head.appendChild(s);
+  });
 }
 function parseSheet(XLSX, wb, name) {
   const ws = wb.Sheets[name];
@@ -2497,7 +2505,7 @@ function whDeleteFlow(id) {
   const others = store.warehousesActive().filter((x) => x.id !== id);
   if (!others.length) return toast("Es el único almacén: crea otro antes de eliminarlo.", "err");
   if (st.items || st.movs) {
-    ui.modal = `<div class="modal-back" data-act="close-modal"><form class="modal" id="whMoveForm" data-id="${id}">
+    ui.modal = `<div class="modal-back" data-act="close-modal"><form class="modal" id="whMoveForm" role="dialog" aria-modal="true" data-id="${id}">
       <div class="modal-h"><div class="h2">Eliminar «${esc(w.name)}»</div><button type="button" class="icon-btn" data-act="close-modal">✕</button></div>
       <p>Tiene <b>${st.items} ítems</b> (${qty(st.unidades)} unidades) y <b>${st.movs} movimientos</b>. Elige a qué almacén se pasan antes de eliminarlo: nada se pierde.</p>
       <label>Mover todo a<select name="moveTo">${others.map((o) => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></label>
@@ -2879,7 +2887,7 @@ function userModal(u = null) {
 
 function confirmModal(text, onYes) {
   ui.confirm = onYes;
-  ui.modal = `<div class="modal-back" data-act="close-modal"><div class="modal small"><div class="h2">Confirmar</div><p>${text}</p><div class="row mt14"><button class="btn danger" data-act="confirm-yes">Sí, continuar</button><button class="btn ghost" data-act="close-modal">Cancelar</button></div></div></div>`;
+  ui.modal = `<div class="modal-back" data-act="close-modal"><div class="modal small" role="dialog" aria-modal="true"><div class="h2">Confirmar</div><p>${text}</p><div class="row mt14"><button class="btn danger" data-act="confirm-yes">Sí, continuar</button><button class="btn ghost" data-act="close-modal">Cancelar</button></div></div></div>`;
   render();
 }
 
@@ -3179,6 +3187,24 @@ document.addEventListener("keydown", (e) => {
   const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName);
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openPalette(paletteCtx()); return; }
   if (e.key === "Escape" && ui.modal) { ui.modal = null; render(); return; }
+  // Foco atrapado dentro del modal: con Tab no se debe llegar al contenido de detrás.
+  // (render() ya enfoca el primer campo al abrirlo; esto cierra el círculo.)
+  if (e.key === "Tab" && ui.modal) {
+    const modal = document.querySelector(".modal");
+    if (modal) {
+      const focusables = [...modal.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )].filter((el) => el.offsetParent !== null);
+      if (focusables.length) {
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+        if (!modal.contains(active)) { e.preventDefault(); first.focus(); return; }
+        if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); return; }
+        if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); return; }
+      }
+    }
+  }
   if (typing || ui.modal || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "/") { const s = $("#globalSearch"); if (s) { e.preventDefault(); s.focus(); } }
   else if (e.key === "n" && allowed("INVENTORY_EDIT")) runAct("new-product");

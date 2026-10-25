@@ -105,7 +105,9 @@ fun InventoryScreen(user: UserAccount, vm: InventoryViewModel = hiltViewModel())
                 "${filtered.size} ítems  ·  ${Money.qty(unidades)} unidades  ·  ${Money.usd(valor)}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 8.dp)
             )
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // contentPadding inferior: deja respirar la última tarjeta por encima del botón
+            // flotante, que si no la tapaba y no se podía abrir.
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp)) {
                 itemsIndexed(filtered, key = { _, it -> it.id }) { index, p ->
                     Card(
                         Modifier.fillMaxWidth().clickable(enabled = canEdit) { editing = p; creating = true },

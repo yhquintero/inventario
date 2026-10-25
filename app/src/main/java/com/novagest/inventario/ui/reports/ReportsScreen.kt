@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.novagest.inventario.ui.components.ChipRow
 import com.novagest.inventario.data.export.ExportManager
 import com.novagest.inventario.data.repository.ProductRepository
 import com.novagest.inventario.data.repository.ReportRepository
@@ -105,18 +106,13 @@ fun ReportsScreen(user: UserAccount, vm: ReportsViewModel = hiltViewModel()) {
     LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             Text("Reportes e informes", style = MaterialTheme.typography.headlineMedium)
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()).padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf("diario", "semanal", "mensual", "anual", "período").forEach { period ->
-                    FilterChip(
-                        selected = vm.period == period,
-                        onClick = { vm.load(period) },
-                        label = { Text(period.replaceFirstChar { it.uppercase() }) }
-                    )
-                }
-            }
+            ChipRow(
+                options = listOf("diario", "semanal", "mensual", "anual", "período"),
+                selected = vm.period,
+                label = { it.replaceFirstChar { c -> c.uppercase() } },
+                onSelect = { vm.load(it) },
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
         item {
             if (vm.period == "período") {
@@ -161,7 +157,16 @@ fun ReportsScreen(user: UserAccount, vm: ReportsViewModel = hiltViewModel()) {
             SectionTitle("Ventas por centro")
             val gestor = ventas.filter { it.center == SaleCenter.GESTOR }.sumOf { it.importeUsd }
             val tienda = ventas.filter { it.center == SaleCenter.TIENDA }.sumOf { it.importeUsd }
-            SimpleBarChart(listOf("GESTOR" to gestor.toFloat(), "TIENDA" to tienda.toFloat()))
+            // Sin ventas el gráfico quedaba como un hueco en blanco; es más claro decirlo.
+            if (gestor == 0.0 && tienda == 0.0) {
+                Text(
+                    "Sin ventas en este período: todavía no hay reparto entre tienda y gestor.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                SimpleBarChart(listOf("GESTOR" to gestor.toFloat(), "TIENDA" to tienda.toFloat()))
+            }
         }
         item {
             SectionTitle("Composición de movimientos")

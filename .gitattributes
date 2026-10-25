@@ -6,3 +6,8 @@ venv/** linguist-vendored
 
 # Librerías JavaScript de terceros (Linguist ya las excluye; se declara para que quede explícito).
 web/vendor/** linguist-vendored
+
+# El wrapper de Gradle y los scripts de shell deben conservar LF: con CRLF, ./gradlew
+# falla en Linux (CI) con «bad interpreter».
+gradlew text eol=lf
+*.sh text eol=lf

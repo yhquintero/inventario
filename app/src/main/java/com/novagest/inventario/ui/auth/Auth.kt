@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Fingerprint
@@ -33,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -139,11 +142,16 @@ fun LoginScreen(vm: AuthViewModel = hiltViewModel(), onLogged: (UserAccount) -> 
     LaunchedEffect(state.user) { state.user?.let(onLogged) }
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(28.dp),
+        Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Image(painterResource(R.drawable.ic_launcher), "NovaGest", Modifier.size(88.dp))
+        // El icono es un PNG con fondo blanco: se recortan las esquinas para que no
+        // aparezca como un cuadrado blanco sobre el fondo oscuro.
+        Image(
+            painterResource(R.drawable.ic_launcher), "NovaGest",
+            Modifier.size(88.dp).clip(RoundedCornerShape(22.dp))
+        )
         Spacer(Modifier.height(12.dp))
         Text("NovaGest", style = MaterialTheme.typography.headlineMedium)
         Text("Gestiona. Crece. Avanza. · Inventario, venta y caja en una sola app", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -179,7 +187,15 @@ fun LoginScreen(vm: AuthViewModel = hiltViewModel(), onLogged: (UserAccount) -> 
             OutlinedTextField(
                 server, { server = it }, label = { Text("Servidor (misma dirección que la Web)") }, singleLine = true,
                 placeholder = { Text("https://tienda.ejemplo.com") },
-                supportingText = { Text(if (server.isBlank()) "Vacío = datos solo en este teléfono" else "Datos compartidos con la Web · conexión cifrada") },
+                supportingText = {
+                    Text(
+                        when {
+                            server.isBlank() -> "Vacío = datos solo en este teléfono"
+                            server.trim().startsWith("http://") -> "Datos compartidos con la Web · sin cifrar (solo pruebas locales)"
+                            else -> "Datos compartidos con la Web · conexión cifrada"
+                        }
+                    )
+                },
                 modifier = Modifier.fillMaxWidth()
             )
             if (state.need2fa) {

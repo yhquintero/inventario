@@ -26,13 +26,15 @@ object Dates {
 
     fun formatLong(epoch: Long): String = toLocalDate(epoch).format(longFmt)
 
+    // Con tilde: es texto que se muestra en pantalla. Las filas ya guardadas en Room
+    // conservan su grafía anterior; no se comparan por este campo, sólo se muestran.
     fun weekday(date: LocalDate = LocalDate.now()): String = when (date.dayOfWeek) {
         DayOfWeek.MONDAY -> "lunes"
         DayOfWeek.TUESDAY -> "martes"
-        DayOfWeek.WEDNESDAY -> "miercoles"
+        DayOfWeek.WEDNESDAY -> "miércoles"
         DayOfWeek.THURSDAY -> "jueves"
         DayOfWeek.FRIDAY -> "viernes"
-        DayOfWeek.SATURDAY -> "sabado"
+        DayOfWeek.SATURDAY -> "sábado"
         DayOfWeek.SUNDAY -> "domingo"
     }
 

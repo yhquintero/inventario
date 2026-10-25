@@ -44,6 +44,7 @@ import com.novagest.inventario.domain.model.MovementType
 import com.novagest.inventario.domain.model.Product
 import com.novagest.inventario.domain.model.SaleCenter
 import com.novagest.inventario.domain.model.UserAccount
+import com.novagest.inventario.ui.components.ChipRow
 import com.novagest.inventario.ui.components.SearchField
 import com.novagest.inventario.ui.inventory.CategoryThumb
 import com.novagest.inventario.util.Money
@@ -177,13 +178,18 @@ fun PosScreen(user: UserAccount, vm: PosViewModel = hiltViewModel()) {
                         TextButton(onClick = { vm.dec(line) }) { Text("−") }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SaleCenter.entries.filter { it != SaleCenter.MOV }.forEach { c -> FilterChip(selected = center == c, onClick = { center = c }, label = { Text(c.label) }) }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(selected = payment == "CONTADO", onClick = { payment = "CONTADO" }, label = { Text("Contado") })
-                    FilterChip(selected = payment == "FIADO", onClick = { payment = "FIADO" }, label = { Text("Fiado") })
-                }
+                ChipRow(
+                    options = SaleCenter.entries.filter { it != SaleCenter.MOV },
+                    selected = center,
+                    label = { it.label },
+                    onSelect = { center = it }
+                )
+                ChipRow(
+                    options = listOf("CONTADO", "FIADO"),
+                    selected = payment,
+                    label = { if (it == "CONTADO") "Contado" else "Fiado" },
+                    onSelect = { payment = it }
+                )
                 if (payment == "FIADO") {
                     if (customers.isEmpty()) {
                         Text("Sin clientes sincronizados: créelos en la Web.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)

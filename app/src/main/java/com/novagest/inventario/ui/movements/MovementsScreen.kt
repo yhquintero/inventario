@@ -15,7 +15,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +39,7 @@ import com.novagest.inventario.domain.model.AppResult
 import com.novagest.inventario.domain.model.MovementType
 import com.novagest.inventario.domain.model.Permission
 import com.novagest.inventario.domain.model.RolePermissions
+import com.novagest.inventario.ui.components.ChipRow
 import com.novagest.inventario.domain.model.SaleCenter
 import com.novagest.inventario.domain.model.UserAccount
 import com.novagest.inventario.ui.components.SearchField
@@ -90,13 +90,16 @@ fun MovementsScreen(user: UserAccount, vm: MovementViewModel = hiltViewModel()) 
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
             SearchField(q, { q = it }, "Buscar por producto o centro")
-            Row(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("TODOS", "VENTA", "ENTRADA", "SALIDA").forEach { t ->
-                    FilterChip(selected = typeFilter == t, onClick = { typeFilter = t }, label = { Text(t) })
-                }
-            }
+            ChipRow(
+                options = listOf("TODOS", "VENTA", "ENTRADA", "SALIDA"),
+                selected = typeFilter,
+                label = { it },
+                onSelect = { typeFilter = it },
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
             vm.message?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 8.dp)) }
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Espacio al final para que el botón flotante no tape el último movimiento.
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp)) {
                 items(filtered, key = { it.id }) { m ->
                     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                         Text("${m.type.name} · ${m.productName}", style = MaterialTheme.typography.titleMedium)
@@ -135,16 +138,18 @@ fun MovementsScreen(user: UserAccount, vm: MovementViewModel = hiltViewModel()) 
                             }
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        MovementType.entries.forEach { t ->
-                            FilterChip(selected = type == t, onClick = { type = t; if (t != MovementType.VENTA) center = SaleCenter.MOV }, label = { Text(t.name) })
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SaleCenter.entries.forEach { c ->
-                            FilterChip(selected = center == c, onClick = { center = c }, label = { Text(c.name) })
-                        }
-                    }
+                    ChipRow(
+                        options = MovementType.entries,
+                        selected = type,
+                        label = { it.name },
+                        onSelect = { t -> type = t; if (t != MovementType.VENTA) center = SaleCenter.MOV }
+                    )
+                    ChipRow(
+                        options = SaleCenter.entries,
+                        selected = center,
+                        label = { it.name },
+                        onSelect = { center = it }
+                    )
                     OutlinedTextField(qty, { qty = it }, label = { Text("CANTIDAD") }, singleLine = true)
                     OutlinedTextField(notes, { notes = it }, label = { Text("Observación") })
                     val p = products.firstOrNull { it.id == productId }

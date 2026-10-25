@@ -34,12 +34,17 @@ import androidx.compose.foundation.verticalScroll
 import java.text.DateFormat
 import java.util.Date
 import com.novagest.inventario.domain.model.UserAccount
+import com.novagest.inventario.ui.components.ChipRow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class SettingsViewModel @Inject constructor(private val repo: SettingsRepository, val sync: SyncManager) : ViewModel() {
+class SettingsViewModel @Inject constructor(
+    private val repo: SettingsRepository,
+    val sync: SyncManager,
+    val appLock: com.novagest.inventario.security.AppLock
+) : ViewModel() {
     var entity by mutableStateOf(SettingsEntity())
     fun load() { viewModelScope.launch { entity = repo.get() } }
     fun save(e: SettingsEntity) { viewModelScope.launch { repo.save(e); entity = e } }
@@ -49,6 +54,7 @@ class SettingsViewModel @Inject constructor(private val repo: SettingsRepository
 fun SettingsScreen(user: UserAccount, themeMode: String, vm: SettingsViewModel = hiltViewModel()) {
     LaunchedEffect(Unit) { vm.load() }
     var e by remember(vm.entity) { mutableStateOf(vm.entity) }
+    var lockEnabled by remember { mutableStateOf(vm.appLock.enabled) }
     val sync by vm.sync.status.collectAsState()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Configuración", style = MaterialTheme.typography.headlineMedium)
@@ -79,12 +85,24 @@ fun SettingsScreen(user: UserAccount, themeMode: String, vm: SettingsViewModel =
             Text("Copia automática diaria")
             Switch(e.autoBackupEnabled, { e = e.copy(autoBackupEnabled = it) })
         }
-        Text("Tema actual: $themeMode. El botón del encabezado recorre claro / oscuro / sistema y la elección queda guardada: se aplica al instante y sobrevive al reinicio de la app.")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("light", "dark", "system").forEach { t ->
-                FilterChip(selected = e.theme == t, onClick = { e = e.copy(theme = t) }, label = { Text(t) })
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Bloquear al abrir")
+                Text(
+                    "Pide huella o rostro cada vez que abras la app.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+            Switch(lockEnabled, { lockEnabled = it; vm.appLock.enabled = it })
         }
+        Text("Tema actual: $themeMode. El botón del encabezado recorre claro / oscuro / sistema y la elección queda guardada: se aplica al instante y sobrevive al reinicio de la app.")
+        ChipRow(
+            options = listOf("light", "dark", "system"),
+            selected = e.theme,
+            label = { it },
+            onSelect = { e = e.copy(theme = it) }
+        )
         Button(onClick = { vm.save(e) }, modifier = Modifier.fillMaxWidth()) { Text("Guardar ajustes") }
     }
 }

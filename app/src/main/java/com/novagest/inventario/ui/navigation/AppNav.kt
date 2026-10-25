@@ -2,7 +2,13 @@
 
 package com.novagest.inventario.ui.navigation
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Assessment
 import androidx.compose.material.icons.outlined.Home
@@ -13,7 +19,10 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
@@ -40,6 +49,7 @@ import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -113,7 +123,9 @@ fun AppShell(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet {
+            // El menú tiene 15 entradas: en un teléfono no caben en una sola pantalla.
+            // Sin desplazamiento, Ajustes y «Cerrar sesión» quedaban fuera de alcance.
+            ModalDrawerSheet(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
                     "NovaGest",
                     modifier = Modifier.padding(24.dp),
@@ -195,28 +207,72 @@ fun AppShell(
                                 }
                             },
                             icon = { Icon(d.icon, d.label) },
-                            label = { Text(d.label) }
+                            label = {
+                                // «Movimientos» no cabe en un cuarto de pantalla con la fuente
+                                // del sistema al 130 %: se abrevia y no se parte en dos líneas.
+                                Text(
+                                    if (d == Dest.Movements) "Movs." else d.label,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                            }
                         )
                     }
                 }
             }
         ) { padding ->
-            NavHost(nav, startDestination = Dest.Home.route, modifier = Modifier.padding(padding)) {
-                composable(Dest.Home.route) { HomeScreen(user) }
-                composable(Dest.Inventory.route) { InventoryScreen(user) }
-                composable(Dest.Movements.route) { MovementsScreen(user) }
-                composable(Dest.Reports.route) { ReportsScreen(user) }
-                composable(Dest.Cuadre.route) { CuadreScreen(user) }
-                composable(Dest.Finance.route) { FinanceScreen(user) }
-                composable(Dest.Users.route) { UsersScreen(user) }
-                composable(Dest.Audit.route) { AuditScreen() }
-                composable(Dest.Backup.route) { BackupScreen(user) }
-                composable(Dest.Settings.route) { SettingsScreen(user, themeMode) }
-                composable(Dest.Pos.route) { com.novagest.inventario.ui.pos.PosScreen(user) }
-                composable(Dest.Trash.route) { com.novagest.inventario.ui.trash.TrashScreen(user) }
-                composable(Dest.History.route) { com.novagest.inventario.ui.history.PriceHistoryScreen() }
-                composable(Dest.Customers.route) { com.novagest.inventario.ui.customers.CustomersScreen(user) }
-                composable(Dest.Ipv.route) { com.novagest.inventario.ui.ipv.IpvScreen(user) }
+            // consumeWindowInsets: las pantallas que traen su propio Scaffold (Inventario,
+            // Movimientos, Usuarios…) no deben volver a reservar las barras del sistema.
+            // Ya las aplicó este Scaffold y, sin esto, dejaban una franja vacía arriba.
+            Column(Modifier.padding(padding).consumeWindowInsets(padding)) {
+                // Aviso persistente: un snackbar desaparece y el usuario sigue sin guardar.
+                if (sync.offline && syncVm.sync.server().isNotBlank()) {
+                    OfflineBanner(onRetry = { syncVm.sync.syncNow() })
+                }
+                NavHost(
+                    nav,
+                    startDestination = Dest.Home.route,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    composable(Dest.Home.route) { HomeScreen(user) }
+                    composable(Dest.Inventory.route) { InventoryScreen(user) }
+                    composable(Dest.Movements.route) { MovementsScreen(user) }
+                    composable(Dest.Reports.route) { ReportsScreen(user) }
+                    composable(Dest.Cuadre.route) { CuadreScreen(user) }
+                    composable(Dest.Finance.route) { FinanceScreen(user) }
+                    composable(Dest.Users.route) { UsersScreen(user) }
+                    composable(Dest.Audit.route) { AuditScreen() }
+                    composable(Dest.Backup.route) { BackupScreen(user) }
+                    composable(Dest.Settings.route) { SettingsScreen(user, themeMode) }
+                    composable(Dest.Pos.route) { com.novagest.inventario.ui.pos.PosScreen(user) }
+                    composable(Dest.Trash.route) { com.novagest.inventario.ui.trash.TrashScreen(user) }
+                    composable(Dest.History.route) { com.novagest.inventario.ui.history.PriceHistoryScreen() }
+                    composable(Dest.Customers.route) { com.novagest.inventario.ui.customers.CustomersScreen(user) }
+                    composable(Dest.Ipv.route) { com.novagest.inventario.ui.ipv.IpvScreen(user) }
+                }
+            }
+        }
+    }
+}
+
+/** Franja de «sin conexión» con reintento manual, visible mientras la última llamada falle. */
+@Composable
+private fun OfflineBanner(onRetry: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Sin conexión con el servidor",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall
+            )
+            TextButton(onClick = onRetry) {
+                Text("Reintentar", style = MaterialTheme.typography.labelLarge)
             }
         }
     }

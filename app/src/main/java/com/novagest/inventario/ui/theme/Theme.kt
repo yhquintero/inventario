@@ -1,10 +1,13 @@
 package com.novagest.inventario.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -90,7 +93,13 @@ fun NovaGestTheme(
     }
     MaterialTheme(
         colorScheme = if (dark) DarkColors else LightColors,
-        typography = AppTypography,
-        content = content
-    )
+        typography = AppTypography
+    ) {
+        // Surface: fija el fondo y el color de texto por defecto (LocalContentColor).
+        // Sin ella, las pantallas que no viven dentro de un Scaffold — licencia y acceso —
+        // dibujaban el texto en negro sobre el fondo oscuro.
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            content()
+        }
+    }
 }

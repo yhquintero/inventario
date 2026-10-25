@@ -54,7 +54,9 @@ data class SyncStatus(
     val lastSync: Long = 0,
     val busy: Boolean = false,
     val message: String? = null,
-    val closedDays: Set<String> = emptySet()
+    val closedDays: Set<String> = emptySet(),
+    /** true cuando la última llamada al servidor falló por red: la interfaz muestra el aviso. */
+    val offline: Boolean = false
 )
 
 /**
@@ -90,6 +92,26 @@ class SyncManager @Inject constructor(
     val status: StateFlow<SyncStatus> = _status
 
     fun server(): String = prefs.getString("server", "") ?: ""
+
+    /**
+     * Guarda la dirección del servidor sin iniciar sesión.
+     * Es imprescindible para la primera activación: la licencia se valida contra el servidor
+     * y, sin esto, el acceso queda bloqueado antes de poder escribirla en el login.
+     */
+    fun saveServer(url: String): String {
+        val base = normalizeServer(url)
+        if (base != server()) { stateFile.delete(); prefs.edit().putInt("version", -1).apply() }
+        prefs.edit().putString("server", base).apply()
+        _status.value = _status.value.copy(server = base)
+        return base
+    }
+
+    private fun normalizeServer(url: String): String {
+        val base = url.trim().trimEnd('/')
+        if (base.isBlank()) return ""
+        return if (base.startsWith("http")) base else "https://$base"
+    }
+
     private fun token(): String? = prefs.getString("token", null)
     private fun version(): Int = prefs.getInt("version", -1)
     fun isConnected() = token() != null && server().isNotBlank()
@@ -120,8 +142,12 @@ class SyncManager @Inject constructor(
                 if (code == 402 || resp.body.optBoolean("licenseError")) {
                     _status.value = _status.value.copy(message = "⛔ Licencia no válida: ${resp.error}. Active una licencia.")
                 }
+                // Hubo respuesta del servidor: la conexión vuelve a estar bien.
+                if (_status.value.offline) _status.value = _status.value.copy(offline = false)
                 resp
             } catch (e: Exception) {
+                // Falla de red: la interfaz muestra una franja con botón de reintento.
+                _status.value = _status.value.copy(offline = true)
                 ApiResponse(0, JSONObject().put("error", "Sin conexión con el servidor: ${e.message ?: ""}".trim()))
             }
         }
@@ -129,8 +155,7 @@ class SyncManager @Inject constructor(
     // ------------------------------------------------------------------ sesión
     /** Inicia sesión en el servidor. Devuelve need2fa=true si hace falta el código de la app autenticadora. */
     suspend fun login(serverUrl: String, username: String, password: String, code: String?): ApiResponse {
-        var base = serverUrl.trim().trimEnd('/')
-        if (!base.startsWith("http")) base = "https://$base"
+        val base = normalizeServer(serverUrl)
         val body = JSONObject().put("username", username.trim()).put("password", password)
         if (!code.isNullOrBlank()) body.put("code", code.trim())
         prefs.edit().remove("token").apply()

@@ -39,6 +39,7 @@ jobs:
           bash tools/ci_paso.sh node tools/test_calc.mjs
           bash tools/ci_paso.sh node tools/cobertura.mjs --min 80
           bash tools/ci_paso.sh node tools/test_accesibilidad.mjs
+          bash tools/ci_paso.sh node tools/test_sw_precache.mjs
           bash tools/ci_paso.sh npm --prefix tools install --ignore-scripts
           bash tools/ci_paso.sh node tools/test_axe.mjs
           bash tools/ci_paso.sh node tools/test_generador_ui.mjs
@@ -76,15 +77,13 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: "8.9"
-        # El repo no incluye el script gradlew: se instala Gradle en CI y se
-        # compila/prueba Android de verdad. Si este job falla, es la señal
-        # real de compilación que en local (sin JDK) no se puede obtener.
-      - name: Pruebas unitarias Android (incluye IpvCalculatorTest)
+        # La versión de Gradle la fija el wrapper del repositorio (gradlew), así que
+        # local y CI compilan con la misma. Ya no se instala una versión aparte.
+      - name: Pruebas unitarias Android y compilación del keygen
         run: |
           set -o pipefail
-          if ! gradle testDebugUnitTest --stacktrace 2>&1 | tee gradle.log; then
+          chmod +x gradlew
+          if ! ./gradlew testDebugUnitTest :keygen:assembleDebug --stacktrace 2>&1 | tee gradle.log; then
             # Publica la causa como anotaciones (visibles en el resumen del CI sin
             # abrir los registros): errores de Kotlin/Java, pruebas fallidas y el
             # bloque «What went wrong» de Gradle.

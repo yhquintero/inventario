@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -35,6 +36,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.novagest.inventario.security.LicenseManager
 import com.novagest.inventario.security.LicenseStatus
+import com.novagest.inventario.ui.components.ChipRow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -61,6 +63,10 @@ class LicenseViewModel @Inject constructor(
     val state: StateFlow<LicenseUiState> = _state
 
     fun server(): String = sync.server()
+
+    /** Guarda el servidor sin sesión: la licencia se valida contra él antes del login. */
+    fun saveServer(url: String) = sync.saveServer(url)
+
     fun deviceId(): String = licenseManager.deviceId()
     fun whatsappUrl(name: String, term: com.novagest.inventario.security.LicenseTerm, whatsapp: String): String =
         licenseManager.whatsappLicenseUrl(name, term, whatsapp)
@@ -123,7 +129,7 @@ fun LicenseScreen(
     }
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -165,6 +171,34 @@ fun LicenseScreen(
 
             Spacer(Modifier.height(16.dp))
 
+            // Servidor: sin él no se puede validar la licencia y la app queda bloqueada,
+            // así que debe poder configurarse aquí y no sólo en el login (que está detrás).
+            var serverUrl by remember { mutableStateOf(vm.server()) }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Servidor", style = MaterialTheme.typography.titleSmall)
+                    OutlinedTextField(
+                        value = serverUrl,
+                        onValueChange = { serverUrl = it },
+                        label = { Text("Dirección del servidor") },
+                        placeholder = { Text("https://tienda.ejemplo.com") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        supportingText = {
+                            Text(
+                                "La misma dirección que usa la Web. Sin servidor, la licencia no se puede validar.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    )
+                    Button(
+                        onClick = { vm.saveServer(serverUrl); vm.check() },
+                        enabled = serverUrl.isNotBlank() && !state.loading,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Guardar servidor y verificar licencia") }
+                }
+            }
+
             // 1 · Solicitar licencia por término vía WhatsApp (patrón DrywallMaterialsCalculator)
             var reqName by remember { mutableStateOf("") }
             var reqPhone by remember { mutableStateOf("") }
@@ -181,16 +215,14 @@ fun LicenseScreen(
                         Text("ID de dispositivo: ${vm.deviceId()}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                         OutlinedButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(vm.deviceId())) }) { Text("Copiar") }
                     }
-                    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        terms.take(4).forEach { t ->
-                            androidx.compose.material3.FilterChip(selected = reqTerm.id == t.id, onClick = { reqTerm = t }, label = { Text(t.label) })
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        terms.drop(4).forEach { t ->
-                            androidx.compose.material3.FilterChip(selected = reqTerm.id == t.id, onClick = { reqTerm = t }, label = { Text(t.label) })
-                        }
-                    }
+                    // Los plazos se reparten en varias líneas: con un Row fijo, "3 meses" y
+                    // "Permanente" se comprimían hasta dibujarse letra a letra en vertical.
+                    ChipRow(
+                        options = terms,
+                        selected = reqTerm,
+                        label = { it.label },
+                        onSelect = { reqTerm = it }
+                    )
                     Button(
                         onClick = {
                             // Registra la solicitud (panel «Gestionar → Solicitudes» de la Web) y abre WhatsApp

@@ -29,16 +29,22 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
+    @Inject
+    lateinit var appLock: com.novagest.inventario.security.AppLock
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            AskNotificationPermissionOnce()
             val auth: AuthViewModel = hiltViewModel()
             val licenseVm: LicenseViewModel = hiltViewModel()
             val authState by auth.state.collectAsState()
             val licenseState by licenseVm.state.collectAsState()
             var theme by remember { mutableStateOf("system") }
             var licenseOk by remember { mutableStateOf(false) }
+            // Bloqueo al abrir: si está activo, la sesión restaurada pide huella antes de entrar.
+            var unlocked by remember { mutableStateOf(!appLock.enabled) }
 
             // El tema elegido se guarda en los ajustes y sobrevive al reinicio de la app:
             // se lee de la base de datos al abrir y se aplica al instante si cambia.
@@ -67,31 +73,57 @@ class MainActivity : FragmentActivity() {
                 } else {
                     val user = authState.user
                     if (user == null) {
-                        LoginScreen(auth) { }
+                        // Al entrar con usuario y contraseña ya está autenticado: no se le
+                        // vuelve a pedir la huella en la misma sesión.
+                        LoginScreen(auth) { unlocked = true }
+                    } else if (licenseState.status?.valid == false) {
+                        licenseOk = false
+                    } else if (!unlocked) {
+                        com.novagest.inventario.ui.auth.LockScreen(
+                            onUnlocked = { unlocked = true },
+                            onUsePassword = {
+                                unlocked = true
+                                auth.logout()
+                            }
+                        )
                     } else {
-                        // Verificación periódica de licencia también dentro de AppShell
-                        // Si la licencia expira durante uso, se fuerza logout
-                        if (licenseState.status?.valid == false) {
-                            licenseOk = false
-                        } else {
-                            AppShell(
-                                user = user,
-                                themeMode = theme,
-                                onToggleTheme = {
-                                    applyTheme(
-                                        when (theme) {
-                                            "light" -> "dark"
-                                            "dark" -> "system"
-                                            else -> "light"
-                                        }
-                                    )
-                                },
-                                onLogout = { auth.logout() }
-                            )
-                        }
+                        AppShell(
+                            user = user,
+                            themeMode = theme,
+                            onToggleTheme = {
+                                applyTheme(
+                                    when (theme) {
+                                        "light" -> "dark"
+                                        "dark" -> "system"
+                                        else -> "light"
+                                    }
+                                )
+                            },
+                            onLogout = { auth.logout() }
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Android 13+ exige pedir el permiso de notificaciones en ejecución. Sin esto la app
+ * declaraba POST_NOTIFICATIONS pero nunca lo solicitaba, así que el aviso de la copia
+ * de seguridad diaria no llegaba a mostrarse nunca.
+ */
+@androidx.compose.runtime.Composable
+private fun AskNotificationPermissionOnce() {
+    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { /* si lo deniega, la app sigue funcionando; se puede cambiar en Ajustes del sistema */ }
+    LaunchedEffect(Unit) {
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.POST_NOTIFICATIONS
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!granted) launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
     }
 }

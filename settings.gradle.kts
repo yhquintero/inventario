@@ -19,3 +19,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "NovaGest"
 include(":app")
+// Herramienta de escritorio-móvil para emitir licencias (no se distribuye al cliente).
+include(":keygen")
