@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía rápida del mostrador · NovaGest</title>
+<meta name="description" content="Guía imprimible de dos páginas para el personal del mostrador: vender, fiar, imprimir y verificar el ticket, y cuadrar el día en NovaGest.">
+<style>
+  :root {
+    --ink: #14213a; --muted: #4b5675; --line: #d7dce8; --soft: #f4f6fb;
+    --brand: #1d4ed8; --brand-ink: #0f2a6b; --ok: #0f766e; --warn: #b45309; --paper: #fff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #eceff5; color: var(--ink); }
+  body { font: 11.5pt/1.42 "Segoe UI", system-ui, -apple-system, Arial, sans-serif; }
+  .sheet { width: 210mm; min-height: 297mm; margin: 8mm auto; padding: 14mm 13mm; background: var(--paper); box-shadow: 0 2px 18px #0002; }
+  header.guide { display: flex; align-items: center; gap: 10px; border-bottom: 3px solid var(--brand); padding-bottom: 6px; margin-bottom: 10px; }
+  header.guide .logo { width: 34px; height: 34px; flex: 0 0 auto; color: var(--brand); }
+  header.guide h1 { font-size: 16pt; margin: 0; letter-spacing: .2px; }
+  header.guide p { margin: 2px 0 0; font-size: 9.5pt; color: var(--muted); }
+  header.guide .tag { margin-left: auto; font-size: 8.5pt; border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; color: var(--muted); white-space: nowrap; }
+  .cols { column-count: 2; column-gap: 8mm; }
+  section.block { break-inside: avoid; margin: 0 0 7mm; }
+  section.block h2 { font-size: 11.5pt; margin: 0 0 4px; color: var(--brand-ink); display: flex; align-items: center; gap: 6px; }
+  section.block h2 .n { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 10pt; font-weight: 700; flex: 0 0 auto; }
+  ol.steps { margin: 0; padding-left: 16px; }
+  ol.steps li { margin: 0 0 3px; }
+  .check { list-style: none; padding-left: 0; margin: 0; }
+  .check li { padding-left: 18px; position: relative; margin-bottom: 3px; }
+  .check li::before { content: "☐"; position: absolute; left: 0; color: var(--brand); font-size: 11pt; }
+  .note { background: var(--soft); border-left: 3px solid var(--brand); padding: 5px 8px; font-size: 9.5pt; color: var(--muted); border-radius: 3px; margin-top: 4px; }
+  .note b { color: var(--ink); }
+  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+  th, td { text-align: left; border-bottom: 1px solid var(--line); padding: 3px 4px; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  code, .kbd { font-family: "Cascadia Mono", ui-monospace, Consolas, monospace; font-size: 9.5pt; background: var(--soft); border: 1px solid var(--line); border-radius: 3px; padding: 0 3px; }
+  footer.guide { border-top: 1px solid var(--line); margin-top: 6mm; padding-top: 4px; font-size: 8.5pt; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+  .howto { width: 210mm; margin: 8mm auto 0; font-size: 9.5pt; color: var(--muted); }
+  @media print {
+    html, body { background: #fff; font-size: 10.5pt; }
+    .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+    .howto { display: none; }
+    .sheet + .sheet { break-before: page; }
+    a { color: inherit; text-decoration: none; }
+  }
+  @page { size: A4; margin: 13mm 12mm; }
+</style>
+</head>
+<body>
+
+<p class="howto no-print">Manual completo: <a href="MANUAL_USUARIO.html">MANUAL_USUARIO.html</a>. Para imprimir: <span class="kbd">Ctrl</span> + <span class="kbd">P</span> (o <span class="kbd">⌘</span> + <span class="kbd">P</span>) y elija <b>A4</b>, márgenes <b>predeterminados</b> y <b>dos páginas</b>. Esta franja no sale en el papel.</p>
+
+<main>
+<article class="sheet">
+  <header class="guide">
+    <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10m-4-12 9-4"/>
+    </svg>
+    <div>
+      <h1>Guía rápida del mostrador</h1>
+      <p>NovaGest · vender, fiar, imprimir y cuadrar en dos páginas</p>
+    </div>
+    <span class="tag">Página 1 de 2</span>
+  </header>
+
+  <div class="cols">
+    <section class="block">
+      <h2><span class="n">0</span> Antes de abrir</h2>
+      <ul class="check">
+        <li>El servidor está encendido (la pantalla del servidor muestra el puerto).</li>
+        <li>Entré con <b>mi usuario</b>, no con el de un compañero.</li>
+        <li>En el Panel, el día de <b>ayer</b> aparece cuadrado.</li>
+        <li>La nube de arriba está <b>en verde</b> (sin cambios pendientes).</li>
+      </ul>
+      <p class="note"><b>Sus datos no se pierden:</b> si se va la red, siga vendiendo; los cambios se suben solos al reconectar.</p>
+    </section>
+
+    <section class="block">
+      <h2><span class="n">1</span> Vender</h2>
+      <ol class="steps">
+        <li>Menú → <b>Venta rápida</b>.</li>
+        <li>Pase el <b>lector de códigos</b> o escriba el código y pulse <b>Añadir</b>.</li>
+        <li>Sin lector: <b>toque el producto</b>; cada toque suma una unidad.</li>
+        <li>Use <b>−</b> para rebajar o <b>Vaciar</b> para empezar de nuevo.</li>
+        <li>Pulse el botón grande de cobro: <b>Cobrar $…</b>.</li>
+      </ol>
+      <p class="note">El stock baja solo y queda registrado quién vendió y a qué hora.<br><b>Si falta stock</b>, el sistema avisa: no se puede vender lo que no hay.</p>
+    </section>
+
+    <section class="block">
+      <h2><span class="n">2</span> Fiar</h2>
+      <ol class="steps">
+        <li>En Venta rápida, elija <b>Fiado</b>.</li>
+        <li>Seleccione el <b>cliente</b> de la lista (si no está, créelo en <b>Clientes y fiados</b>).</li>
+        <li>Opcional: escriba la fecha de vencimiento <span class="kbd">AAAA-MM-DD</span>.</li>
+        <li>Pulse <b>Fiar $…</b>.</li>
+      </ol>
+      <p class="note"><b>Límite de crédito:</b> si el cliente lo supera, la venta no se registra y dice cuánto debe. No insista: cobre una parte o consulte al jefe.</p>
+    </section>
+
+    <section class="block">
+      <h2><span class="n">3</span> Imprimir el ticket</h2>
+      <ol class="steps">
+        <li>Después de cobrar, pulse <b>🧾 Ticket 58 mm</b> o <b>80 mm</b> según el rollo.</li>
+        <li>En el diálogo del navegador elija la <b>impresora térmica</b> y pulse <b>Imprimir</b>.</li>
+        <li>Venta de antes: <b>Movimientos</b> → icono <b>🧾</b> en la fila.</li>
+      </ol>
+      <p class="note">Al pie del ticket salen un <b>QR</b> y un <b>código</b> (por ejemplo <span class="kbd">ABC-DEF</span>). Sirven para comprobar que el papel es auténtico: <b>Menú → Sistema → Verificar ticket</b>.</p>
+    </section>
+  </div>
+
+  <footer class="guide">
+    <span>NovaGest · Guía del mostrador · Rev. 1.0</span>
+    <span>Manual completo: docs/MANUAL_USUARIO.html</span>
+  </footer>
+</article>
+
+<article class="sheet">
+  <header class="guide">
+    <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10m-4-12 9-4"/>
+    </svg>
+    <div>
+      <h1>Cuadrar el día y cerrar</h1>
+      <p>NovaGest · la caja cuadra cuando el resultado da cero</p>
+    </div>
+    <span class="tag">Página 2 de 2</span>
+  </header>
+
+  <div class="cols">
+    <section class="block">
+      <h2><span class="n">4</span> Cuadre diario</h2>
+      <ol class="steps">
+        <li>Menú → <b>Cuadre diario</b> y confirme la fecha de hoy.</li>
+        <li>Escriba las <b>tasas del día</b>: CUP/USD y MXN/USD.</li>
+        <li>Registre lo que entró y salió: <b>cobros, entradas, extracciones, fondos y gastos</b>.</li>
+        <li>Mire el <b>resultado</b>: debe dar <b>0</b>.</li>
+        <li>Si da 0, pulse <b>Cerrar día</b>. Nadie podrá cambiar movimientos de ese día.</li>
+      </ol>
+      <p class="note"><b>Si no da cero</b>, no cierre: revise la lista de movimientos del día y busque la diferencia. El detalle dice qué falta.</p>
+    </section>
+
+    <section class="block">
+      <h2><span class="n">5</span> Lo que se mira cada mañana</h2>
+      <ul class="check">
+        <li><b>Venta del día</b> y su comparación con el mismo día de la semana pasada.</li>
+        <li><b>Reposición sugerida</b>: lo agotado y lo urgente.</li>
+        <li><b>Stock bajo</b>: productos en el mínimo.</li>
+        <li><b>Cuadre</b> de ayer en verde.</li>
+      </ul>
+    </section>
+
+    <section class="block">
+      <h2><span class="n">6</span> En el teléfono (Android)</h2>
+      <ul class="check">
+        <li><b>Vender</b> en la barra de abajo: mismo procedimiento.</li>
+        <li><b>Ajustes → Impresora de tickets</b>: elija la impresora y el ancho una sola vez.</li>
+        <li><b>Inicio → 🧾 Reimprimir último ticket</b> cuando el papel se estropea.</li>
+        <li><b>Movimientos → 🧾 Imprimir ticket</b> en cualquier venta.</li>
+        <li>La <b>insignia con número</b> en la nube son cambios sin subir: pulse <b>Sincronizar ahora</b>.</li>
+      </ul>
+    </section>
+
+    <section class="block">
+      <h2><span class="n">7</span> Si algo va mal</h2>
+      <table>
+        <thead><tr><th>Lo que ve</th><th>Qué hacer</th></tr></thead>
+        <tbody>
+          <tr><td>«Sin conexión con el servidor»</td><td>Siga vendiendo; al volver la red se sube solo.</td></tr>
+          <tr><td>«El día está cerrado»</td><td>Pida a un administrador que lo reabra. No se puede vender con fecha cerrada.</td></tr>
+          <tr><td>«No tienes permiso para esa sección»</td><td>Su rol no incluye esa tarea: pídasela al jefe.</td></tr>
+          <tr><td>«Usuario o contraseña incorrectos»</td><td>Tras 5 intentos la cuenta se bloquea 5 minutos.</td></tr>
+          <tr><td>El ticket no sale</td><td>Impresora encendida, papel puesto, permiso de Bluetooth concedido.</td></tr>
+          <tr><td>El ticket dice «no coincide» al verificar</td><td>No acepte el papel: llame al jefe y compare con la venta.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="block">
+      <h2><span class="n">✓</span> Antes de irme</h2>
+      <ul class="check">
+        <li>El día quedó <b>cuadrado y cerrado</b>.</li>
+        <li>No hay <b>números</b> en la nube (todo sincronizado).</li>
+        <li>Los fiados nuevos tienen <b>cliente y vencimiento</b>.</li>
+        <li>Cerré <b>sesión</b> en el equipo compartido.</li>
+      </ul>
+      <p class="note"><b>Regla de oro:</b> si el sistema dice que algo no cuadra, <b>no lo fuerce</b>. Anótelo y avise: los números se arreglan con datos, no con prisa.</p>
+    </section>
+  </div>
+
+  <footer class="guide">
+    <span>NovaGest · Guía del mostrador · Rev. 1.0</span>
+    <span>Dudas: consulte el manual completo o a su administrador</span>
+  </footer>
+</article>
+</main>
+
+</body>
+</html>

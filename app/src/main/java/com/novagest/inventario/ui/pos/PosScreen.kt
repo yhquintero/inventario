@@ -166,7 +166,9 @@ class PosViewModel @Inject constructor(
         if (busy) return
         busy = true
         viewModelScope.launch {
-            val error = printer.print(printer.savedAddress, EscPos.build(ticket.copy(width = width)))
+            val enviado = ticket.copy(width = width)
+            val error = printer.print(printer.savedAddress, EscPos.build(enviado))
+            if (error == null) printer.rememberLast(enviado) // A-15: se puede reimprimir desde Inicio
             message = error ?: "🖨 Ticket enviado a la impresora (${width.label})"
             busy = false
         }

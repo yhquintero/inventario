@@ -65,6 +65,14 @@ class BluetoothPrinter @Inject constructor(@ApplicationContext private val conte
         savedWidth = width
     }
 
+    /** Guarda el último ticket impreso para poder reimprimirlo (A-15). */
+    fun rememberLast(ticket: TicketData) {
+        prefs.edit().putString("lastTicket", TicketFactory.encode(ticket)).apply()
+    }
+
+    /** Último ticket impreso, o null si todavía no se ha impreso ninguno. */
+    fun lastTicket(): TicketData? = TicketFactory.decode(prefs.getString("lastTicket", null))
+
     /** Última impresora usada (se recuerda entre sesiones). */
     var savedAddress: String
         get() = prefs.getString("address", "") ?: ""

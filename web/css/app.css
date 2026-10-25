@@ -560,7 +560,17 @@ textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 
   .ticket-area .tk-sub { margin: -0.5mm 0 1mm; }
   .ticket-area .tk-line { display: flex; justify-content: space-between; gap: 2mm; }
   .ticket-area .tk-big { font-size: 12pt; font-weight: 700; }
+  /* W-16: QR de verificación, centrado y a tamaño de papel */
+  .ticket-area .tk-qr { display: flex; justify-content: center; margin: 1.5mm 0; }
+  .ticket-area .tk-qr svg { width: 26mm; height: 26mm; }
+  html.print-ticket-80 .ticket-area .tk-qr svg { width: 30mm; height: 30mm; }
+  .ticket-area .tk-mono { font-size: 9pt; font-weight: 700; letter-spacing: .06em; }
 }
+
+/* ===================== Verificar ticket (W-16) ===================== */
+.verify-ok { border-left: 4px solid #16a34a; }
+.verify-bad { border-left: 4px solid #dc2626; }
+.verify-ok .card-h .tag, .verify-bad .card-h .tag { margin-left: auto; }
 
 /* ===================== Exportación PDF / impresión ===================== */
 .print-report-header { display: none; }

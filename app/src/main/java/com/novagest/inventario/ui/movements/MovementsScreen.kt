@@ -1,5 +1,10 @@
 package com.novagest.inventario.ui.movements
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,13 +34,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.novagest.inventario.data.printer.BluetoothPrinter
+import com.novagest.inventario.data.printer.EscPos
+import com.novagest.inventario.data.printer.TicketFactory
 import com.novagest.inventario.data.repository.MovementRepository
+import com.novagest.inventario.data.repository.SettingsRepository
 import com.novagest.inventario.data.repository.ProductRepository
 import com.novagest.inventario.domain.model.AppResult
+import com.novagest.inventario.domain.model.Movement
 import com.novagest.inventario.domain.model.MovementType
 import com.novagest.inventario.domain.model.Permission
 import com.novagest.inventario.domain.model.RolePermissions
@@ -55,11 +67,29 @@ import javax.inject.Inject
 @HiltViewModel
 class MovementViewModel @Inject constructor(
     private val repo: MovementRepository,
-    products: ProductRepository
+    products: ProductRepository,
+    private val printer: BluetoothPrinter,
+    private val settings: SettingsRepository
 ) : ViewModel() {
     val movements = repo.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val products = products.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     var message by mutableStateOf<String?>(null)
+
+    /** Reimprime el ticket de una venta del historial (A-15). */
+    fun printReceipt(m: Movement) {
+        viewModelScope.launch {
+            val conf = settings.get()
+            val ticket = TicketFactory.fromMovement(
+                m,
+                businessName = conf.businessName,
+                rateCupUsd = conf.defaultCupUsd,
+                width = printer.savedWidth
+            )
+            val error = printer.print(printer.savedAddress, EscPos.build(ticket))
+            if (error == null) printer.rememberLast(ticket)
+            message = error ?: "🖨 Ticket enviado a la impresora (${printer.savedWidth.label})"
+        }
+    }
 
     fun add(productId: Long, type: MovementType, qty: Double, center: SaleCenter, actor: UserAccount, notes: String, price: Double?) {
         viewModelScope.launch {
@@ -80,6 +110,19 @@ fun MovementsScreen(user: UserAccount, vm: MovementViewModel = hiltViewModel()) 
     var typeFilter by remember { mutableStateOf("TODOS") }
     var open by remember { mutableStateOf(false) }
     val canCreate = RolePermissions.can(user.role, Permission.MOVEMENT_CREATE)
+    // A-15: imprimir necesita el permiso de Bluetooth del teléfono (Android 12+).
+    val context = LocalContext.current
+    var pendingPrint by remember { mutableStateOf<Movement?>(null) }
+    val blePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val m = pendingPrint
+        pendingPrint = null
+        if (granted && m != null) vm.printReceipt(m)
+    }
+    val doPrint: (Movement) -> Unit = { m ->
+        val needs = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+        if (needs) { pendingPrint = m; blePermission.launch(Manifest.permission.BLUETOOTH_CONNECT) } else vm.printReceipt(m)
+    }
     val filtered = movs.filter {
         (typeFilter == "TODOS" || it.type.name == typeFilter) &&
             (q.isBlank() || it.productName.contains(q, true) || it.center.name.contains(q, true))
@@ -107,6 +150,9 @@ fun MovementsScreen(user: UserAccount, vm: MovementViewModel = hiltViewModel()) 
                             "${Dates.format(m.dateEpoch)}  ·  ${Money.qty(m.quantity)}  ·  ${Money.usd(m.importeUsd)}  ·  ${m.center.name}  ·  stock ${Money.qty(m.stockInicial)}→${Money.qty(m.stockFinal)}",
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (m.type == MovementType.VENTA) {
+                            TextButton(onClick = { doPrint(m) }) { Text("🧾 Imprimir ticket") }
+                        }
                     }
                 }
             }

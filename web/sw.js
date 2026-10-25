@@ -1,4 +1,6 @@
 /* Service worker: la interfaz abre al instante y sin conexión; los datos (/api) siempre van al servidor.
+   v22: QR y código de verificación en el ticket (pantalla «Verificar ticket»).
+   v21: la venta del día del Panel se compara con el mismo día de la semana anterior.
    v20: ticket térmico 58/80 mm (módulo nuevo ticket.js) y comparador de períodos en Informes.
    v19: reposición sugerida en el Panel (ritmo de venta × existencia) y estilos de estado.
    v18: cola de cambios sin conexión en el navegador (módulo nuevo merge.js).
@@ -14,7 +16,7 @@
    v13: solicitud de licencia con consentimiento visible y accesible en el flujo de WhatsApp.
    v14: aviso de activación explícita; ya no se ofrece una prueba automática.
    v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos. */
-const CACHE = "novagest-v21";
+const CACHE = "novagest-v22";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",

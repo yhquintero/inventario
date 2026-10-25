@@ -808,6 +808,12 @@ hoja con numeración para contar y anotar diferencias.
 
 ---
 
+> [!TIP]
+> **¿Busca algo para colgar junto a la caja?** La
+> [Guía rápida del mostrador](GUIA_MOSTRADOR.html) resume en **dos páginas A4** lo imprescindible:
+> vender, fiar, imprimir y verificar el ticket, y cuadrar el día. Se imprime con
+> **Ctrl + P** y es el mejor punto de partida para el personal nuevo.
+
 # 6. Venta rápida (punto de venta)
 
 Es la pantalla que más se usa en el día. Está diseñada para vender en segundos: escanear,
@@ -918,13 +924,55 @@ impresora térmica.
 **Ticket de una venta anterior:** **Menú → Operación → Movimientos** → icono **🧾** en la
 fila de la venta.
 
+Al pie de cada ticket salen un **QR** y un **código de verificación** (`ABC-DEF`) para
+comprobar que el papel es auténtico: se explican en el apartado **6.7 Verificar un ticket
+impreso**.
+
 > [!TIP]
 > Si el navegador imprime en A4, abra el diálogo y elija la impresora térmica con el papel
 > correcto: el ancho ya está fijado por la aplicación, pero el navegador recuerda la última
 > impresora usada. En Chrome puede marcar **Guardar como PDF** para enviar el ticket por
 > WhatsApp.
 
-## 6.7 Errores frecuentes en la venta
+## 6.7 Verificar un ticket impreso
+
+Cada ticket que imprime NovaGest lleva al pie un **código de verificación** y su **QR**. Sirven
+para responder a una pregunta muy concreta: *¿este papel salió de una venta real de este
+negocio y sus importes no se han tocado?*
+
+**🧭 Menú → Sistema → Verificar ticket**
+
+1. Escriba el código impreso (formato `ABC-DEF`, con su guion) **o** pegue el texto del QR, que
+   empieza por `NVG1`.
+2. Pulse **Verificar ticket**.
+3. La respuesta sale en una tarjeta:
+
+| Resultado | Qué significa |
+|---|---|
+| **✔ Ticket auténtico** | El código, la fecha, el total y las líneas coinciden con la venta registrada. Debajo se muestra el total y un botón para ver la venta en **Movimientos** |
+| **✖ No consta ninguna venta** | Ninguna venta de este negocio tiene ese código: puede ser de otro negocio u otro equipo |
+| **✖ Los datos no coinciden** | El código existe, pero el total, la fecha o las líneas del papel no cuadran: el ticket pudo alterarse |
+| **✖ La venta fue anulada** | El ticket es real, pero la venta se envió después a la papelera o se eliminó |
+| **✖ No se reconoce el texto** | Falta el guion del código o el QR se pegó incompleto |
+
+**Cómo funciona, sin tecnicismos**
+
+- El código se calcula con el **identificador interno de la venta**, su fecha, el total y el
+  número de líneas, más una **clave del negocio** que se crea sola la primera vez y viaja con
+  sus datos. Cambiar un céntimo en el papel cambia el código, y el código ya no cuadra.
+- La comprobación se hace **en su equipo**, contra sus propias ventas: no se envía nada a
+  Internet.
+- El QR no lleva datos personales del cliente: solo el identificador de la venta y los importes.
+
+> [!NOTE]
+> Los tickets impresos **antes** de esta versión no llevan código. Para esos papeles, la
+> comprobación es la de siempre: buscar la venta en **Movimientos** y comparar a mano.
+
+> [!TIP]
+> Si un cliente discute una devolución, pídale el ticket, escriba el código y verifique: en dos
+> segundos sabe si el papel es bueno, si está alterado o si esa venta ya se anuló.
+
+## 6.8 Errores frecuentes en la venta
 
 | Mensaje o síntoma | Causa | Solución |
 |---|---|---|
@@ -935,7 +983,7 @@ fila de la venta.
 | La cámara no abre | El sitio no es HTTPS o falta permiso | Use HTTPS y permita la cámara en el navegador |
 | El carrito se vació al recargar | El carrito vive en la sesión | Vuelva a cargar; registre la venta antes de recargar |
 
-## 6.8 Buenas prácticas de caja
+## 6.9 Buenas prácticas de caja
 
 1. **Una venta, un cobro.** No acumule varias ventas en el carrito si son clientes distintos.
 2. **Domicilio siempre en CUP** y solo si lo cobró.
@@ -1739,6 +1787,11 @@ Los módulos que su rol no permite **no aparecen** en el menú.
 - **Alertas de stock**: productos en el mínimo o agotados, con stock y mínimo.
 - **Últimos movimientos**: tipo, producto, cantidad, importe, centro y fecha.
 
+**🧾 Reimprimir último ticket.** Si ya se imprimió un ticket en este teléfono, **Inicio** muestra
+la tarjeta **Último ticket** con el botón **🧾 Reimprimir último ticket**: saca otra copia con la
+misma impresora y el mismo ancho configurados en Ajustes, sin volver a Venta rápida. Es la salida
+cuando el papel se estropea o el cliente pide una segunda copia.
+
 ## 16.3 Vender en el teléfono
 
 1. **Vender** (barra inferior).
@@ -1790,6 +1843,11 @@ esa venta en una impresora térmica Bluetooth.
 - **＋** para crear un producto: `PRODUCTOS`, `STOCK INICIAL`, `PRECIO VENTA (USD)`,
   `P. COSTO (USD)`, `COMISION (CUP)`, `Stock mínimo`, `Categoría` y `Código de barras`.
 - **Editar** para modificar; **Enviar a papelera** para eliminarlo.
+
+**🧾 Imprimir una venta del historial.** En **Movimientos**, cada venta lleva el botón
+**🧾 Imprimir ticket**: reconstruye el ticket de esa línea con su producto, cantidad, importe,
+fecha, hora y quién atendió, y lo manda a la impresora de Ajustes. La primera vez Android pedirá
+el permiso de Bluetooth.
 
 ## 16.5 Sincronización: los tres iconos
 

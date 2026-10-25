@@ -1343,10 +1343,58 @@ def legal_put(h, u, _):
     h.send_json(200, {"ok": True, "legal": data})
 
 
+STARTED_AT = time.time()  # para la métrica de tiempo en marcha (S-09)
+
+
+def backup_health():
+    """Copias de seguridad: cuántas hay y cuánto hace de la última (S-09)."""
+    archivos = sorted(f for f in os.listdir(BACKUPS) if f.endswith(".bak")) if os.path.isdir(BACKUPS) else []
+    ultima = archivos[-1] if archivos else None
+    hace = None
+    if ultima:
+        try:
+            hace = round((time.time() - os.path.getmtime(os.path.join(BACKUPS, ultima))) / 3600, 1)
+        except OSError:
+            hace = None
+    return {"total": len(archivos), "ultima": ultima, "haceHoras": hace}
+
+
 @route("GET", "/api/health", need=False)
 def health(h, u, _):
+    """Estado del servidor en una sola llamada, sin datos personales (S-09).
+
+    Es pública a propósito: sirve para saber si el servidor está vivo antes de
+    iniciar sesión. Devuelve métricas **operativas** (latencia, tamaño de la
+    base, copias y días cerrados), nunca el contenido de la base.
+    """
+    t0 = time.perf_counter()
     lic = get_active_license_info()
-    h.send_json(200, {"ok": True, "app": "NovaGest", "version": APP_VERSION, "https": h.secure(), "time": now(), "licenseValid": lic["valid"], "licenseType": (lic["payload"] or {}).get("type") if lic["valid"] else None})
+    q("SELECT 1", one=True)  # mide la ida y vuelta a SQLite
+    latencia = round((time.perf_counter() - t0) * 1000, 2)
+    copias = backup_health()
+    cerrados = q("SELECT COUNT(*) n FROM closed_days", one=True)["n"] or 0
+    conectados = q("SELECT COUNT(*) n FROM sessions WHERE last_seen > ?", (now() - IDLE,), one=True)["n"] or 0
+    avisos = []
+    if not lic["valid"]:
+        avisos.append("licencia")
+    if copias["ultima"] is None:
+        avisos.append("sin-copias")
+    elif (copias["haceHoras"] or 0) > 48:
+        avisos.append("copias-viejas")
+    h.send_json(200, {
+        "ok": True, "app": "NovaGest", "version": APP_VERSION, "https": h.secure(), "time": now(),
+        "licenseValid": lic["valid"], "licenseType": (lic["payload"] or {}).get("type") if lic["valid"] else None,
+        "salud": {
+            "estado": "aviso" if avisos else "ok",
+            "avisos": avisos,
+            "uptimeSegundos": int(time.time() - STARTED_AT),
+            "latenciaMs": latencia,
+            "bdBytes": os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0,
+            "copias": copias,
+            "diasCerrados": cerrados,
+            "sesionesActivas": conectados,
+        },
+    })
 
 
 def new_session(h, user):
