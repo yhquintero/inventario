@@ -861,6 +861,29 @@ function dashboardSummaryMarkup(report) {
     <div class="dashboard-summary-tile"><span>LÍNEAS DE VENTA</span><strong>${totals.lines.toLocaleString("es-CU")}</strong><small>movimientos de venta registrados</small></div>
   </div>`;
 }
+/**
+ * Totales de venta de un día concreto (W-15).
+ *
+ * Sirve para comparar el día que se está viendo con el **mismo día de la
+ * semana anterior**: la cifra del Panel deja de ser un número suelto.
+ */
+function dayTotals(iso, movements = store.activeMovements()) {
+  const list = movements.filter((m) => m.date === iso && m.type === "VENTA");
+  const venta = round2(list.reduce((sum, m) => sum + (Number(m.importeUsd) || 0), 0));
+  const unidades = round2(list.reduce((sum, m) => sum + Math.abs(Number(m.quantity) || 0), 0));
+  const costo = round2(list.reduce((sum, m) => sum + (Number(m.costoUsd) || 0), 0));
+  return { venta, unidades, costo, utilidad: round2(venta - costo), lineas: list.length };
+}
+
+/** Frase de variación frente al mismo día de la semana anterior. */
+function sameWeekdayComparison(today, previous, previousISO) {
+  const pct = variation(today, previous);
+  const fecha = previousISO ? formatDate(previousISO).slice(0, 5) : "";
+  if (pct == null) return previous > 0 ? "sin base anterior" : `sin ventas el ${fecha}`;
+  if (pct === 0) return `igual que el ${fecha}`;
+  return `${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}% vs ${fecha}`;
+}
+
 function homeView() {
   const prods = store.activeProducts();
   const movs = store.activeMovements();
@@ -868,6 +891,9 @@ function homeView() {
   const report = dashboardAnalytics(d);
   const c = store.cuadreFor(d);
   const t = cuadreCalc(c, movs.filter((m) => m.date === d));
+  const prevDayISO = addDays(d, -7);
+  const todayTotals = dayTotals(d, movs);
+  const prevTotals = dayTotals(prevDayISO, movs);
   const low = prods.filter((p) => p.stockActual <= p.minStock && p.stockInicial > 0);
   const unidades = prods.reduce((a, p) => a + Math.max(0, p.stockActual), 0);
   const valorVenta = prods.reduce((a, p) => a + Math.max(0, p.stockActual) * p.precioVentaUsd, 0);
@@ -916,7 +942,7 @@ function homeView() {
     </section>
     ${low.length && store.state.settings.lowStockAlerts ? `<div class="banner">⚠ <strong>${low.length} productos</strong> con stock en el mínimo o agotados.</div>` : ""}
     <div class="kpis">
-      ${kpi("Venta del día", usd(t.venta), `${formatDate(d)} · ${qty(t.unidades)} uds`, "teal")}
+      ${kpi("Venta del día", usd(t.venta), `${formatDate(d)} · ${qty(t.unidades)} uds · ${sameWeekdayComparison(todayTotals.venta, prevTotals.venta, prevDayISO)}`, "teal")}
       ${kpi("Cuadre", t.cuadre === 0 ? "✔ 0.00" : usd(t.cuadre), t.cuadre === 0 ? "Cuadrado" : "Revisar diferencia", t.cuadre === 0 ? "green" : "red")}
       ${kpi("Ítems en inventario", prods.length, `${qty(unidades)} unidades en stock`, "blue")}
       ${kpi("Valor a precio venta", usd(valorVenta), `Costo registrado ${usd(valorCosto)}`, "gold")}

@@ -156,9 +156,13 @@ class PosViewModel @Inject constructor(
     }
 
     /** Manda el ticket de la última venta a la impresora térmica. */
-    fun printLast(width: PaperWidth) {
+    fun printLast(width: PaperWidth = printer.savedWidth) {
         val ticket = lastTicket
         if (ticket == null) { message = "Haz una venta para imprimir su ticket."; return }
+        if (printer.savedAddress.isBlank()) {
+            message = "Elige la impresora en Ajustes → Impresora de tickets."
+            return
+        }
         if (busy) return
         busy = true
         viewModelScope.launch {
@@ -170,6 +174,12 @@ class PosViewModel @Inject constructor(
 
     /** Impresoras emparejadas en el teléfono. */
     fun printers() = printer.paired()
+
+    /** Ancho de papel elegido en Ajustes (A-14). */
+    fun savedWidth(): PaperWidth = printer.savedWidth
+
+    /** Dirección de la impresora elegida en Ajustes (vacío = sin configurar). */
+    fun printerInfo(): String = printer.savedAddress
 }
 
 /** Venta rápida: toca productos para añadirlos al carrito y cobra en un paso. */
@@ -188,7 +198,7 @@ fun PosScreen(user: UserAccount, vm: PosViewModel = hiltViewModel()) {
     val list = products.filter { it.stockActual > 0 && (cat == "TODAS" || it.category == cat) && (q.isBlank() || it.name.contains(q, true) || it.barcode.contains(q.trim(), true)) }
     val context = LocalContext.current
     val printPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) vm.printLast(PaperWidth.MM_58) else vm.message = "Sin permiso de Bluetooth no se puede imprimir."
+        if (granted) vm.printLast() else vm.message = "Sin permiso de Bluetooth no se puede imprimir."
     }
     val doPrint: (PaperWidth) -> Unit = { width ->
         val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
@@ -270,8 +280,17 @@ fun PosScreen(user: UserAccount, vm: PosViewModel = hiltViewModel()) {
                 if (vm.lastTicket != null) {
                     Text("Ticket de la última venta", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedButton(onClick = { doPrint(PaperWidth.MM_58) }, enabled = !vm.busy) { Text("🖨 58 mm") }
-                        OutlinedButton(onClick = { doPrint(PaperWidth.MM_80) }, enabled = !vm.busy) { Text("🖨 80 mm") }
+                        // A-14: el botón principal usa la impresora y el ancho de Ajustes.
+                        Button(onClick = { doPrint(vm.savedWidth()) }, enabled = !vm.busy) { Text("🖨 Reimprimir") }
+                        OutlinedButton(onClick = { doPrint(PaperWidth.MM_58) }, enabled = !vm.busy) { Text("58 mm") }
+                        OutlinedButton(onClick = { doPrint(PaperWidth.MM_80) }, enabled = !vm.busy) { Text("80 mm") }
+                    }
+                    if (vm.printerInfo().isBlank()) {
+                        Text(
+                            "Sin impresora configurada: elige la tuya en Ajustes → Impresora de tickets.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }

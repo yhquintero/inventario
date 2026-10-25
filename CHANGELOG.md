@@ -1,5 +1,12 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXIII) · Panel comparado, aviso de pendientes e impresora en Ajustes (W-15 · A-17 · A-14)
+
+- **W-15 · La venta del día, comparada.** El KPI **Venta del día** del Panel añade una frase con la variación frente al **mismo día de la semana anterior** («▲ 12% vs 18/10», «▼ 8% vs 18/10», «igual que el 18/10», «sin ventas el 18/10» o «sin base anterior»). Funciones nuevas `dayTotals(iso, movements)` y `sameWeekdayComparison(today, previous, previousISO)`, probadas en `tools/smoke_web.mjs` (**54 comprobaciones**).
+- **A-17 · Aviso de cambios sin subir.** La nube de la barra superior lleva una **insignia con el número de cambios pendientes**; el aviso inferior dice cuántos son y en cuántos segundos se reintenta, y su botón pasa a **«Sincronizar ahora»**. La lógica vive en `ui/components/SyncHint.kt` (puro, sin Android) con **5 pruebas nuevas** en `SyncHintTest.kt`, y **Ajustes** resume el estado de la cola.
+- **A-14 · Impresora y ancho en Ajustes.** Tarjeta **Impresora de tickets**: lista las impresoras **emparejadas** (`BluetoothPrinter.paired()`), guarda la elegida junto con el ancho (**58 / 80 mm**) mediante `remember(address, width)`, y ofrece **Imprimir prueba**. **Venta rápida** usa esa configuración en el botón principal **🖨 Reimprimir** (los botones 58 y 80 mm siguen ahí para el otro rollo) y avisa si no hay impresora configurada.
+- **Manual** §10.4 (tabla de la comparación) y §16.3 / §16.5 (impresora, insignia y cola); **service worker v21**; `docs/MEJORAS_PROPUESTAS.md` con W-15, A-17 y A-14 en ✅.
+
 ## NovaGest v1.0.0 · revisión 2026-10-25 (XXII) · Recibo Bluetooth en Android (A-02)
 
 - **Impresión de tickets en impresoras térmicas Bluetooth** desde **Venta rápida**: tras cobrar aparecen **🖨 58 mm** y **🖨 80 mm** y el ticket sale por el perfil SPP con el formato ESC/POS.

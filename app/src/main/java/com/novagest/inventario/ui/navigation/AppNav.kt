@@ -14,6 +14,8 @@ import androidx.compose.material.icons.outlined.Assessment
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -47,6 +49,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.runtime.Composable
+import com.novagest.inventario.ui.components.SyncHint
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -179,15 +182,25 @@ fun AppShell(
                     },
                     actions = {
                         if (syncVm.sync.server().isNotBlank()) {
+                            // A-17: la nube lleva una insignia con los cambios sin subir.
+                            val pendingBadge = SyncHint.badge(sync.pending, sync.connected, sync.busy)
                             IconButton(onClick = { syncVm.sync.syncNow() }) {
-                                Icon(
-                                    when {
-                                        !sync.connected -> Icons.Outlined.CloudOff
-                                        sync.busy -> Icons.Outlined.CloudSync
-                                        else -> Icons.Outlined.CloudDone
-                                    },
-                                    if (sync.connected) "Sincronizado con el servidor" else "Sin conexión con el servidor"
-                                )
+                                BadgedBox(
+                                    badge = {
+                                        if (pendingBadge > 0) {
+                                            Badge { Text(pendingBadge.coerceAtMost(99).toString()) }
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        when {
+                                            !sync.connected -> Icons.Outlined.CloudOff
+                                            sync.busy -> Icons.Outlined.CloudSync
+                                            else -> Icons.Outlined.CloudDone
+                                        },
+                                        SyncHint.iconLabel(sync.connected, sync.busy, sync.pending)
+                                    )
+                                }
                             }
                         }
                         IconButton(onClick = onToggleTheme) { Icon(Icons.Outlined.Brightness6, "Tema") }
@@ -267,16 +280,12 @@ private fun OfflineBanner(pending: Int = 0, retryIn: Long = 0, onRetry: () -> Un
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                when {
-                    pending > 0 && retryIn > 0 -> "$pending cambio(s) sin subir · reintento en $retryIn s"
-                    pending > 0 -> "$pending cambio(s) sin subir: se reintentará solo"
-                    else -> "Sin conexión con el servidor"
-                },
+                SyncHint.banner(pending, retryIn, offline = true),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodySmall
             )
             TextButton(onClick = onRetry) {
-                Text("Reintentar", style = MaterialTheme.typography.labelLarge)
+                Text(SyncHint.actionLabel(pending), style = MaterialTheme.typography.labelLarge)
             }
         }
     }
