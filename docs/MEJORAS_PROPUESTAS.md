@@ -83,6 +83,32 @@ Ideas que salen de lo ya construido; ninguna está aprobada todavía.
 | D-08 | **Manual en inglés** (resumen de 20 páginas) | Abrir el producto fuera del mercado hispano | `docs/` | 🟢 | ⏳ |
 | D-09 | **Guía de migración desde Excel** con capturas paso a paso | El cliente ve el camino desde su hoja actual | `docs/` | 🟠 | ⏳ |
 
+## Tercera ola · propuestas nuevas (2026-10-25)
+
+Salen de lo ya entregado (ticket térmico, comparador, reposición sugerida): son el siguiente
+escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
+
+| # | Mejora | Por qué merece la pena | Dónde | Impacto | Esfuerzo |
+|---|---|---|---|---|---|
+| W-15 | **Variación en los KPI del Panel**: «hoy vs el mismo día de la semana pasada» en venta, unidades y margen | El Panel dice si se mejora, no solo cuánto se vendió | `dashboardView` | 🔴 | ⏱️ |
+| W-16 | **QR de verificación en el ticket impreso** (número de venta + firma corta) para reimprimir o comprobar en la Web | Evita tickets falsos y discusiones de devoluciones | `ticket.js` + `vendor/qrcode.mjs` | 🟠 | ⏳ |
+| W-17 | **Modo kiosco para la tablet del mostrador**: pantalla completa, sin barra del navegador y con botón de salida protegido | Que nadie «navegue» en la caja | PWA | 🟠 | ⏱️ |
+| W-18 | **XLSX con formato** del informe de comprobación (cabeceras, moneda, totales) | El contador no tiene que maquetar el CSV | servidor (`openpyxl`) | 🟠 | ⏳ |
+| W-19 | **Firma del técnico en la Web**: verificación self-check antes de desplegar (permisos, CSP, copias) | Detecta configuraciones incompletas al instalar | `tools/`, servidor | 🟢 | ⏱️ |
+| A-14 | **Selector de impresora y ancho en Ajustes** (hoy usa la última o la primera emparejada) | Varias cajas con impresoras distintas | `ui/settings`, `data/printer` | 🟠 | ⏱️ |
+| A-15 | **Reimprimir el último ticket** desde Inicio y desde el historial de ventas | Se gasta papel o se estropea el ticket | `ui/pos`, `ui/history` | 🟠 | ⏱️ |
+| A-16 | **Prueba de instrumentación del flujo de venta + impresión simulada** | La lógica ESC/POS está probada; falta la pantalla real | `androidTest/` | 🟠 | ⏳ |
+| A-17 | **Aviso de cambios sin subir** en la barra superior con acción «Sincronizar ahora» | Que nadie cierre la app con ventas pendientes | `ui/`, `SyncManager` | 🟠 | ⏱️ |
+| S-09 | **`/health` con métricas** (latencia, tamaño de la base, copias, días cerrados) para el Panel de Control | Prevenir antes de que falle | `server/` | 🟠 | ⏱️ |
+| S-10 | **Auditoría de impresiones**: quién imprimió qué ticket y cuándo | Trazabilidad de documentos | `server/`, `app.js` | 🟢 | ⏱️ |
+| S-11 | **Compresión gzip de `/state` y límite de tamaño por petición** | Servidores modestos, respuestas grandes | `server/` | 🟠 | ⏱️ |
+| D-10 | **Guía de dos páginas para el mostrador** (imprimible): vender, fiar, imprimir ticket, cuadrar | El personal nuevo arranca sin formación | `docs/` | 🟠 | ⏱️ |
+| D-11 | **Vídeo vertical de 30 s para WhatsApp** con la venta y el ticket | Es el canal real de los clientes | `docs/assets/video/` | 🟢 | ⏳ |
+| D-12 | **Página de novedades en el sitio**, generada desde `CHANGELOG.md` | El cliente ve que el producto avanza | `docs/index.html` | 🟢 | ⏱️ |
+
+**Orden que propongo:** W-15 → A-17 → W-16 → S-09 → D-10 (cada uno con su prueba y su
+entrada en el `CHANGELOG`).
+
 ## Cómo se supervisa
 
 1. Se elige el paso y se marcan las filas que entran.
