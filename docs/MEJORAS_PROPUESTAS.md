@@ -5,7 +5,7 @@ Cada paso se revisa, se aprueba y se entrega en su propio pull request; las fila
 terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`ROADMAP.md`](ROADMAP.md).
 
 > **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola en Android) ✅ ·
-> **W-02** (cola en la Web) ✅ · **W-13** (CSV del mapa de calor) ✅. Lo siguiente, por orden sugerido: **A-02** → **W-11** → **A-04** →
+> **W-02** (cola en la Web) ✅ · **W-13** (CSV del mapa de calor) ✅ · **W-11** (reposición sugerida) ✅. Lo siguiente, por orden sugerido: **A-02** → **W-03** → **A-04** →
 > **S-01** → **W-10**. Las olas 2 y 3 de propuestas están al final.
 
 **Leyenda:** impacto 🔴 alto · 🟠 medio · 🟢 bajo — esfuerzo ⏱️ bajo (≤1 día) · ⏳ medio (2-5 días) ·
@@ -68,7 +68,7 @@ Ideas que salen de lo ya construido; ninguna está aprobada todavía.
 | # | Mejora | Por qué merece la pena | Dónde | Impacto | Esfuerzo |
 |---|---|---|---|---|---|
 | W-10 | **Comparador de períodos** en Análisis: superponer las ventas de esta semana y la anterior | Saber si se mejora o empeora sin restar a mano | `web/js/charts.js` | 🔴 | ⏳ |
-| W-11 | **Reposición sugerida** en el mapa de calor y en alertas: días que tarda en agotarse cada producto | Comprar antes de quedarse sin lo que más rota | `calc.js` + Panel | 🔴 | ⏳ |
+| W-11 | **Reposición sugerida** en el Panel: ritmo de venta de 30 días, días que dura el stock y unidades a comprar para cubrir 14 días, ordenado por urgencia | Comprar antes de quedarse sin lo que más rota | `calc.js` + Panel | 🔴 | ⏳ ✅ |
 | W-12 | **Hoja imprimible del Análisis**: los tres gráficos + KPIs en una sola página A4 | Entregar el resumen al dueño o al contador | `app.css` (`@media print`) | 🟠 | ⏱️ |
 | W-13 | **Exportar el mapa de calor a CSV** (fecha, día, ventas, unidades, líneas) | Análisis propio en Excel, con `;` y coma decimal para Excel en español | `charts.js` + `app.js` | 🟢 | ⏱️ ✅ |
 | W-14 | **Objetivo semanal por categoría** con barra de avance | Dirigir la venta, no solo medirla | `analyticsView` | 🟠 | ⏳ |

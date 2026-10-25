@@ -8,7 +8,7 @@ import {
   addDays, can, CATEGORIES, cup, CURRENCIES, cuadreCalc, formatDate, inRange, normName, reportPeriodRange, stockAtStart,
   qty, round2, todayISO, usd, validatePassword, validateProduct, weekday, weekRange,
   parseValuesText, summarizeRows, STATUS_LABEL, VALUE_FIELDS,
-  normalizeBarcode, creditPending, creditStatus,
+  normalizeBarcode, creditPending, creditStatus, reorderSuggestions, reorderSummary,
 } from "./calc.js";
 import { moneyIn } from "./ipv.js";
 import { categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, heatmapSummary, niceTicks } from "./charts.js";
@@ -967,8 +967,30 @@ function homeView() {
         <div class="card-h"><span class="k">Stock bajo</span></div>
         <div class="list">${low.slice(0, 10).map((p) => `<div class="li">${thumb(p, 34)}<div><strong>${esc(p.name)}</strong><div class="hint">Stock ${qty(p.stockActual)} · mín ${qty(p.minStock)}</div></div></div>`).join("") || "<p class='hint'>Todo cubierto.</p>"}</div>
       </div>
-    </div>`;
+    </div>
+    ${reorderCardMarkup()}`;
 }
+/** Reposición sugerida (W-11): ritmo de venta real × existencia disponible. */
+function reorderCardMarkup(days = 30, cover = 14, limit = 8) {
+  const lista = reorderSuggestions(store.activeProducts(), store.activeMovements(), { days, cover, limit });
+  if (!lista.length) return "";
+  const resumen = reorderSummary(lista);
+  const etiqueta = { agotado: ["err", "Agotado"], urgente: ["err", "Urgente"], pronto: ["warn", "Pronto"], normal: ["ok", "Planificar"] };
+  return `<section class="card mt16" aria-labelledby="reorderTitle">
+      <div class="card-h"><span class="k" id="reorderTitle">🧾 Reposición sugerida</span><button class="btn ghost small" data-nav="inventory">Ver inventario</button></div>
+      <p class="hint">Con las ventas de los últimos ${days} días y lo que hay en existencia. La columna «Alcanza» son los días que dura el stock al ritmo actual; la sugerencia cubre ${cover} días.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Producto</th><th>Vendidos</th><th>Por día</th><th>Alcanza</th><th>Sugerido</th><th>Estado</th></tr></thead>
+        <tbody>${lista.map((f) => {
+          const [tono, texto] = etiqueta[f.level] || ["ok", "Planificar"];
+          const alcanza = f.daysLeft === 0 ? "agotado" : Number.isFinite(f.daysLeft) ? `${f.daysLeft} días` : "—";
+          return `<tr><td>${esc(f.product.name)}</td><td class="mono">${qty(f.sold)}</td><td class="mono">${f.perDay}</td><td class="mono">${alcanza}</td><td class="mono"><b>${qty(f.suggested)}</b></td><td><span class="tag ${tono}">${texto}</span></td></tr>`;
+        }).join("")}</tbody>
+      </table></div>
+      <div class="hline dashboard-total"><span>${esc(resumen.texto)}</span><b class="mono">${qty(resumen.unidades)} uds</b></div>
+    </section>`;
+}
+
 const kpi = (k, v, s, tone = "") => `<div class="card kpi ${tone}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
 
 /* ============================ INVENTARIO ============================ */

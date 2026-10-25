@@ -241,6 +241,87 @@ export function stockAtStart(product, movements, from, warehouseId = null) {
   return round2(openingStock + before);
 }
 
+/**
+ * Reposición sugerida (W-11).
+ *
+ * Calcula, con las ventas reales de los últimos `days` días, a qué ritmo sale
+ * cada producto y cuántos días de existencia le quedan. Devuelve solo lo que
+ * conviene reponer dentro del horizonte `cover` (por defecto, dos semanas),
+ * ordenado por urgencia: primero lo agotado, después lo que se agota antes.
+ *
+ * `daysLeft` es Infinity cuando el producto no tuvo ventas en la ventana (no se
+ * puede estimar) y 0 cuando ya no queda existencia.
+ */
+export function reorderSuggestions(products, movements, opts = {}) {
+  const days = Math.max(1, Math.round(Number(opts.days) || 30));
+  const cover = Math.max(0, Number.isFinite(Number(opts.cover)) ? Number(opts.cover) : 14);
+  const today = opts.today || todayISO();
+  const from = addDays(today, -(days - 1));
+  const warehouseId = opts.warehouseId || null;
+
+  const sold = new Map();
+  for (const movement of movements || []) {
+    if (!movement || movement.deletedAt || movement.type !== MovementType.VENTA) continue;
+    if (warehouseId && movement.warehouseId !== warehouseId) continue;
+    if (!inRange(movement.date, from, today)) continue;
+    const key = movement.productId || normName(movement.productName || "");
+    const acc = sold.get(key) || { unidades: 0, importe: 0 };
+    acc.unidades += Math.abs(Number(movement.quantity) || 0);
+    acc.importe += Number(movement.importeUsd) || 0;
+    sold.set(key, acc);
+  }
+
+  const filas = [];
+  for (const product of products || []) {
+    if (!product || product.deletedAt) continue;
+    const acc = sold.get(product.id) || sold.get(normName(product.name || "")) || { unidades: 0, importe: 0 };
+    const perDay = round2(acc.unidades / days);
+    const stock = Number(product.stockActual) || 0;
+    const daysLeft = stock <= 0 ? 0 : perDay > 0 ? round2(stock / perDay) : Infinity;
+    if (daysLeft > cover) continue;
+    const porRitmo = perDay > 0 ? Math.ceil(perDay * cover - stock) : 0;
+    // Si ya no hay nada, nunca sugerimos menos que el mínimo del producto.
+    const porMinimo = stock <= 0 ? Math.max(1, Math.ceil(Number(product.minStock) || 0)) : 0;
+    const sugerido = Math.max(0, porRitmo, porMinimo);
+    if (!sugerido && daysLeft > 0) continue;
+    const level = stock <= 0 ? "agotado" : daysLeft <= 3 ? "urgente" : daysLeft <= 7 ? "pronto" : "normal";
+    filas.push({
+      product,
+      sold: round2(acc.unidades),
+      importe: round2(acc.importe),
+      perDay,
+      daysLeft,
+      suggested: sugerido,
+      level,
+      cover,
+      days,
+    });
+  }
+
+  const orden = { agotado: 0, urgente: 1, pronto: 2, normal: 3 };
+  const dias = (f) => (Number.isFinite(f.daysLeft) ? f.daysLeft : Number.MAX_SAFE_INTEGER);
+  filas.sort((a, b) => orden[a.level] - orden[b.level] || dias(a) - dias(b) || b.importe - a.importe);
+  const limit = Number(opts.limit) > 0 ? Number(opts.limit) : 0;
+  return limit ? filas.slice(0, limit) : filas;
+}
+
+/** Resumen en una línea de la reposición sugerida (para el Panel y los avisos). */
+export function reorderSummary(list) {
+  const filas = list || [];
+  const agotados = filas.filter((f) => f.level === "agotado").length;
+  const urgentes = filas.filter((f) => f.level === "urgente").length;
+  const unidades = filas.reduce((total, f) => total + f.suggested, 0);
+  let texto;
+  if (!filas.length) texto = "Sin reposición pendiente.";
+  else {
+    const partes = [`${filas.length} producto(s) para reponer`];
+    if (agotados) partes.push(`${agotados} agotado(s)`);
+    if (urgentes) partes.push(`${urgentes} urgente(s)`);
+    texto = `${partes.join(" · ")}. Sugerido: ${unidades} unidad(es).`;
+  }
+  return { count: filas.length, agotados, urgentes, unidades, texto };
+}
+
 export function inRange(iso, from, to) {
   return !!from && !!to && iso >= from && iso <= to;
 }

@@ -120,6 +120,9 @@ input[readonly] { background: var(--surface-2); }
 .tag.salida { background: var(--danger-soft); color: var(--danger); }
 .tag.tienda, .tag.mov { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
 .tag.gestor { background: var(--gold-soft); color: var(--gold); }
+.tag.err { background: var(--danger-soft); color: var(--danger); }
+.tag.warn { background: var(--gold-soft); color: var(--gold); }
+.tag.ok { background: var(--ok-soft); color: var(--ok); }
 .cat { display: inline-flex; gap: 4px; align-items: center; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); white-space: nowrap; }
 .category-icon { display: inline-block; flex: 0 0 auto; vertical-align: middle; }
 .thumb.ph .category-icon { display: block; }

@@ -1262,8 +1262,32 @@ inventario, alertas de stock (**productos en el mínimo o agotados**), accesos d
 Venta rápida / Importar valores / Cuadre / Análisis / Clientes, existencias por almacén,
 evolución de ventas y accesos rápidos.
 
-**Rutina de apertura (2 minutos):** abra el Panel, revise alertas de stock, confirme el
-cuadre del día anterior y entre a vender.
+### Reposición sugerida
+
+Debajo de **Stock bajo** el Panel muestra la tarjeta **🧾 Reposición sugerida**, que responde
+a la pregunta que el stock mínimo no contesta: **«¿cuánto me dura y cuánto debo comprar?»**.
+
+| Columna | Qué significa |
+|---|---|
+| **Vendidos** | Unidades vendidas del producto en los últimos 30 días |
+| **Por día** | Ritmo de venta diario (vendidos ÷ 30) |
+| **Alcanza** | Días que dura la existencia al ritmo actual; «agotado» si ya no queda |
+| **Sugerido** | Unidades a comprar para cubrir **14 días** de venta al mismo ritmo |
+| **Estado** | **Agotado** (nada en existencia), **Urgente** (3 días o menos), **Pronto** (7 días o menos) o **Planificar** |
+
+**Cómo se lee**
+
+1. Empiece por las filas **Agotado** y **Urgente**: son ventas que se pierden esta semana.
+2. La columna **Sugerido** ya descuenta lo que hay en el almacén, así que es la cantidad a pedir.
+3. Si un producto **nunca se vendió** en esos 30 días, no aparece: el sistema no inventa un
+   ritmo de venta que no existe. Para eso siguen las alertas de **Stock bajo**, que usan el mínimo.
+
+> [!TIP]
+> Si el negocio vende por temporadas, mire la tarjeta después de una semana floja antes de
+> comprar de más: la sugerencia sigue el ritmo real de los últimos 30 días, no un promedio anual.
+
+**Rutina de apertura (2 minutos):** abra el Panel, revise la **reposición sugerida** y las
+alertas de stock, confirme el cuadre del día anterior y entre a vender.
 
 ---
 
