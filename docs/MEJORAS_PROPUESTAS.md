@@ -4,6 +4,10 @@ Lista de trabajo para llevar la Web y el Android al máximo, ordenada por **impa
 Cada paso se revisa, se aprueba y se entrega en su propio pull request; las filas se marcan al
 terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`ROADMAP.md`](ROADMAP.md).
 
+> **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola de
+> sincronización en Android) ✅. Lo siguiente, por orden sugerido: **W-02** → **A-02** → **W-03** →
+> **A-04** → **S-01**. La segunda ola de propuestas está al final.
+
 **Leyenda:** impacto 🔴 alto · 🟠 medio · 🟢 bajo — esfuerzo ⏱️ bajo (≤1 día) · ⏳ medio (2-5 días) ·
 🧱 alto (>1 semana).
 
@@ -56,6 +60,27 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | S-03 | API con paginación y `?since=` | Móviles y catálogos grandes | `server/` | 🟠 | ⏳ | ⬜ |
 | S-04 | Instalador de Windows con el entorno incluido | Instalar en 3 clics, sin Python | `deploy/` | 🟠 | ⏳ | ⬜ |
 | S-05 | Panel de salud para el titular (copias, espacio, licencia) | Prevenir antes de que falle | `server/` | 🟢 | ⏱️ | ⬜ |
+
+## Segunda ola · propuestas nuevas (2026-10-24)
+
+Ideas que salen de lo ya construido; ninguna está aprobada todavía.
+
+| # | Mejora | Por qué merece la pena | Dónde | Impacto | Esfuerzo |
+|---|---|---|---|---|---|
+| W-10 | **Comparador de períodos** en Análisis: superponer las ventas de esta semana y la anterior | Saber si se mejora o empeora sin restar a mano | `web/js/charts.js` | 🔴 | ⏳ |
+| W-11 | **Reposición sugerida** en el mapa de calor y en alertas: días que tarda en agotarse cada producto | Comprar antes de quedarse sin lo que más rota | `calc.js` + Panel | 🔴 | ⏳ |
+| W-12 | **Hoja imprimible del Análisis**: los tres gráficos + KPIs en una sola página A4 | Entregar el resumen al dueño o al contador | `app.css` (`@media print`) | 🟠 | ⏱️ |
+| W-13 | **Exportar el mapa de calor a CSV** (fecha, día, ventas, unidades) | Análisis propio en Excel | `app.js` | 🟢 | ⏱️ |
+| W-14 | **Objetivo semanal por categoría** con barra de avance | Dirigir la venta, no solo medirla | `analyticsView` | 🟠 | ⏳ |
+| A-10 | **Sincronización incremental** (`?since=`): subir y bajar solo lo cambiado | Móvil con datos lentos y catálogos grandes | `SyncManager` + servidor | 🔴 | 🧱 |
+| A-11 | **Recibo con QR** para fiados y ventas: el cliente comprueba su saldo | Menos discusiones en el mostrador | Android + Web `#pos` | 🟠 | ⏳ |
+| A-12 | **Widget de inicio** (ventas del día, stock bajo, cambios sin subir) | Abrir la app ya informado | `appwidget/` | 🟠 | ⏳ |
+| A-13 | **Prueba de instrumentación de la cola** (Room + conflictos reales) | La lógica pura ya está probada; falta la capa de datos | `androidTest/` | 🟠 | ⏳ |
+| S-06 | **API con `PUT` por diferencias** y validación por registro | Menos datos, menos conflictos | `server/` | 🔴 | 🧱 |
+| S-07 | **Panel de salud** para el titular: copias, espacio, licencia y días cerrados | Prevenir antes de que falle | `server/` | 🟠 | ⏱️ |
+| S-08 | **Instalador de Windows** con el entorno incluido | Instalar en 3 clics, sin Python | `deploy/` | 🟠 | ⏳ |
+| D-08 | **Manual en inglés** (resumen de 20 páginas) | Abrir el producto fuera del mercado hispano | `docs/` | 🟢 | ⏳ |
+| D-09 | **Guía de migración desde Excel** con capturas paso a paso | El cliente ve el camino desde su hoja actual | `docs/` | 🟠 | ⏳ |
 
 ## Cómo se supervisa
 
