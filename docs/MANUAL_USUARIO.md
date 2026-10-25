@@ -49,7 +49,7 @@ El manual está pensado para tres formas de lectura:
 
 ### Video de presentación
 
-El manual va acompañado de un **video de 2:41 min** (`docs/assets/video/novagest-promo-720p.mp4`,
+El manual va acompañado de un **video de 2:37 min** (`docs/assets/video/novagest-promo-720p.mp4`,
 720p, con narración y subtítulos) que resume los seis pasos esenciales para trabajar con las dos
 apps: activar la licencia, configurar el negocio, cargar la mercancía, vender, cuadrar la caja y
 revisar los resultados. El guion y el plan de producción están en
@@ -2102,7 +2102,7 @@ reconocer cada pantalla antes de usarla.
 
 ### Video de presentación (fotogramas)
 
-El video `assets/video/novagest-promo-720p.mp4` (2:41, 720p, narración y subtítulos) recorre
+El video `assets/video/novagest-promo-720p.mp4` (2:37, 720p, narración y subtítulos) recorre
 los seis pasos esenciales. Se puede ver desde el reproductor del sistema o desde cualquier
 navegador, y los subtítulos están también en `assets/video/novagest-promo-720p.srt`.
 
