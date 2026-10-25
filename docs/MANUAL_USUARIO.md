@@ -1323,6 +1323,24 @@ a la pregunta que el stock mínimo no contesta: **«¿cuánto me dura y cuánto 
 > Si el negocio vende por temporadas, mire la tarjeta después de una semana floja antes de
 > comprar de más: la sugerencia sigue el ritmo real de los últimos 30 días, no un promedio anual.
 
+### Comparación con el mismo día de la semana
+
+Debajo de la cifra de **Venta del día** aparece una frase corta que compara el día que está
+viendo con **el mismo día de la semana anterior** (por ejemplo, sábado contra sábado):
+
+| Lo que dice | Qué significa |
+|---|---|
+| **▲ 12% vs 18/10** | Se vendió un 12 % más que ese mismo día de la semana pasada |
+| **▼ 8% vs 18/10** | Se vendió un 8 % menos |
+| **igual que el 18/10** | Exactamente la misma venta |
+| **sin ventas el 18/10** | Ese día anterior no tuvo ventas registradas |
+| **sin base anterior** | No hay datos suficientes para comparar (por ejemplo, el primer día de uso) |
+
+> [!TIP]
+> Comparar con el mismo día de la semana evita el engaño de «hoy se vendió más que ayer»:
+> un sábado siempre vende distinto que un martes. Si la frase muestra una caída de dos
+> semanas seguidas, revíselo con **Análisis** antes de cambiar precios.
+
 **Rutina de apertura (2 minutos):** abra el Panel, revise la **reposición sugerida** y las
 alertas de stock, confirme el cuadre del día anterior y entre a vender.
 
@@ -1746,12 +1764,20 @@ esa venta en una impresora térmica Bluetooth.
 
 1. **Empareje la impresora** una sola vez en los ajustes de Bluetooth del teléfono (PIN
    habitual: `0000` o `1234`).
-2. Cobre la venta y pulse el ancho de su rollo (58 mm el pequeño de mostrador, 80 mm el de
-   las cajas).
-3. La primera vez Android pedirá **permiso de Bluetooth**: acéptelo.
-4. El ticket sale con negocio, fecha y hora, productos, **total USD**, equivalente en CUP,
-   forma de pago, cliente del fiado y quién atendió. La app recuerda la última impresora
-   usada.
+2. **🧭 Menú → Ajustes → Impresora de tickets**: pulse **Buscar impresoras emparejadas**,
+   elija la suya de la lista, elija **58 mm** o **80 mm** y pulse **Guardar impresora**. Con
+   **Imprimir prueba** sale un ticket de ejemplo para comprobar que todo está bien.
+3. Cobre la venta y pulse **🖨 Reimprimir**: usa la impresora y el ancho guardados. Si
+   necesita el otro rollo, los botones **58 mm** y **80 mm** imprimen esa venta en ese ancho
+   sin cambiar la configuración.
+4. La primera vez Android pedirá **permiso de Bluetooth**: acéptelo.
+5. El ticket sale con negocio, fecha y hora, productos, **total USD**, equivalente en CUP,
+   forma de pago, cliente del fiado y quién atendió.
+
+> [!NOTE]
+> La elección de impresora y ancho queda guardada en el teléfono: se mantiene al cerrar la
+> app y se aplica a la venta rápida. Si no hay ninguna configurada, **Venta rápida** avisa
+> «Sin impresora configurada: elige la tuya en Ajustes → Impresora de tickets».
 
 > [!TIP]
 > Si no imprime, revise el orden: impresora **encendida** y con papel, **emparejada** en el
@@ -1772,9 +1798,14 @@ esa venta en una impresora térmica Bluetooth.
 | ☁ sin conexión | Sin conexión con el servidor | Los cambios se guardan en el teléfono y se subirán al reconectar |
 | ⟳ sincronizando | Subiendo/bajando cambios | Espere unos segundos |
 | ✔ sincronizado | Al día | Todo coincide con el servidor |
+| **n** sobre la nube | Cambios sin subir | La insignia cuenta las ventas y ediciones que aún no llegaron al servidor |
 
 - La app detecta cambios locales y consulta la **versión del estado** cada **15 segundos**.
-- El botón de la barra superior fuerza **Sincronizar ahora**.
+- El botón de la barra superior fuerza **Sincronizar ahora**. Cuando quedan cambios sin
+  subir, la nube lleva una **insignia con el número**, el aviso inferior dice cuántos son y
+  en cuántos segundos se reintenta, y el botón pasa a llamarse **Sincronizar ahora**.
+- **Ajustes** resume el estado de la cola: «No hay cambios pendientes de subir» o «N
+  cambio(s) sin subir · próximo intento en N s».
 - **Ajustes** muestra el servidor, su usuario y rol, la versión de datos, la fecha de la
   última sincronización y los **días cerrados**.
 

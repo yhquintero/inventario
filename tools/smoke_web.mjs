@@ -415,6 +415,12 @@ test("La barra superior expone etiquetas accesibles en los botones de icono", ()
   assert.match(html, /aria-label="Licencia de uso"/);
 });
 
+test("El Panel compara la venta con el mismo día de la semana anterior (W-15)", () => {
+  const html = go("home");
+  assert.match(html, /Venta del día/);
+  assert.match(html, /(vs \d{2}\/\d{2})|(igual que el \d{2}\/\d{2})|(sin ventas el \d{2}\/\d{2})|sin base anterior/);
+});
+
 test("Movimientos ofrece CSV y PDF para el filtro visible", () => {
   const html = go("movements");
   assert.match(html, /ALMACÉN/);

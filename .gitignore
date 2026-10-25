@@ -19,6 +19,7 @@ app/release/
 .vscode/
 node_modules/
 .venv/
+.venv-media/
 __pycache__/
 *.pyc
 .DS_Store

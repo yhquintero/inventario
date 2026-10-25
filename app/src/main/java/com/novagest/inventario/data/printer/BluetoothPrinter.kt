@@ -54,6 +54,17 @@ class BluetoothPrinter @Inject constructor(@ApplicationContext private val conte
         }.getOrDefault(emptyList())
     }
 
+    /** Ancho de papel elegido en Ajustes (58 mm por defecto). */
+    var savedWidth: PaperWidth
+        get() = if ((prefs.getString("width", "58") ?: "58") == "80") PaperWidth.MM_80 else PaperWidth.MM_58
+        private set(value) { prefs.edit().putString("width", if (value == PaperWidth.MM_80) "80" else "58").apply() }
+
+    /** Guarda la impresora y el ancho elegidos en Ajustes. */
+    fun remember(address: String, width: PaperWidth) {
+        if (address.isNotBlank()) savedAddress = address
+        savedWidth = width
+    }
+
     /** Última impresora usada (se recuerda entre sesiones). */
     var savedAddress: String
         get() = prefs.getString("address", "") ?: ""
