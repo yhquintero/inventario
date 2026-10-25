@@ -200,3 +200,24 @@ export function heatmapSummary(grid, formatMoney = (v) => String(v)) {
   return `Mapa de calor de ventas de ${grid.weeks} semanas: total ${formatMoney(grid.total)}; ` +
     `el mejor día fue el ${day} ${grid.bestDate} con ${formatMoney(best ? best.value : 0)}.`;
 }
+
+/**
+ * CSV del mapa de calor (una fila por día, en orden cronológico).
+ *
+ * Usa `;` como separador y BOM al descargarlo: así Excel en español abre las columnas bien.
+ */
+export function heatmapCsv(grid) {
+  const head = ["Fecha", "Día", "Ventas (USD)", "Unidades", "Líneas de venta"];
+  if (!grid || !grid.rows) return head.join(";");
+  const cells = grid.rows.flatMap((row) => row.cells.map((cell) => ({ ...cell, day: row.label })))
+    .filter((cell) => !cell.future)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const lines = cells.map((cell) => [
+    cell.date,
+    cell.day,
+    String(Math.round(cell.value * 100) / 100).replace(".", ","),
+    String(Math.round(cell.units * 100) / 100).replace(".", ","),
+    String(cell.sales),
+  ].join(";"));
+  return [head.join(";"), ...lines].join("\r\n");
+}

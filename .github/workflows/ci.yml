@@ -38,6 +38,7 @@ jobs:
           bash tools/ci_paso.sh node tools/test_ipv.mjs
           bash tools/ci_paso.sh node tools/test_calc.mjs
           bash tools/ci_paso.sh node tools/test_charts.mjs
+          bash tools/ci_paso.sh node tools/test_merge.mjs
           bash tools/ci_paso.sh node tools/cobertura.mjs --min 80
           bash tools/ci_paso.sh node tools/test_accesibilidad.mjs
           bash tools/ci_paso.sh node tools/test_sw_precache.mjs
@@ -53,6 +54,7 @@ jobs:
           set -e
           bash tools/ci_paso.sh python3 -m py_compile server/novagest_server.py tools/license_studio.py
           bash tools/ci_paso.sh python3 -m pip install -r requirements.txt
+          bash tools/ci_paso.sh python3 tools/test_sitio.py
           bash tools/ci_paso.sh python3 tools/test_licencia.py
           bash tools/ci_paso.sh python3 tools/test_generador.py
           bash tools/ci_paso.sh python3 tools/test_seguridad_servidor.py

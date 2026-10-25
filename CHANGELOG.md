@@ -1,5 +1,17 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-24 (XVII) · La Web no pierde trabajo sin conexión (W-02)
+
+- **Cola de cambios en el navegador**: si se cae la red, el estado se guarda en `localStorage` (`novagest.pending`) y se sube al reconectar. Si la pestaña se cierra antes, la app **los recupera al volver a entrar** y avisa cuántos eran. También se guardan al cerrar la pestaña con cambios pendientes.
+- **Conflictos resueltos por `updatedAt`** (antes se recargaba y se descartaba lo local): al recibir **409**, la Web descarga la versión del servidor, **fusiona registro a registro** quedándose con la edición más reciente de cada uno, vuelve a guardar y avisa «Conflicto resuelto». Un borrado nunca pisa un cambio posterior.
+- **Módulo nuevo `web/js/merge.js`** (funciones puras, sin DOM ni red): `recordTime`, `localWins`, `mergeCollection`, `mergeState`, `describe`, `readPending`/`writePending`/`clearPending`. Probado en `tools/test_merge.mjs` (**12 pruebas**, **98 % de cobertura**) y añadido a `tools/cobertura.mjs` y al CI.
+- **Service worker v18** con el módulo en el precache.
+- **W-13 · CSV del mapa de calor**: botón **CSV** en el recuadro de Análisis que descarga una fila por día (fecha, día, ventas, unidades, líneas) con `;` y coma decimal para que Excel en español lo abra en columnas. Probado en `tools/test_charts.mjs` (11 pruebas).
+- **Manual** §17.1, §17.4 y nota de conflictos actualizados (Web y Android fusionan igual); HTML regenerado.
+- **Sitio del proyecto publicado en `docs/index.html`** (GitHub Pages): portada con el resumen del producto, funciones, capturas reales, instalación en tres pasos, tabla de roles y enlaces al manual, al vídeo y al repositorio. Todo el estilo va incrustado, sin CDN ni fuentes externas, con modo oscuro automático, enlace «saltar al contenido» y textos alternativos.
+- **Prueba nueva `tools/test_sitio.py`** (31 comprobaciones): HTML bien formado, un solo `h1`, metadatos y descripción de buscadores, cero recursos externos, todos los recursos relativos existentes, imágenes con `alt` y tamaño, y publicación sin Jekyll (`docs/.nojekyll`). Enganchada al CI.
+- **README**: enlace al sitio del proyecto, al manual y al vídeo en la cabecera.
+
 ## NovaGest v1.0.0 · revisión 2026-10-24 (XVI) · Segunda ola de mejoras propuestas
 
 - **`docs/MEJORAS_PROPUESTAS.md`**: resumen de avance al principio (paso 1, W-01 y A-01 en ✅, con el orden sugerido para seguir) y una **segunda ola de 14 propuestas** nacidas de lo ya construido: comparador de períodos y reposición sugerida en Análisis, hoja imprimible y exportación del mapa de calor, sincronización incremental, recibo con QR, widget de inicio, prueba de instrumentación de la cola, API por diferencias, panel de salud, instalador de Windows, manual en inglés y guía de migración desde Excel.

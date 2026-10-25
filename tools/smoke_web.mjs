@@ -838,6 +838,20 @@ test("Análisis incluye el mapa de calor y las ventas por categoría (SVG con da
   assert.ok(!/style="/.test(html.split("heat-chart")[0] || ""), "sin estilos en línea");
 });
 
+test("La Web recupera los cambios sin guardar de la sesión anterior (W-02)", () => {
+  const clave = "novagest.pending";
+  localStorage.setItem(clave, JSON.stringify({
+    savedAt: Date.now(),
+    state: { products: [{ id: "p_pend", name: "PRODUCTO PENDIENTE", updatedAt: Date.now() + 60_000 }] },
+  }));
+  const recuperados = store.restorePending();
+  assert.ok(recuperados >= 1, "debe recuperar al menos un cambio");
+  assert.ok(store.state.products.some((p) => p.id === "p_pend"), "el producto pendiente vuelve al estado");
+  assert.equal(store.dirty, true, "queda pendiente de subir");
+  localStorage.removeItem(clave);
+  assert.equal(store.restorePending(), 0, "sin cola no hay nada que recuperar");
+});
+
 test("El manifest declara una PWA instalable completa", () => {
   const m = JSON.parse(readFileSync(join(root, "web/manifest.webmanifest"), "utf8"));
   assert.ok(m.id, "id de la aplicación");

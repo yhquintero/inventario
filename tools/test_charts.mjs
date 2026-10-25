@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import {
-  addDaysISO, categoryBreakdown, compactNumber, heatLevel, heatmapGrid, heatmapSummary,
+  addDaysISO, categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, heatmapSummary,
   isoToTime, niceStep, niceTicks, weekStart, weekdayIndex, WEEKDAYS,
 } from "../web/js/charts.js";
 
@@ -141,6 +141,22 @@ ok("resumen accesible del mapa", () => {
   assert.ok(texto.includes("4 semanas"));
   assert.ok(texto.includes("150 USD"));
   assert.ok(texto.includes("lunes 2026-10-12"));
+});
+
+ok("exportación del mapa a CSV", () => {
+  const g = heatmapGrid(
+    [mov("2026-10-12", 100, "p1", 2), mov("2026-10-13", 50.5, "p1", 1)],
+    { weeks: 4, endDate: "2026-10-14" }
+  );
+  const csv = heatmapCsv(g);
+  const lines = csv.split("\r\n");
+  assert.equal(lines[0], "Fecha;Día;Ventas (USD);Unidades;Líneas de venta");
+  assert.equal(lines.length, 25, "cabecera + 4 semanas (7×4 días menos los 4 futuros)");
+  assert.ok(csv.includes("2026-10-12;lunes;100;2;1"), "fila del lunes con sus cifras");
+  assert.ok(csv.includes("50,5"), "coma decimal para Excel en español");
+  assert.equal(heatmapCsv(null), "Fecha;Día;Ventas (USD);Unidades;Líneas de venta");
+  const orden = lines.slice(1).map((l) => l.split(";")[0]);
+  assert.deepEqual([...orden].sort(), orden, "las fechas van en orden");
 });
 
 console.log(`\n${n} pruebas de gráficos correctas\n`);

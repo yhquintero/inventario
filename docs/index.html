@@ -3,403 +3,393 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NovaGest — Inventario, punto de venta, caja diaria e informes</title>
-<meta name="description" content="Sistema de gestión comercial para pequeños y medianos negocios: inventario multialmacén, punto de venta, caja diaria, clientes y fiados, e informes con exportación a CSV y PDF. Web instalable (PWA), aplicación Android en Kotlin y servidor propio en Python; funciona sin conexión y guarda los datos en el propio negocio." />
+<title>NovaGest · Inventario, ventas y cuadre diario para tu tienda</title>
+<meta name="description" content="Inventario multialmacén, venta rápida, fiados, cuadre diario e indicadores IPV en una Web instalable y una app Android que comparten el mismo estado. Sin conexión y sin nube obligatoria." />
 <meta name="theme-color" content="#312e81" />
-<meta name="author" content="yhquintero" />
-<link rel="canonical" href="https://yhquintero.github.io/inventario/" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="NovaGest" />
-<meta property="og:title" content="NovaGest — Inventario, punto de venta y caja diaria" />
-<meta property="og:description" content="Inventario multialmacén, punto de venta, caja diaria, fiados e informes. Web instalable, app Android y servidor propio: funciona sin conexión." />
-<meta property="og:image" content="https://yhquintero.github.io/inventario/assets/social-preview.png" />
-<meta property="og:url" content="https://yhquintero.github.io/inventario/" />
+<meta property="og:title" content="NovaGest · Inventario, ventas y cuadre diario para tu tienda" />
+<meta property="og:description" content="Inventario multialmacén, punto de venta, fiados, cuadre diario e indicadores IPV. Web instalable + app Android, mismo estado, funciona sin conexión." />
+<meta property="og:image" content="assets/social-preview.png" />
+<meta property="og:locale" content="es_ES" />
 <meta name="twitter:card" content="summary_large_image" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2716%27 fill=%27%234f46e5%27/%3E%3Cpath d=%27M18 44V20l14 16 14-16v24%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%275%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23312e81'/%3E%3Cpath d='M32 14l14 7v22l-14 7-14-7V21z' fill='none' stroke='%23a7f3d0' stroke-width='3.5' stroke-linejoin='round'/%3E%3Cpath d='M18 21l14 7 14-7M32 28v22' fill='none' stroke='%2334d399' stroke-width='3.5' stroke-linejoin='round'/%3E%3C/svg%3E" />
 <style>
-  :root{
-    --ink:#14142b; --muted:#5b5b76; --line:#e3e4ee; --bg:#ffffff; --soft:#f6f7fb;
-    --brand:#312e81; --brand2:#4f46e5; --accent:#059669; --gold:#b45309;
-    --radius:16px;
+  :root {
+    --brand: #312e81;
+    --brand-soft: #eef2ff;
+    --accent: #047857;
+    --accent-soft: #ecfdf5;
+    --gold: #b45309;
+    --bg: #ffffff;
+    --surface: #f6f7fb;
+    --ink: #14142b;
+    --muted: #56566f;
+    --line: #e3e4ee;
+    --shadow: 0 1px 2px rgba(20, 20, 43, .06), 0 12px 32px rgba(20, 20, 43, .08);
+    --radius: 16px;
+    --max: 1120px;
   }
-  *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{
-    margin:0; background:var(--bg); color:var(--ink);
-    font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
-    font-size:16px; line-height:1.65; -webkit-font-smoothing:antialiased;
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --brand: #a5b4fc;
+      --brand-soft: #1e1b4b;
+      --accent: #34d399;
+      --accent-soft: #052e26;
+      --gold: #fbbf24;
+      --bg: #0d0d18;
+      --surface: #151524;
+      --ink: #f3f4ff;
+      --muted: #a9a9c2;
+      --line: #262640;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 12px 32px rgba(0, 0, 0, .45);
+    }
   }
-  a{color:var(--brand2); text-decoration:none}
-  a:hover{text-decoration:underline}
-  a:focus-visible,button:focus-visible{outline:3px solid var(--brand2); outline-offset:2px; border-radius:6px}
-  img{max-width:100%; display:block}
-  .wrap{max-width:1080px; margin:0 auto; padding:0 24px}
-  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--brand); text-underline-offset: 3px; }
+  a:hover { text-decoration-thickness: 2px; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  img { max-width: 100%; height: auto; display: block; }
+  h1, h2, h3 { line-height: 1.2; letter-spacing: -.02em; margin: 0 0 .5em; }
+  h1 { font-size: clamp(2rem, 5vw, 3.15rem); font-weight: 800; }
+  h2 { font-size: clamp(1.5rem, 3.2vw, 2.1rem); font-weight: 750; }
+  h3 { font-size: 1.08rem; font-weight: 700; }
+  p { margin: 0 0 1em; }
+  .wrap { width: min(100% - 2.5rem, var(--max)); margin-inline: auto; }
+  .skip {
+    position: absolute; left: -9999px; top: 0;
+    background: var(--brand); color: #fff; padding: .7rem 1.1rem; border-radius: 0 0 10px 0; z-index: 10;
+  }
+  .skip:focus { left: 0; }
 
-  /* barra superior */
-  .topbar{
-    position:sticky; top:0; z-index:20;
-    background:rgba(255,255,255,.94); backdrop-filter:blur(10px);
-    border-bottom:1px solid var(--line);
+  /* Cabecera */
+  header.site {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg);
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
   }
-  .topbar .in{display:flex; align-items:center; justify-content:space-between; gap:16px; height:60px}
-  .brand{display:flex; align-items:center; gap:10px; font-weight:800; color:var(--brand); letter-spacing:-.01em; font-size:17px}
-  .brand .mark{
-    width:30px; height:30px; border-radius:9px; flex:0 0 auto;
-    background:linear-gradient(135deg,var(--brand2),#7c3aed 60%,var(--accent));
-    box-shadow:0 4px 12px rgba(79,70,229,.28);
-  }
-  .nav{display:flex; gap:20px; flex-wrap:wrap; font-size:14px; font-weight:600}
-  .nav a{color:var(--muted)}
-  .nav a:hover{color:var(--brand); text-decoration:none}
-  @media (max-width:720px){ .nav{display:none} }
+  .bar { display: flex; align-items: center; gap: 1rem; min-height: 66px; }
+  .marca { display: flex; align-items: center; gap: .6rem; font-weight: 800; letter-spacing: -.01em; color: var(--ink); text-decoration: none; font-size: 1.05rem; }
+  .marca svg { width: 30px; height: 30px; flex: none; }
+  .bar nav { margin-left: auto; display: flex; align-items: center; gap: 1.25rem; }
+  .bar nav a { text-decoration: none; font-size: .94rem; font-weight: 600; color: var(--muted); padding: .25rem 0; border-bottom: 2px solid transparent; }
+  .bar nav a:hover { color: var(--ink); border-bottom-color: var(--accent); }
+  @media (max-width: 720px) { .bar nav a.oculto { display: none; } }
 
-  /* portada */
-  .hero{
-    padding:64px 0 40px;
-    background:
-      radial-gradient(1100px 340px at 100% -10%, #eef2ff 0%, transparent 62%),
-      radial-gradient(760px 300px at -10% 110%, #ecfdf5 0%, transparent 58%),
-      #fff;
-    border-bottom:1px solid var(--line);
+  /* Botones */
+  .acciones { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.6rem; }
+  .btn {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .8rem 1.25rem; border-radius: 999px; font-weight: 700; font-size: .95rem;
+    text-decoration: none; border: 1.5px solid transparent; transition: transform .15s ease, box-shadow .15s ease;
   }
-  .eyebrow{
-    letter-spacing:.16em; text-transform:uppercase; font-size:12px;
-    color:var(--brand2); font-weight:700; margin:0 0 10px;
+  .btn:hover { transform: translateY(-1px); }
+  .btn.primario { background: var(--brand); color: #fff; box-shadow: var(--shadow); }
+  .btn.secundario { background: var(--bg); color: var(--ink); border-color: var(--line); }
+  .btn.secundario:hover { border-color: var(--accent); }
+
+  /* Portada */
+  .hero { padding: clamp(2.5rem, 6vw, 4.5rem) 0 clamp(2rem, 5vw, 3.5rem); }
+  .hero .grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(1.5rem, 4vw, 3.5rem); align-items: center; }
+  .etiqueta {
+    display: inline-flex; align-items: center; gap: .5rem; margin-bottom: 1rem;
+    background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: .8rem;
+    letter-spacing: .06em; text-transform: uppercase; padding: .4rem .8rem; border-radius: 999px;
   }
-  .hero h1{
-    font-size:clamp(38px,6vw,60px); line-height:1.05; letter-spacing:-.02em;
-    margin:0 0 4px; color:#0f1030;
+  .lead { font-size: clamp(1.02rem, 2vw, 1.18rem); color: var(--muted); max-width: 34em; }
+  .portada { border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--line); overflow: hidden; }
+  @media (max-width: 900px) { .hero .grid { grid-template-columns: 1fr; } }
+
+  /* Franja de datos */
+  .datos { border-block: 1px solid var(--line); background: var(--surface); padding: 1.5rem 0; }
+  .datos ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; text-align: center; }
+  .datos strong { display: block; font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; }
+  .datos span { font-size: .86rem; color: var(--muted); }
+  @media (max-width: 720px) { .datos ul { grid-template-columns: repeat(2, 1fr); } }
+
+  /* Secciones */
+  section { padding: clamp(2.5rem, 5.5vw, 4rem) 0; }
+  .introduccion { max-width: 46em; color: var(--muted); }
+  .rejilla { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; margin-top: 2rem; }
+  @media (max-width: 900px) { .rejilla { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 620px) { .rejilla { grid-template-columns: 1fr; } }
+  .tarjeta {
+    background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 1.35rem 1.4rem; box-shadow: var(--shadow);
   }
-  .hero .lema{font-size:clamp(16px,2vw,19px); color:var(--accent); font-weight:700; margin:0 0 18px}
-  .hero .lead{font-size:clamp(16px,2.1vw,19px); color:var(--muted); max-width:70ch; margin:0 0 26px}
-  .hero .lead b{color:var(--ink)}
-  .cta{display:flex; flex-wrap:wrap; gap:12px; margin-bottom:34px}
-  .btn{
-    display:inline-flex; align-items:center; gap:8px;
-    border-radius:10px; padding:12px 20px; font-weight:700; font-size:15px;
-    border:1px solid transparent; cursor:pointer;
+  .tarjeta h3 { display: flex; align-items: center; gap: .55rem; margin-bottom: .4rem; }
+  .tarjeta .icono { font-size: 1.15rem; line-height: 1; }
+  .tarjeta p { margin: 0; color: var(--muted); font-size: .95rem; }
+
+  /* Capturas */
+  .capturas { background: var(--surface); border-block: 1px solid var(--line); }
+  .galeria { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem; }
+  @media (max-width: 860px) { .galeria { grid-template-columns: 1fr; } }
+  figure { margin: 0; }
+  figure img { border-radius: 12px; border: 1px solid var(--line); box-shadow: var(--shadow); }
+  figcaption { font-size: .85rem; color: var(--muted); margin-top: .55rem; }
+
+  /* Pasos */
+  .pasos { counter-reset: paso; display: grid; gap: 1.1rem; margin-top: 2rem; }
+  .paso { position: relative; padding-left: 3.2rem; }
+  .paso::before {
+    counter-increment: paso; content: counter(paso);
+    position: absolute; left: 0; top: .1rem;
+    width: 2.2rem; height: 2.2rem; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--brand); color: #fff; font-weight: 800; font-size: .95rem;
   }
-  .btn:hover{text-decoration:none}
-  .btn-1{background:var(--brand2); color:#fff; box-shadow:0 8px 22px rgba(79,70,229,.28)}
-  .btn-1:hover{background:#4338ca}
-  .btn-2{background:#fff; color:var(--brand); border-color:#c7c9e6}
-  .btn-2:hover{border-color:var(--brand2); background:#f5f6ff}
-  .shot{width:100%; border-radius:var(--radius); border:1px solid var(--line); box-shadow:0 24px 60px rgba(20,20,43,.13)}
-  .caption{font-size:13px; color:var(--muted); margin:12px 0 0; text-align:center}
-
-  /* franja de datos */
-  .stats{border-bottom:1px solid var(--line); background:var(--soft)}
-  .stats .grid{
-    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-    gap:24px; padding:28px 0;
+  .paso h3 { margin-bottom: .25rem; }
+  .paso p { color: var(--muted); margin-bottom: .5rem; }
+  pre {
+    background: #14142b; color: #e6e6f5; padding: .85rem 1rem; border-radius: 10px;
+    overflow-x: auto; font-size: .86rem; line-height: 1.55; margin: .4rem 0 0;
+    font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
   }
-  .stat .k{font-size:26px; font-weight:800; color:var(--brand); line-height:1.2}
-  .stat .l{font-size:13px; color:var(--muted); margin-top:2px}
+  code { font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace; font-size: .92em; }
+  p code, li code { background: var(--surface); border: 1px solid var(--line); padding: .05rem .3rem; border-radius: 5px; }
 
-  /* secciones */
-  section{padding:64px 0}
-  section + section{border-top:1px solid var(--line)}
-  h2{font-size:clamp(24px,3.4vw,32px); letter-spacing:-.015em; margin:0 0 8px; color:#0f1030}
-  h2 .emoji{margin-right:8px}
-  .sub{color:var(--muted); max-width:75ch; margin:0 0 32px}
+  /* Tabla de roles */
+  .tabla-caja { overflow-x: auto; margin-top: 1.75rem; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; background: var(--bg); }
+  th, td { text-align: left; padding: .7rem .9rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { background: var(--surface); font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.si { color: var(--accent); font-weight: 700; }
+  td.no { color: var(--muted); }
 
-  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:20px}
-  .card{
-    border:1px solid var(--line); border-radius:var(--radius); padding:22px 22px 20px; background:#fff;
-    box-shadow:0 1px 2px rgba(20,20,43,.04);
-  }
-  .card h3{margin:0 0 6px; font-size:17px; color:var(--brand)}
-  .card p{margin:0; color:var(--muted); font-size:14.5px}
-  .card .ico{font-size:22px; line-height:1; margin-bottom:10px; display:block}
+  /* Cierre */
+  .cierre { background: var(--brand-soft); border-top: 1px solid var(--line); }
+  .cierre .caja { display: grid; grid-template-columns: 1.4fr auto; gap: 1.5rem; align-items: center; }
+  @media (max-width: 760px) { .cierre .caja { grid-template-columns: 1fr; } }
 
-  .mods{display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:18px}
-  .mod{border-left:3px solid var(--brand2); background:var(--soft); border-radius:10px; padding:16px 18px}
-  .mod h3{margin:0 0 4px; font-size:15.5px; color:#0f1030}
-  .mod p{margin:0; font-size:14px; color:var(--muted)}
-  .groups{margin:0 0 26px; display:flex; gap:10px; flex-wrap:wrap}
-  .pill{
-    border:1px solid var(--line); border-radius:999px; padding:5px 13px;
-    font-size:12.5px; font-weight:700; color:var(--brand); background:#fff;
-  }
-
-  .gal{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:22px}
-  .gal figure{margin:0}
-  .gal img{border-radius:12px; border:1px solid var(--line); box-shadow:0 12px 30px rgba(20,20,43,.10)}
-  .gal figcaption{font-size:13.5px; color:var(--muted); margin-top:10px}
-  .gal figcaption b{color:var(--ink)}
-
-  pre{
-    margin:0 0 18px; background:#0f1030; color:#e6e8f5; border-radius:12px;
-    padding:18px 20px; overflow-x:auto; font-size:13.5px; line-height:1.7;
-  }
-  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-  p code,li code{background:var(--soft); border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-size:13px}
-  .note{
-    border:1px solid #c7d2fe; background:#eef2ff; border-radius:12px;
-    padding:14px 18px; font-size:14.5px; color:#2a2a6b; margin:0 0 20px;
-  }
-  .note.warn{border-color:#fcd34d; background:#fffbeb; color:#713f12}
-
-  table{width:100%; border-collapse:collapse; font-size:14.5px}
-  .tblwrap{overflow-x:auto; border:1px solid var(--line); border-radius:12px}
-  th,td{padding:11px 14px; text-align:left; border-bottom:1px solid var(--line)}
-  th{background:var(--soft); font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted)}
-  tbody tr:last-child td{border-bottom:0}
-  td.c,th.c{text-align:center}
-
-  footer{background:#0f1030; color:#c9cbe6; padding:44px 0 40px; font-size:14px}
-  footer a{color:#fff}
-  footer .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:28px; margin-bottom:28px}
-  footer h2{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#8f93c9; margin:0 0 10px}
-  footer ul{list-style:none; margin:0; padding:0; display:grid; gap:7px}
-  footer .legal{border-top:1px solid #2a2b52; padding-top:20px; color:#8f93c9; font-size:13px}
-
-  @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} }
-  @media print{ .topbar,.cta,footer .cols{display:none} body{font-size:12px} }
+  footer.site { padding: 2.25rem 0 2.75rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
+  footer.site ul { list-style: none; display: flex; flex-wrap: wrap; gap: 1.1rem; padding: 0; margin: 0 0 1rem; }
+  footer.site a { color: var(--muted); font-weight: 600; }
+  footer.site a:hover { color: var(--ink); }
 </style>
 </head>
 <body>
-<a class="sr" href="#contenido">Saltar al contenido</a>
+<a class="skip" href="#contenido">Saltar al contenido</a>
 
-<header class="topbar">
-  <div class="wrap in">
-    <a class="brand" href="#contenido"><span class="mark" aria-hidden="true"></span>NovaGest</a>
-    <nav class="nav" aria-label="Secciones del sitio">
-      <a href="#sistema">El sistema</a>
-      <a href="#modulos">Módulos</a>
-      <a href="#capturas">Capturas</a>
+<header class="site">
+  <div class="wrap bar">
+    <a class="marca" href="#inicio">
+      <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+        <rect width="64" height="64" rx="14" fill="#312e81" />
+        <path d="M32 14l14 7v22l-14 7-14-7V21z" fill="none" stroke="#a7f3d0" stroke-width="3.5" stroke-linejoin="round" />
+        <path d="M18 21l14 7 14-7M32 28v22" fill="none" stroke="#34d399" stroke-width="3.5" stroke-linejoin="round" />
+      </svg>
+      NovaGest
+    </a>
+    <nav aria-label="Secciones">
+      <a href="#funciones">Funciones</a>
+      <a href="#capturas" class="oculto">Capturas</a>
       <a href="#empezar">Cómo empezar</a>
-      <a href="#roles">Roles</a>
+      <a href="#roles" class="oculto">Roles</a>
       <a href="MANUAL_USUARIO.html">Manual</a>
-      <a href="https://github.com/yhquintero/inventario">GitHub</a>
     </nav>
   </div>
 </header>
 
 <main id="contenido">
-
-  <div class="hero">
-    <div class="wrap">
-      <p class="eyebrow">Sistema de gestión comercial</p>
-      <h1>NovaGest</h1>
-      <p class="lema">Gestiona. Crece. Avanza.</p>
-      <p class="lead">
-        <b>Inventario multialmacén, punto de venta, caja diaria e informes</b> para pequeños y medianos
-        negocios. La interfaz Web se instala como app y sigue trabajando sin conexión, la aplicación
-        Android lleva la operación al bolsillo y el servidor propio mantiene a todo el equipo sobre un
-        único estado: con roles, auditoría, licencia de uso y copias cifradas.
-      </p>
-      <div class="cta">
-        <a class="btn btn-1" href="MANUAL_USUARIO.html">📖 Leer el Manual de Usuario</a>
-        <a class="btn btn-2" href="assets/video/novagest-promo-720p.mp4">▶ Ver el video (2:39)</a>
-        <a class="btn btn-2" href="https://github.com/yhquintero/inventario#readme">Ver el repositorio</a>
-      </div>
-      <img class="shot" src="assets/novagest-hero.png" width="1600" height="900"
-           alt="El Panel de NovaGest en el navegador y la pantalla de Venta rápida en el móvil" />
-      <p class="caption">Panel de control en el escritorio y venta rápida en el móvil, con datos de demostración.</p>
-    </div>
-  </div>
-
-  <div class="stats">
+  <section class="hero" id="inicio">
     <div class="wrap grid">
-      <div class="stat"><div class="k">3 + 1</div><div class="l">Web, Android y servidor, más la app interna de licencias</div></div>
-      <div class="stat"><div class="k">Sin conexión</div><div class="l">PWA instalable y app Android con sincronización</div></div>
-      <div class="stat"><div class="k">4 roles</div><div class="l">Permisos validados en el servidor, no solo en la interfaz</div></div>
-      <div class="stat"><div class="k">Tus datos</div><div class="l">SQLite en tu equipo y copias cifradas diarias</div></div>
+      <div>
+        <p class="etiqueta">Inventario · Ventas · Cuadre diario</p>
+        <h1>Todo tu almacén bajo control, en la Web y en el teléfono</h1>
+        <p class="lead">
+          NovaGest reúne inventario multialmacén, venta rápida, fiados, cuadre diario e indicadores IPV
+          en una <strong>Web instalable</strong> y una <strong>app Android</strong> que comparten el mismo
+          estado. Funciona sin conexión y sin depender de la nube: tus datos viven en tu servidor.
+        </p>
+        <div class="acciones">
+          <a class="btn primario" href="MANUAL_USUARIO.html">Leer el manual</a>
+          <a class="btn secundario" href="assets/video/novagest-promo-720p.mp4">Ver el vídeo (3 min)</a>
+          <a class="btn secundario" href="https://github.com/yhquintero/inventario">Descargar el proyecto</a>
+        </div>
+      </div>
+      <img class="portada" src="assets/novagest-hero.png" width="1600" height="900"
+           alt="Portada de NovaGest: panel de inventario con indicadores, gráficos y accesos a las secciones de la aplicación." />
+    </div>
+  </section>
+
+  <div class="datos">
+    <div class="wrap">
+      <ul>
+        <li><strong>2 apps</strong><span>Web instalable + Android</span></li>
+        <li><strong>4 roles</strong><span>Permisos por función</span></li>
+        <li><strong>Sin conexión</strong><span>Sigue trabajando y sincroniza</span></li>
+        <li><strong>8 idiomas</strong><span>Documentación del proyecto</span></li>
+      </ul>
     </div>
   </div>
 
-  <section id="sistema">
+  <section id="funciones">
     <div class="wrap">
-      <h2><span class="emoji" aria-hidden="true">🧩</span>Un sistema, cuatro piezas</h2>
-      <p class="sub">NovaGest sustituye las hojas sueltas, los cuadernos y las plantillas de Excel por una sola aplicación coherente.</p>
-      <div class="cards">
-        <article class="card">
-          <span class="ico" aria-hidden="true">🌐</span>
-          <h3>Web (PWA)</h3>
-          <p>Centro de mando servido por el propio servidor: inventario, almacenes, importación de valores,
-          venta rápida, cuadre, informes y administración. Se instala como app, abre sin conexión y ofrece
-          búsqueda global, guía integrada y modo claro/oscuro.</p>
-        </article>
-        <article class="card">
-          <span class="ico" aria-hidden="true">📱</span>
-          <h3>Android</h3>
-          <p>App nativa en Kotlin y Jetpack Compose, con Room y almacenamiento local: vender con escáner,
-          consultar stock, cuadre, reportes, clientes y fiados, copias cifradas y desbloqueo biométrico.
-          Sincroniza cuando hay conexión.</p>
-        </article>
-        <article class="card">
-          <span class="ico" aria-hidden="true">🗄️</span>
-          <h3>Servidor</h3>
-          <p>Un proceso de Python que sirve la Web y la API. Fuente única de verdad: SQLite, sesiones,
-          permisos, licencias firmadas, cierre de días, auditoría y copias de seguridad cifradas automáticas.</p>
-        </article>
-        <article class="card">
-          <span class="ico" aria-hidden="true">🔑</span>
-          <h3>Keygen <span aria-hidden="true">(interno)</span></h3>
-          <p>App Android aparte, sin permiso de INTERNET, para que el titular emita y verifique claves de
-          licencia desde su teléfono, sin depender de la laptop ni del servidor.</p>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <section id="modulos">
-    <div class="wrap">
-      <h2><span class="emoji" aria-hidden="true">✨</span>Qué puedes hacer con NovaGest</h2>
-      <p class="sub">El recorrido completo del negocio, del inventario al informe que se entrega al contador.</p>
-
-      <div class="groups">
-        <span class="pill">Operación diaria</span>
-        <span class="pill">Análisis y control</span>
-        <span class="pill">Administración y seguridad</span>
-      </div>
-
-      <div class="mods">
-        <article class="mod"><h3>Inventario multialmacén</h3><p>Cada almacén conserva sus existencias y el inventario general suma todos; traspasos entre almacenes y ajustes con historial y opción de deshacer.</p></article>
-        <article class="mod"><h3>Importar valores</h3><p>Pega columnas del Excel, sube <code>.xlsx/.csv/.tsv/.txt</code> o escribe en la tabla; la vista previa clasifica cada fila antes de pisar datos.</p></article>
-        <article class="mod"><h3>Punto de venta</h3><p>Venta rápida que descuenta stock al instante, con escáner de códigos, cobro al contado o a fiado, comisiones y domicilios automáticos.</p></article>
-        <article class="mod"><h3>Clientes y fiados</h3><p>Libro de clientes con límite de crédito, cuentas por cobrar con vencimiento, estados y abonos con historial.</p></article>
-        <article class="mod"><h3>Movimientos</h3><p>Ventas, entradas y salidas con almacén, centro de venta, importes y observaciones; nunca dejan existencias negativas.</p></article>
-        <article class="mod"><h3>Caja diaria (cuadre)</h3><p>Tasas CUP/USD y MXN/USD, cobros, entradas, extracciones, fondos y gastos: el día está cuadrado cuando el resultado da cero.</p></article>
-        <article class="mod"><h3>Informes y comprobación</h3><p>Cuadres, resumen semanal y comprobación por día, semana, mes, año o rango propio, con exportación CSV y PDF lista para imprimir.</p></article>
-        <article class="mod"><h3>Análisis y metas</h3><p>Ventas por período, utilidad bruta y neta, valor del inventario a venta y a costo, margen por categoría y avance de las metas.</p></article>
-        <article class="mod"><h3>Fichas de costo e IPV</h3><p>Ficha versionada por producto o servicio con flujo de borrador a aprobada y control IPV por período validado contra la ficha.</p></article>
-      </div>
-    </div>
-  </section>
-
-  <section id="capturas">
-    <div class="wrap">
-      <h2><span class="emoji" aria-hidden="true">📸</span>Así se ve</h2>
-      <p class="sub">Capturas de la aplicación con los datos de demostración del proyecto: no contienen información de personas reales.</p>
-      <div class="gal">
-        <figure>
-          <img src="assets/capturas/panel.png" width="1440" height="900" loading="lazy" alt="Panel principal de NovaGest en modo claro con resumen del día y alertas de stock" />
-          <figcaption><b>Panel</b> — resumen del día, alertas de stock y accesos directos.</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/capturas/venta-rapida.png" width="1440" height="900" loading="lazy" alt="Pantalla de venta rápida con escáner, categorías, productos y carrito" />
-          <figcaption><b>Venta rápida</b> — escáner de códigos, carrito y cobro al contado o a fiado.</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/capturas/inventario.png" width="1440" height="900" loading="lazy" alt="Inventario con existencias por almacén, precios, costos y categorías" />
-          <figcaption><b>Inventario</b> — existencias por almacén, precios, costos y categorías.</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/capturas/cuadre-diario.png" width="1440" height="900" loading="lazy" alt="Cuadre diario con tasas, fondos, gastos y resultado del día" />
-          <figcaption><b>Cuadre diario</b> — tasas, fondos y gastos; el resultado debe quedar en cero.</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/capturas/analisis-y-metas.png" width="1440" height="900" loading="lazy" alt="Análisis y metas con indicadores, márgenes y tendencia de ventas" />
-          <figcaption><b>Análisis y metas</b> — indicadores, margen por categoría y tendencia diaria.</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/capturas/panel-oscuro.png" width="1440" height="900" loading="lazy" alt="Panel principal de NovaGest en modo oscuro" />
-          <figcaption><b>Modo oscuro</b> — la misma interfaz con tema oscuro.</figcaption>
-        </figure>
-      </div>
-      <p class="caption">
-        <img src="assets/novagest-movil.png" width="1600" height="860" loading="lazy"
-             alt="La aplicación Web de NovaGest en el móvil: panel, venta rápida y modo oscuro" />
-        La aplicación Web en el móvil: navegación inferior e instalación como app.
+      <h2>Lo que resuelve, sin hojas de cálculo</h2>
+      <p class="introduccion">
+        Cada sección existe porque un negocio real la necesita a diario: saber qué hay, qué se vendió,
+        quién debe y cuánto quedó en caja al cerrar.
       </p>
+      <div class="rejilla">
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">📦</span> Inventario multialmacén</h3>
+          <p>Cada almacén conserva sus existencias y el inventario general suma todos. Importa valores desde Excel, traspasa mercancía entre almacenes y ajusta diferencias con historial y opción de deshacer.</p>
+        </article>
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">🛒</span> Venta rápida</h3>
+          <p>Descuenta el stock del almacén en uso al instante, con escáner de códigos de barras, cobro al contado o a fiado, comisiones y domicilios calculados automáticamente.</p>
+        </article>
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">🤝</span> Clientes y fiados</h3>
+          <p>Límite de crédito por cliente, cuentas por cobrar con vencimiento, estados pendiente, parcial, vencido o pagado, y abonos con historial completo.</p>
+        </article>
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">🧮</span> Cuadre diario</h3>
+          <p>Cierre por turnos y centros de venta: efectivo, transferencias, gastos y diferencias. El día se cierra cuando debe cerrarse y queda auditado.</p>
+        </article>
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">📈</span> Análisis e IPV</h3>
+          <p>Índice de productividad de ventas, comparación de períodos, mapa de calor por día de la semana y exportación a CSV para revisarlo en Excel.</p>
+        </article>
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">🔐</span> Licencia y respaldos</h3>
+          <p>Licencia firmada que se verifica sin conexión, auditoría de acciones por usuario, copias diarias cifradas y panel de control en Windows.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="capturas" id="capturas">
+    <div class="wrap">
+      <h2>Así se ve trabajando</h2>
+      <p class="introduccion">Capturas reales de la aplicación con datos de demostración.</p>
+      <div class="galeria">
+        <figure>
+          <img src="assets/capturas/panel.png" width="1440" height="900" loading="lazy"
+               alt="Panel principal con indicadores de ventas, alertas de stock y accesos rápidos." />
+          <figcaption>Panel: el estado del negocio de un vistazo.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/capturas/venta-rapida.png" width="1440" height="900" loading="lazy"
+               alt="Pantalla de venta rápida con búsqueda de productos, carrito y total a cobrar." />
+          <figcaption>Venta rápida, con lector de códigos.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/capturas/analisis-y-metas.png" width="1440" height="900" loading="lazy"
+               alt="Pantalla de análisis con gráficos de ventas, mapa de calor y metas por categoría." />
+          <figcaption>Análisis: gráficos, mapa de calor y metas.</figcaption>
+        </figure>
+      </div>
     </div>
   </section>
 
   <section id="empezar">
     <div class="wrap">
-      <h2><span class="emoji" aria-hidden="true">🚀</span>Cómo empezar</h2>
-      <p class="sub">Requisitos: <b>Python 3.10 o posterior</b> en el servidor y un navegador actualizado. Para Android hace falta Android 8.0 o posterior (API 26+).</p>
-
-      <h3>1 · Servidor y aplicación Web</h3>
-<pre><code>python3 -m pip install -r requirements.txt
-python3 server/novagest_server.py     # Web + API en http://localhost:8080</code></pre>
-
-      <h3>2 · Activar la licencia de uso</h3>
-<pre><code>python3 tools/generate_license.py --client "Mi Tienda" --term MES</code></pre>
-      <p class="sub">Abre <code>http://localhost:8080</code>, pega la clave en la pantalla <b>Licencia de Uso</b> y entra con tu cuenta.</p>
-
-      <h3>3 · Android</h3>
-      <p class="sub">Abre la raíz del proyecto en Android Studio (JDK 17, wrapper de Gradle 8.14.5), ejecuta la configuración <code>app</code> y escribe la dirección HTTPS del servidor para sincronizar.</p>
-
-      <div class="note">📖 Guía paso a paso —HTTPS en Windows, Panel de Control Visual, Docker con dominio propio, Android y producción— en <a href="INSTALACION.md">docs/INSTALACION.md</a>.</div>
-      <div class="note warn">⚠️ <b>Cambia las contraseñas iniciales antes de usar el sistema con datos reales</b> y usa siempre HTTPS. En producción arranca con <code>NOVAGEST_DEMO_USERS=0 NOVAGEST_ADMIN_PASSWORD=&lt;secreta&gt;</code>.</div>
+      <h2>Empezar en tres pasos</h2>
+      <p class="introduccion">Necesitas Python 3.10 o posterior. La app Android se compila aparte con Android Studio.</p>
+      <ol class="pasos">
+        <li class="paso">
+          <h3>Arranca el servidor</h3>
+          <p>Instala las dependencias y levanta la Web junto con la API.</p>
+          <pre><code>python3 -m pip install -r requirements.txt
+python3 server/novagest_server.py</code></pre>
+        </li>
+        <li class="paso">
+          <h3>Activa la licencia</h3>
+          <p>Una instalación nueva queda bloqueada hasta introducir una clave firmada.</p>
+          <pre><code>python3 tools/generate_license.py --client "Mi Tienda" --term MES</code></pre>
+          <p>Abre <code>http://localhost:8080</code>, pega la clave en la pantalla <strong>Licencia de Uso</strong> y entra con tu cuenta.</p>
+        </li>
+        <li class="paso">
+          <h3>Suma el teléfono</h3>
+          <p>Abre la raíz del proyecto en Android Studio (JDK 17) y ejecuta la configuración <code>app</code>. En la pantalla de acceso escribe la dirección HTTPS del servidor para sincronizar; si la dejas vacía, la app trabaja en modo local.</p>
+        </li>
+      </ol>
+      <div class="acciones">
+        <a class="btn primario" href="MANUAL_USUARIO.html">Manual paso a paso</a>
+        <a class="btn secundario" href="https://github.com/yhquintero/inventario#-instalación">Instalación completa en el README</a>
+      </div>
     </div>
   </section>
 
-  <section id="roles">
+  <section id="roles" style="background: var(--surface); border-block: 1px solid var(--line);">
     <div class="wrap">
-      <h2><span class="emoji" aria-hidden="true">👥</span>Roles y permisos</h2>
-      <p class="sub">Cada persona entra con su propio usuario. El rol decide qué ve y qué puede cambiar, y el servidor valida los mismos permisos que la interfaz.</p>
-      <div class="tblwrap">
+      <h2>Cada persona, sus permisos</h2>
+      <p class="introduccion">Un solo sistema con cuatro roles. Lo que no corresponde a un rol no aparece en su pantalla, y todo queda registrado en la auditoría.</p>
+      <div class="tabla-caja">
         <table>
-          <caption class="sr">Permisos por rol en NovaGest</caption>
+          <caption class="visually-hidden" style="position:absolute;left:-9999px;">Permisos por rol en NovaGest</caption>
           <thead>
-            <tr><th scope="col">Área</th><th scope="col" class="c">Administrador</th><th scope="col" class="c">Jefe</th><th scope="col" class="c">Económico</th><th scope="col" class="c">Almacenero</th></tr>
+            <tr>
+              <th scope="col">Función</th>
+              <th scope="col">Administrador</th>
+              <th scope="col">Jefe</th>
+              <th scope="col">Económico</th>
+              <th scope="col">Almacenero</th>
+            </tr>
           </thead>
           <tbody>
-            <tr><td>Panel, inventario y movimientos (consulta)</td><td class="c">✅</td><td class="c">✅</td><td class="c">✅</td><td class="c">✅</td></tr>
-            <tr><td>Crear y editar productos</td><td class="c">✅</td><td class="c">✅</td><td class="c">—</td><td class="c">✅</td></tr>
-            <tr><td>Almacenes, traspasos e importar valores</td><td class="c">✅</td><td class="c">✅</td><td class="c">solo ver</td><td class="c">✅</td></tr>
-            <tr><td>Vender y registrar movimientos</td><td class="c">✅</td><td class="c">✅</td><td class="c">—</td><td class="c">✅</td></tr>
-            <tr><td>Cuadre diario</td><td class="c">✅</td><td class="c">✅</td><td class="c">editar</td><td class="c">solo ver</td></tr>
-            <tr><td>Informes, comprobación y finanzas</td><td class="c">✅</td><td class="c">✅</td><td class="c">✅</td><td class="c">—</td></tr>
-            <tr><td>Clientes y fiados</td><td class="c">✅</td><td class="c">✅</td><td class="c">✅</td><td class="c">✅</td></tr>
-            <tr><td>Fichas de costo e IPV</td><td class="c">✅</td><td class="c">✅</td><td class="c">✅</td><td class="c">solo ver</td></tr>
-            <tr><td>Usuarios y ajustes del negocio</td><td class="c">✅</td><td class="c">✅</td><td class="c">—</td><td class="c">—</td></tr>
-            <tr><td>Auditoría y seguridad</td><td class="c">✅</td><td class="c">✅</td><td class="c">✅</td><td class="c">—</td></tr>
-            <tr><td>Copias de seguridad y licencia de uso</td><td class="c">✅</td><td class="c">✅</td><td class="c">—</td><td class="c">—</td></tr>
+            <tr>
+              <th scope="row">Inventario, almacenes y traspasos</th>
+              <td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo ver</td><td class="si">Sí</td>
+            </tr>
+            <tr>
+              <th scope="row">Ventas y movimientos</th>
+              <td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo ver</td><td class="si">Sí</td>
+            </tr>
+            <tr>
+              <th scope="row">Cuadre diario y cierre</th>
+              <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo ver</td>
+            </tr>
+            <tr>
+              <th scope="row">Informes y exportaciones</th>
+              <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td>
+            </tr>
+            <tr>
+              <th scope="row">Usuarios, licencia y auditoría</th>
+              <td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo auditoría</td><td class="no">No</td>
+            </tr>
           </tbody>
         </table>
       </div>
     </div>
   </section>
 
+  <section class="cierre">
+    <div class="wrap caja">
+      <div>
+        <h2>Instálalo una vez y trabaja sin conexión</h2>
+        <p class="introduccion">La Web se instala como aplicación desde el propio navegador y la app Android guarda en el teléfono: si se cae la red, se sigue vendiendo y los cambios se suben al reconectar.</p>
+      </div>
+      <div class="acciones" style="margin-top: 0;">
+        <a class="btn primario" href="MANUAL_USUARIO.html">Empezar con el manual</a>
+        <a class="btn secundario" href="https://github.com/yhquintero/inventario">Ver el código</a>
+      </div>
+    </div>
+  </section>
 </main>
 
-<footer>
+<footer class="site">
   <div class="wrap">
-    <div class="cols">
-      <div>
-        <h2>NovaGest</h2>
-        <p style="margin:0; color:#c9cbe6">Inventario multialmacén, punto de venta, caja diaria e informes.
-        Web instalable, aplicación Android y servidor propio. <b style="color:#fff">Gestiona. Crece. Avanza.</b></p>
-      </div>
-      <div>
-        <h2>Documentación</h2>
-        <ul>
-          <li><a href="MANUAL_USUARIO.html">Manual de Usuario (imprimible)</a></li>
-          <li><a href="https://github.com/yhquintero/inventario/blob/main/docs/MANUAL_USUARIO.md">Manual de Usuario (Markdown)</a></li>
-          <li><a href="https://github.com/yhquintero/inventario/blob/main/docs/INSTALACION.md">Instalación y despliegue</a></li>
-          <li><a href="https://github.com/yhquintero/inventario/blob/main/docs/LICENCIAS.md">Licencias de uso</a></li>
-          <li><a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">Registro de cambios</a></li>
-        </ul>
-      </div>
-      <div>
-        <h2>Proyecto</h2>
-        <ul>
-          <li><a href="https://github.com/yhquintero/inventario">Repositorio en GitHub</a></li>
-          <li><a href="https://github.com/yhquintero/inventario/blob/main/README.md">Descripción del proyecto</a></li>
-          <li><a href="https://github.com/yhquintero/inventario/blob/main/CONTRIBUTING.md">Cómo contribuir</a></li>
-          <li><a href="https://github.com/yhquintero/inventario/blob/main/SECURITY.md">Política de seguridad</a></li>
-          <li><a href="assets/video/novagest-promo-720p.mp4">Video de presentación</a></li>
-        </ul>
-      </div>
-      <div>
-        <h2>Contacto</h2>
-        <ul>
-          <li><a href="https://github.com/yhquintero/inventario/issues">Informar de un problema</a></li>
-          <li>Solicitud de licencia desde la pantalla <b>Licencia de Uso</b> de la Web o de la app Android</li>
-        </ul>
-      </div>
-    </div>
-    <div class="legal">
-      © 2026 yhquintero · NovaGest es <b>software propietario</b>: ver el código no concede derechos de uso.
-      Usarlo en un negocio, copiarlo, modificarlo o distribuirlo requiere una licencia de uso del titular.
-      Los componentes de terceros conservan sus propias licencias.
-    </div>
+    <ul>
+      <li><a href="MANUAL_USUARIO.html">Manual de usuario</a></li>
+      <li><a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">Novedades</a></li>
+      <li><a href="https://github.com/yhquintero/inventario/blob/main/LICENSE">Licencia</a></li>
+      <li><a href="https://github.com/yhquintero/inventario">Repositorio</a></li>
+    </ul>
+    <p>NovaGest · Inventario, ventas y cuadre diario. Documentación y capturas con datos de demostración.</p>
   </div>
 </footer>
 </body>

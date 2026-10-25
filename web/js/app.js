@@ -11,7 +11,7 @@ import {
   normalizeBarcode, creditPending, creditStatus,
 } from "./calc.js";
 import { moneyIn } from "./ipv.js";
-import { categoryBreakdown, compactNumber, heatLevel, heatmapGrid, heatmapSummary, niceTicks } from "./charts.js";
+import { categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, heatmapSummary, niceTicks } from "./charts.js";
 import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
 
@@ -2168,7 +2168,7 @@ function analyticsView() {
     </div>
     <div class="card mt16"><div class="card-h"><span class="k">📈 Tendencia de ventas diarias</span><span class="hint">línea discontinua = meta diaria</span></div>${lineChart(series, s.goalDaily)}</div>
     <div class="grid-2 mt16">
-      <div class="card"><div class="card-h"><span class="k">🔥 Mapa de calor de ventas</span><span class="tag mov">últimas ${grid.weeks} semanas</span></div>
+      <div class="card"><div class="card-h"><span class="k">🔥 Mapa de calor de ventas</span><span class="row"><span class="tag mov">últimas ${grid.weeks} semanas</span>${allowed("REPORTS_EXPORT") ? `<button class="btn ghost small" data-act="export-heat">CSV</button>` : ""}</span></div>
         <p class="hint">Cada cuadro es un día; cuanto más oscuro, más se vendió. Sirve para ver de un golpe qué días flaquean.</p>
         ${heatmapMarkup(grid)}
       </div>
@@ -4111,6 +4111,11 @@ function onClick(e) {
   else if (act === "do-backup") { download("novagest-backup.json", store.exportBackup(), "application/json"); toast("Copia descargada", "ok"); }
   else if (act === "reset") confirmModal("Esto reemplaza los datos del servidor (para todos) por los datos iniciales de NovaGest (hoja 25 9 26). Crea antes una copia.", () => { store.resetDemo(); toast("Datos recargados desde el Excel", "ok"); });
   else if (act === "export-csv") exportComprobacion();
+  else if (act === "export-heat") {
+    const grid = heatmapGrid(store.activeMovements(), { weeks: 8, endDate: (dailySeries().at(-1)?.d) || todayISO() });
+    download(`ventas_por_dia_${todayISO()}.csv`, "\uFEFF" + heatmapCsv(grid), "text/csv");
+    toast("Mapa de calor exportado a CSV", "ok");
+  }
   else if (act === "survey-save") {
     const f = document.getElementById("surveyForm");
     const txt = f?.querySelector("textarea")?.value.trim() || "";

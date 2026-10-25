@@ -1245,7 +1245,7 @@ el Excel, con la tasa CUP/USD de cada día.
 | **🎯 Metas** | Barras de progreso de hoy, semana y mes contra sus metas (Ajustes) |
 | **Margen por categoría** | Porcentaje de margen de cada categoría, calculado con ventas reales |
 | **📈 Tendencia de ventas diarias** | Serie diaria con la meta como línea discontinua |
-| **🔥 Mapa de calor de ventas** | Las últimas 8 semanas por día de la semana: cuanto más oscuro el cuadro, más se vendió. Descubre de un vistazo los días flojos |
+| **🔥 Mapa de calor de ventas** | Las últimas 8 semanas por día de la semana: cuanto más oscuro el cuadro, más se vendió. Descubre de un vistazo los días flojos. El botón **CSV** del recuadro descarga esos días (fecha, ventas, unidades, número de ventas) listos para Excel |
 | **🏷️ Ventas y utilidad por categoría** | Barras por categoría: la clara es la venta y la verde la utilidad, con el margen y el peso de cada categoría en el total |
 | **💤 Productos sin movimiento** | Capital parado: los que tienen stock y no se vendieron |
 
@@ -1780,8 +1780,14 @@ versión de datos y los días cerrados, con el botón **Sincronizar ahora**.
 - El servidor guarda **un único estado** con número de versión.
 - La Web y el Android **leen** ese estado y **escriben** sobre él; el servidor valida
   permisos, licencia y días cerrados.
-- Si dos personas editan a la vez, gana el primero y el segundo **recarga** (conflicto). Por
-  eso conviene repartir el trabajo por secciones.
+- Si dos personas editan a la vez, **no se pierde el trabajo**: la segunda aplicación fusiona
+  por `updatedAt` y, en cada registro, se queda con la edición más reciente (Web y Android).
+  Aun así conviene repartir el trabajo por secciones.
+
+> [!NOTE]
+> **Conflictos.** Si dos personas guardan a la vez, la app descarga la versión del servidor, vuelve
+> a aplicar lo propio encima y guarda: se conserva lo más reciente de cada registro y aparece el
+> aviso «Conflicto resuelto». Nadie tiene que volver a escribir lo perdido.
 
 ## 17.2 Flujo recomendado para un equipo pequeño
 
@@ -1807,7 +1813,7 @@ versión de datos y los días cerrados, con el botón **Sincronizar ahora**.
 
 | App | Qué pasa | Qué hacer |
 |---|---|---|
-| 🌐 **Web instalada (PWA)** | Sigue abierta y operando con los datos cargados | Continúe; al volver la red se sincroniza. Evite operaciones críticas si el servidor lleva mucho tiempo caído |
+| 🌐 **Web instalada (PWA)** | Sigue abierta y operando con los datos cargados; los cambios se **guardan en el equipo** | Continúe. Al volver la red se suben solos; si cierra la pestaña antes, al volver a entrar la app los recupera y avisa cuántos eran |
 | 📱 **Android con servidor** | Guarda en el teléfono y muestra el icono de nube sin conexión | Siga vendiendo; pulse **Sincronizar ahora** al recuperar la red |
 | 📱 **Android local** | Nunca depende de la red | Sin cambios |
 | 🗄️ **Servidor caído** | Nadie comparte datos nuevos | Reinicie el servidor desde el Panel de Control y sincronice los equipos |
