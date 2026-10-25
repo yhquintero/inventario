@@ -63,7 +63,14 @@ try:
     ok("el tamaño de la base es un número", isinstance(salud.get("bdBytes"), int) and salud["bdBytes"] > 0)
     ok("el tiempo en marcha avanza", isinstance(salud.get("uptimeSegundos"), int) and salud["uptimeSegundos"] >= 0)
     ok("sin licencia activa avisa", "licencia" in (salud.get("avisos") or []), str(salud.get("avisos")))
-    ok("sin copias avisa", "sin-copias" in (salud.get("avisos") or []), str(salud.get("avisos")))
+    # El servidor puede crear una copia al arrancar: la expectativa sale del dato.
+    copias = salud.get("copias") or {}
+    avisos = set(salud.get("avisos") or [])
+    if copias.get("total", 0) == 0:
+        ok("sin copias avisa", "sin-copias" in avisos, str(sorted(avisos)))
+    else:
+        ok("con copia reciente no avisa de copias",
+           not ({"sin-copias", "copias-viejas"} & avisos), str(sorted(avisos)))
     ok("el estado global es «aviso»", salud.get("estado") == "aviso", str(salud.get("estado")))
     ok("las copias se describen con total y última", {"total", "ultima", "haceHoras"} <= set((salud.get("copias") or {}).keys()))
 
