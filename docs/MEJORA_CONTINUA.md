@@ -9,7 +9,7 @@ en cada versión: Planificar → Hacer → Verificar (la batería/CI) → Actuar
 1 ✅ Cobertura: `tools/test_calc.mjs` + `tools/cobertura.mjs --min 80` en CI (calc 98,5 %, ipv 97 %).
 2 ✅ Restauración automática: `tools/test_restauracion.py` en CI nocturno — **detectó y se corrigió** que `read_backup` rechazaba las copias nuevas (`novagest_` vs prefijo legado `cuadre_`) y que el bucle diario no reconocía la copia del día.
 3 ✅ Carga ligera: `tools/test_carga.py` (login/PUT concurrentes, p95 < 1500 ms) en CI.
-4 ◐ Wrapper: propiedades versionadas y CI con Gradle 8.9 fijado; falta generar `gradlew`/jar con `gradle wrapper` en Android Studio (requiere Gradle local).
+4 ✅ Wrapper completo y versionado: `gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar` y propiedades con Gradle 8.14.5; la CI compila con ese mismo wrapper (`chmod +x gradlew`).
 5 ✅ CSP sin `unsafe-inline`: 159 estilos migrados a clases/data-*/CSSOM; CSP verificada en vivo.
 6 ✅ HSTS solo bajo HTTPS + aviso de caducidad de `security.txt` en el verificador.
 7 ✅ Rotación de secretos: procedimiento y acta en `00-INDICE-Y-FIRMAS.md` (rotar sigue siendo acción del titular).

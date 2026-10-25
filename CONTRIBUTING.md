@@ -23,7 +23,7 @@
 
 ## 🛠️ Preparar el entorno
 
-Requisitos: **Python 3.10+** (la integración continua usa 3.12), **Node.js 22** para las pruebas Web y, opcionalmente, **JDK 17 + Gradle 8.9** para Android y **PowerShell 7** para las pruebas del Panel de Control Visual.
+Requisitos: **Python 3.10+** (la integración continua usa 3.12), **Node.js 22** para las pruebas Web y, opcionalmente, **JDK 17 + Gradle 8.14.5** para Android y **PowerShell 7** para las pruebas del Panel de Control Visual.
 
 ```bash
 git clone https://github.com/yhquintero/inventario.git
@@ -94,7 +94,7 @@ Search existing issues and pull requests first. For large changes (a new module,
 
 ### 🛠️ Development setup
 
-Requirements: **Python 3.10+** (CI uses 3.12), **Node.js 22** for the Web tests and, optionally, **JDK 17 + Gradle 8.9** for Android and **PowerShell 7** for the Visual Control Panel tests.
+Requirements: **Python 3.10+** (CI uses 3.12), **Node.js 22** for the Web tests and, optionally, **JDK 17 + Gradle 8.14.5** for Android and **PowerShell 7** for the Visual Control Panel tests.
 
 ```bash
 git clone https://github.com/yhquintero/inventario.git

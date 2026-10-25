@@ -133,7 +133,7 @@ DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
 
 ### Android
 
-Откройте корневую папку проекта в Android Studio (JDK 17 и Gradle 8.9), запустите конфигурацию `app` и укажите на экране входа HTTPS-адрес сервера для синхронизации.
+Откройте корневую папку проекта в Android Studio (JDK 17 и Gradle 8.14.5), запустите конфигурацию `app` и укажите на экране входа HTTPS-адрес сервера для синхронизации.
 
 📖 Пошаговое руководство — HTTPS, визуальная панель управления, Docker, Android и рабочая среда: [docs/INSTALACION.md](../INSTALACION.md) (на испанском).
 
@@ -196,7 +196,7 @@ python3 tools/test_licencia.py && python3 tools/test_generador.py
 python3 tools/test_seguridad_servidor.py && python3 tools/test_restauracion.py
 python3 tools/test_carga.py --n 12
 
-# Визуальная панель управления (PowerShell 7) и Android (JDK 17 + Gradle 8.9)
+# Визуальная панель управления (PowerShell 7) и Android (JDK 17 + Gradle 8.14.5)
 pwsh -NoProfile -File tools/test_panel_control.ps1
 gradle testDebugUnitTest
 ```
