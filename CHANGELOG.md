@@ -1,5 +1,9 @@
 ﻿# NovaGest — Registro de cambios
 
+## NovaGest v1.0.0 · revisión 2026-10-24 (XVI) · Segunda ola de mejoras propuestas
+
+- **`docs/MEJORAS_PROPUESTAS.md`**: resumen de avance al principio (paso 1, W-01 y A-01 en ✅, con el orden sugerido para seguir) y una **segunda ola de 14 propuestas** nacidas de lo ya construido: comparador de períodos y reposición sugerida en Análisis, hoja imprimible y exportación del mapa de calor, sincronización incremental, recibo con QR, widget de inicio, prueba de instrumentación de la cola, API por diferencias, panel de salud, instalador de Windows, manual en inglés y guía de migración desde Excel.
+
 ## NovaGest v1.0.0 · revisión 2026-10-24 (XV) · Cola de sincronización y conflictos en Android (A-01)
 
 - **Los conflictos ya no descartan trabajo.** Cuando el servidor responde **409** (otra persona guardó antes), la App descarga la versión del servidor, la toma como base y **vuelve a aplicar los cambios del teléfono encima**: en cada producto gana el `updatedAt` más reciente y los cambios del servidor se conservan. Antes se recargaba y se perdían las ediciones locales.
