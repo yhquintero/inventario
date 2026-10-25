@@ -20,7 +20,7 @@
 [![SQLite](https://img.shields.io/badge/SQLite-datos%20compartidos-003B57?style=flat-square&logo=sqlite&logoColor=white)](server/)
 [![Licencia](https://img.shields.io/badge/licencia-propietaria-475569?style=flat-square)](LICENSE)
 
-[🌐 Sitio del proyecto](https://yhquintero.github.io/inventario/) · [Resumen](#-resumen) · [Ecosistema](#-ecosistema) · [Funciones](#-funciones) · [Capturas](#-capturas) · [Requisitos](#-requisitos) · [Inicio rápido](#-inicio-rápido) · [Roles](#-roles-y-permisos) · [Documentación](#-documentación) · [Preguntas frecuentes](#-preguntas-frecuentes) · [Seguridad](#-seguridad) · [Licencia](#-licencia)
+[Resumen](#-resumen) · [Ecosistema](#-ecosistema) · [Funciones](#-funciones) · [Capturas](#-capturas) · [Requisitos](#-requisitos) · [Inicio rápido](#-inicio-rápido) · [Roles](#-roles-y-permisos) · [Documentación](#-documentación) · [Preguntas frecuentes](#-preguntas-frecuentes) · [Seguridad](#-seguridad) · [Licencia](#-licencia)
 
 </div>
 
@@ -380,7 +380,7 @@ se mantienen fuera del control de versiones.
 |---|---|
 | [**Manual de Usuario**](docs/MANUAL_USUARIO.md) · [versión imprimible](docs/MANUAL_USUARIO.html) | Manual completo paso a paso: activación, almacenes, venta, fiados, cuadre, informes, copias, roles, Android, solución de problemas y listas de verificación |
 | [Manual rápido](docs/MANUAL.md) | Uso diario de la aplicación en una página |
-| [Sitio del proyecto](https://yhquintero.github.io/inventario/) | Página de presentación con módulos, capturas y guía de inicio (`docs/index.html`) |
+| [Sitio de presentación](docs/index.html) | Página de producto autocontenida con módulos, capturas y guía de inicio; lista para publicar con **GitHub Pages** desde la carpeta `docs/` |
 | [Instalación y despliegue](docs/INSTALACION.md) | Servidor, Windows con HTTPS y Panel de Control Visual, Docker, Android y producción |
 | [Licencias de uso](docs/LICENCIAS.md) · [Rotación del secreto](docs/ROTACION_SECRETO.md) · [Keygen](keygen/README.md) | Activación, plazos, solicitudes por WhatsApp, emisión de claves y control de equipos |
 | [Almacenes e importación](docs/ALMACENES.md) | Existencias por almacén, traspasos e importación de valores |
