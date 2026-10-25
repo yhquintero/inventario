@@ -133,7 +133,7 @@ DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
 
 ### Android
 
-在 Android Studio 中打开项目根目录（JDK 17 与 Gradle 8.9），运行 `app` 配置，并在登录界面填写服务器的 HTTPS 地址以进行同步。
+在 Android Studio 中打开项目根目录（JDK 17 与 Gradle 8.14.5），运行 `app` 配置，并在登录界面填写服务器的 HTTPS 地址以进行同步。
 
 📖 分步指南 —— HTTPS、可视化控制面板、Docker、Android 与生产环境：[docs/INSTALACION.md](../INSTALACION.md)（西班牙语）。
 
@@ -196,7 +196,7 @@ python3 tools/test_licencia.py && python3 tools/test_generador.py
 python3 tools/test_seguridad_servidor.py && python3 tools/test_restauracion.py
 python3 tools/test_carga.py --n 12
 
-# 可视化控制面板（PowerShell 7）与 Android（JDK 17 + Gradle 8.9）
+# 可视化控制面板（PowerShell 7）与 Android（JDK 17 + Gradle 8.14.5）
 pwsh -NoProfile -File tools/test_panel_control.ps1
 gradle testDebugUnitTest
 ```

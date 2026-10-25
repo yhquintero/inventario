@@ -133,7 +133,7 @@ DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
 
 ### Android
 
-Ouvrez la racine du projet dans Android Studio (JDK 17 et Gradle 8.9), exécutez la configuration `app` et indiquez l'adresse HTTPS du serveur sur l'écran de connexion pour synchroniser.
+Ouvrez la racine du projet dans Android Studio (JDK 17 et Gradle 8.14.5), exécutez la configuration `app` et indiquez l'adresse HTTPS du serveur sur l'écran de connexion pour synchroniser.
 
 📖 Guide pas à pas — HTTPS, Panneau de contrôle visuel, Docker, Android et production : [docs/INSTALACION.md](../INSTALACION.md) (en espagnol).
 
@@ -196,7 +196,7 @@ python3 tools/test_licencia.py && python3 tools/test_generador.py
 python3 tools/test_seguridad_servidor.py && python3 tools/test_restauracion.py
 python3 tools/test_carga.py --n 12
 
-# Panneau de contrôle visuel (PowerShell 7) et Android (JDK 17 + Gradle 8.9)
+# Panneau de contrôle visuel (PowerShell 7) et Android (JDK 17 + Gradle 8.14.5)
 pwsh -NoProfile -File tools/test_panel_control.ps1
 gradle testDebugUnitTest
 ```

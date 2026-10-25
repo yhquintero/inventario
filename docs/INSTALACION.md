@@ -83,7 +83,7 @@ El despliegue usa Caddy para HTTPS y conserva los datos en el volumen Docker. Re
 ## Android
 
 1. Abre la raíz del proyecto en Android Studio.
-2. Usa JDK 17 y Gradle 8.9; sincroniza el proyecto y ejecuta la configuración `app` en un emulador o dispositivo.
+2. Usa JDK 17 y el wrapper de Gradle del proyecto (8.14.5); sincroniza y ejecuta la configuración `app` en un emulador o dispositivo.
 3. Para sincronizar Web y Android, configura en el acceso de la aplicación la dirección HTTPS del servidor.
 
 > 📱 El identificador de la app es `com.novagest.inventario`. Si vienes de la versión anterior

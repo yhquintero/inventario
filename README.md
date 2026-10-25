@@ -6,19 +6,21 @@
 
 ### Gestiona. Crece. Avanza.
 
-**Inventario, punto de venta, caja diaria e informes para tu negocio — en la Web, en Android y sin conexión.**
+**Inventario multialmacén, punto de venta, caja diaria e informes para tu negocio.**
+**Web instalable, aplicación Android y servidor propio — también sin conexión.**
 
 🌐 **Español** · [English](docs/readme/README_en.md) · [Português](docs/readme/README_pt-BR.md) · [Français](docs/readme/README_fr.md) · [Italiano](docs/readme/README_it.md) · [Deutsch](docs/readme/README_de.md) · [Русский](docs/readme/README_ru.md) · [简体中文](docs/readme/README_zh-CN.md)
 
+[![CI](https://github.com/yhquintero/inventario/actions/workflows/ci.yml/badge.svg)](https://github.com/yhquintero/inventario/actions/workflows/ci.yml)
 [![Versión](https://img.shields.io/badge/versi%C3%B3n-1.0.0-4f46e5?style=flat-square)](CHANGELOG.md)
-[![Plataformas](https://img.shields.io/badge/plataformas-Web%20%C2%B7%20Android%20%C2%B7%20Servidor-1e1b4b?style=flat-square)](#-qué-incluye)
+[![Plataformas](https://img.shields.io/badge/plataformas-Web%20%C2%B7%20Android%20%C2%B7%20Servidor-1e1b4b?style=flat-square)](#-ecosistema)
 [![PWA](https://img.shields.io/badge/PWA-funciona%20sin%20conexi%C3%B3n-059669?style=flat-square)](#-preguntas-frecuentes)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](#-inicio-rápido)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](#-requisitos)
 [![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](app/)
 [![SQLite](https://img.shields.io/badge/SQLite-datos%20compartidos-003B57?style=flat-square&logo=sqlite&logoColor=white)](server/)
 [![Licencia](https://img.shields.io/badge/licencia-propietaria-475569?style=flat-square)](LICENSE)
 
-[Funciones](#-funciones) · [Capturas](#-capturas) · [Inicio rápido](#-inicio-rápido) · [Documentación](#-documentación) · [Preguntas frecuentes](#-preguntas-frecuentes) · [Seguridad](#-seguridad) · [Licencia](#-licencia)
+[🌐 Sitio del proyecto](https://yhquintero.github.io/inventario/) · [Resumen](#-resumen) · [Ecosistema](#-ecosistema) · [Funciones](#-funciones) · [Capturas](#-capturas) · [Requisitos](#-requisitos) · [Inicio rápido](#-inicio-rápido) · [Roles](#-roles-y-permisos) · [Documentación](#-documentación) · [Preguntas frecuentes](#-preguntas-frecuentes) · [Seguridad](#-seguridad) · [Licencia](#-licencia)
 
 </div>
 
@@ -27,43 +29,103 @@
 </p>
 
 > [!TIP]
-> **¿Primera vez?** El [Manual de Usuario](docs/MANUAL_USUARIO.md) explica el sistema completo
-> paso a paso ([versión imprimible en HTML](docs/MANUAL_USUARIO.html)), y el
-> [video de presentación de 2:50 min](docs/assets/video/novagest-promo-720p.mp4) resume en
-> seis pasos cómo trabajar con la Web y con Android.
+> **¿Primera vez?** Empieza por el **[Manual de Usuario](docs/MANUAL_USUARIO.md)** —paso a paso,
+> también en [versión imprimible](docs/MANUAL_USUARIO.html)— o mira el
+> **[video de presentación de 2:50 min](docs/assets/video/novagest-promo-720p.mp4)**, que resume
+> los seis pasos esenciales para trabajar con la Web y con Android.
 
 > [!IMPORTANT]
 > **NovaGest es software propietario.** El código es visible en GitHub, pero usarlo en un negocio, copiarlo, modificarlo o distribuirlo requiere una **licencia de uso** del titular. Consulta [LICENSE](LICENSE) y la sección [Licencia](#-licencia).
 
-## 💡 ¿Qué es NovaGest?
+---
 
-**NovaGest** reúne en un solo lugar lo que tu negocio necesita todos los días: **inventario multialmacén**, **punto de venta**, **caja diaria** e **informes con análisis**. Nada de hojas sueltas ni cuadernos: la aplicación Web se instala como app y sigue funcionando si se cae la conexión, la app Android lleva la operación al bolsillo y el servidor compartido mantiene a todos trabajando sobre el mismo estado en tiempo real — con licencia de uso, roles, auditoría y copias de seguridad.
+## 🧭 Resumen
+
+**NovaGest** sustituye las hojas sueltas, los cuadernos y las plantillas de Excel por una sola
+aplicación: **inventario multialmacén**, **punto de venta**, **caja diaria**, **clientes y fiados**,
+**fichas de costo** e **informes con análisis**. La interfaz Web se instala como app (PWA) y sigue
+funcionando si se cae la conexión; la app Android lleva la operación al bolsillo; y un servidor
+propio —una laptop del negocio o un equipo con dominio— mantiene a todo el equipo trabajando sobre
+el **mismo estado**, con roles, auditoría, licencia y copias cifradas.
+
+| Ficha del proyecto | Detalle |
+|---|---|
+| **Qué es** | Sistema de gestión comercial (inventario, venta, caja e informes) para pequeños y medianos negocios |
+| **Para quién** | Dueños, administradores, jefes, económicos, almaceneros y cajeros |
+| **Cómo está hecho** | Python 3.10+ (servidor y API) · SQLite (datos) · Web PWA sin compilación · Kotlin + Jetpack Compose (Android) · `cryptography` (licencias y copias) |
+| **Dónde corre** | Servidor propio: Windows, Linux, macOS o Docker. Sin dependencia de la nube |
+| **Cómo se usa** | Navegador instalable (Web), app Android con sincronización, o modo local en el teléfono |
+| **Estado** | Versión **1.0.0** estable · integración continua en verde (Web, servidor y Android) |
+| **Modelo** | Software propietario con **licencia de uso** firmada (HMAC-SHA256) y plazos de 1 día a permanente |
 
 > 📊 **Tus datos mandan.** Los libros de Excel son solo fuentes de importación y referencia: la aplicación nunca importa ni sustituye datos operativos sin mostrarte una **vista previa** y recibir tu confirmación. Una instalación nueva puede arrancar con la semilla incluida en el proyecto.
 
-## 🧩 Qué incluye
+---
 
-| Aplicación | Qué haces con ella |
-|---|---|
-| 🌐 **Web (PWA)** | El centro de mando: inventario, almacenes, importación de valores, movimientos, venta rápida, cuadre diario, informe semanal, comprobación y administración — con búsqueda global (`Ctrl+K`), guía integrada, atajos de teclado y modo claro/oscuro. Se instala como aplicación y abre sin conexión. |
-| 📱 **Android** | La operación en movimiento: la misma gestión con Kotlin + Jetpack Compose, almacenamiento local, desbloqueo biométrico y sincronización con el servidor cuando hay conexión. |
-| 🗄️ **Servidor** | El corazón que une todo: API y sitio Web en un solo proceso de Python, datos compartidos en SQLite, sesiones y permisos validados en el servidor, licencias firmadas, auditoría y copias cifradas automáticas. |
+## 🧩 Ecosistema
+
+NovaGest son **tres piezas que trabajan juntas** —servidor, Web y Android— más una herramienta
+interna para quien administra las licencias.
+
+| Pieza | Qué es | Qué aporta |
+|---|---|---|
+| 🌐 **Web (PWA)** | Interfaz completa servida por el propio servidor; se instala como app y abre sin conexión | Centro de mando: inventario, almacenes, importación de valores, movimientos, venta rápida, cuadre, informes y administración. Búsqueda global (`Ctrl + K`), guía integrada, atajos de teclado y modo claro/oscuro |
+| 📱 **Android** | App nativa en Kotlin + Jetpack Compose, con Room y almacenamiento local | Operación en movimiento: vender con escáner, consultar stock, cuadre, reportes, clientes y fiados, copias cifradas y **desbloqueo biométrico**; sincroniza con el servidor cuando hay conexión |
+| 🗄️ **Servidor** | Un solo proceso de Python que sirve la Web y la API | Fuente única de verdad: SQLite, sesiones y permisos validados en el servidor, licencias firmadas, cierre de días, auditoría y **copias cifradas automáticas** |
+| 🔑 **Keygen** *(uso interno)* | App Android aparte, sin permiso de INTERNET | Emite y verifica claves de licencia desde el teléfono del titular, sin depender de la laptop ni del servidor |
+
+```text
+                    ┌──────────────────────────────┐
+   Navegador  ──────┤  Web (PWA)                   │
+   (PC / móvil)     │  misma app instalable,       │
+                    │  sigue sin conexión          │
+                    └──────────────┬───────────────┘
+                                   │  HTTPS · API + sesión
+                    ┌──────────────▼───────────────┐        ┌──────────────────┐
+   App Android ─────┤  Servidor Python             ├───────►│  Copias cifradas │
+   (Kotlin/Room)    │  licencia · roles · auditoría│        │  (diarias)       │
+                    │  SQLite: un único estado     │        └──────────────────┘
+                    └──────────────┬───────────────┘
+                                   │
+                         Claves NG-… firmadas
+                                   ▲
+                    ┌──────────────┴───────────────┐
+                    │  Keygen (teléfono del titular)│
+                    └──────────────────────────────┘
+```
+
+---
 
 ## ✨ Funciones
 
-- 📦 **Inventario multialmacén** — cada almacén conserva sus propias existencias y el inventario general suma todos; importa valores, traspasa mercancía entre almacenes y ajusta diferencias con historial completo.
-- 🛒 **Punto de venta** — venta rápida que descuenta el stock del almacén en uso al instante, con **escáner de códigos de barras** (cámara o lector USB/Bluetooth), cobro **al contado o a fiado** a un cliente, y comisiones y domicilios calculados automáticamente.
-- 🤝 **Clientes y fiados** — libro de clientes con límite de crédito, cuentas por cobrar con vencimiento, estados (pendiente/parcial/vencido/pagado) y **abonos** con historial; el total por cobrar se ve en el Panel.
-- 🧮 **Caja diaria (cuadre)** — tasas CUP/USD y MXN/USD, cobros, entradas, extracciones, fondos y gastos: el día está «cuadrado» cuando el resultado da 0, y la aplicación te avisa si no lo está.
-- 🔄 **Movimientos** — ventas, entradas y salidas con almacén, centro de venta, cantidades, importes y observaciones; cada movimiento recalcula el stock y queda registrado.
-- 🧾 **Fichas de Costo e IPV** — ficha versionada por producto o servicio (componentes del propio inventario, costo total, rendimiento y costo por ración) con flujo Borrador → Aprobada, y **Control IPV** por período (`IPV-AAAA-NNNN`) que se valida contra la ficha. Web: **Fichas de costo · IPV**; Android: consulta sincronizada. Adaptado de [IPV · Fichas y Costos](https://github.com/yhquintero/IPV_Fichas-Costos); los importes se guardan en la moneda de cada ficha (USD o CUP).
-- 📊 **Informes y comprobación** — cuadres diarios, resumen semanal y comprobación de inventario por día, semana, mes, año o rango personalizado, con exportación CSV/PDF lista para imprimir o enviar al contador.
-- 📈 **Análisis y metas** — ventas por período, utilidad bruta y neta, valor del inventario a precio de venta y a costo, y progreso frente a metas diarias y semanales.
-- 🕵️ **Historial y auditoría** — precios, costos y tasas por día; registro de quién hizo qué y cuándo, según el rol de cada usuario.
-- ☁️ **Sincronización multiplataforma** — Web y Android trabajan sobre el mismo estado; si se pierde la conexión, la Web sigue operando y sincroniza al reconectar.
-- 🔐 **Seguridad de nivel empresarial** — licencia de uso firmada criptográficamente, verificación en dos pasos (TOTP), bloqueo tras intentos fallidos, cierre de días y copias de seguridad cifradas.
+### Operación diaria
+
+- 📦 **Inventario multialmacén** — cada almacén conserva sus propias existencias y el inventario general suma todos; importa valores, **traspasa** mercancía entre almacenes y ajusta diferencias con historial completo y opción de deshacer.
+- 📥 **Importar valores** — pega columnas del Excel, sube `.xlsx/.csv/.tsv/.txt` o escribe en la tabla; la vista previa clasifica cada fila (**nuevo**, **entra al almacén**, **igual** o **sobrescribe**) y avisa antes de pisar datos.
+- 🛒 **Punto de venta** — venta rápida que descuenta el stock del almacén en uso al instante, con **escáner de códigos de barras** (cámara o lector USB/Bluetooth), cobro **al contado o a fiado**, y comisiones y domicilios calculados automáticamente.
+- 🤝 **Clientes y fiados** — libro de clientes con **límite de crédito**, cuentas por cobrar con vencimiento, estados (pendiente/parcial/vencido/pagado) y **abonos** con historial; el total por cobrar se ve en el Panel.
+- 🔄 **Movimientos** — ventas, entradas y salidas con almacén, centro de venta, cantidades, importes y observaciones; cada movimiento recalcula el stock y **nunca deja existencias negativas**.
+- 🧮 **Caja diaria (cuadre)** — tasas CUP/USD y MXN/USD, cobros, entradas, extracciones, fondos y gastos: el día está «cuadrado» cuando el resultado da **0**, y la aplicación avisa si no lo está.
+
+### Análisis y control
+
+- 📊 **Informes y comprobación** — cuadres diarios, resumen semanal y comprobación de inventario por día, semana, mes, año o rango personalizado, con exportación **CSV/PDF** lista para imprimir o enviar al contador.
+- 📈 **Análisis y metas** — ventas por período, utilidad bruta y neta, valor del inventario a precio de venta y a costo, margen por categoría, productos sin movimiento y progreso frente a metas diarias y semanales.
+- 🧾 **Fichas de Costo e IPV** — ficha versionada por producto o servicio (componentes del propio inventario, costo total, rendimiento y costo por ración) con flujo **Borrador → Aprobada** y **Control IPV** por período (`IPV-AAAA-NNNN`) validado contra la ficha. Android: consulta sincronizada. Adaptado de [IPV · Fichas y Costos](https://github.com/yhquintero/IPV_Fichas-Costos).
+- 🕵️ **Historial y auditoría** — precios, costos, comisiones y tasas por día; registro de **quién hizo qué y cuándo**, según el rol de cada usuario.
+
+### Administración y seguridad
+
+- 🔐 **Licencia de uso** — clave firmada criptográficamente, ocho plazos, solicitud por WhatsApp y panel de control de claves y equipos.
+- 👥 **Roles y permisos** — Administrador, Jefe, Económico y Almacenero; el servidor valida cada permiso, no solo la interfaz.
+- 🔒 **Seguridad** — verificación en dos pasos (TOTP), bloqueo tras intentos fallidos, caducidad de sesión, **cierre de días** y copias de seguridad cifradas con rotación.
+- ☁️ **Sincronización multiplataforma** — Web y Android sobre el mismo estado; si se pierde la conexión, la Web sigue operando y sincroniza al reconectar, y el Android guarda en local y sube al volver la red.
+
+---
 
 ## 📸 Capturas
+
+*Datos de demostración del proyecto: no contienen información de personas reales.*
 
 <table>
   <tr>
@@ -82,22 +144,45 @@
 
 <p align="center">
   <img src="docs/assets/novagest-movil.png" width="100%" alt="La aplicación Web de NovaGest en el móvil: Panel, Venta rápida y modo oscuro" />
-  <br /><sub>La aplicación Web en el móvil: navegación inferior, instalable como app (PWA). Capturas con los datos de demostración del proyecto.</sub>
+  <br /><sub>La aplicación Web en el móvil: navegación inferior, instalable como app (PWA).</sub>
 </p>
+
+▶️ **Video:** [presentación de 2:50 min (720p, con narración y subtítulos)](docs/assets/video/novagest-promo-720p.mp4) · [guion y plan de producción](docs/PROPUESTA_VIDEO_PROMOCIONAL.md).
+
+---
+
+## ⚙️ Requisitos
+
+| Componente | Necesitas |
+|---|---|
+| **Servidor** | Python **3.10 o posterior** y `cryptography` (instalado con `requirements.txt`). `openpyxl` solo para regenerar semillas desde Excel |
+| **Web** | Navegador actualizado (Chrome, Edge, Firefox o Safari). Para el escáner con cámara, el sitio debe abrirse por **HTTPS** |
+| **Android** | Android 8.0 o posterior (API 26+) |
+| **Android, para compilar** | JDK **17** y el wrapper de Gradle del proyecto (**8.14.5**) |
+| **Pruebas** | Node **22** (Web) y PowerShell 7 (panel de Windows) |
+| **Opcional** | Lector de códigos USB/Bluetooth, impresora (o «Guardar como PDF»), Docker con dominio propio |
+
+---
 
 ## 🚀 Inicio rápido
 
-### Servidor y aplicación Web
+### 1 · Servidor y aplicación Web
 
 ```bash
-python3 -m pip install -r requirements.txt   # Python 3.10 o posterior
-python3 server/novagest_server.py            # Web + API en http://localhost:8080
+python3 -m pip install -r requirements.txt     # Python 3.10 o posterior
+python3 server/novagest_server.py              # Web + API en http://localhost:8080
+```
 
-# En otra terminal: clave para esta instalación
+### 2 · Activar la licencia
+
+Una instalación nueva queda **bloqueada** hasta introducir una clave válida (ver
+[LICENCIAS.md](docs/LICENCIAS.md)). Para una instalación propia:
+
+```bash
 python3 tools/generate_license.py --client "Mi Tienda" --term MES
 ```
 
-Abre `http://localhost:8080`, pega la clave en la pantalla **Licencia de Uso** y entra con una de las cuentas de demostración. Una instalación nueva queda bloqueada hasta activar una clave válida: el sistema completo se explica en [docs/LICENCIAS.md](docs/LICENCIAS.md).
+Abre `http://localhost:8080`, pega la clave completa en la pantalla **Licencia de Uso** y entra con una cuenta de demostración.
 
 <details>
 <summary><b>Cuentas de demostración (solo para pruebas locales)</b></summary>
@@ -117,28 +202,77 @@ El rol Administrador debe activar la verificación en dos pasos al entrar (`REQU
 
 </details>
 
-> [!WARNING]
-> **Cambia las contraseñas iniciales antes de usar el sistema con datos reales.** En producción arranca el servidor con `NOVAGEST_DEMO_USERS=0 NOVAGEST_ADMIN_PASSWORD=<secreta, mín. 10>`, usa siempre HTTPS y conserva las claves de cifrado fuera del servidor. Lista completa en [SECURITY.md](SECURITY.md#-recomendaciones-para-producción).
-
-### Windows con HTTPS (una laptop)
+### 3 · Windows con HTTPS y Panel de Control Visual
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1
 ```
 
-Crea el certificado con mkcert, abre el Firewall del puerto 8443 y arranca el **Panel de Control Visual** (icono en la bandeja del sistema) con el servidor y el generador de licencias en segundo plano.
+Crea el certificado con mkcert, abre el Firewall del puerto 8443 y arranca el **Panel de Control
+Visual** (icono en la bandeja del sistema) con el servidor (8443) y el generador de licencias (8444)
+en segundo plano: iniciar, detener, reiniciar, ver registros y abrir la Web desde el propio panel.
 
-### Docker con dominio propio
+### 4 · Docker con dominio propio
 
 ```bash
 DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
 ```
 
-### Android
+### 5 · Android
 
-Abre la raíz del proyecto en Android Studio (JDK 17 y Gradle 8.9), ejecuta la configuración `app` y configura en el acceso la dirección HTTPS del servidor para sincronizar.
+Abre la raíz del proyecto en Android Studio (**JDK 17**, wrapper de **Gradle 8.14.5**), ejecuta la
+configuración `app` y, en la pantalla de acceso, escribe la dirección **HTTPS del servidor** para
+sincronizar (si la dejas vacía, la app trabaja en modo local).
 
-📖 Guía paso a paso — HTTPS, Panel de Control Visual, Docker, Android y producción: [docs/INSTALACION.md](docs/INSTALACION.md).
+### 6 · Keygen (solo el titular)
+
+```bash
+./gradlew :keygen:assembleRelease
+adb install -r keygen/build/outputs/apk/release/keygen-release.apk
+```
+
+App interna para emitir claves desde el teléfono. Detalles y advertencias en
+[keygen/README.md](keygen/README.md) y [docs/ROTACION_SECRETO.md](docs/ROTACION_SECRETO.md).
+
+> [!WARNING]
+> **Cambia las contraseñas iniciales antes de usar el sistema con datos reales.** En producción arranca el servidor con `NOVAGEST_DEMO_USERS=0 NOVAGEST_ADMIN_PASSWORD=<secreta, mín. 10>`, usa siempre HTTPS y conserva las claves de cifrado fuera del servidor. Lista completa en [SECURITY.md](SECURITY.md#-recomendaciones-para-producción).
+
+📖 Guía paso a paso — HTTPS, Panel de Control Visual, Docker, Android y producción: **[docs/INSTALACION.md](docs/INSTALACION.md)**.
+
+---
+
+## 👥 Roles y permisos
+
+Cada persona entra con su propio usuario; el rol decide qué ve y qué puede cambiar, y **el servidor
+valida los mismos permisos** que la interfaz.
+
+| Área | Administrador | Jefe | Económico | Almacenero |
+|---|:--:|:--:|:--:|:--:|
+| Panel, inventario y movimientos (consulta) | ✅ | ✅ | ✅ | ✅ |
+| Crear y editar productos | ✅ | ✅ | — | ✅ |
+| Almacenes, traspasos e importar valores | ✅ | ✅ | solo ver | ✅ |
+| Vender y registrar movimientos | ✅ | ✅ | — | ✅ |
+| Editar o eliminar movimientos | ✅ | ✅ | — | ✅ |
+| Cuadre diario | ✅ | ✅ | editar | solo ver |
+| Informes, comprobación y finanzas | ✅ | ✅ | ✅ | — |
+| Clientes y fiados | ✅ | ✅ | ✅ | ✅ |
+| Fichas de costo e IPV | ✅ | ✅ | ✅ | solo ver |
+| Usuarios y ajustes del negocio | ✅ | ✅ | — | — |
+| Auditoría y seguridad | ✅ | ✅ | ✅ | — |
+| Copias de seguridad | ✅ | ✅ | — | — |
+| Licencia de uso | ✅ | ✅ | — | — |
+
+---
+
+## 🔄 Un día con NovaGest
+
+1. **Apertura (2 min)** — Panel: alertas de stock, cuadre del día anterior y acumulados; confirma el **almacén en uso** y la tasa del día.
+2. **Recepción** — la mercancía entra con **Importar valores** o con movimientos de **ENTRADA**; cada cambio queda en el historial y se puede deshacer.
+3. **Venta** — escanear, cobrar al contado o fiar; el stock baja al instante y el fiado queda con cliente, vencimiento y límite.
+4. **Cierre** — **Cuadre diario** hasta que el resultado dé `0.00` y **cerrar el día**, que bloquea movimientos y cuadre para todos.
+5. **Revisión** — Informe semanal, comprobación de inventario y metas; exportación a CSV/PDF para el contador.
+
+---
 
 ## 📥 Importar los libros Excel
 
@@ -146,7 +280,7 @@ Las importaciones se inician desde la interfaz y muestran una **vista previa** a
 
 | Libro en `xlsx/` | Dónde se aplica | Qué conserva |
 |---|---|---|
-| `NovaGest SEPT.xlsx` | Web → **Copias** → importar libro | Detecta y permite importar en orden cronológico todas las hojas diarias seleccionadas: existencias, entradas, salidas, ventas, tasa y cuadre. La fecha proviene del nombre de la hoja. Las diferencias de apertura/cierre se anotan como ajustes explícitos; reimportar sustituye cada lote. También alimenta las semillas del proyecto. |
+| `NovaGest SEPT.xlsx` | Web → **Copias** → importar libro | Detecta e importa en orden cronológico todas las hojas diarias seleccionadas: existencias, entradas, salidas, ventas, tasa y cuadre. La fecha proviene de la hoja. Las diferencias de apertura/cierre se anotan como ajustes explícitos; reimportar sustituye cada lote. También alimenta las semillas del proyecto. |
 | `NOVA PINAR.xlsx`, `NOVA CONSOLACION.xlsx`, `NOVA HERRADURA.xlsx` | Web → **Copias** → importar libro | Importación masiva de sus hojas diarias con fecha, almacén y selección corregibles. Advierte fechas vacías y duplicadas antes de guardar. Conserva importe real, costo unitario y comisión CUP por venta y crea referencias financieras diarias para revisar diferencias de caja y existencias. |
 | `PCH.xlsx` | Web → **Importar valores** → subir archivo | Se elige una de las ubicaciones **Pinar del Río**, **Consolación** o **Herradura** y se importan sus existencias al almacén de destino. Los nombres repetidos se consolidan sumando stock. No modifica precios globales, pues varían por ubicación. |
 | `RESUMEN POR SEMANA PINAR.xlsx` | Web → **Informe semanal** → **Importar resumen Excel** | Lee la hoja `PINAR`, muestra semanas, fechas y totales antes de guardar y conserva cada semana como referencia del Excel, sin reemplazar movimientos, cuadres ni cálculos de la aplicación. |
@@ -155,12 +289,16 @@ Las importaciones se inician desde la interfaz y muestran una **vista previa** a
 
 Además, el módulo **Importar valores** admite pegar columnas desde Excel, subir `.xlsx`, `.csv`, `.tsv` o `.txt`, o escribir filas a mano: eliges el almacén de destino, revisas los cambios y decides si se sobrescriben valores existentes o solo se completan los que faltan. Las columnas vacías no alteran datos guardados.
 
-📖 Guías: [Almacenes e importación](docs/ALMACENES.md) · [Manual rápido](docs/MANUAL.md) · [Mapeo del Excel](docs/MAPEO_EXCEL.md).
+📖 Guías: [Almacenes e importación](docs/ALMACENES.md) · [Mapeo del Excel](docs/MAPEO_EXCEL.md) · [Manual de Usuario](docs/MANUAL_USUARIO.md).
+
+---
 
 ## 📑 Informes y PDF
 
 - **Web:** desde Inventario, Movimientos, Almacenes, Cuadre diario, Informe semanal o Comprobación puedes imprimir o guardar como PDF los datos visibles o el almacén elegido. En Comprobación eliges día, semana, mes, año o fechas **Desde/Hasta** y filtras por almacén: el informe compara existencias de apertura/cierre con los movimientos y usa los importes y costos históricos por venta. La impresión aplica página A4 horizontal, encabezado con el negocio y el período, y oculta los controles.
 - **Android:** Cuadre diario permite **Exportar cuadre a PDF** y Reportes permite **Exportar comprobación PDF**, con encabezados, cifras clave, tablas paginadas y pie de página, que se comparten con el diálogo estándar de Android. También hay exportaciones CSV y Excel de la comprobación —con costo, utilidad y comisión— y CSV de movimientos con el costo de cada momento.
+
+---
 
 ## 🔑 Licencias de uso del producto
 
@@ -168,10 +306,12 @@ NovaGest se activa con una **clave de licencia firmada** (HMAC-SHA256, prefijo `
 
 - **Ocho plazos** — día, semana, mes, trimestre, semestre, año, dos años o permanente; tipos FULL, TRIAL, ENTERPRISE y LIFETIME.
 - **Solicitud por WhatsApp** — desde la pantalla **Licencia de Uso** (Web y Android) el cliente pide su plan y la solicitud queda registrada en el servidor.
-- **Cuatro formas de emitir claves** — el panel 🔐 **Gestionar licencia** de la Web, el generador independiente `tools/license_studio.py` (HTTPS en su propio puerto), la terminal `tools/generate_license.py` y la API `POST /api/license/generate`.
+- **Cinco formas de emitir claves** — el panel 🔐 **Gestionar licencia** de la Web, la app **Keygen** del teléfono, el generador independiente `tools/license_studio.py` (HTTPS en su propio puerto), la terminal `tools/generate_license.py` y la API `POST /api/license/generate`.
 - **Control total** — licencias emitidas, equipos activados, renovación, revocación y exportación CSV, todo anotado en la auditoría.
 
-📖 Guía completa: [docs/LICENCIAS.md](docs/LICENCIAS.md).
+📖 Guías: [Licencias de uso](docs/LICENCIAS.md) · [Rotación del secreto](docs/ROTACION_SECRETO.md) · [Keygen](keygen/README.md).
+
+---
 
 ## 🔒 Seguridad
 
@@ -182,62 +322,81 @@ NovaGest se activa con una **clave de licencia firmada** (HMAC-SHA256, prefijo `
 
 Los datos legales públicos (#legal) se rellenan en **Ajustes → Datos legales** — guía: [docs/GUIA_DATOS_LEGALES.md](docs/GUIA_DATOS_LEGALES.md). ¿Encontraste una vulnerabilidad? **No abras un issue público**: sigue la [política de seguridad](SECURITY.md).
 
-## ✅ Pruebas
+---
 
-Las mismas comprobaciones que ejecuta la integración continua (`.github/workflows/ci.yml`), desde la raíz del repositorio:
+## ✅ Calidad y pruebas
+
+La integración continua ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) ejecuta tres bloques
+—**Web e IPV**, **servidor y herramientas** y **Android**— en cada push y pull request. Las mismas
+comprobaciones, desde la raíz del repositorio:
 
 ```bash
 # Web e IPV (Node 22)
 node tools/test_ipv.mjs && node tools/test_calc.mjs && node tools/cobertura.mjs --min 80
-node tools/test_accesibilidad.mjs
+node tools/test_accesibilidad.mjs && node tools/test_sw_precache.mjs
 npm --prefix tools install --ignore-scripts && node tools/test_axe.mjs
 node tools/test_generador_ui.mjs && node tools/test_almacenes.mjs && node tools/test_customers_credits.mjs
 node tools/test_excel_sources.mjs && node tools/smoke_web.mjs
 
-# Servidor y herramientas (Python)
+# Servidor y herramientas (Python 3.10+)
 python3 tools/test_licencia.py && python3 tools/test_generador.py
 python3 tools/test_seguridad_servidor.py && python3 tools/test_restauracion.py
 python3 tools/test_carga.py --n 12
 
-# Panel de Control Visual (PowerShell 7) y Android (JDK 17 + Gradle 8.9)
+# Panel de Control Visual (PowerShell 7) y Android (JDK 17)
 pwsh -NoProfile -File tools/test_panel_control.ps1
-gradle testDebugUnitTest
+./gradlew testDebugUnitTest :keygen:assembleDebug
 ```
+
+Cobertura de pruebas unitarias de la lógica de cálculo por encima del **97 %**, comprobaciones de
+accesibilidad (WCAG 2.2 AA en claro y oscuro, `axe`), coherencia del precache sin conexión y pruebas
+de carga con umbral de latencia.
+
+---
 
 ## 📁 Estructura del proyecto
 
 ```text
 app/       Aplicación Android (Kotlin + Jetpack Compose)
+keygen/    App Android interna para emitir y verificar licencias (sin INTERNET)
 web/       Interfaz Web, lógica y recursos (PWA sin proceso de compilación)
 server/    API, autenticación, SQLite, copias y lanzadores para Windows (Python, PowerShell)
-tools/     Pruebas, importación de Excel y generador/control de licencias
+tools/     Pruebas, importación de Excel, generadores de licencias, manual y video
 deploy/    Docker Compose + Caddy para publicar con HTTPS y dominio propio
-docs/      Manuales, guías legales y de cumplimiento, traducciones y capturas
+docs/      Manuales, guías legales y de cumplimiento, traducciones, capturas y video
 xlsx/      Libros Excel de referencia para importar
 brand/     Logotipo de NovaGest
 venv/      Librerías de Python para Windows sin conexión (ver venv/README.md)
 ```
 
-La base de datos operativa, las copias, los certificados y las claves generadas (`data/`, `certs/`) se mantienen fuera del control de versiones.
+La base de datos operativa, las copias, los certificados y las claves generadas (`data/`, `certs/`)
+se mantienen fuera del control de versiones.
+
+---
 
 ## 📚 Documentación
 
 | Documento | Contenido |
 |---|---|
-| [Instalación y despliegue](docs/INSTALACION.md) | Servidor, Windows con HTTPS y Panel de Control Visual, Docker, Android y producción |
-| [Licencias de uso](docs/LICENCIAS.md) | Activación, plazos, solicitudes por WhatsApp, generador independiente y control de claves |
 | [**Manual de Usuario**](docs/MANUAL_USUARIO.md) · [versión imprimible](docs/MANUAL_USUARIO.html) | Manual completo paso a paso: activación, almacenes, venta, fiados, cuadre, informes, copias, roles, Android, solución de problemas y listas de verificación |
-| [Manual rápido](docs/MANUAL.md) | Uso diario de la aplicación paso a paso |
+| [Manual rápido](docs/MANUAL.md) | Uso diario de la aplicación en una página |
+| [Sitio del proyecto](https://yhquintero.github.io/inventario/) | Página de presentación con módulos, capturas y guía de inicio (`docs/index.html`) |
+| [Instalación y despliegue](docs/INSTALACION.md) | Servidor, Windows con HTTPS y Panel de Control Visual, Docker, Android y producción |
+| [Licencias de uso](docs/LICENCIAS.md) · [Rotación del secreto](docs/ROTACION_SECRETO.md) · [Keygen](keygen/README.md) | Activación, plazos, solicitudes por WhatsApp, emisión de claves y control de equipos |
 | [Almacenes e importación](docs/ALMACENES.md) | Existencias por almacén, traspasos e importación de valores |
 | [Mapeo del Excel](docs/MAPEO_EXCEL.md) | Cómo se interpreta cada libro de `xlsx/` |
 | [Datos legales](docs/GUIA_DATOS_LEGALES.md) | Cómo completar la información legal del negocio |
 | [Cumplimiento](docs/CUMPLIMIENTO.md) · [Revisión legal](docs/REVISION_LEGAL.md) | Auditoría de cumplimiento, accesibilidad y seguridad, y lista de cierre legal |
 | [Certificación](docs/certificacion/00-INDICE-Y-FIRMAS.md) | Preparación para ISO 27001, SOC 2, OWASP ASVS, WCAG 2.2 e ISO 27701 |
+| [Seguridad](SECURITY.md) · [Terceros](THIRD_PARTY_NOTICES.md) | Política de reporte, endurecimiento para producción y licencias de componentes |
 | [Mejora continua](docs/MEJORA_CONTINUA.md) · [Hoja de ruta](docs/ROADMAP.md) | Próximas mejoras priorizadas y cómo se verifican |
 | [Procedencia de las imágenes](docs/IMAGENES.md) | Origen y licencia de las imágenes del proyecto |
-| [Propuesta de video promocional](docs/PROPUESTA_VIDEO_PROMOCIONAL.md) | Guion, planos, textos en pantalla y plan de producción del video de presentación |
-| [Rotación del secreto de licencias](docs/ROTACION_SECRETO.md) | Cuándo y cómo cambiar el secreto que firma las licencias |
+| [Video promocional](docs/PROPUESTA_VIDEO_PROMOCIONAL.md) | Guion, escenas, textos en pantalla y plan de producción del video de presentación |
 | [Registro de cambios](CHANGELOG.md) | Mejoras y correcciones de cada versión (Web y Android) |
+
+**Traducciones del README:** [English](docs/readme/README_en.md) · [Português](docs/readme/README_pt-BR.md) · [Français](docs/readme/README_fr.md) · [Italiano](docs/readme/README_it.md) · [Deutsch](docs/readme/README_de.md) · [Русский](docs/readme/README_ru.md) · [简体中文](docs/readme/README_zh-CN.md). La versión en español es la de referencia.
+
+---
 
 ## ❓ Preguntas frecuentes
 
@@ -313,15 +472,21 @@ La caja diaria trabaja con tasas CUP/USD y MXN/USD, la venta rápida muestra el 
 
 </details>
 
+---
+
 ## 🤝 Contribuir
 
 Las contribuciones son bienvenidas: informes de errores, propuestas de mejora y pull requests. Lee la [guía de contribución](CONTRIBUTING.md) antes de empezar — explica cómo preparar el entorno, ejecutar las pruebas y proponer cambios.
+
+---
 
 ## 📄 Licencia
 
 **Software propietario — todos los derechos reservados.** © 2026 yhquintero.
 
 Ver el código en GitHub no concede ningún derecho de uso: instalar NovaGest en un negocio, copiarlo, modificarlo, distribuirlo o eludir su sistema de licencias requiere una licencia de uso del titular. Condiciones completas en [LICENSE](LICENSE). Los componentes de terceros conservan sus propias licencias: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+---
 
 ## 📝 Registro de cambios y hoja de ruta
 
