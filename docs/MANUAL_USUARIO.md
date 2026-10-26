@@ -824,7 +824,7 @@ Cambiar el nombre de una categoría en un producto **no** renombra los demás.
   tabla) o use `/` para enfocarlo y `Ctrl+K` para la búsqueda global.
 - **Filtrar:** chips de stock + selector de categoría + orden. Los filtros se combinan.
 - **Exportar:** **PDF** imprime lo que está viendo (con filtros aplicados). Desde los informes
-  también hay exportación **CSV** para abrir en Excel.
+  también hay exportación **CSV** y **⬇ Excel inventario** (`.xlsx`) — véase el apartado 10.5.
 
 💡 Si necesita un listado de control físico, filtre por almacén y use **PDF**: obtiene una
 hoja con numeración para contar y anotar diferencias.
@@ -1192,7 +1192,8 @@ usuario. Los estados son automáticos:
 
 - La tabla de fiados muestra cliente, origen (**Venta rápida** o **Manual**), importe,
   abonado, saldo, vencimiento, estado e historial de abonos.
-- **Exportar CSV** descarga clientes y fiados para Excel o para compartir con el contador.
+- **Exportar CSV** descarga clientes y fiados para Excel o para compartir con el contador;
+  **⬇ Excel clientes** y **⬇ Excel de fiados** generan el libro `.xlsx` (apartado 10.5).
 
 ## 8.6 Rutina semanal de cobros recomendada
 
@@ -1483,6 +1484,49 @@ viendo con **el mismo día de la semana anterior** (por ejemplo, sábado contra 
 
 **Rutina de apertura (2 minutos):** abra el Panel, revise la **reposición sugerida** y las
 alertas de stock, confirme el cuadre del día anterior y entre a vender.
+
+---
+
+## 10.5 Exportar a Excel (.xlsx)
+
+Todo lo que la app muestra en una tabla se puede llevar a **Excel de verdad** (archivo
+`.xlsx`, no un CSV que hay que convertir). Excel abre el archivo con los números ya
+numéricos, las columnas con ancho razonable y la fecha en el nombre del archivo.
+
+**Dónde está el botón «⬇ Excel»**
+
+| Pantalla | Ruta en el menú | Qué exporta | Hoja |
+|---|---|---|---|
+| Inventario / Comprobación | **🧭 Menú → Informes → Comprobación** o **Inventario** | Todos los productos con existencia, mínimo, costo, venta y **valor a venta** | `Inventario` |
+| Movimientos | **🧭 Menú → Movimientos** | Cada movimiento con tipo, cantidad, importe, centro, comisión, domicilio y usuario | `Movimientos` |
+| Clientes | **🧭 Menú → Clientes** | Cliente, teléfono, correo, dirección, límite y **lo que debe** | `Clientes` |
+| Fiados y abonos | **🧭 Menú → Clientes → Fiados** | Fecha, cliente, total, abonado, pendiente, estado, vencimiento y detalle de abonos | `Fiados` |
+| Cuadres diarios | **🧭 Menú → Informes → Comprobación** (bloque *Cuadres diarios guardados*) | Tasa, fondo, ventas, gastos, salidas, cuadre, entregado y diferencia | `Cuadres` |
+| Ventas por categoría | **🧭 Menú → Análisis** (tarjeta *Ventas y utilidad por categoría*) | Ventas, unidades y **% del total** por categoría, con fila **TOTAL** | `Por categoría` |
+
+**Paso a paso**
+
+1. Entre a la pantalla con el botón **⬇ Excel** (si no lo ve, su usuario no tiene permiso
+   de exportar: pídalo al administrador).
+2. Pulse **⬇ Excel**. La primera vez en ese equipo la app descarga el lector de Excel
+   (861 KB) y lo guarda; las siguientes exportaciones son instantáneas.
+3. El navegador guarda el archivo en su carpeta de **Descargas** con la fecha del día,
+   por ejemplo `inventario-2026-10-25.xlsx`.
+4. Ábralo con doble clic. Verá la hoja con el encabezado congelable y los importes en USD.
+
+> [!NOTE]
+> **Sin conexión también funciona** una vez que el lector quedó guardado. Si es la
+> primera vez y no hay Internet, la app avisa: «No se pudo cargar el lector de Excel.
+> Conéctate una vez para guardarlo en el teléfono».
+
+> [!IMPORTANT]
+> El **CSV** sigue disponible y es más liviano cuando solo necesita pegar datos en otro
+> sistema. Para el contador, elija **Excel**: no se rompen los acentos ni las comas
+> decimales y los totales se pueden sumar de inmediato.
+
+**Para el contador — libro de trabajo sugerido:** exporte inventario y cuadres el último
+día del mes, pegue cada hoja en su libro y conserve el nombre del archivo: la fecha dentro
+del nombre es la garantía de que está usando la versión correcta.
 
 ---
 

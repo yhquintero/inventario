@@ -1,4 +1,20 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXXI) · Vender desde el buscador (W-04)
+﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXXII) · Exportar a Excel (W-07)
+
+- **W-07 · Exportación real a `.xlsx`.** Las tablas de la app se descargan como libro de
+  Excel, no como CSV: **Inventario**, **Movimientos**, **Clientes**, **Fiados y abonos**,
+  **Cuadres diarios** y **Ventas por categoría**. Los importes van como números y la fecha
+  del día queda en el nombre del archivo (`inventario-2026-10-25.xlsx`).
+- **Se reutiliza el lector de Excel que ya traía la app**, sin descargar nada nuevo ni
+  enviar datos fuera del equipo; la primera exportación lo carga y queda guardado para el
+  modo sin conexión.
+- **Módulo nuevo** `web/js/xlsx-export.js` (filas de cada hoja, sin tocar la interfaz) con
+  **21 comprobaciones** en `tools/test_xlsx_export.mjs` y **100 % de cobertura** de líneas.
+- **Caché del service worker v28** con el módulo nuevo dentro, para que la exportación
+  funcione también sin conexión.
+- **Manual:** nuevo apartado **10.5 Exportar a Excel (.xlsx)** con la tabla de dónde está
+  cada botón, el paso a paso y la recomendación para el contador; se enlaza desde 5.7 y 8.5.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXXI) · Vender desde el buscador (W-04)
 
 - **W-04 · Venta rápida desde `Ctrl + K`.** Basta escribir **«vender arroz 2»** en el buscador:
   la primera fila propone **Vender ARROZ × 2 · $20.00** y, al pulsar Enter, la venta queda

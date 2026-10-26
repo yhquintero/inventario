@@ -1117,5 +1117,22 @@ test("W-04 · el buscador (Ctrl+K) ofrece vender y usa la misma caja que la vent
   assert.match(ux, /const orden = \(q && commands \? commands\(input\.value\) : \[\]\) \|\| \[\];/);
 });
 
+test("W-07 · las tablas se exportan a Excel (.xlsx) con el lector que ya trae la app", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  assert.match(source, /import \{ buildSheet, sheetFileName \} from "\.\/xlsx-export\.js";/, "usa el módulo de hojas");
+  assert.match(source, /async function exportXlsx\(kind, extra = \{\}\)/, "debe existir la exportación");
+  assert.match(source, /const XLSX = await loadXLSX\(\);/, "reutiliza el lector de Excel ya cargado");
+  assert.match(source, /XLSX\.utils\.aoa_to_sheet\(hoja\)/, "convierte las filas en hoja");
+  assert.match(source, /XLSX\.writeFile\(wb, sheetFileName\(kind, todayISO\(\)\)\)/, "descarga el archivo con fecha");
+  for (const tipo of ["inventory", "movements", "customers", "credits", "cuadres", "analytics"]) {
+    assert.match(source, new RegExp(`data-act="export-xlsx" data-xlsx="${tipo}"`), `hay botón de Excel para ${tipo}`);
+  }
+  assert.match(source, /act === "export-xlsx"/, "el botón está conectado a la acción");
+  const mod = readFileSync(join(root, "web/js/xlsx-export.js"), "utf8");
+  assert.match(mod, /export function buildSheet\(/, "el módulo expone buildSheet");
+  const sw = readFileSync(join(root, "web/sw.js"), "utf8");
+  assert.match(sw, /"\.\/js\/xlsx-export\.js"/, "el módulo entra en el precache (sin conexión)");
+});
+
 console.log(`\n${ok} comprobaciones correctas, ${fail} fallidas\n`);
 process.exit(fail ? 1 : 0);

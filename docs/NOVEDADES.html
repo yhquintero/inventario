@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 30 revisiones</title>
+<title>Novedades de NovaGest · 31 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 30 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 31 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,18 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>30</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>31</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXXII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Exportar a Excel (W-07)</h2>
+      <ul>
+      <li><b>W-07 · Exportación real a <code>.xlsx</code>.</b> Las tablas de la app se descargan como libro de</li>
+      <li><b>Se reutiliza el lector de Excel que ya traía la app</b>, sin descargar nada nuevo ni</li>
+      <li><b>Módulo nuevo</b> <code>web/js/xlsx-export.js</code> (filas de cada hoja, sin tocar la interfaz) con</li>
+      <li><b>Caché del service worker v28</b> con el módulo nuevo dentro, para que la exportación</li>
+      <li><b>Manual:</b> nuevo apartado <b>10.5 Exportar a Excel (.xlsx)</b> con la tabla de dónde está</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXXI</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
       <h2>Vender desde el buscador (W-04)</h2>
@@ -198,17 +209,7 @@
       <li><b>Manual</b> §6.6 (ticket, paso a paso) y §10.2 (comparador); <code>docs/MEJORAS_PROPUESTAS.md</code> con W-05, W-06 y D-07 en ✅.</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Voz masculina en el vídeo (C-01b)</h2>
-      <ul>
-      <li><b>Locución regrabada con voz masculina española</b> (español neutro, sin acento inglés), como pidió el titular: mismas palabras, mismo guion de <code>docs/PROPUESTA_VIDEO_PROMOCIONAL.md</code> §3.</li>
-      <li><b>Vídeo recompuesto</b>: <b>2:37</b> (156,8 s), 1280 × 720, H.264 High <code>yuv420p</code> 25 fps, audio AAC-LC 44,1 kHz estéreo, <code>+faststart</code>, 10,6 MB.</li>
-      <li><b>Subtítulos y MP3 de la narración regenerados</b> con la voz nueva; timecodes de la propuesta actualizados escena por escena.</li>
-      <li>README, manual y sitio citan <b>2:37</b>; la portada del sitio dice «El producto en 2 minutos y medio».</li>
-      </ul>
-    </article>
-<p class="older">Y 18 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 19 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

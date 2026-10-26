@@ -16,6 +16,7 @@ import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter,
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
 import { findSaleByCode, saleTicket, ticketCode, ticketTotals, verifyTicket } from "./ticket.js";
 import { quickSalePlan, quickSaleLabel, quickSaleSummary } from "./quick-sale.js";
+import { buildSheet, sheetFileName } from "./xlsx-export.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -1179,7 +1180,7 @@ function movementsView() {
       <div class="row">
         <input type="date" id="movDate" class="sel" value="${ui.movDate}" max="${todayISO()}">${ui.movDate ? `<button class="btn ghost small" data-act="clear-date">Todas las fechas</button>` : ""}
         ${canC ? `<button class="btn" data-act="new-movement">＋ Nuevo movimiento</button>` : ""}
-        <button class="btn ghost small" data-act="export-movements-view">CSV</button><button class="btn gold small" data-act="print">PDF</button>
+        <button class="btn ghost small" data-act="export-movements-view">CSV</button><button class="btn ghost small" data-act="export-xlsx" data-xlsx="movements">⬇ Excel</button><button class="btn gold small" data-act="print">PDF</button>
       </div>
     </div>
     <div class="summary"><span><b>${list.length}</b> movimientos</span><span>Ventas <b>${usd(ventas.reduce((a, m) => a + m.importeUsd, 0))}</b></span><span>Comisiones <b>${cup(ventas.reduce((a, m) => a + m.comisionCup, 0))}</b></span><span>Domicilios <b>${cup(ventas.reduce((a, m) => a + (m.domicilioCup || 0), 0))}</b></span></div>
@@ -1572,7 +1573,7 @@ function reportsView() {
     </div>` : "";
   const cuadreSection = savedCuadres.length ? `
     <div class="card table-wrap flush mt14">
-      <div class="card-h pad"><span class="k">Cuadres diarios guardados · ${savedCuadres.length}</span><span class="hint">Diferencia final en USD</span></div>
+      <div class="card-h pad"><span class="k">Cuadres diarios guardados · ${savedCuadres.length}</span><span class="row"><span class="hint">Diferencia final en USD</span>${allowed("REPORTS_EXPORT") ? `<button class="btn ghost small" data-act="export-xlsx" data-xlsx="cuadres">⬇ Excel</button>` : ""}</span></div>
       <table><thead><tr><th>Fecha</th><th class="r">Ventas</th><th class="r">Gastos</th><th class="r">Salidas</th><th class="r">Capital y cobros</th><th class="r">Diferencia</th><th>Estado</th></tr></thead>
         <tbody>${savedCuadres.map((cuadre) => {
           const dayMovements = store.activeMovements().filter((movement) => movement.date === cuadre.date && (!warehouseId || store.warehouseOf(movement) === warehouseId));
@@ -1588,7 +1589,7 @@ function reportsView() {
       <div class="row">
         ${dateControls}
         <label>Almacén<select id="reportWh"><option value="all" ${!warehouseId ? "selected" : ""}>Todos los almacenes</option>${warehouses.map((warehouse) => `<option value="${warehouse.id}" ${warehouseId === warehouse.id ? "selected" : ""}>${esc(warehouse.name)}</option>`).join("")}</select></label>
-        ${allowed("REPORTS_EXPORT") ? `<button class="btn small" data-act="export-csv">CSV comprobación</button><button class="btn ghost small" data-act="export-mov">CSV movimientos</button><button class="btn ghost small" data-act="export-inv">CSV inventario</button><button class="btn gold small" data-act="print">PDF</button>` : ""}
+        ${allowed("REPORTS_EXPORT") ? `<button class="btn small" data-act="export-csv">CSV comprobación</button><button class="btn ghost small" data-act="export-mov">CSV movimientos</button><button class="btn ghost small" data-act="export-inv">CSV inventario</button><button class="btn ghost small" data-act="export-xlsx" data-xlsx="inventory">⬇ Excel inventario</button><button class="btn gold small" data-act="print">PDF</button>` : ""}
       </div>
     </div>
     ${!valid ? `<div class="banner">El período personalizado requiere dos fechas válidas y «Desde» no puede ser posterior a «Hasta».</div>` : ""}
@@ -2043,9 +2044,9 @@ function customersView() {
         <td class="hint">${c.dueDate ? formatDate(c.dueDate) : "—"}</td>
         ${canEdit ? `<td class="nowrap">${pend > 0 ? `<button class="btn small" data-pay-credit="${c.id}">Abonar</button>` : ""} ${!(c.payments || []).length ? `<button class="icon-btn danger" data-del-credit="${c.id}" title="Eliminar fiado sin abonos">🗑</button>` : ""}</td>` : ""}
       </tr>`; }).join("") || `<tr><td colspan="9" class="empty">Aún no hay fiados. Crea uno con «Nuevo fiado» o vende a fiado desde Venta rápida.</td></tr>`}</tbody></table></div>
-      ${canEdit ? `<div class="row mt12"><button class="btn" data-act="new-credit">＋ Nuevo fiado manual</button><button class="btn ghost" data-act="export-credits">⬇ CSV de fiados</button></div>` : ""}
+      ${canEdit ? `<div class="row mt12"><button class="btn" data-act="new-credit">＋ Nuevo fiado manual</button><button class="btn ghost" data-act="export-credits">⬇ CSV de fiados</button><button class="btn ghost" data-act="export-xlsx" data-xlsx="credits">⬇ Excel de fiados</button></div>` : ""}
     ` : `
-      <div class="toolbar"><div></div><div class="row">${canEdit ? `<button class="btn" data-act="new-customer">＋ Nuevo cliente</button><button class="btn ghost" data-act="new-credit">＋ Nuevo fiado</button>` : ""}<button class="btn ghost" data-act="export-customers">⬇ CSV clientes</button></div></div>
+      <div class="toolbar"><div></div><div class="row">${canEdit ? `<button class="btn" data-act="new-customer">＋ Nuevo cliente</button><button class="btn ghost" data-act="new-credit">＋ Nuevo fiado</button>` : ""}<button class="btn ghost" data-act="export-customers">⬇ CSV clientes</button><button class="btn ghost" data-act="export-xlsx" data-xlsx="customers">⬇ Excel clientes</button></div></div>
       <div class="card table-wrap flush"><table><thead><tr><th>Cliente</th><th>Contacto</th><th class="r">Límite</th><th class="r">Debe</th><th>Estado</th>${canEdit ? "<th></th>" : ""}</tr></thead>
       <tbody>${customers.map((c) => { const bal = store.customerBalance(c.id); const over = c.creditLimitUsd && bal > c.creditLimitUsd; return `<tr>
         <td><strong>${esc(c.name)}</strong>${c.notes ? `<div class="hint">${esc(c.notes)}</div>` : ""}${c.address ? `<div class="hint">${esc(c.address)}</div>` : ""}</td>
@@ -2380,6 +2381,14 @@ function analyticsView() {
   const movimientos = store.activeMovements();
   const grid = heatmapGrid(movimientos, { weeks: 8, endDate: last.d || todayISO() });
   const categorias = categoryBreakdown(movimientos, store.state.products);
+  // Se guarda para poder exportarlo a Excel desde el botón de la tarjeta (W-07).
+  ui.lastAnalytics = {
+    categorias,
+    totales: {
+      revenue: categorias.reduce((a, c) => a + (Number(c.revenue) || 0), 0),
+      units: categorias.reduce((a, c) => a + (Number(c.units) || 0), 0),
+    },
+  };
   const wk = weeklyData(last.d);
   const prevWk = weeklyData(addDays(wk.w.from, -7));
   const diffPct = prevWk.ventas ? round2(((wk.ventas - prevWk.ventas) / prevWk.ventas) * 100) : null;
@@ -2418,7 +2427,7 @@ function analyticsView() {
         <p class="hint">Cada cuadro es un día; cuanto más oscuro, más se vendió. Sirve para ver de un golpe qué días flaquean.</p>
         ${heatmapMarkup(grid)}
       </div>
-      <div class="card"><div class="card-h"><span class="k">🏷️ Ventas y utilidad por categoría</span><span class="tag mov">${categorias.length} categoría(s)</span></div>
+      <div class="card"><div class="card-h"><span class="k">🏷️ Ventas y utilidad por categoría</span><span class="row"><span class="tag mov">${categorias.length} categoría(s)</span>${allowed("REPORTS_EXPORT") ? `<button class="btn ghost small" data-act="export-xlsx" data-xlsx="analytics">⬇ Excel</button>` : ""}</span></div>
         <p class="hint">La barra clara es la venta y la verde, la utilidad; el porcentaje es el margen sobre la venta.</p>
         ${categoryChartMarkup(categorias)}
       </div>
@@ -4226,6 +4235,7 @@ function onClick(e) {
   else if (act === "iv-apply") ivApply();
   else if (act === "iv-clear") { const st = ivState(); st.rows = []; st.text = ""; st.last = null; st.warn = false; render(); }
   else if (act === "iv-template") ivTemplate();
+  else if (act === "export-xlsx") { exportXlsx(d.xlsx || "inventory", d.xlsx === "analytics" ? ui.lastAnalytics || {} : {}); }
   else if (act === "sec-more") { loadSecLog((ui.secLog?.page || 1) + 1); toast("Cargando más eventos…", "ok"); }
   else if (act === "health-refresh") { ui.health = null; render(); toast("Revisando el estado del servidor…", "ok"); }
   else if (act === "license-refresh") {
@@ -4704,6 +4714,50 @@ function exportCredits() {
   toast(`${store.activeCredits().length} fiados exportados`, "ok");
 }
 function csv(v) { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }
+/**
+ * Exporta una hoja de cálculo .xlsx con el lector de Excel que ya usa la app (W-07).
+ *
+ * El archivo se genera en el propio equipo: no sale nada a Internet. La primera vez
+ * descarga el lector (861 KB) y queda guardado para las siguientes exportaciones.
+ */
+async function exportXlsx(kind, extra = {}) {
+  const hoja = buildSheet(kind, {
+    products: store.activeProducts(),
+    movements: store.activeMovements(),
+    customers: store.activeCustomers(),
+    credits: store.activeCredits(),
+    cuadres: store.state.cuadres || [],
+    warehouseName: store.warehouseName(store.activeWarehouseId()),
+    categorias: extra.categorias,
+    totales: extra.totales,
+  }, {
+    money: (v) => Math.round(Number(v) * 100) / 100,
+    date: (d) => formatDate(d),
+    pendienteCliente: (c) => store.customerBalance(c.id),
+    pendiente: (c) => creditPending(c),
+    estado: (c) => creditStatus(c),
+    calc: (c) => cuadreCalc(c, store.activeMovements().filter((m) => m.date === c.date)),
+  });
+  if (!hoja || hoja.length <= 1) return toast("No hay datos para exportar.", "err");
+  try {
+    const XLSX = await loadXLSX();
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(hoja);
+    ws["!cols"] = hoja[0].map((_, i) => ({ wch: i === 0 ? 32 : 16 }));
+    XLSX.utils.book_append_sheet(wb, ws, buildSheetName(kind));
+    XLSX.writeFile(wb, sheetFileName(kind, todayISO()));
+    toast(`Excel exportado: ${hoja.length - 1} fila(s)`, "ok");
+  } catch (e) {
+    toast(e?.message || "No se pudo generar el Excel.", "err");
+  }
+}
+
+/** Nombre de la hoja dentro del libro. */
+function buildSheetName(kind) {
+  const nombres = { inventory: "Inventario", movements: "Movimientos", customers: "Clientes", credits: "Fiados", cuadres: "Cuadres", analytics: "Por categoría" };
+  return nombres[kind] || "Datos";
+}
+
 function download(name, content, mime) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([content], { type: mime }));
