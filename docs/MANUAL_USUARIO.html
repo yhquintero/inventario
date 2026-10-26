@@ -1921,7 +1921,68 @@ segundos sabe si el papel es bueno, si está alterado o si esa venta ya se anul�
 </tr>
 </tbody>
 </table>
-<h2 id="69-buenas-prácticas-de-caja">6.9 Buenas prácticas de caja</h2>
+<h2 id="69-vender-desde-el-buscador-ctrl--k">6.9 Vender desde el buscador (Ctrl + K)</h2>
+<p>Para una venta de contado de un solo producto no hace falta abrir la pantalla de venta:</p>
+<ol>
+<li>Pulse <strong>Ctrl + K</strong> (o <strong>⌘ + K</strong> en Mac), o el botón <strong>⌕ Buscar</strong> del Panel.</li>
+<li>Escriba la orden: <strong><code>vender arroz 2</code></strong>.</li>
+<li>La primera fila del buscador dice <strong>Vender ARROZ × 2 · $20.00</strong> con el total ya calculado.</li>
+<li>Pulse <strong>Enter</strong>. La venta queda registrada igual que desde la pantalla de venta y aparece
+   el aviso <strong>«¡Venta registrada!»</strong> con la cantidad y el importe.</li>
+</ol>
+<p>Formatos que entiende, todos equivalentes:</p>
+<table>
+<thead>
+<tr>
+<th>Escribe</th>
+<th>Vende</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vender arroz 2</code></td>
+<td>2 unidades de ARROZ</td>
+</tr>
+<tr>
+<td><code>vende 2 arroz</code></td>
+<td>2 unidades de ARROZ</td>
+</tr>
+<tr>
+<td><code>vender arroz x2</code></td>
+<td>2 unidades de ARROZ</td>
+</tr>
+<tr>
+<td><code>vender arroz 2,5</code></td>
+<td>2,5 unidades (venta por peso)</td>
+</tr>
+<tr>
+<td><code>vender arroz</code></td>
+<td>1 unidad</td>
+</tr>
+<tr>
+<td><code>vender 7501234567890</code></td>
+<td>el producto con ese <strong>código de barras</strong></td>
+</tr>
+<tr>
+<td><code>vender el arroz 2</code></td>
+<td>2 unidades de ARROZ (acepta «el», «la», «un»…)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Lo que el buscador respeta</strong> (no se salta ninguna regla de la caja):</p>
+<ul>
+<li><strong>Día cerrado:</strong> si la fecha de venta está cerrada, la fila lo avisa y no deja vender.</li>
+<li><strong>Existencia:</strong> si no hay unidades suficientes en el almacén en uso, dice cuántas quedan.</li>
+<li><strong>Producto inexistente o borrado:</strong> muestra «No encuentro … en el inventario».</li>
+<li><strong>Comisión, domicilio y cuadre:</strong> se calculan exactamente igual que en la pantalla de venta.</li>
+<li>La venta es <strong>de contado</strong>; para fiar, use la pantalla <strong>🛒 Venta rápida</strong>.</li>
+</ul>
+<div class="callout tip">
+<p class="callout-t">💡 Consejo</p>
+<p>Si escribe solo <code>arroz</code> (sin el verbo), el buscador se comporta como siempre: busca y abre el
+producto. El verbo <strong>vender</strong> es lo que convierte la búsqueda en una venta.</p>
+</div>
+<h2 id="610-buenas-prácticas-de-caja">6.10 Buenas prácticas de caja</h2>
 <ol>
 <li><strong>Una venta, un cobro.</strong> No acumule varias ventas en el carrito si son clientes distintos.</li>
 <li><strong>Domicilio siempre en CUP</strong> y solo si lo cobró.</li>

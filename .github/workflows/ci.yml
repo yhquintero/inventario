@@ -40,6 +40,7 @@ jobs:
           bash tools/ci_paso.sh node tools/test_charts.mjs
           bash tools/ci_paso.sh node tools/test_merge.mjs
           bash tools/ci_paso.sh node tools/test_ticket.mjs
+          bash tools/ci_paso.sh node tools/test_quick_sale.mjs
           bash tools/ci_paso.sh node tools/cobertura.mjs --min 80
           bash tools/ci_paso.sh node tools/test_accesibilidad.mjs
           bash tools/ci_paso.sh node tools/test_sw_precache.mjs

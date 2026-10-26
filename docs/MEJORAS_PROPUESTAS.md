@@ -31,7 +31,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | W-01 | **Mapa de calor de ventas (8 semanas) y barras de venta/utilidad por categoría en Análisis**, con tabla de datos equivalente | Los días flojos y la categoría que deja margen se ven de un vistazo | `web/js/charts.js`, `app.js` | 🔴 | ⏳ | ✅ |
 | W-02 | **Cola de cambios sin conexión en el navegador** (`localStorage`) y **conflictos resueltos por `updatedAt`** | Recargar la pestaña o chocar con otro usuario ya no pierde trabajo | `web/js/merge.js`, `store.js` | 🔴 | 🧱 | ✅ |
 | W-03 | Alertas de reposición predictivas (velocidad de venta × stock) | Evita quedarse sin lo que más rota | Panel + Worker | 🟠 | ⏳ | ⬜ |
-| W-04 | Comando rápido en la búsqueda global (`Ctrl + K`): «vender arroz 2» | Vender en 5 segundos desde cualquier pantalla | `web/js/app.js` | 🟠 | ⏳ | ⬜ |
+| W-04 | ✅ **Comando rápido en la búsqueda global** (`Ctrl + K`): «vender arroz 2» | Vender en 5 segundos desde cualquier pantalla | `web/js/quick-sale.js` | 🟠 | ⏳ | ✅ |
 | W-05 | **Ticket térmico 58/80 mm** de la última venta y de cualquier venta del historial | Impresoras térmicas de mostrador | `web/js/ticket.js`, `app.css` | 🟠 | ⏱️ | ✅ |
 | W-06 | **Comparador de períodos en Informes** (período actual vs anterior de igual duración) | Decisiones con contexto, no cifras sueltas | `web/js/app.js` | 🟠 | ⏳ | ✅ |
 | W-07 | Exportación XLSX nativa desde el servidor (`openpyxl`) | El contador trabaja en Excel | `server/`, export | 🟢 | ⏱️ | ⬜ |

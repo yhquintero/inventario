@@ -1006,7 +1006,41 @@ negocio y sus importes no se han tocado?*
 | La cámara no abre | El sitio no es HTTPS o falta permiso | Use HTTPS y permita la cámara en el navegador |
 | El carrito se vació al recargar | El carrito vive en la sesión | Vuelva a cargar; registre la venta antes de recargar |
 
-## 6.9 Buenas prácticas de caja
+## 6.9 Vender desde el buscador (Ctrl + K)
+
+Para una venta de contado de un solo producto no hace falta abrir la pantalla de venta:
+
+1. Pulse **Ctrl + K** (o **⌘ + K** en Mac), o el botón **⌕ Buscar** del Panel.
+2. Escriba la orden: **`vender arroz 2`**.
+3. La primera fila del buscador dice **Vender ARROZ × 2 · $20.00** con el total ya calculado.
+4. Pulse **Enter**. La venta queda registrada igual que desde la pantalla de venta y aparece
+   el aviso **«¡Venta registrada!»** con la cantidad y el importe.
+
+Formatos que entiende, todos equivalentes:
+
+| Escribe | Vende |
+|---|---|
+| `vender arroz 2` | 2 unidades de ARROZ |
+| `vende 2 arroz` | 2 unidades de ARROZ |
+| `vender arroz x2` | 2 unidades de ARROZ |
+| `vender arroz 2,5` | 2,5 unidades (venta por peso) |
+| `vender arroz` | 1 unidad |
+| `vender 7501234567890` | el producto con ese **código de barras** |
+| `vender el arroz 2` | 2 unidades de ARROZ (acepta «el», «la», «un»…) |
+
+**Lo que el buscador respeta** (no se salta ninguna regla de la caja):
+
+- **Día cerrado:** si la fecha de venta está cerrada, la fila lo avisa y no deja vender.
+- **Existencia:** si no hay unidades suficientes en el almacén en uso, dice cuántas quedan.
+- **Producto inexistente o borrado:** muestra «No encuentro … en el inventario».
+- **Comisión, domicilio y cuadre:** se calculan exactamente igual que en la pantalla de venta.
+- La venta es **de contado**; para fiar, use la pantalla **🛒 Venta rápida**.
+
+> [!TIP]
+> Si escribe solo `arroz` (sin el verbo), el buscador se comporta como siempre: busca y abre el
+> producto. El verbo **vender** es lo que convierte la búsqueda en una venta.
+
+## 6.10 Buenas prácticas de caja
 
 1. **Una venta, un cobro.** No acumule varias ventas en el carrito si son clientes distintos.
 2. **Domicilio siempre en CUP** y solo si lo cobró.

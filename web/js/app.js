@@ -15,6 +15,7 @@ import { categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, h
 import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
 import { findSaleByCode, saleTicket, ticketCode, ticketTotals, verifyTicket } from "./ticket.js";
+import { quickSalePlan, quickSaleLabel, quickSaleSummary } from "./quick-sale.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -3508,9 +3509,57 @@ function render() {
   if (!tourSeen() && !ui.modal && !document.querySelector(".tour") && innerWidth > 860) setTimeout(startTour, 400);
 }
 
+/**
+ * Órdenes de venta escritas en el buscador (W-04).
+ *
+ * Devuelve una fila de resultado por cada orden válida («vender arroz 2»), con su
+ * aviso si el producto no existe, el día está cerrado o no hay existencia.
+ */
+function paletteCommands(texto) {
+  if (!allowed("MOVEMENT_CREATE")) return [];
+  const plan = quickSalePlan(texto, store.activeProducts());
+  if (!plan) return [];
+  if (!plan.ok) return [{ icon: "⚠", label: plan.error, hint: "Sin coincidencia", run: () => toast(plan.error, "err") }];
+  const fecha = ui.posDate || todayISO();
+  const cerrado = store.isClosed(fecha);
+  const almacen = store.activeWarehouseId();
+  const hay = store.stockIn(plan.product, almacen);
+  const falta = plan.qty > hay;
+  const motivo = cerrado
+    ? `El ${formatDate(fecha)} está cerrado: no se puede vender.`
+    : falta
+      ? `Solo hay ${qty(hay)} de ${plan.product.name} en «${store.warehouseName(almacen)}».`
+      : "";
+  const total = Math.round(plan.qty * plan.product.precioVentaUsd * 100) / 100;
+  return [{
+    icon: motivo ? "⚠" : "🛒",
+    label: motivo || `${quickSaleLabel(plan)} · ${usd(total)}`,
+    hint: motivo ? "No se puede vender" : "Venta rápida · Enter",
+    run: () => (motivo ? toast(motivo, "err") : ejecutarVentaRapida(plan)),
+  }];
+}
+
+/** Registra la venta pedida desde el buscador, con las mismas reglas que la pantalla de venta. */
+function ejecutarVentaRapida(plan) {
+  const fecha = ui.posDate || todayISO();
+  const r = store.posCheckout(
+    [{ productId: plan.product.id, qty: plan.qty, price: plan.product.precioVentaUsd }],
+    { date: fecha, center: ui.posCenter || "TIENDA", domicilioCup: 0, warehouseId: store.activeWarehouseId(), paymentType: "CONTADO", customerId: "", dueDate: "" },
+  );
+  if (r.error) return toast(r.error, "err");
+  ui.lastSaleIds = r.movementIds || [];
+  announce(`Venta registrada: ${quickSaleSummary(plan, r.total)}`);
+  confetti(`<b>¡Venta registrada!</b><span>${esc(quickSaleSummary(plan, r.total))}</span>`);
+  const dia = store.activeMovements().filter((m) => m.date === fecha && m.type === "VENTA").reduce((a, m) => a + m.importeUsd, 0);
+  const meta = store.state.settings.goalDaily;
+  if (meta && dia >= meta && dia - r.total < meta) setTimeout(() => confetti(`<b>🏆 ¡Meta diaria cumplida!</b><span>${usd(dia)}</span>`), 1200);
+  render();
+}
+
 function paletteCtx() {
   return {
     routes, allowed, norm: normName, products: () => store.activeProducts(),
+    commands: paletteCommands,
     go: (k) => navTo(k),
     act: (a) => runAct(a),
     openProduct: (p) => { if (allowed("INVENTORY_EDIT")) { productModal(p); ui.route = "inventory"; render(); } else { ui.q = p.name; navTo("inventory"); } },

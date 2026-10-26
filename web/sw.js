@@ -1,4 +1,5 @@
 /* Service worker: la interfaz abre al instante y sin conexión; los datos (/api) siempre van al servidor.
+   v27: venta rápida desde el buscador (Ctrl+K «vender arroz 2») y módulo nuevo quick-sale.js.
    v23: hoja imprimible del Análisis, avisos accesibles (W-09) y región viva en index.html.
    v22: QR y código de verificación en el ticket (pantalla «Verificar ticket»).
    v21: la venta del día del Panel se compara con el mismo día de la semana anterior.
@@ -17,10 +18,10 @@
    v13: solicitud de licencia con consentimiento visible y accesible en el flujo de WhatsApp.
    v14: aviso de activación explícita; ya no se ofrece una prueba automática.
    v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos. */
-const CACHE = "novagest-v26";
+const CACHE = "novagest-v27";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
-  "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
+  "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
   "./js/excel-import.js", "./js/license.js", "./js/seed-data.js",
   "./vendor/qrcode.mjs",
   "./public/icon-app.png", "./public/icon-192.png", "./public/icon-512.png",

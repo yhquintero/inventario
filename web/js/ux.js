@@ -187,11 +187,11 @@ export const tourSeen = () => {
 };
 
 /* ---------------- Paleta de comandos (Ctrl+K) ---------------- */
-export function openPalette({ routes, products, allowed, go, act, openProduct, norm }) {
+export function openPalette({ routes, products, allowed, go, act, openProduct, norm, commands }) {
   closePalette();
   const box = document.createElement("div");
   box.className = "palette-back";
-  box.innerHTML = `<div class="palette"><div class="palette-in"><span>⌕</span><input placeholder="Buscar producto, sección o acción…" autocomplete="off"><kbd>Esc</kbd></div><div class="palette-list"></div><div class="palette-foot">↑↓ navegar · Enter abrir · Esc cerrar</div></div>`;
+  box.innerHTML = `<div class="palette"><div class="palette-in"><span>⌕</span><input placeholder="Buscar producto, sección o acción… (o «vender arroz 2»)" autocomplete="off"><kbd>Esc</kbd></div><div class="palette-list"></div><div class="palette-foot">↑↓ navegar · Enter abrir · Esc cerrar · vender: escribe «vender arroz 2»</div></div>`;
   document.body.appendChild(box);
   const input = box.querySelector("input"), list = box.querySelector(".palette-list");
   const base = [
@@ -208,7 +208,9 @@ export function openPalette({ routes, products, allowed, go, act, openProduct, n
     const q = norm(input.value);
     const prods = q ? products().filter((p) => norm(p.name).includes(q)).slice(0, 8)
       .map((p) => ({ icon: "▣", label: p.name, hint: `Stock ${p.stockActual} · $${p.precioVentaUsd}`, run: () => openProduct(p) })) : [];
-    items = [...base.filter((b) => !q || norm(b.label).includes(q)), ...prods];
+    // Órdenes de venta escritas en el buscador (W-04): van siempre arriba.
+    const orden = (q && commands ? commands(input.value) : []) || [];
+    items = [...orden, ...base.filter((b) => !q || norm(b.label).includes(q)), ...prods];
     sel = Math.min(sel, Math.max(0, items.length - 1));
     list.innerHTML = items.map((it, i) => `<div class="pi ${i === sel ? "on" : ""}" data-i="${i}"><span class="pic">${it.icon}</span><span>${it.label.replace(/</g, "&lt;")}</span><small>${it.hint}</small></div>`).join("") || `<div class="hint p16">Sin resultados</div>`;
   };

@@ -1101,5 +1101,21 @@ await atest("S-03 · la descarga incremental aplica altas, cambios y borrados po
   }
 });
 
+test("W-04 · el buscador (Ctrl+K) ofrece vender y usa la misma caja que la venta", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  assert.match(source, /commands: paletteCommands/, "el buscador debe recibir las órdenes de venta");
+  assert.match(source, /function paletteCommands\(/, "debe existir el lector de órdenes");
+  assert.match(source, /quickSalePlan\(texto, store\.activeProducts\(\)\)/, "usa el plan de quick-sale.js");
+  assert.match(source, /function ejecutarVentaRapida\(plan\)/, "debe registrar la venta");
+  assert.match(source, /store\.posCheckout\(\s*\[\{ productId: plan\.product\.id/,
+    "la venta rápida pasa por posCheckout (mismas reglas que la pantalla)");
+  assert.match(source, /store\.isClosed\(fecha\)/, "respeta el día cerrado");
+  assert.match(source, /store\.stockIn\(plan\.product, almacen\)/, "respeta la existencia del almacén");
+  assert.match(source, /announce\(`Venta registrada: \$\{quickSaleSummary/, "avisa al lector de pantalla");
+  const ux = readFileSync(join(root, "web/js/ux.js"), "utf8");
+  assert.match(ux, /vender: escribe «vender arroz 2»/, "el buscador enseña la sintaxis");
+  assert.match(ux, /const orden = \(q && commands \? commands\(input\.value\) : \[\]\) \|\| \[\];/);
+});
+
 console.log(`\n${ok} comprobaciones correctas, ${fail} fallidas\n`);
 process.exit(fail ? 1 : 0);

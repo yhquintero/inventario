@@ -1,4 +1,23 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXX) · Sincronización incremental y registro paginado (S-03)
+﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXXI) · Vender desde el buscador (W-04)
+
+- **W-04 · Venta rápida desde `Ctrl + K`.** Basta escribir **«vender arroz 2»** en el buscador:
+  la primera fila propone **Vender ARROZ × 2 · $20.00** y, al pulsar Enter, la venta queda
+  registrada sin abrir la pantalla de venta.
+- **Formatos aceptados:** cantidad al final (`vender arroz 2`), al principio (`vende 2 arroz`),
+  con `x` (`vender arroz x2`), decimales con coma (`vender arroz 2,5`), sin cantidad (1 unidad),
+  por **código de barras** (`vender 7501234567890`) y con artículo (`vender el arroz 2`).
+- **Respeta todas las reglas de la caja:** día cerrado, existencia del almacén en uso, productos
+  borrados y cálculo de comisión y cuadre pasan por `store.posCheckout`, igual que la pantalla de
+  venta. La venta rápida es **de contado**; para fiar se sigue usando la pantalla de venta.
+- **Accesibilidad:** el resultado se anuncia por la región viva (`announce`) además del aviso
+  visual y el confeti de la meta diaria.
+- **Módulo nuevo** `web/js/quick-sale.js` (lectura de la orden y elección del producto, sin tocar
+  el estado) con **18 comprobaciones** en `tools/test_quick_sale.mjs` y **100 % de cobertura** de
+  líneas en `tools/cobertura.mjs`. El buscador enseña la sintaxis en su ayuda.
+- **Manual:** nuevo apartado **6.9 Vender desde el buscador (Ctrl + K)** con la tabla de formatos
+  y lo que el buscador respeta; las buenas prácticas pasan a 6.10.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXX) · Sincronización incremental y registro paginado (S-03)
 
 - **S-03 · Descarga incremental del estado (`GET /api/state?since=N`).** El servidor indexa en la
   tabla `state_records` qué registro cambió en cada versión y devuelve **solo las diferencias**:

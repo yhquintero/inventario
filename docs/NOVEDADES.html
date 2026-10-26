@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 29 revisiones</title>
+<title>Novedades de NovaGest · 30 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 29 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 30 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,19 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>29</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>30</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXXI</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Vender desde el buscador (W-04)</h2>
+      <ul>
+      <li><b>W-04 · Venta rápida desde <code>Ctrl + K</code>.</b> Basta escribir <b>«vender arroz 2»</b> en el buscador:</li>
+      <li><b>Formatos aceptados:</b> cantidad al final (<code>vender arroz 2</code>), al principio (<code>vende 2 arroz</code>),</li>
+      <li><b>Respeta todas las reglas de la caja:</b> día cerrado, existencia del almacén en uso, productos</li>
+      <li><b>Accesibilidad:</b> el resultado se anuncia por la región viva (<code>announce</code>) además del aviso</li>
+      <li><b>Módulo nuevo</b> <code>web/js/quick-sale.js</code> (lectura de la orden y elección del producto, sin tocar</li>
+      <li><b>Manual:</b> nuevo apartado <b>6.9 Vender desde el buscador (Ctrl + K)</b> con la tabla de formatos</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
       <h2>Sincronización incremental y registro paginado (S-03)</h2>
@@ -196,18 +208,7 @@
       <li>README, manual y sitio citan <b>2:37</b>; la portada del sitio dice «El producto en 2 minutos y medio».</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XIX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Voz nueva en el vídeo de presentación (C-01)</h2>
-      <ul>
-      <li><b>Narración regenerada</b> con una voz española natural (español neutro de Latinoamérica), sin acento inglés y con ritmo pausado: las ocho escenas se han vuelto a locutar con el guion de <code>docs/PROPUESTA_VIDEO_PROMOCIONAL.md</code> §3, sin cambiar una coma del texto.</li>
-      <li><b>Vídeo recompuesto</b>: <b>2:41</b> (160,9 s, por debajo del límite de 3 minutos), 1280 × 720, H.264 High <code>yuv420p</code> 25 fps, audio <b>AAC-LC 44,1 kHz estéreo</b> 148 kb/s, <code>+faststart</code>, 11,4 MB.</li>
-      <li><b>Subtítulos regenerados</b> y sincronizados con la voz nueva (56 rótulos), más el MP3 de la narración actualizado (<code>novagest-promo-narracion.mp3</code>).</li>
-      <li><b>Prueba <code>tools/test_sitio.py</code> ampliada</b> a 37 comprobaciones: el vídeo existe y no está vacío, la narración dura menos de 3 minutos, los subtítulos tienen al menos 20 rótulos y el MP3 está publicado.</li>
-      <li><b>Timecodes</b> de la propuesta actualizados escena por escena; README y manual citan <b>2:41</b>.</li>
-      </ul>
-    </article>
-<p class="older">Y 17 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 18 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>
