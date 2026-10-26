@@ -5,8 +5,8 @@ Cada paso se revisa, se aprueba y se entrega en su propio pull request; las fila
 terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`ROADMAP.md`](ROADMAP.md).
 
 > **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola en Android) ✅ ·
-> **Hecho:** D-01…D-07 · W-01, W-02, W-04, W-05, W-06, W-07, W-11, W-13, W-17 · A-01, A-02 · S-03.
-> **Lo siguiente, por orden sugerido:** **A-16** (pruebas de interfaz Android en CI) → **G-01** (vídeo vertical de 30 s) → **S-01** (auditoría encadenada) → **A-04** (widget).
+> **Hecho:** D-01…D-07 · W-01, W-02, W-04, W-05, W-06, W-07, W-11, W-13, W-17 · A-01, A-02, A-16 · S-03.
+> **Lo siguiente, por orden sugerido:** **G-01** (vídeo vertical de 30 s) → **S-01** (auditoría encadenada) → **A-04** (widget).
 > La segunda ola de propuestas nuevas está al final del documento.
 
 **Leyenda:** impacto 🔴 alto · 🟠 medio · 🟢 bajo — esfuerzo ⏱️ bajo (≤1 día) · ⏳ medio (2-5 días) ·
@@ -97,7 +97,7 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 | W-19 | **Firma del técnico en la Web**: verificación self-check antes de desplegar (permisos, CSP, copias) | Detecta configuraciones incompletas al instalar | `tools/`, servidor | 🟢 | ⏱️ |
 | A-14 | ✅ **Selector de impresora y ancho en Ajustes**, con ticket de prueba | Varias cajas con impresoras distintas | `ui/settings`, `data/printer` | 🟠 | ⏱️ |
 | A-15 | ✅ **Reimprimir el último ticket** desde Inicio y desde el historial de ventas | Se gasta papel o se estropea el ticket | `ui/pos`, `ui/movements` | 🟠 | ⏱️ |
-| A-16 | **Prueba de instrumentación del flujo de venta + impresión simulada** | La lógica ESC/POS está probada; falta la pantalla real | `androidTest/` | 🟠 | ⏳ |
+| A-16 | ✅ **Pruebas de interfaz en emulador** del flujo de venta (añadir, buscar, tope de existencia, centro, accesibilidad) y de la impresión simulada 58/80 mm, con emulador en el CI | La lógica ESC/POS está probada; falta la pantalla real | `app/src/androidTest/` | 🟠 | ⏳ | ✅ |
 | A-17 | ✅ **Aviso de cambios sin subir** con insignia, contador y acción «Sincronizar ahora» | Que nadie cierre la app con ventas pendientes | `ui/`, `SyncManager` | 🟠 | ⏱️ |
 | S-09 | ✅ **`/health` con métricas** (latencia, tamaño de la base, copias, días cerrados, sesiones) y avisos | Prevenir antes de que falle | `server/` | 🟠 | ⏱️ |
 | S-10 | ✅ **Auditoría de impresiones**: quién imprimió qué ticket y cuándo | Trazabilidad de documentos | `server/`, `app.js` | 🟢 | ⏱️ |

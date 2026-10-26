@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 31 revisiones</title>
+<title>Novedades de NovaGest · 32 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 31 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 32 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,16 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>31</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>32</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXXIII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Pruebas de interfaz en Android (A-16)</h2>
+      <ul>
+      <li><b>A-16 · Pruebas de interfaz en emulador (<code>app/src/androidTest/</code>).</b> Cada cambio de la app</li>
+      <li><b>El CI compila y ejecuta estas pruebas</b> con un emulador (Android 11, x86_64) y publica la</li>
+      <li>Dependencias nuevas de pruebas: <code>androidx.test:runner</code>, <code>androidx.test:rules</code> y</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXXII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
       <h2>Exportar a Excel (W-07)</h2>
@@ -198,18 +207,7 @@
       <li><b>Manual</b> §16.3 con el paso a paso de emparejar e imprimir; <code>MANIFEST</code> con los permisos nuevos; <code>docs/MEJORAS_PROPUESTAS.md</code> con A-02 en ✅.</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXI</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Ticket térmico y comparador de períodos (W-05 · W-06)</h2>
-      <ul>
-      <li><b>W-05 · Ticket térmico de 58 mm y 80 mm.</b> Después de cobrar, <b>Venta rápida</b> ofrece «🧾 Ticket 58 mm» y «🧾 80 mm» de la última venta; en <b>Movimientos</b>, el icono 🧾 imprime cualquier venta del historial. El ticket lleva negocio, fecha y hora, líneas con cantidad e importe, total USD, equivalente en CUP con la tasa del día, comisión, domicilio, forma de pago, cliente del fiado y quién atendió. Hoja de estilos con <code>@page ticket58</code> / <code>@page ticket80</code>: el navegador abre el diálogo con el ancho de papel ya puesto.</li>
-      <li><b>Módulo nuevo <code>web/js/ticket.js</code></b> (función pura, sin DOM): <code>saleTicket</code>, <code>ticketTotals</code>, <code>ticketDate</code>, <code>ticketTime</code>, <code>money</code>. Probado en <code>tools/test_ticket.mjs</code> (<b>7 pruebas</b>, <b>100 % de cobertura</b>) y añadido a la cobertura y al CI.</li>
-      <li><b>W-06 · Comparador de períodos en Informes</b>: tarjeta «🔄 Este período frente al anterior» con ventas reales, utilidad bruta, unidades y comisiones del período elegido frente al <b>anterior de la misma duración</b>, con variación porcentual (▲/▼), «igual» y «sin base anterior».</li>
-      <li><b>Service worker v20</b> con el módulo nuevo; <code>posCheckout</code> devuelve los identificadores de la venta para poder imprimirla.</li>
-      <li><b>Manual</b> §6.6 (ticket, paso a paso) y §10.2 (comparador); <code>docs/MEJORAS_PROPUESTAS.md</code> con W-05, W-06 y D-07 en ✅.</li>
-      </ul>
-    </article>
-<p class="older">Y 19 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 20 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

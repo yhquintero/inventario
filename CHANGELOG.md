@@ -1,4 +1,24 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXXII) · Exportar a Excel (W-07)
+﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXXIII) · Pruebas de interfaz en Android (A-16)
+
+- **A-16 · Pruebas de interfaz en emulador (`app/src/androidTest/`).** Cada cambio de la app
+  Android se comprueba ahora en un teléfono virtual, no solo en la lógica pura:
+  - **Flujo de venta:** tocar un producto lo suma a la cuenta, la cifra de **Cobrar** se
+    recalcula, cobrar registra la venta y vacía el carrito, **no se puede vender más que la
+    existencia** («Solo hay 2 de Arroz 5 kg.»), el buscador filtra y avisa cuando no hay
+    coincidencias y el chip de **centro de venta** cambia la venta.
+  - **Accesibilidad:** se recorre el árbol de la interfaz y se exige que **todo control
+    tocable** tenga texto, descripción o campo editable, para que el lector de pantalla lo
+    anuncie.
+  - **Impresión simulada:** el ticket genera inicio `ESC @`, ajustes, totales, pie y **corte
+    de papel**; se comprueba el plegado de acentos (`Peña` → `Pena`), el ancho de **32 y 48
+    columnas**, la fecha y hora de una venta del historial y la vista previa en pantalla.
+- **El CI compila y ejecuta estas pruebas** con un emulador (Android 11, x86_64) y publica la
+  causa exacta como anotación si algo falla; la compilación de `androidTest` también se
+  adelanta al paso normal de Gradle.
+- Dependencias nuevas de pruebas: `androidx.test:runner`, `androidx.test:rules` y
+  `ui-test-manifest` (solo `debug`).
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXXII) · Exportar a Excel (W-07)
 
 - **W-07 · Exportación real a `.xlsx`.** Las tablas de la app se descargan como libro de
   Excel, no como CSV: **Inventario**, **Movimientos**, **Clientes**, **Fiados y abonos**,
