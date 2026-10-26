@@ -118,6 +118,39 @@ publicar detrás del proxy sin riesgo.
 Es la misma llamada que usa el Panel de Control y cualquier monitor externo (Uptime Kuma,
 Healthchecks…) para avisar si el servidor se cae.
 
+## Sincronización incremental y paginación (S-03)
+
+El servidor sabe qué registros cambiaron en cada versión del estado y lo ofrece por la API:
+
+```bash
+# Todo el estado (lo que piden la primera vez la Web y el Android)
+GET /api/state
+
+# Solo lo que cambió desde la versión N
+GET /api/state?since=128
+```
+
+La respuesta incremental incluye `"delta": true`, `state` con **solo las secciones y registros
+modificados** y `deleted` con los identificadores que desaparecieron. Se calcula a partir de la
+tabla `state_records`, que se rellena en cada guardado.
+
+| Caso | Respuesta |
+|---|---|
+| `since` es la versión actual | `unchanged: true`, sin estado (nada que hacer) |
+| `since` reciente | Delta: cambios y borrados desde esa versión |
+| `since` más antiguo que `DELTA_KEEP_VERSIONS` (400 por defecto) | Estado completo, con `note` explicándolo |
+| `since` mayor que la versión del servidor | Estado completo (el cliente va por delante) |
+| `?full=1` | Estado completo, siempre |
+
+La Web lo usa sola: al detectar una versión nueva pide `?since=` y aplica los cambios por `id`,
+así que en un día normal cada refresco mueve **kilobytes en lugar de megabytes**. El Android
+sigue pidiendo el estado completo; el modo incremental es opcional y compatible.
+
+**Registro de seguridad paginado.** `GET /api/security-log` acepta `limit` (1-500, por defecto
+200), `page` (desde 1), `offset` y `q` (texto libre en la acción, el usuario o el detalle), y
+devuelve `total`, `pages` y `hasMore`. La pestaña *Auditoría → Seguridad* carga de 200 en 200
+con el botón **Ver más eventos**.
+
 ## Compresión y tamaño de las peticiones (S-11)
 
 El servidor **comprime con gzip** las respuestas de más de 1 KB (el estado del negocio, los

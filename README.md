@@ -340,20 +340,26 @@ node tools/test_accesibilidad.mjs && node tools/test_sw_precache.mjs
 npm --prefix tools install --ignore-scripts && node tools/test_axe.mjs
 node tools/test_generador_ui.mjs && node tools/test_almacenes.mjs && node tools/test_customers_credits.mjs
 node tools/test_excel_sources.mjs && node tools/smoke_web.mjs
+node tools/test_quick_sale.mjs && node tools/test_xlsx_export.mjs
 
 # Servidor y herramientas (Python 3.10+)
 python3 tools/test_licencia.py && python3 tools/test_generador.py
 python3 tools/test_seguridad_servidor.py && python3 tools/test_restauracion.py
+python3 tools/test_delta_estado.py && python3 tools/test_impresiones.py
 python3 tools/test_carga.py --n 12
 
 # Panel de Control Visual (PowerShell 7) y Android (JDK 17)
 pwsh -NoProfile -File tools/test_panel_control.ps1
 ./gradlew testDebugUnitTest :keygen:assembleDebug
+# Interfaz Android en emulador (flujo de venta e impresión simulada, A-16)
+./gradlew connectedDebugAndroidTest
 ```
 
-Cobertura de pruebas unitarias de la lógica de cálculo por encima del **97 %**, comprobaciones de
-accesibilidad (WCAG 2.2 AA en claro y oscuro, `axe`), coherencia del precache sin conexión y pruebas
-de carga con umbral de latencia.
+Cobertura de pruebas unitarias de la lógica de cálculo por encima del **97 %** (y del **100 %** en
+los módulos nuevos `quick-sale.js` y `xlsx-export.js`), comprobaciones de accesibilidad (WCAG 2.2 AA
+en claro y oscuro, `axe`), coherencia del precache sin conexión, pruebas de carga con umbral de
+latencia y **pruebas de interfaz Android en emulador** que tocan el flujo de venta real y generan el
+ticket ESC/POS de 58 y 80 mm.
 
 ---
 

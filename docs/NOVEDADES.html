@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 28 revisiones</title>
+<title>Novedades de NovaGest · 34 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 28 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 34 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,75 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>28</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>34</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXXV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Corte vertical de 30 s (G-01 / D-11)</h2>
+      <ul>
+      <li><b>Vídeo vertical de 30 segundos</b> para <b>estados de WhatsApp, Reels y TikTok</b>:</li>
+      <li><b>Seis tramos</b>: portada, vender, cuadrar, revisar, móvil y cierre con la llamada a la acción</li>
+      <li><b>Voz masculina en español neutro</b> con <b>subtítulos quemados</b> y el <code>.srt</code> aparte</li>
+      <li><b>Publicado en el sitio</b>: la sección del vídeo de <code>docs/index.html</code> muestra ahora el corte</li>
+      <li><b>Generador reproducible</b> <code>tools/build_reel_vertical.py</code> (Pillow + ffmpeg): recibe los seis</li>
+      <li><b>Propuesta actualizada</b> (<code>docs/PROPUESTA_VIDEO_PROMOCIONAL.md</code> §6.1) con la ficha técnica, el</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXXIV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Auditoría encadenada (S-01)</h2>
+      <ul>
+      <li><b>S-01 · Registro de seguridad encadenado.</b> Cada evento guarda una <b>huella SHA-256</b></li>
+      <li><b>Botón «🔗 Comprobar cadena»</b> en <b>Auditoría → Seguridad (servidor)</b>: el servidor revisa</li>
+      <li>La tabla muestra una columna <b>Huella</b> con los primeros 12 caracteres y el <b>id</b> de cada</li>
+      <li><b>Ruta nueva</b> <code>GET /api/security-log/verify</code> (Administrador, Jefe y Económico), con</li>
+      <li><b>Actualización sin trabajo manual:</b> al arrancar se añaden las columnas nuevas y se</li>
+      <li><b>Pruebas:</b> <code>tools/test_auditoria_encadenada.py</code> con <b>30 comprobaciones</b> contra el</li>
+      <li><b>Manual:</b> nuevo apartado <b>14.4 Comprobar la cadena del registro de seguridad</b>, con el</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXXIII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Pruebas de interfaz en Android (A-16)</h2>
+      <ul>
+      <li><b>A-16 · Pruebas de interfaz en emulador (<code>app/src/androidTest/</code>).</b> Cada cambio de la app</li>
+      <li><b>El CI compila y ejecuta estas pruebas</b> con un emulador (Android 11, x86_64) y publica la</li>
+      <li>Dependencias nuevas de pruebas: <code>androidx.test:runner</code>, <code>androidx.test:rules</code> y</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXXII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Exportar a Excel (W-07)</h2>
+      <ul>
+      <li><b>W-07 · Exportación real a <code>.xlsx</code>.</b> Las tablas de la app se descargan como libro de</li>
+      <li><b>Se reutiliza el lector de Excel que ya traía la app</b>, sin descargar nada nuevo ni</li>
+      <li><b>Módulo nuevo</b> <code>web/js/xlsx-export.js</code> (filas de cada hoja, sin tocar la interfaz) con</li>
+      <li><b>Caché del service worker v28</b> con el módulo nuevo dentro, para que la exportación</li>
+      <li><b>Manual:</b> nuevo apartado <b>10.5 Exportar a Excel (.xlsx)</b> con la tabla de dónde está</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXXI</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Vender desde el buscador (W-04)</h2>
+      <ul>
+      <li><b>W-04 · Venta rápida desde <code>Ctrl + K</code>.</b> Basta escribir <b>«vender arroz 2»</b> en el buscador:</li>
+      <li><b>Formatos aceptados:</b> cantidad al final (<code>vender arroz 2</code>), al principio (<code>vende 2 arroz</code>),</li>
+      <li><b>Respeta todas las reglas de la caja:</b> día cerrado, existencia del almacén en uso, productos</li>
+      <li><b>Accesibilidad:</b> el resultado se anuncia por la región viva (<code>announce</code>) además del aviso</li>
+      <li><b>Módulo nuevo</b> <code>web/js/quick-sale.js</code> (lectura de la orden y elección del producto, sin tocar</li>
+      <li><b>Manual:</b> nuevo apartado <b>6.9 Vender desde el buscador (Ctrl + K)</b> con la tabla de formatos</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Sincronización incremental y registro paginado (S-03)</h2>
+      <ul>
+      <li><b>S-03 · Descarga incremental del estado (<code>GET /api/state?since=N</code>).</b> El servidor indexa en la</li>
+      <li><b>La Web lo aprovecha sola:</b> al detectar una versión nueva pide el delta y lo aplica por <code>id</code></li>
+      <li><b>Registro de seguridad paginado:</b> <code>/api/security-log</code> acepta <code>limit</code>, <code>page</code>, <code>offset</code> y <code>q</code>, y</li>
+      <li><b>Índice reconstruido</b> al convertir datos, al migrar y al restaurar una copia, para que el delta</li>
+      <li><b>Pruebas nuevas:</b> <code>tools/test_delta_estado.py</code> (<b>45 comprobaciones</b> contra el servidor real)</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXIX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
       <h2>Comparador de períodos en el Panel (W-17)</h2>
@@ -143,71 +211,7 @@
       <li><b>Manual</b> §6.6 (QR y código), <b>§6.7 nuevo</b> (verificar un ticket), §16.2 y §16.4 (reimpresión); service worker <b>v22</b>; <code>docs/MEJORAS_PROPUESTAS.md</code> con W-16 y A-15 en ✅.</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXIII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Panel comparado, aviso de pendientes e impresora en Ajustes (W-15 · A-17 · A-14)</h2>
-      <ul>
-      <li><b>W-15 · La venta del día, comparada.</b> El KPI <b>Venta del día</b> del Panel añade una frase con la variación frente al <b>mismo día de la semana anterior</b> («▲ 12% vs 18/10», «▼ 8% vs 18/10», «igual que el 18/10», «sin ventas el 18/10» o «sin base anterior»). Funciones nuevas <code>dayTotals(iso, movements)</code> y <code>sameWeekdayComparison(today, previous, previousISO)</code>, probadas en <code>tools/smoke_web.mjs</code> (<b>54 comprobaciones</b>).</li>
-      <li><b>A-17 · Aviso de cambios sin subir.</b> La nube de la barra superior lleva una <b>insignia con el número de cambios pendientes</b>; el aviso inferior dice cuántos son y en cuántos segundos se reintenta, y su botón pasa a <b>«Sincronizar ahora»</b>. La lógica vive en <code>ui/components/SyncHint.kt</code> (puro, sin Android) con <b>5 pruebas nuevas</b> en <code>SyncHintTest.kt</code>, y <b>Ajustes</b> resume el estado de la cola.</li>
-      <li><b>A-14 · Impresora y ancho en Ajustes.</b> Tarjeta <b>Impresora de tickets</b>: lista las impresoras <b>emparejadas</b> (<code>BluetoothPrinter.paired()</code>), guarda la elegida junto con el ancho (<b>58 / 80 mm</b>) mediante <code>remember(address, width)</code>, y ofrece <b>Imprimir prueba</b>. <b>Venta rápida</b> usa esa configuración en el botón principal <b>🖨 Reimprimir</b> (los botones 58 y 80 mm siguen ahí para el otro rollo) y avisa si no hay impresora configurada.</li>
-      <li><b>Manual</b> §10.4 (tabla de la comparación) y §16.3 / §16.5 (impresora, insignia y cola); <b>service worker v21</b>; <code>docs/MEJORAS_PROPUESTAS.md</code> con W-15, A-17 y A-14 en ✅.</li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Recibo Bluetooth en Android (A-02)</h2>
-      <ul>
-      <li><b>Impresión de tickets en impresoras térmicas Bluetooth</b> desde <b>Venta rápida</b>: tras cobrar aparecen <b>🖨 58 mm</b> y <b>🖨 80 mm</b> y el ticket sale por el perfil SPP con el formato ESC/POS.</li>
-      <li><b>Módulo <code>data/printer/EscPos.kt</code></b> (Kotlin puro, sin Android): cabecera, líneas con cantidad e importe, total USD, equivalente CUP, forma de pago, cliente del fiado, vendedor, avance y corte de papel. Los acentos se pliegan a ASCII para que ninguna impresora muestre símbolos raros.</li>
-      <li><b><code>data/printer/BluetoothPrinter.kt</code></b>: impresoras <b>ya emparejadas</b>, conexión RFCOMM con tiempo de espera y memoria de la última usada; permiso <code>BLUETOOTH_CONNECT</code> solicitado en pantalla (Android 12+).</li>
-      <li><b>Pruebas <code>EscPosTest.kt</code></b> (10 casos): inicialización, corte, contenido, fiado, alineación a 32/48 columnas, recorte de nombres largos y plegado de acentos.</li>
-      <li><b>Manual</b> §16.3 con el paso a paso de emparejar e imprimir; <code>MANIFEST</code> con los permisos nuevos; <code>docs/MEJORAS_PROPUESTAS.md</code> con A-02 en ✅.</li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXI</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Ticket térmico y comparador de períodos (W-05 · W-06)</h2>
-      <ul>
-      <li><b>W-05 · Ticket térmico de 58 mm y 80 mm.</b> Después de cobrar, <b>Venta rápida</b> ofrece «🧾 Ticket 58 mm» y «🧾 80 mm» de la última venta; en <b>Movimientos</b>, el icono 🧾 imprime cualquier venta del historial. El ticket lleva negocio, fecha y hora, líneas con cantidad e importe, total USD, equivalente en CUP con la tasa del día, comisión, domicilio, forma de pago, cliente del fiado y quién atendió. Hoja de estilos con <code>@page ticket58</code> / <code>@page ticket80</code>: el navegador abre el diálogo con el ancho de papel ya puesto.</li>
-      <li><b>Módulo nuevo <code>web/js/ticket.js</code></b> (función pura, sin DOM): <code>saleTicket</code>, <code>ticketTotals</code>, <code>ticketDate</code>, <code>ticketTime</code>, <code>money</code>. Probado en <code>tools/test_ticket.mjs</code> (<b>7 pruebas</b>, <b>100 % de cobertura</b>) y añadido a la cobertura y al CI.</li>
-      <li><b>W-06 · Comparador de períodos en Informes</b>: tarjeta «🔄 Este período frente al anterior» con ventas reales, utilidad bruta, unidades y comisiones del período elegido frente al <b>anterior de la misma duración</b>, con variación porcentual (▲/▼), «igual» y «sin base anterior».</li>
-      <li><b>Service worker v20</b> con el módulo nuevo; <code>posCheckout</code> devuelve los identificadores de la venta para poder imprimirla.</li>
-      <li><b>Manual</b> §6.6 (ticket, paso a paso) y §10.2 (comparador); <code>docs/MEJORAS_PROPUESTAS.md</code> con W-05, W-06 y D-07 en ✅.</li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="rev"><span class="n">XX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Voz masculina en el vídeo (C-01b)</h2>
-      <ul>
-      <li><b>Locución regrabada con voz masculina española</b> (español neutro, sin acento inglés), como pidió el titular: mismas palabras, mismo guion de <code>docs/PROPUESTA_VIDEO_PROMOCIONAL.md</code> §3.</li>
-      <li><b>Vídeo recompuesto</b>: <b>2:37</b> (156,8 s), 1280 × 720, H.264 High <code>yuv420p</code> 25 fps, audio AAC-LC 44,1 kHz estéreo, <code>+faststart</code>, 10,6 MB.</li>
-      <li><b>Subtítulos y MP3 de la narración regenerados</b> con la voz nueva; timecodes de la propuesta actualizados escena por escena.</li>
-      <li>README, manual y sitio citan <b>2:37</b>; la portada del sitio dice «El producto en 2 minutos y medio».</li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="rev"><span class="n">XIX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Voz nueva en el vídeo de presentación (C-01)</h2>
-      <ul>
-      <li><b>Narración regenerada</b> con una voz española natural (español neutro de Latinoamérica), sin acento inglés y con ritmo pausado: las ocho escenas se han vuelto a locutar con el guion de <code>docs/PROPUESTA_VIDEO_PROMOCIONAL.md</code> §3, sin cambiar una coma del texto.</li>
-      <li><b>Vídeo recompuesto</b>: <b>2:41</b> (160,9 s, por debajo del límite de 3 minutos), 1280 × 720, H.264 High <code>yuv420p</code> 25 fps, audio <b>AAC-LC 44,1 kHz estéreo</b> 148 kb/s, <code>+faststart</code>, 11,4 MB.</li>
-      <li><b>Subtítulos regenerados</b> y sincronizados con la voz nueva (56 rótulos), más el MP3 de la narración actualizado (<code>novagest-promo-narracion.mp3</code>).</li>
-      <li><b>Prueba <code>tools/test_sitio.py</code> ampliada</b> a 37 comprobaciones: el vídeo existe y no está vacío, la narración dura menos de 3 minutos, los subtítulos tienen al menos 20 rótulos y el MP3 está publicado.</li>
-      <li><b>Timecodes</b> de la propuesta actualizados escena por escena; README y manual citan <b>2:41</b>.</li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="rev"><span class="n">XVIII</span><time datetime="2026-10-24">24 de octubre de 2026</time></div>
-      <h2>Reposición sugerida en el Panel (W-11)</h2>
-      <ul>
-      <li><b>Nueva tarjeta «🧾 Reposición sugerida»</b> en el Panel: con las ventas reales de los últimos <b>30 días</b> calcula el ritmo diario de cada producto, <b>cuántos días dura la existencia</b> y <b>cuántas unidades comprar</b> para cubrir <b>14 días</b>, descontando lo que ya hay en el almacén. Ordenada por urgencia: <b>Agotado</b> → <b>Urgente</b> (≤3 días) → <b>Pronto</b> (≤7 días) → <b>Planificar</b>. Los productos sin ventas en la ventana no aparecen (no se inventa un ritmo); para ellos siguen las alertas de <b>Stock bajo</b>.</li>
-      <li><b>Lógica pura en <code>calc.js</code></b>: <code>reorderSuggestions(products, movements, { days, cover, today, warehouseId, limit })</code> y <code>reorderSummary(list)</code>; cuentan solo ventas vivas, en fecha y —si se indica— del almacén elegido.</li>
-      <li><b>Pruebas</b>: 3 bloques nuevos en <code>tools/test_calc.mjs</code> (13 pruebas en total) y cobertura de <code>calc.js</code> al <b>98,7 %</b>.</li>
-      <li><b>Manual</b> §10.4 con la tabla de columnas, cómo leerlo y qué hacer al abrir el negocio; <b>service worker v19</b> (estilos y precache) por los cambios de CSS.</li>
-      <li><b>CHANGELOG</b> y <code>docs/MEJORAS_PROPUESTAS.md</code>: W-11 marcada como hecha.</li>
-      </ul>
-    </article>
-<p class="older">Y 16 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 22 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

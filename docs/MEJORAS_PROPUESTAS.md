@@ -5,8 +5,8 @@ Cada paso se revisa, se aprueba y se entrega en su propio pull request; las fila
 terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`ROADMAP.md`](ROADMAP.md).
 
 > **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola en Android) ✅ ·
-> **Hecho:** D-01…D-07 · W-01, W-02, W-05, W-06, W-11, W-13, W-17 · A-01, A-02.
-> **Lo siguiente, por orden sugerido:** **W-04** (venta desde `Ctrl+K`) → **A-04** (widget) → **S-01** (auditoría encadenada) → **W-07** (XLSX).
+> **Hecho:** D-01…D-07 · W-01, W-02, W-04, W-05, W-06, W-07, W-11, W-13, W-17 · A-01, A-02, A-16 · S-01, S-03.
+> **Lo siguiente, por orden sugerido:** **G-01** (vídeo vertical de 30 s) → **A-04** (widget) → **W-03** (alertas de reposición).
 > La segunda ola de propuestas nuevas está al final del documento.
 
 **Leyenda:** impacto 🔴 alto · 🟠 medio · 🟢 bajo — esfuerzo ⏱️ bajo (≤1 día) · ⏳ medio (2-5 días) ·
@@ -31,10 +31,10 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | W-01 | **Mapa de calor de ventas (8 semanas) y barras de venta/utilidad por categoría en Análisis**, con tabla de datos equivalente | Los días flojos y la categoría que deja margen se ven de un vistazo | `web/js/charts.js`, `app.js` | 🔴 | ⏳ | ✅ |
 | W-02 | **Cola de cambios sin conexión en el navegador** (`localStorage`) y **conflictos resueltos por `updatedAt`** | Recargar la pestaña o chocar con otro usuario ya no pierde trabajo | `web/js/merge.js`, `store.js` | 🔴 | 🧱 | ✅ |
 | W-03 | Alertas de reposición predictivas (velocidad de venta × stock) | Evita quedarse sin lo que más rota | Panel + Worker | 🟠 | ⏳ | ⬜ |
-| W-04 | Comando rápido en la búsqueda global (`Ctrl + K`): «vender arroz 2» | Vender en 5 segundos desde cualquier pantalla | `web/js/app.js` | 🟠 | ⏳ | ⬜ |
+| W-04 | ✅ **Comando rápido en la búsqueda global** (`Ctrl + K`): «vender arroz 2» | Vender en 5 segundos desde cualquier pantalla | `web/js/quick-sale.js` | 🟠 | ⏳ | ✅ |
 | W-05 | **Ticket térmico 58/80 mm** de la última venta y de cualquier venta del historial | Impresoras térmicas de mostrador | `web/js/ticket.js`, `app.css` | 🟠 | ⏱️ | ✅ |
 | W-06 | **Comparador de períodos en Informes** (período actual vs anterior de igual duración) | Decisiones con contexto, no cifras sueltas | `web/js/app.js` | 🟠 | ⏳ | ✅ |
-| W-07 | Exportación XLSX nativa desde el servidor (`openpyxl`) | El contador trabaja en Excel | `server/`, export | 🟢 | ⏱️ | ⬜ |
+| W-07 | ✅ **Exportación XLSX** de inventario, movimientos, clientes, fiados, cuadres y categorías (libro `.xlsx` generado en el equipo con el lector que ya trae la app, sin `openpyxl` ni salir a Internet) | El contador trabaja en Excel | `web/js/xlsx-export.js`, `app.js` | 🟢 | ⏱️ | ✅ |
 | W-08 | Modo kiosco para tablet de mostrador (sin barra del navegador) | Uso real en el punto de venta | PWA | 🟢 | ⏱️ | ⬜ |
 | W-09 | ✅ `aria-live`, estado ocupado y foco gestionado en operaciones largas | Accesibilidad más allá de WCAG AA | `web/js/app.js` | 🟢 | ⏱️ | ✅ |
 
@@ -56,9 +56,9 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 
 | # | Mejora | Por qué | Dónde | Impacto | Esfuerzo | Estado |
 |---|---|---|---|---|---|---|
-| S-01 | Auditoría encadenada (hash de la entrada anterior) | Detectar borrados o cambios silenciosos | `server/` | 🔴 | ⏳ | ⬜ |
+| S-01 | ✅ **Auditoría encadenada** (hash SHA-256 de cada línea con el de la anterior), botón «Comprobar cadena» en Seguridad y ruta `GET /api/security-log/verify` | Detectar borrados o cambios silenciosos | `server/novagest_server.py`, `web/js/app.js` | 🔴 | ⏳ | ✅ |
 | S-02 | Restauración automática probada en CI nocturno (ya hay prueba; añadir aviso si falla) | Una copia que no se restaura no es una copia | `tools/`, CI | 🟠 | ⏱️ | ⬜ |
-| S-03 | API con paginación y `?since=` | Móviles y catálogos grandes | `server/` | 🟠 | ⏳ | ⬜ |
+| S-03 | ✅ **API con paginación y `?since=`** (delta por registro, registro de seguridad por páginas) | Móviles y catálogos grandes | `server/`, `store.js` | 🟠 | ⏳ | ✅ |
 | S-04 | Instalador de Windows con el entorno incluido | Instalar en 3 clics, sin Python | `deploy/` | 🟠 | ⏳ | ⬜ |
 | S-05 | ✅ **Panel de salud para el titular** (copias, espacio, licencia) | Prevenir antes de que falle | `server/`, `app.js` | 🟢 | ⏱️ | ✅ |
 
@@ -97,13 +97,13 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 | W-19 | **Firma del técnico en la Web**: verificación self-check antes de desplegar (permisos, CSP, copias) | Detecta configuraciones incompletas al instalar | `tools/`, servidor | 🟢 | ⏱️ |
 | A-14 | ✅ **Selector de impresora y ancho en Ajustes**, con ticket de prueba | Varias cajas con impresoras distintas | `ui/settings`, `data/printer` | 🟠 | ⏱️ |
 | A-15 | ✅ **Reimprimir el último ticket** desde Inicio y desde el historial de ventas | Se gasta papel o se estropea el ticket | `ui/pos`, `ui/movements` | 🟠 | ⏱️ |
-| A-16 | **Prueba de instrumentación del flujo de venta + impresión simulada** | La lógica ESC/POS está probada; falta la pantalla real | `androidTest/` | 🟠 | ⏳ |
+| A-16 | ✅ **Pruebas de interfaz en emulador** del flujo de venta (añadir, buscar, tope de existencia, centro, accesibilidad) y de la impresión simulada 58/80 mm, con emulador en el CI | La lógica ESC/POS está probada; falta la pantalla real | `app/src/androidTest/` | 🟠 | ⏳ | ✅ |
 | A-17 | ✅ **Aviso de cambios sin subir** con insignia, contador y acción «Sincronizar ahora» | Que nadie cierre la app con ventas pendientes | `ui/`, `SyncManager` | 🟠 | ⏱️ |
 | S-09 | ✅ **`/health` con métricas** (latencia, tamaño de la base, copias, días cerrados, sesiones) y avisos | Prevenir antes de que falle | `server/` | 🟠 | ⏱️ |
 | S-10 | ✅ **Auditoría de impresiones**: quién imprimió qué ticket y cuándo | Trazabilidad de documentos | `server/`, `app.js` | 🟢 | ⏱️ |
 | S-11 | ✅ **Compresión gzip de `/state` y límite de tamaño por petición** | Servidores modestos, respuestas grandes | `server/` | 🟠 | ⏱️ |
 | D-10 | ✅ **Guía de dos páginas para el mostrador** (imprimible en A4): vender, fiar, imprimir, verificar y cuadrar | El personal nuevo arranca sin formación | `docs/` | 🟠 | ⏱️ |
-| D-11 | **Vídeo vertical de 30 s para WhatsApp** con la venta y el ticket | Es el canal real de los clientes | `docs/assets/video/` | 🟢 | ⏳ |
+| D-11 | ✅ **Vídeo vertical de 30 s (9:16)** con la venta, la caja y el cierre, con voz masculina, subtítulos quemados y `.srt`, publicado en el sitio | Es el canal real de los clientes | `docs/assets/video/`, `tools/build_reel_vertical.py` | 🟢 | ⏳ | ✅ |
 | D-12 | ✅ **Página de novedades** (`NOVEDADES.html`) generada desde `CHANGELOG.md` | El cliente ve que el producto avanza | `docs/` | 🟢 | ⏱️ |
 | W-17 | ✅ **Comparador de períodos en el gráfico del Panel** (serie anterior punteada, leyenda y columna en la tabla) | Decidir mirando la tendencia, no un número suelto | `homeView`, `app.css` | 🟠 | ⏱️ |
 

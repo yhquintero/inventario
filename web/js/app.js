@@ -15,6 +15,8 @@ import { categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, h
 import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
 import { findSaleByCode, saleTicket, ticketCode, ticketTotals, verifyTicket } from "./ticket.js";
+import { quickSalePlan, quickSaleLabel, quickSaleSummary } from "./quick-sale.js";
+import { buildSheet, sheetFileName } from "./xlsx-export.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -1178,7 +1180,7 @@ function movementsView() {
       <div class="row">
         <input type="date" id="movDate" class="sel" value="${ui.movDate}" max="${todayISO()}">${ui.movDate ? `<button class="btn ghost small" data-act="clear-date">Todas las fechas</button>` : ""}
         ${canC ? `<button class="btn" data-act="new-movement">＋ Nuevo movimiento</button>` : ""}
-        <button class="btn ghost small" data-act="export-movements-view">CSV</button><button class="btn gold small" data-act="print">PDF</button>
+        <button class="btn ghost small" data-act="export-movements-view">CSV</button><button class="btn ghost small" data-act="export-xlsx" data-xlsx="movements">⬇ Excel</button><button class="btn gold small" data-act="print">PDF</button>
       </div>
     </div>
     <div class="summary"><span><b>${list.length}</b> movimientos</span><span>Ventas <b>${usd(ventas.reduce((a, m) => a + m.importeUsd, 0))}</b></span><span>Comisiones <b>${cup(ventas.reduce((a, m) => a + m.comisionCup, 0))}</b></span><span>Domicilios <b>${cup(ventas.reduce((a, m) => a + (m.domicilioCup || 0), 0))}</b></span></div>
@@ -1571,7 +1573,7 @@ function reportsView() {
     </div>` : "";
   const cuadreSection = savedCuadres.length ? `
     <div class="card table-wrap flush mt14">
-      <div class="card-h pad"><span class="k">Cuadres diarios guardados · ${savedCuadres.length}</span><span class="hint">Diferencia final en USD</span></div>
+      <div class="card-h pad"><span class="k">Cuadres diarios guardados · ${savedCuadres.length}</span><span class="row"><span class="hint">Diferencia final en USD</span>${allowed("REPORTS_EXPORT") ? `<button class="btn ghost small" data-act="export-xlsx" data-xlsx="cuadres">⬇ Excel</button>` : ""}</span></div>
       <table><thead><tr><th>Fecha</th><th class="r">Ventas</th><th class="r">Gastos</th><th class="r">Salidas</th><th class="r">Capital y cobros</th><th class="r">Diferencia</th><th>Estado</th></tr></thead>
         <tbody>${savedCuadres.map((cuadre) => {
           const dayMovements = store.activeMovements().filter((movement) => movement.date === cuadre.date && (!warehouseId || store.warehouseOf(movement) === warehouseId));
@@ -1587,7 +1589,7 @@ function reportsView() {
       <div class="row">
         ${dateControls}
         <label>Almacén<select id="reportWh"><option value="all" ${!warehouseId ? "selected" : ""}>Todos los almacenes</option>${warehouses.map((warehouse) => `<option value="${warehouse.id}" ${warehouseId === warehouse.id ? "selected" : ""}>${esc(warehouse.name)}</option>`).join("")}</select></label>
-        ${allowed("REPORTS_EXPORT") ? `<button class="btn small" data-act="export-csv">CSV comprobación</button><button class="btn ghost small" data-act="export-mov">CSV movimientos</button><button class="btn ghost small" data-act="export-inv">CSV inventario</button><button class="btn gold small" data-act="print">PDF</button>` : ""}
+        ${allowed("REPORTS_EXPORT") ? `<button class="btn small" data-act="export-csv">CSV comprobación</button><button class="btn ghost small" data-act="export-mov">CSV movimientos</button><button class="btn ghost small" data-act="export-inv">CSV inventario</button><button class="btn ghost small" data-act="export-xlsx" data-xlsx="inventory">⬇ Excel inventario</button><button class="btn gold small" data-act="print">PDF</button>` : ""}
       </div>
     </div>
     ${!valid ? `<div class="banner">El período personalizado requiere dos fechas válidas y «Desde» no puede ser posterior a «Hasta».</div>` : ""}
@@ -1700,6 +1702,62 @@ function usersView() {
     </table></div>`;
 }
 
+/**
+ * Pide una página del registro de seguridad y la añade a lo ya cargado (S-03).
+ *
+ * Mantiene el total y si quedan más páginas, para que la vista muestre un pie honesto.
+ */
+function loadSecLog(page = 1) {
+  const destino = ui.secLog || (ui.secLog = { rows: [], page: 0, pages: 1, total: 0, hasMore: false });
+  destino.cargando = true;
+  api(`/security-log?limit=200&page=${page}`)
+    .then((r) => {
+      const nuevas = r.log || [];
+      destino.rows = page === 1 ? nuevas : destino.rows.concat(nuevas);
+      destino.page = r.page || page;
+      destino.pages = r.pages || 1;
+      destino.total = r.total ?? destino.rows.length;
+      destino.hasMore = !!r.hasMore;
+      destino.cargando = false;
+      render();
+    })
+    .catch(() => {
+      destino.cargando = false;
+      if (page === 1 && !destino.rows.length) destino.rows = [];
+      render();
+    });
+}
+
+/**
+ * Comprueba la cadena del registro de seguridad (S-01).
+ *
+ * El servidor recalcula el hash de cada línea con el de la anterior. Si alguien cambió,
+ * borró o metió una línea por detrás, el resultado lo dice y se marca en rojo.
+ */
+function verificarCadenaAuditoria() {
+  const destino = ui.secLog || (ui.secLog = { rows: [], page: 0, pages: 1, total: 0, hasMore: false });
+  destino.verificando = true;
+  render();
+  api("/security-log/verify")
+    .then((r) => {
+      destino.verificacion = r;
+      destino.verificando = false;
+      if (r.ok) {
+        toast(`Cadena correcta: ${r.checked} línea(s) verificadas`, "ok");
+        announce(`Registro de seguridad íntegro. ${r.checked} líneas verificadas.`);
+      } else {
+        toast(`⚠ La cadena se rompe en la línea ${r.brokenAt}`, "err");
+        announce(`Atención: el registro de seguridad no cuadra en la línea ${r.brokenAt}.`);
+      }
+      render();
+    })
+    .catch(() => {
+      destino.verificando = false;
+      toast("No se pudo comprobar la cadena del registro.", "err");
+      render();
+    });
+}
+
 function auditView() {
   const canSec = ["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role());
   const tab = ui.auditTab || "app";
@@ -1714,11 +1772,32 @@ function auditView() {
       <tbody>${filas.map((a) => `<tr><td class="hint">${new Date(a.ts * 1000).toLocaleString("es-CU")}</td><td>${esc(a.user)}</td><td class="mono">${esc(a.code || "—")}</td><td class="mono hint">${esc(a.sale_id || "—")}</td><td>${a.width} mm</td><td><span class="tag ${a.kind === "reimpresion" ? "mov" : "entrada"}">${esc(a.kind)}</span></td></tr>`).join("") || "<tr><td colspan=6 class=hint>Sin impresiones registradas.</td></tr>"}</tbody></table></div>`;
   }
   if (tab === "sec" && canSec) {
-    if (!ui.secLog) { ui.secLog = []; api("/security-log").then((r) => { ui.secLog = r.log || []; render(); }); }
-    const rows = ui.secLog.filter((a) => !ui.q || has(a.action, ui.q) || has(a.user || "", ui.q) || has(a.details || "", ui.q) || has(a.ip || "", ui.q));
+    // El registro de seguridad llega por páginas (S-03): se pide la primera y, si hay más,
+    // el botón «Ver más eventos» trae la siguiente y la añade al final.
+    if (!ui.secLog) {
+      ui.secLog = { rows: [], page: 0, pages: 1, total: 0, hasMore: false, cargando: true };
+      loadSecLog(1);
+    }
+    if (ui.secLog.cargando && !ui.secLog.rows.length) {
+      return tabs + `<div class="card"><span class="k">🛡 Seguridad (servidor)</span><p class="hint">Cargando el registro de eventos…</p></div>`;
+    }
+    const rows = ui.secLog.rows.filter((a) => !ui.q || has(a.action, ui.q) || has(a.user || "", ui.q) || has(a.details || "", ui.q) || has(a.ip || "", ui.q));
     const bad = (x) => /FAIL|REVOKE|OFF|REOPEN|RESTORE/.test(x);
-    return tabs + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Detalle</th><th>IP</th></tr></thead>
-      <tbody>${rows.map((a) => `<tr><td class="hint">${new Date(a.ts * 1000).toLocaleString("es-CU")}</td><td>${esc(a.user)}</td><td><span class="tag ${bad(a.action) ? "salida" : a.action.startsWith("LOGIN") ? "entrada" : "mov"}">${esc(a.action)}</span></td><td>${hl(a.details || "")}</td><td class="mono hint">${esc(a.ip || "")}</td></tr>`).join("") || "<tr><td colspan=5 class=hint>Sin eventos.</td></tr>"}</tbody></table></div>`;
+    const ver = ui.secLog.verificacion;
+    const veredicto = !ver
+      ? ""
+      : ver.ok
+        ? `<div class="banner ok mt12"><b>✔ Registro íntegro.</b> ${ver.checked} línea(s) comprobadas: cada una encaja con la anterior. Sello actual <span class="mono">${esc(ver.head || "—")}</span></div>`
+        : `<div class="banner err mt12"><b>⚠ El registro no cuadra.</b> La primera línea que no encaja es la <b>${ver.brokenAt}</b> (${esc(ver.detail || ver.reason)}). No siga trabajando sin revisar la copia de seguridad y avise al administrador.</div>`;
+    const pie = `<div class="card mb12"><div class="card-h"><span class="k">🛡 Eventos del servidor</span>
+      <span class="hint">${ui.secLog.rows.length} de ${ui.secLog.total} · página ${Math.max(1, ui.secLog.page)} de ${ui.secLog.pages}</span></div>
+      <p class="hint">Inicios de sesión, fallos, revocaciones, reaperturas de día, restauraciones e impresiones. Se cargan por páginas de 200 para no pedirle al servidor más de lo necesario.</p>
+      <p class="hint">Cada línea guarda la huella (hash) de la anterior: si alguien edita o borra una fila por detrás, la cadena deja de cuadrar. Pulse <b>Comprobar cadena</b> para revisarla entera.</p>
+      <div class="row mt12"><button class="btn ghost small" data-act="sec-verify" ${ui.secLog.verificando ? "disabled" : ""}>${ui.secLog.verificando ? "Comprobando…" : "🔗 Comprobar cadena"}</button>
+      ${ui.secLog.hasMore ? `<button class="btn ghost small" data-act="sec-more">Ver más eventos</button>` : ""}</div>
+      ${veredicto}</div>`;
+    return tabs + pie + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Detalle</th><th>Huella</th><th>IP</th></tr></thead>
+      <tbody>${rows.map((a) => `<tr><td class="hint">${new Date(a.ts * 1000).toLocaleString("es-CU")}</td><td>${esc(a.user)}</td><td><span class="tag ${bad(a.action) ? "salida" : a.action.startsWith("LOGIN") ? "entrada" : "mov"}">${esc(a.action)}</span></td><td>${hl(a.details || "")}</td><td class="mono hint" data-tip="Hash SHA-256 de esta línea encadenado con la anterior">${esc(a.hashShort || "—")}</td><td class="mono hint">${esc(a.ip || "")}</td></tr>`).join("") || "<tr><td colspan=6 class=hint>Sin eventos.</td></tr>"}</tbody></table></div>`;
   }
   const logs = store.state.audit.filter((a) => !ui.q || has(a.action, ui.q) || has(a.userName || "", ui.q) || has(a.details || "", ui.q) || has(a.entity || "", ui.q));
   return tabs + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>Detalle</th></tr></thead>
@@ -2004,9 +2083,9 @@ function customersView() {
         <td class="hint">${c.dueDate ? formatDate(c.dueDate) : "—"}</td>
         ${canEdit ? `<td class="nowrap">${pend > 0 ? `<button class="btn small" data-pay-credit="${c.id}">Abonar</button>` : ""} ${!(c.payments || []).length ? `<button class="icon-btn danger" data-del-credit="${c.id}" title="Eliminar fiado sin abonos">🗑</button>` : ""}</td>` : ""}
       </tr>`; }).join("") || `<tr><td colspan="9" class="empty">Aún no hay fiados. Crea uno con «Nuevo fiado» o vende a fiado desde Venta rápida.</td></tr>`}</tbody></table></div>
-      ${canEdit ? `<div class="row mt12"><button class="btn" data-act="new-credit">＋ Nuevo fiado manual</button><button class="btn ghost" data-act="export-credits">⬇ CSV de fiados</button></div>` : ""}
+      ${canEdit ? `<div class="row mt12"><button class="btn" data-act="new-credit">＋ Nuevo fiado manual</button><button class="btn ghost" data-act="export-credits">⬇ CSV de fiados</button><button class="btn ghost" data-act="export-xlsx" data-xlsx="credits">⬇ Excel de fiados</button></div>` : ""}
     ` : `
-      <div class="toolbar"><div></div><div class="row">${canEdit ? `<button class="btn" data-act="new-customer">＋ Nuevo cliente</button><button class="btn ghost" data-act="new-credit">＋ Nuevo fiado</button>` : ""}<button class="btn ghost" data-act="export-customers">⬇ CSV clientes</button></div></div>
+      <div class="toolbar"><div></div><div class="row">${canEdit ? `<button class="btn" data-act="new-customer">＋ Nuevo cliente</button><button class="btn ghost" data-act="new-credit">＋ Nuevo fiado</button>` : ""}<button class="btn ghost" data-act="export-customers">⬇ CSV clientes</button><button class="btn ghost" data-act="export-xlsx" data-xlsx="customers">⬇ Excel clientes</button></div></div>
       <div class="card table-wrap flush"><table><thead><tr><th>Cliente</th><th>Contacto</th><th class="r">Límite</th><th class="r">Debe</th><th>Estado</th>${canEdit ? "<th></th>" : ""}</tr></thead>
       <tbody>${customers.map((c) => { const bal = store.customerBalance(c.id); const over = c.creditLimitUsd && bal > c.creditLimitUsd; return `<tr>
         <td><strong>${esc(c.name)}</strong>${c.notes ? `<div class="hint">${esc(c.notes)}</div>` : ""}${c.address ? `<div class="hint">${esc(c.address)}</div>` : ""}</td>
@@ -2341,6 +2420,14 @@ function analyticsView() {
   const movimientos = store.activeMovements();
   const grid = heatmapGrid(movimientos, { weeks: 8, endDate: last.d || todayISO() });
   const categorias = categoryBreakdown(movimientos, store.state.products);
+  // Se guarda para poder exportarlo a Excel desde el botón de la tarjeta (W-07).
+  ui.lastAnalytics = {
+    categorias,
+    totales: {
+      revenue: categorias.reduce((a, c) => a + (Number(c.revenue) || 0), 0),
+      units: categorias.reduce((a, c) => a + (Number(c.units) || 0), 0),
+    },
+  };
   const wk = weeklyData(last.d);
   const prevWk = weeklyData(addDays(wk.w.from, -7));
   const diffPct = prevWk.ventas ? round2(((wk.ventas - prevWk.ventas) / prevWk.ventas) * 100) : null;
@@ -2379,7 +2466,7 @@ function analyticsView() {
         <p class="hint">Cada cuadro es un día; cuanto más oscuro, más se vendió. Sirve para ver de un golpe qué días flaquean.</p>
         ${heatmapMarkup(grid)}
       </div>
-      <div class="card"><div class="card-h"><span class="k">🏷️ Ventas y utilidad por categoría</span><span class="tag mov">${categorias.length} categoría(s)</span></div>
+      <div class="card"><div class="card-h"><span class="k">🏷️ Ventas y utilidad por categoría</span><span class="row"><span class="tag mov">${categorias.length} categoría(s)</span>${allowed("REPORTS_EXPORT") ? `<button class="btn ghost small" data-act="export-xlsx" data-xlsx="analytics">⬇ Excel</button>` : ""}</span></div>
         <p class="hint">La barra clara es la venta y la verde, la utilidad; el porcentaje es el margen sobre la venta.</p>
         ${categoryChartMarkup(categorias)}
       </div>
@@ -3470,9 +3557,57 @@ function render() {
   if (!tourSeen() && !ui.modal && !document.querySelector(".tour") && innerWidth > 860) setTimeout(startTour, 400);
 }
 
+/**
+ * Órdenes de venta escritas en el buscador (W-04).
+ *
+ * Devuelve una fila de resultado por cada orden válida («vender arroz 2»), con su
+ * aviso si el producto no existe, el día está cerrado o no hay existencia.
+ */
+function paletteCommands(texto) {
+  if (!allowed("MOVEMENT_CREATE")) return [];
+  const plan = quickSalePlan(texto, store.activeProducts());
+  if (!plan) return [];
+  if (!plan.ok) return [{ icon: "⚠", label: plan.error, hint: "Sin coincidencia", run: () => toast(plan.error, "err") }];
+  const fecha = ui.posDate || todayISO();
+  const cerrado = store.isClosed(fecha);
+  const almacen = store.activeWarehouseId();
+  const hay = store.stockIn(plan.product, almacen);
+  const falta = plan.qty > hay;
+  const motivo = cerrado
+    ? `El ${formatDate(fecha)} está cerrado: no se puede vender.`
+    : falta
+      ? `Solo hay ${qty(hay)} de ${plan.product.name} en «${store.warehouseName(almacen)}».`
+      : "";
+  const total = Math.round(plan.qty * plan.product.precioVentaUsd * 100) / 100;
+  return [{
+    icon: motivo ? "⚠" : "🛒",
+    label: motivo || `${quickSaleLabel(plan)} · ${usd(total)}`,
+    hint: motivo ? "No se puede vender" : "Venta rápida · Enter",
+    run: () => (motivo ? toast(motivo, "err") : ejecutarVentaRapida(plan)),
+  }];
+}
+
+/** Registra la venta pedida desde el buscador, con las mismas reglas que la pantalla de venta. */
+function ejecutarVentaRapida(plan) {
+  const fecha = ui.posDate || todayISO();
+  const r = store.posCheckout(
+    [{ productId: plan.product.id, qty: plan.qty, price: plan.product.precioVentaUsd }],
+    { date: fecha, center: ui.posCenter || "TIENDA", domicilioCup: 0, warehouseId: store.activeWarehouseId(), paymentType: "CONTADO", customerId: "", dueDate: "" },
+  );
+  if (r.error) return toast(r.error, "err");
+  ui.lastSaleIds = r.movementIds || [];
+  announce(`Venta registrada: ${quickSaleSummary(plan, r.total)}`);
+  confetti(`<b>¡Venta registrada!</b><span>${esc(quickSaleSummary(plan, r.total))}</span>`);
+  const dia = store.activeMovements().filter((m) => m.date === fecha && m.type === "VENTA").reduce((a, m) => a + m.importeUsd, 0);
+  const meta = store.state.settings.goalDaily;
+  if (meta && dia >= meta && dia - r.total < meta) setTimeout(() => confetti(`<b>🏆 ¡Meta diaria cumplida!</b><span>${usd(dia)}</span>`), 1200);
+  render();
+}
+
 function paletteCtx() {
   return {
     routes, allowed, norm: normName, products: () => store.activeProducts(),
+    commands: paletteCommands,
     go: (k) => navTo(k),
     act: (a) => runAct(a),
     openProduct: (p) => { if (allowed("INVENTORY_EDIT")) { productModal(p); ui.route = "inventory"; render(); } else { ui.q = p.name; navTo("inventory"); } },
@@ -4139,6 +4274,9 @@ function onClick(e) {
   else if (act === "iv-apply") ivApply();
   else if (act === "iv-clear") { const st = ivState(); st.rows = []; st.text = ""; st.last = null; st.warn = false; render(); }
   else if (act === "iv-template") ivTemplate();
+  else if (act === "sec-verify") { verificarCadenaAuditoria(); }
+  else if (act === "export-xlsx") { exportXlsx(d.xlsx || "inventory", d.xlsx === "analytics" ? ui.lastAnalytics || {} : {}); }
+  else if (act === "sec-more") { loadSecLog((ui.secLog?.page || 1) + 1); toast("Cargando más eventos…", "ok"); }
   else if (act === "health-refresh") { ui.health = null; render(); toast("Revisando el estado del servidor…", "ok"); }
   else if (act === "license-refresh") {
     if (!store.state.session) ui.license.loading = true;
@@ -4616,6 +4754,50 @@ function exportCredits() {
   toast(`${store.activeCredits().length} fiados exportados`, "ok");
 }
 function csv(v) { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }
+/**
+ * Exporta una hoja de cálculo .xlsx con el lector de Excel que ya usa la app (W-07).
+ *
+ * El archivo se genera en el propio equipo: no sale nada a Internet. La primera vez
+ * descarga el lector (861 KB) y queda guardado para las siguientes exportaciones.
+ */
+async function exportXlsx(kind, extra = {}) {
+  const hoja = buildSheet(kind, {
+    products: store.activeProducts(),
+    movements: store.activeMovements(),
+    customers: store.activeCustomers(),
+    credits: store.activeCredits(),
+    cuadres: store.state.cuadres || [],
+    warehouseName: store.warehouseName(store.activeWarehouseId()),
+    categorias: extra.categorias,
+    totales: extra.totales,
+  }, {
+    money: (v) => Math.round(Number(v) * 100) / 100,
+    date: (d) => formatDate(d),
+    pendienteCliente: (c) => store.customerBalance(c.id),
+    pendiente: (c) => creditPending(c),
+    estado: (c) => creditStatus(c),
+    calc: (c) => cuadreCalc(c, store.activeMovements().filter((m) => m.date === c.date)),
+  });
+  if (!hoja || hoja.length <= 1) return toast("No hay datos para exportar.", "err");
+  try {
+    const XLSX = await loadXLSX();
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(hoja);
+    ws["!cols"] = hoja[0].map((_, i) => ({ wch: i === 0 ? 32 : 16 }));
+    XLSX.utils.book_append_sheet(wb, ws, buildSheetName(kind));
+    XLSX.writeFile(wb, sheetFileName(kind, todayISO()));
+    toast(`Excel exportado: ${hoja.length - 1} fila(s)`, "ok");
+  } catch (e) {
+    toast(e?.message || "No se pudo generar el Excel.", "err");
+  }
+}
+
+/** Nombre de la hoja dentro del libro. */
+function buildSheetName(kind) {
+  const nombres = { inventory: "Inventario", movements: "Movimientos", customers: "Clientes", credits: "Fiados", cuadres: "Cuadres", analytics: "Por categoría" };
+  return nombres[kind] || "Datos";
+}
+
 function download(name, content, mime) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([content], { type: mime }));

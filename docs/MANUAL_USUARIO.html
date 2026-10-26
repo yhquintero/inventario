@@ -1631,7 +1631,7 @@ Restáurelo o elimínelo definitivamente antes de reutilizar el nombre.</p>
   tabla) o use <code>/</code> para enfocarlo y <code>Ctrl+K</code> para la búsqueda global.</li>
 <li><strong>Filtrar:</strong> chips de stock + selector de categoría + orden. Los filtros se combinan.</li>
 <li><strong>Exportar:</strong> <strong>PDF</strong> imprime lo que está viendo (con filtros aplicados). Desde los informes
-  también hay exportación <strong>CSV</strong> para abrir en Excel.</li>
+  también hay exportación <strong>CSV</strong> y <strong>⬇ Excel inventario</strong> (<code>.xlsx</code>) — véase el apartado 10.5.</li>
 </ul>
 <p>💡 Si necesita un listado de control físico, filtre por almacén y use <strong>PDF</strong>: obtiene una
 hoja con numeración para contar y anotar diferencias.</p>
@@ -1921,7 +1921,68 @@ segundos sabe si el papel es bueno, si está alterado o si esa venta ya se anul�
 </tr>
 </tbody>
 </table>
-<h2 id="69-buenas-prácticas-de-caja">6.9 Buenas prácticas de caja</h2>
+<h2 id="69-vender-desde-el-buscador-ctrl--k">6.9 Vender desde el buscador (Ctrl + K)</h2>
+<p>Para una venta de contado de un solo producto no hace falta abrir la pantalla de venta:</p>
+<ol>
+<li>Pulse <strong>Ctrl + K</strong> (o <strong>⌘ + K</strong> en Mac), o el botón <strong>⌕ Buscar</strong> del Panel.</li>
+<li>Escriba la orden: <strong><code>vender arroz 2</code></strong>.</li>
+<li>La primera fila del buscador dice <strong>Vender ARROZ × 2 · $20.00</strong> con el total ya calculado.</li>
+<li>Pulse <strong>Enter</strong>. La venta queda registrada igual que desde la pantalla de venta y aparece
+   el aviso <strong>«¡Venta registrada!»</strong> con la cantidad y el importe.</li>
+</ol>
+<p>Formatos que entiende, todos equivalentes:</p>
+<table>
+<thead>
+<tr>
+<th>Escribe</th>
+<th>Vende</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vender arroz 2</code></td>
+<td>2 unidades de ARROZ</td>
+</tr>
+<tr>
+<td><code>vende 2 arroz</code></td>
+<td>2 unidades de ARROZ</td>
+</tr>
+<tr>
+<td><code>vender arroz x2</code></td>
+<td>2 unidades de ARROZ</td>
+</tr>
+<tr>
+<td><code>vender arroz 2,5</code></td>
+<td>2,5 unidades (venta por peso)</td>
+</tr>
+<tr>
+<td><code>vender arroz</code></td>
+<td>1 unidad</td>
+</tr>
+<tr>
+<td><code>vender 7501234567890</code></td>
+<td>el producto con ese <strong>código de barras</strong></td>
+</tr>
+<tr>
+<td><code>vender el arroz 2</code></td>
+<td>2 unidades de ARROZ (acepta «el», «la», «un»…)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Lo que el buscador respeta</strong> (no se salta ninguna regla de la caja):</p>
+<ul>
+<li><strong>Día cerrado:</strong> si la fecha de venta está cerrada, la fila lo avisa y no deja vender.</li>
+<li><strong>Existencia:</strong> si no hay unidades suficientes en el almacén en uso, dice cuántas quedan.</li>
+<li><strong>Producto inexistente o borrado:</strong> muestra «No encuentro … en el inventario».</li>
+<li><strong>Comisión, domicilio y cuadre:</strong> se calculan exactamente igual que en la pantalla de venta.</li>
+<li>La venta es <strong>de contado</strong>; para fiar, use la pantalla <strong>🛒 Venta rápida</strong>.</li>
+</ul>
+<div class="callout tip">
+<p class="callout-t">💡 Consejo</p>
+<p>Si escribe solo <code>arroz</code> (sin el verbo), el buscador se comporta como siempre: busca y abre el
+producto. El verbo <strong>vender</strong> es lo que convierte la búsqueda en una venta.</p>
+</div>
+<h2 id="610-buenas-prácticas-de-caja">6.10 Buenas prácticas de caja</h2>
 <ol>
 <li><strong>Una venta, un cobro.</strong> No acumule varias ventas en el carrito si son clientes distintos.</li>
 <li><strong>Domicilio siempre en CUP</strong> y solo si lo cobró.</li>
@@ -2181,7 +2242,8 @@ usuario. Los estados son automáticos:</p>
 <ul>
 <li>La tabla de fiados muestra cliente, origen (<strong>Venta rápida</strong> o <strong>Manual</strong>), importe,
   abonado, saldo, vencimiento, estado e historial de abonos.</li>
-<li><strong>Exportar CSV</strong> descarga clientes y fiados para Excel o para compartir con el contador.</li>
+<li><strong>Exportar CSV</strong> descarga clientes y fiados para Excel o para compartir con el contador;
+  <strong>⬇ Excel clientes</strong> y <strong>⬇ Excel de fiados</strong> generan el libro <code>.xlsx</code> (apartado 10.5).</li>
 </ul>
 <h2 id="86-rutina-semanal-de-cobros-recomendada">8.6 Rutina semanal de cobros recomendada</h2>
 <ol>
@@ -2653,6 +2715,85 @@ semanas seguidas, revíselo con <strong>Análisis</strong> antes de cambiar prec
 <p><strong>Rutina de apertura (2 minutos):</strong> abra el Panel, revise la <strong>reposición sugerida</strong> y las
 alertas de stock, confirme el cuadre del día anterior y entre a vender.</p>
 <hr />
+<h2 id="105-exportar-a-excel-xlsx">10.5 Exportar a Excel (.xlsx)</h2>
+<p>Todo lo que la app muestra en una tabla se puede llevar a <strong>Excel de verdad</strong> (archivo
+<code>.xlsx</code>, no un CSV que hay que convertir). Excel abre el archivo con los números ya
+numéricos, las columnas con ancho razonable y la fecha en el nombre del archivo.</p>
+<p><strong>Dónde está el botón «⬇ Excel»</strong></p>
+<table>
+<thead>
+<tr>
+<th>Pantalla</th>
+<th>Ruta en el menú</th>
+<th>Qué exporta</th>
+<th>Hoja</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Inventario / Comprobación</td>
+<td><strong>🧭 Menú → Informes → Comprobación</strong> o <strong>Inventario</strong></td>
+<td>Todos los productos con existencia, mínimo, costo, venta y <strong>valor a venta</strong></td>
+<td><code>Inventario</code></td>
+</tr>
+<tr>
+<td>Movimientos</td>
+<td><strong>🧭 Menú → Movimientos</strong></td>
+<td>Cada movimiento con tipo, cantidad, importe, centro, comisión, domicilio y usuario</td>
+<td><code>Movimientos</code></td>
+</tr>
+<tr>
+<td>Clientes</td>
+<td><strong>🧭 Menú → Clientes</strong></td>
+<td>Cliente, teléfono, correo, dirección, límite y <strong>lo que debe</strong></td>
+<td><code>Clientes</code></td>
+</tr>
+<tr>
+<td>Fiados y abonos</td>
+<td><strong>🧭 Menú → Clientes → Fiados</strong></td>
+<td>Fecha, cliente, total, abonado, pendiente, estado, vencimiento y detalle de abonos</td>
+<td><code>Fiados</code></td>
+</tr>
+<tr>
+<td>Cuadres diarios</td>
+<td><strong>🧭 Menú → Informes → Comprobación</strong> (bloque <em>Cuadres diarios guardados</em>)</td>
+<td>Tasa, fondo, ventas, gastos, salidas, cuadre, entregado y diferencia</td>
+<td><code>Cuadres</code></td>
+</tr>
+<tr>
+<td>Ventas por categoría</td>
+<td><strong>🧭 Menú → Análisis</strong> (tarjeta <em>Ventas y utilidad por categoría</em>)</td>
+<td>Ventas, unidades y <strong>% del total</strong> por categoría, con fila <strong>TOTAL</strong></td>
+<td><code>Por categoría</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Paso a paso</strong></p>
+<ol>
+<li>Entre a la pantalla con el botón <strong>⬇ Excel</strong> (si no lo ve, su usuario no tiene permiso
+   de exportar: pídalo al administrador).</li>
+<li>Pulse <strong>⬇ Excel</strong>. La primera vez en ese equipo la app descarga el lector de Excel
+   (861 KB) y lo guarda; las siguientes exportaciones son instantáneas.</li>
+<li>El navegador guarda el archivo en su carpeta de <strong>Descargas</strong> con la fecha del día,
+   por ejemplo <code>inventario-2026-10-25.xlsx</code>.</li>
+<li>Ábralo con doble clic. Verá la hoja con el encabezado congelable y los importes en USD.</li>
+</ol>
+<div class="callout note">
+<p class="callout-t">ℹ Nota</p>
+<p><strong>Sin conexión también funciona</strong> una vez que el lector quedó guardado. Si es la
+primera vez y no hay Internet, la app avisa: «No se pudo cargar el lector de Excel.
+Conéctate una vez para guardarlo en el teléfono».</p>
+</div>
+<div class="callout important">
+<p class="callout-t">❗ Importante</p>
+<p>El <strong>CSV</strong> sigue disponible y es más liviano cuando solo necesita pegar datos en otro
+sistema. Para el contador, elija <strong>Excel</strong>: no se rompen los acentos ni las comas
+decimales y los totales se pueden sumar de inmediato.</p>
+</div>
+<p><strong>Para el contador — libro de trabajo sugerido:</strong> exporte inventario y cuadres el último
+día del mes, pegue cada hoja en su libro y conserve el nombre del archivo: la fecha dentro
+del nombre es la garantía de que está usando la versión correcta.</p>
+<hr />
 <h1 id="11-historial-de-precios-y-monedas">11. Historial de precios y monedas</h1>
 <h2 id="111-historial-de-precios">11.1 Historial de precios</h2>
 <p><strong>🧭 Menú → Análisis → Historial precios</strong></p>
@@ -3090,7 +3231,7 @@ desactivar un usuario, su historial se conserva: no se borra nada.</p>
 </tr>
 <tr>
 <td><strong>Seguridad (servidor)</strong></td>
-<td>Inicios de sesión, fallos, revocaciones, reaperturas de día, restauraciones, con IP</td>
+<td>Inicios de sesión, fallos, revocaciones, reaperturas de día, restauraciones e impresiones, con IP. Se carga de <strong>200 en 200</strong>: el pie dice cuántos eventos se ven del total y el botón <strong>Ver más eventos</strong> trae la siguiente página</td>
 </tr>
 <tr>
 <td><strong>Impresiones</strong></td>
@@ -3116,6 +3257,50 @@ desactivar un usuario, su historial se conserva: no se borra nada.</p>
 </ul>
 <p>💡 La auditoría es su mejor defensa ante un descuadre inexplicable: casi siempre muestra la
 operación que lo provocó.</p>
+<h2 id="144-comprobar-la-cadena-del-registro-de-seguridad-s-01">14.4 Comprobar la cadena del registro de seguridad (S-01)</h2>
+<p>Cada evento del registro de seguridad del servidor guarda una <strong>huella</strong> (un código de 64
+caracteres, el <em>hash</em>) que se calcula con sus propios datos <strong>más la huella del evento
+anterior</strong>. Es como una cadena: si alguien cambia, borra o mete una fila directamente en la
+base de datos, la cadena deja de encajar y NovaGest lo dice.</p>
+<p><strong>Qué se ve en pantalla</strong></p>
+<p>En la tabla de la pestaña <strong>Seguridad (servidor)</strong> hay una columna <strong>Huella</strong> con los primeros
+12 caracteres de cada evento (los justos para compararlos de un vistazo).</p>
+<p><strong>Cómo comprobar la cadena, paso a paso</strong></p>
+<ol>
+<li><strong>🧭 Menú → Sistema → Auditoría</strong> y elija la pestaña <strong>Seguridad (servidor)</strong>.</li>
+<li>Pulse <strong>🔗 Comprobar cadena</strong>. Tarda un segundo: el servidor recorre <em>todos</em> los eventos,
+   no solo los 200 de la pantalla.</li>
+<li>Lea el resultado, que aparece justo debajo del botón:
+   - <strong>✔ Registro íntegro.</strong> Dice cuántas líneas comprobó y muestra el <strong>sello actual</strong> (la
+     última huella). Es la respuesta normal y no hay nada que hacer.
+   - <strong>⚠ El registro no cuadra.</strong> Indica <strong>el número de la línea</strong> que no encaja y el motivo:
+     <em>los datos de la línea no coinciden con su hash</em> (alguien cambió un dato) o <em>la línea no
+     apunta al hash de la anterior</em> (se borró o se insertó una línea en medio).</li>
+<li>El aviso también se anuncia al lector de pantalla y queda como notificación, para que no
+   pase inadvertido.</li>
+</ol>
+<p><strong>Qué hacer si la cadena no cuadra</strong></p>
+<ol>
+<li><strong>No borre nada.</strong> Cada prueba que se toque puede perderse.</li>
+<li>Descargue una <strong>copia de seguridad</strong> desde <strong>Ajustes → Copias</strong> y guárdela aparte.</li>
+<li>Anote el número de línea que señala el aviso y la fecha/hora de esa fila.</li>
+<li>Avise al administrador y revise quién tuvo acceso al servidor ese día (usuarios de sistema,
+   accesos por escritorio remoto, carpetas compartidas).</li>
+</ol>
+<div class="callout note">
+<p class="callout-t">ℹ Nota</p>
+<p>La comprobación <strong>no depende de la pantalla</strong>: también está en la API
+(<code>GET /api/security-log/verify</code>, opcionalmente <code>?from=N&amp;to=M</code> para un tramo), así que se
+puede automatizar desde el servidor con un script y avisar por correo si algún día falla.</p>
+</div>
+<div class="callout important">
+<p class="callout-t">❗ Importante</p>
+<p><strong>Actualizar desde una versión anterior.</strong> Al arrancar, NovaGest añade dos columnas a la
+tabla de auditoría y calcula la huella de los eventos antiguos <strong>una sola vez</strong>; los que ya
+la tienen no se vuelven a calcular. No hay que hacer nada especial, pero conviene que la
+primera comprobación de la cadena se haga <strong>después</strong> de actualizar y con el servidor recién
+arrancado: ese es el punto de partida de confianza.</p>
+</div>
 <hr />
 <h1 id="15-licencia-de-uso">15. Licencia de uso</h1>
 <p>NovaGest es <strong>software propietario</strong>. Sin licencia válida, el sistema <strong>bloquea el acceso</strong>.</p>

@@ -824,7 +824,7 @@ Cambiar el nombre de una categoría en un producto **no** renombra los demás.
   tabla) o use `/` para enfocarlo y `Ctrl+K` para la búsqueda global.
 - **Filtrar:** chips de stock + selector de categoría + orden. Los filtros se combinan.
 - **Exportar:** **PDF** imprime lo que está viendo (con filtros aplicados). Desde los informes
-  también hay exportación **CSV** para abrir en Excel.
+  también hay exportación **CSV** y **⬇ Excel inventario** (`.xlsx`) — véase el apartado 10.5.
 
 💡 Si necesita un listado de control físico, filtre por almacén y use **PDF**: obtiene una
 hoja con numeración para contar y anotar diferencias.
@@ -1006,7 +1006,41 @@ negocio y sus importes no se han tocado?*
 | La cámara no abre | El sitio no es HTTPS o falta permiso | Use HTTPS y permita la cámara en el navegador |
 | El carrito se vació al recargar | El carrito vive en la sesión | Vuelva a cargar; registre la venta antes de recargar |
 
-## 6.9 Buenas prácticas de caja
+## 6.9 Vender desde el buscador (Ctrl + K)
+
+Para una venta de contado de un solo producto no hace falta abrir la pantalla de venta:
+
+1. Pulse **Ctrl + K** (o **⌘ + K** en Mac), o el botón **⌕ Buscar** del Panel.
+2. Escriba la orden: **`vender arroz 2`**.
+3. La primera fila del buscador dice **Vender ARROZ × 2 · $20.00** con el total ya calculado.
+4. Pulse **Enter**. La venta queda registrada igual que desde la pantalla de venta y aparece
+   el aviso **«¡Venta registrada!»** con la cantidad y el importe.
+
+Formatos que entiende, todos equivalentes:
+
+| Escribe | Vende |
+|---|---|
+| `vender arroz 2` | 2 unidades de ARROZ |
+| `vende 2 arroz` | 2 unidades de ARROZ |
+| `vender arroz x2` | 2 unidades de ARROZ |
+| `vender arroz 2,5` | 2,5 unidades (venta por peso) |
+| `vender arroz` | 1 unidad |
+| `vender 7501234567890` | el producto con ese **código de barras** |
+| `vender el arroz 2` | 2 unidades de ARROZ (acepta «el», «la», «un»…) |
+
+**Lo que el buscador respeta** (no se salta ninguna regla de la caja):
+
+- **Día cerrado:** si la fecha de venta está cerrada, la fila lo avisa y no deja vender.
+- **Existencia:** si no hay unidades suficientes en el almacén en uso, dice cuántas quedan.
+- **Producto inexistente o borrado:** muestra «No encuentro … en el inventario».
+- **Comisión, domicilio y cuadre:** se calculan exactamente igual que en la pantalla de venta.
+- La venta es **de contado**; para fiar, use la pantalla **🛒 Venta rápida**.
+
+> [!TIP]
+> Si escribe solo `arroz` (sin el verbo), el buscador se comporta como siempre: busca y abre el
+> producto. El verbo **vender** es lo que convierte la búsqueda en una venta.
+
+## 6.10 Buenas prácticas de caja
 
 1. **Una venta, un cobro.** No acumule varias ventas en el carrito si son clientes distintos.
 2. **Domicilio siempre en CUP** y solo si lo cobró.
@@ -1158,7 +1192,8 @@ usuario. Los estados son automáticos:
 
 - La tabla de fiados muestra cliente, origen (**Venta rápida** o **Manual**), importe,
   abonado, saldo, vencimiento, estado e historial de abonos.
-- **Exportar CSV** descarga clientes y fiados para Excel o para compartir con el contador.
+- **Exportar CSV** descarga clientes y fiados para Excel o para compartir con el contador;
+  **⬇ Excel clientes** y **⬇ Excel de fiados** generan el libro `.xlsx` (apartado 10.5).
 
 ## 8.6 Rutina semanal de cobros recomendada
 
@@ -1452,6 +1487,49 @@ alertas de stock, confirme el cuadre del día anterior y entre a vender.
 
 ---
 
+## 10.5 Exportar a Excel (.xlsx)
+
+Todo lo que la app muestra en una tabla se puede llevar a **Excel de verdad** (archivo
+`.xlsx`, no un CSV que hay que convertir). Excel abre el archivo con los números ya
+numéricos, las columnas con ancho razonable y la fecha en el nombre del archivo.
+
+**Dónde está el botón «⬇ Excel»**
+
+| Pantalla | Ruta en el menú | Qué exporta | Hoja |
+|---|---|---|---|
+| Inventario / Comprobación | **🧭 Menú → Informes → Comprobación** o **Inventario** | Todos los productos con existencia, mínimo, costo, venta y **valor a venta** | `Inventario` |
+| Movimientos | **🧭 Menú → Movimientos** | Cada movimiento con tipo, cantidad, importe, centro, comisión, domicilio y usuario | `Movimientos` |
+| Clientes | **🧭 Menú → Clientes** | Cliente, teléfono, correo, dirección, límite y **lo que debe** | `Clientes` |
+| Fiados y abonos | **🧭 Menú → Clientes → Fiados** | Fecha, cliente, total, abonado, pendiente, estado, vencimiento y detalle de abonos | `Fiados` |
+| Cuadres diarios | **🧭 Menú → Informes → Comprobación** (bloque *Cuadres diarios guardados*) | Tasa, fondo, ventas, gastos, salidas, cuadre, entregado y diferencia | `Cuadres` |
+| Ventas por categoría | **🧭 Menú → Análisis** (tarjeta *Ventas y utilidad por categoría*) | Ventas, unidades y **% del total** por categoría, con fila **TOTAL** | `Por categoría` |
+
+**Paso a paso**
+
+1. Entre a la pantalla con el botón **⬇ Excel** (si no lo ve, su usuario no tiene permiso
+   de exportar: pídalo al administrador).
+2. Pulse **⬇ Excel**. La primera vez en ese equipo la app descarga el lector de Excel
+   (861 KB) y lo guarda; las siguientes exportaciones son instantáneas.
+3. El navegador guarda el archivo en su carpeta de **Descargas** con la fecha del día,
+   por ejemplo `inventario-2026-10-25.xlsx`.
+4. Ábralo con doble clic. Verá la hoja con el encabezado congelable y los importes en USD.
+
+> [!NOTE]
+> **Sin conexión también funciona** una vez que el lector quedó guardado. Si es la
+> primera vez y no hay Internet, la app avisa: «No se pudo cargar el lector de Excel.
+> Conéctate una vez para guardarlo en el teléfono».
+
+> [!IMPORTANT]
+> El **CSV** sigue disponible y es más liviano cuando solo necesita pegar datos en otro
+> sistema. Para el contador, elija **Excel**: no se rompen los acentos ni las comas
+> decimales y los totales se pueden sumar de inmediato.
+
+**Para el contador — libro de trabajo sugerido:** exporte inventario y cuadres el último
+día del mes, pegue cada hoja en su libro y conserve el nombre del archivo: la fecha dentro
+del nombre es la garantía de que está usando la versión correcta.
+
+---
+
 # 11. Historial de precios y monedas
 
 ## 11.1 Historial de precios
@@ -1698,7 +1776,7 @@ deja escrita), **Desactivar / Activar** y **Quitar 2FA** (si el usuario perdió 
 | Pestaña | Contenido |
 |---|---|
 | **Actividad del negocio** | Quién creó, modificó, eliminó o restauró qué, con fecha, entidad y detalle (últimos 300 registros) |
-| **Seguridad (servidor)** | Inicios de sesión, fallos, revocaciones, reaperturas de día, restauraciones, con IP |
+| **Seguridad (servidor)** | Inicios de sesión, fallos, revocaciones, reaperturas de día, restauraciones e impresiones, con IP. Se carga de **200 en 200**: el pie dice cuántos eventos se ven del total y el botón **Ver más eventos** trae la siguiente página |
 | **Impresiones** | Quién imprimió cada ticket y cuándo, con el código de verificación, la venta, el ancho del papel y si fue impresión o reimpresión |
 
 **Cómo investigar un problema con la auditoría**
@@ -1719,6 +1797,52 @@ deja escrita), **Desactivar / Activar** y **Quitar 2FA** (si el usuario perdió 
 
 💡 La auditoría es su mejor defensa ante un descuadre inexplicable: casi siempre muestra la
 operación que lo provocó.
+
+## 14.4 Comprobar la cadena del registro de seguridad (S-01)
+
+Cada evento del registro de seguridad del servidor guarda una **huella** (un código de 64
+caracteres, el *hash*) que se calcula con sus propios datos **más la huella del evento
+anterior**. Es como una cadena: si alguien cambia, borra o mete una fila directamente en la
+base de datos, la cadena deja de encajar y NovaGest lo dice.
+
+**Qué se ve en pantalla**
+
+En la tabla de la pestaña **Seguridad (servidor)** hay una columna **Huella** con los primeros
+12 caracteres de cada evento (los justos para compararlos de un vistazo).
+
+**Cómo comprobar la cadena, paso a paso**
+
+1. **🧭 Menú → Sistema → Auditoría** y elija la pestaña **Seguridad (servidor)**.
+2. Pulse **🔗 Comprobar cadena**. Tarda un segundo: el servidor recorre *todos* los eventos,
+   no solo los 200 de la pantalla.
+3. Lea el resultado, que aparece justo debajo del botón:
+   - **✔ Registro íntegro.** Dice cuántas líneas comprobó y muestra el **sello actual** (la
+     última huella). Es la respuesta normal y no hay nada que hacer.
+   - **⚠ El registro no cuadra.** Indica **el número de la línea** que no encaja y el motivo:
+     *los datos de la línea no coinciden con su hash* (alguien cambió un dato) o *la línea no
+     apunta al hash de la anterior* (se borró o se insertó una línea en medio).
+4. El aviso también se anuncia al lector de pantalla y queda como notificación, para que no
+   pase inadvertido.
+
+**Qué hacer si la cadena no cuadra**
+
+1. **No borre nada.** Cada prueba que se toque puede perderse.
+2. Descargue una **copia de seguridad** desde **Ajustes → Copias** y guárdela aparte.
+3. Anote el número de línea que señala el aviso y la fecha/hora de esa fila.
+4. Avise al administrador y revise quién tuvo acceso al servidor ese día (usuarios de sistema,
+   accesos por escritorio remoto, carpetas compartidas).
+
+> [!NOTE]
+> La comprobación **no depende de la pantalla**: también está en la API
+> (`GET /api/security-log/verify`, opcionalmente `?from=N&to=M` para un tramo), así que se
+> puede automatizar desde el servidor con un script y avisar por correo si algún día falla.
+
+> [!IMPORTANT]
+> **Actualizar desde una versión anterior.** Al arrancar, NovaGest añade dos columnas a la
+> tabla de auditoría y calcula la huella de los eventos antiguos **una sola vez**; los que ya
+> la tienen no se vuelven a calcular. No hay que hacer nada especial, pero conviene que la
+> primera comprobación de la cadena se haga **después** de actualizar y con el servidor recién
+> arrancado: ese es el punto de partida de confianza.
 
 ---
 

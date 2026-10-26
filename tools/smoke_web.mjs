@@ -125,6 +125,16 @@ globalThis.fetch = async (url, opts = {}) => {
         copias: { total: 3, ultima: "novagest-2026-10-24.bak", haceHoras: 61.5 }, diasCerrados: 4, sesionesActivas: 2,
         disco: { totalBytes: 64000000000, libreBytes: 24159191040, librePct: 37.7 },
         licencia: { tipo: "FULL", vence: 1794447900, diasRestantes: 30 } } };
+  } else if (u.includes("/api/security-log")) {
+    const limit = Number((u.match(/limit=(\d+)/) || [])[1] || 200);
+    const page = Number((u.match(/page=(\d+)/) || [])[1] || 1);
+    const total = 250;
+    const desde = (page - 1) * limit;
+    const filas = [];
+    for (let i = desde; i < Math.min(total, desde + limit); i++) {
+      filas.push({ ts: 1791855900 - i, user: "jefe", action: i % 2 ? "LOGIN" : "DAY_CLOSE", details: `evento ${i}`, ip: "10.0.0.5" });
+    }
+    data = { log: filas, total, page, pages: Math.ceil(total / limit), limit, offset: desde, hasMore: desde + filas.length < total };
   } else if (u.includes("/api/prints")) {
     data = { ok: true, total: 2, prints: [
       { ts: 1791855900, user: "almacenero", sale_id: "sale-001", code: "ABC-DEFG", width: 58, kind: "ticket", copies: 1 },
@@ -1036,6 +1046,106 @@ await atest("W-01 · el Panel compara el período con el anterior cuando se acti
     else localStorage.setItem("novagest.dashboardCompare", previo);
     go("home");
   }
+});
+
+await atest("S-03 · el registro de seguridad se carga por páginas (200 + «Ver más»)", async () => {
+  go("audit");
+  await flush();
+  clickMatching("audit-tab", { auditTab: "sec" });
+  await flush();
+  let html = go("audit");
+  assert.match(html, /Eventos del servidor/);
+  assert.match(html, /200 de 250/);
+  assert.match(html, /página 1 de 2/);
+  assert.match(html, /data-act="sec-more"/, "debe ofrecer cargar el resto");
+
+  click({ act: "sec-more" });
+  await flush();
+  html = go("audit");
+  assert.match(html, /250 de 250/, "tras cargar la segunda página están todos");
+  assert.match(html, /página 2 de 2/);
+  assert.doesNotMatch(html, /data-act="sec-more"/, "ya no quedan páginas");
+  assert.match(html, /evento 249/);
+});
+
+await atest("S-03 · la descarga incremental aplica altas, cambios y borrados por id", async () => {
+  const { store } = await import(pathToFileURL(join(tmp, "js/store.js")).href);
+  const antes = store.state.products.length;
+  const previo = store.version;
+  const estadoOriginal = store.state;
+  try {
+    const tocados = store.applyDelta({
+      version: previo + 1,
+      state: {
+        products: [
+          { id: "p1", name: "PANEL SOLAR 500W", category: "Solar / Energía", stockInicial: 15, stockActual: 14, stocks: { w1: 11, w2: 3 }, stocksInicial: { w1: 15, w2: 0 }, precioVentaUsd: 120, precioVenta2Usd: 0, precioCostoUsd: 60, comisionCup: 5, minStock: 1, deletedAt: null, createdAt: 1 },
+          { id: "p9", name: "INVERSOR 3K", category: "Solar / Energía", stockInicial: 2, stockActual: 2, stocks: { w1: 2 }, stocksInicial: { w1: 2 }, precioVentaUsd: 300, precioVenta2Usd: 0, precioCostoUsd: 200, comisionCup: 0, minStock: 1, deletedAt: null, createdAt: 9 },
+        ],
+      },
+      deleted: { products: ["p2"] },
+    });
+    assert.ok(tocados > 0, "debía tocar registros");
+    const esperados = new Set(store.state.products.map((p) => p.id));
+    esperados.delete("p2");
+    esperados.add("p9");
+    assert.equal(store.state.products.length, esperados.size, "uno nuevo y uno borrado");
+    assert.equal(store.state.products.find((p) => p.id === "p1").precioVentaUsd, 120, "el cambio se aplica");
+    assert.ok(store.state.products.some((p) => p.id === "p9"), "el nuevo entra");
+    assert.ok(!store.state.products.some((p) => p.id === "p2"), "el borrado sale");
+    assert.equal(store.version, previo + 1, "la versión avanza");
+    assert.ok(Array.isArray(store.state.movements) && store.state.movements.length, "lo que no viene se conserva");
+  } finally {
+    store.state = estadoOriginal;
+    store.version = previo;
+    go("home");
+  }
+});
+
+test("W-04 · el buscador (Ctrl+K) ofrece vender y usa la misma caja que la venta", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  assert.match(source, /commands: paletteCommands/, "el buscador debe recibir las órdenes de venta");
+  assert.match(source, /function paletteCommands\(/, "debe existir el lector de órdenes");
+  assert.match(source, /quickSalePlan\(texto, store\.activeProducts\(\)\)/, "usa el plan de quick-sale.js");
+  assert.match(source, /function ejecutarVentaRapida\(plan\)/, "debe registrar la venta");
+  assert.match(source, /store\.posCheckout\(\s*\[\{ productId: plan\.product\.id/,
+    "la venta rápida pasa por posCheckout (mismas reglas que la pantalla)");
+  assert.match(source, /store\.isClosed\(fecha\)/, "respeta el día cerrado");
+  assert.match(source, /store\.stockIn\(plan\.product, almacen\)/, "respeta la existencia del almacén");
+  assert.match(source, /announce\(`Venta registrada: \$\{quickSaleSummary/, "avisa al lector de pantalla");
+  const ux = readFileSync(join(root, "web/js/ux.js"), "utf8");
+  assert.match(ux, /vender: escribe «vender arroz 2»/, "el buscador enseña la sintaxis");
+  assert.match(ux, /const orden = \(q && commands \? commands\(input\.value\) : \[\]\) \|\| \[\];/);
+});
+
+test("W-07 · las tablas se exportan a Excel (.xlsx) con el lector que ya trae la app", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  assert.match(source, /import \{ buildSheet, sheetFileName \} from "\.\/xlsx-export\.js";/, "usa el módulo de hojas");
+  assert.match(source, /async function exportXlsx\(kind, extra = \{\}\)/, "debe existir la exportación");
+  assert.match(source, /const XLSX = await loadXLSX\(\);/, "reutiliza el lector de Excel ya cargado");
+  assert.match(source, /XLSX\.utils\.aoa_to_sheet\(hoja\)/, "convierte las filas en hoja");
+  assert.match(source, /XLSX\.writeFile\(wb, sheetFileName\(kind, todayISO\(\)\)\)/, "descarga el archivo con fecha");
+  for (const tipo of ["inventory", "movements", "customers", "credits", "cuadres", "analytics"]) {
+    assert.match(source, new RegExp(`data-act="export-xlsx" data-xlsx="${tipo}"`), `hay botón de Excel para ${tipo}`);
+  }
+  assert.match(source, /act === "export-xlsx"/, "el botón está conectado a la acción");
+  const mod = readFileSync(join(root, "web/js/xlsx-export.js"), "utf8");
+  assert.match(mod, /export function buildSheet\(/, "el módulo expone buildSheet");
+  const sw = readFileSync(join(root, "web/sw.js"), "utf8");
+  assert.match(sw, /"\.\/js\/xlsx-export\.js"/, "el módulo entra en el precache (sin conexión)");
+});
+
+test("S-01 · el registro de seguridad se puede comprobar encadenado desde la pantalla", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  assert.match(source, /function verificarCadenaAuditoria\(/, "debe existir el verificador");
+  assert.match(source, /api\("\/security-log\/verify"\)/, "pide la comprobación al servidor");
+  assert.match(source, /act === "sec-verify"/, "el botón está conectado");
+  assert.match(source, /data-act="sec-verify"/, "la tarjeta de seguridad ofrece el botón");
+  assert.match(source, /hashShort \|\| "—"/, "la tabla enseña la huella de cada línea");
+  assert.match(source, /La cadena se rompe en la línea/, "avisa si la cadena no cuadra");
+  assert.match(source, /announce\(`Registro de seguridad íntegro/, "anuncia el resultado al lector de pantalla");
+  const server = readFileSync(join(root, "server/novagest_server.py"), "utf8");
+  assert.match(server, /@route\("GET", "\/api\/security-log\/verify"/, "existe la ruta de verificación en el servidor");
+  assert.match(server, /def _hash_auditoria\(/, "el servidor calcula la huella encadenada");
 });
 
 console.log(`\n${ok} comprobaciones correctas, ${fail} fallidas\n`);

@@ -1,4 +1,117 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXIX) · Comparador de períodos en el Panel (W-17)
+﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXXV) · Corte vertical de 30 s (G-01 / D-11)
+
+- **Vídeo vertical de 30 segundos** para **estados de WhatsApp, Reels y TikTok**:
+  `docs/assets/video/novagest-reel-vertical-30s.mp4`, formato **1080 × 1920 (9:16)**, 30 fps,
+  H.264 con `+faststart` y **1,6 MB** (se envía sin problema por WhatsApp).
+- **Seis tramos**: portada, vender, cuadrar, revisar, móvil y cierre con la llamada a la acción
+  «Solicita tu licencia por WhatsApp». Cada tramo lleva su rótulo, la **captura real** de la app
+  y una **barra de progreso**; se entiende **sin sonido**.
+- **Voz masculina en español neutro** con **subtítulos quemados** y el `.srt` aparte
+  (`novagest-reel-vertical-30s.srt`, 6 rótulos), por si se quiere traducir.
+- **Publicado en el sitio**: la sección del vídeo de `docs/index.html` muestra ahora el corte
+  vertical junto al vídeo largo, con botón de descarga y sus subtítulos.
+- **Generador reproducible** `tools/build_reel_vertical.py` (Pillow + ffmpeg): recibe los seis
+  clips de voz y compone la pieza; sirve para cambiar textos o locución sin rehacer el montaje.
+- **Propuesta actualizada** (`docs/PROPUESTA_VIDEO_PROMOCIONAL.md` §6.1) con la ficha técnica, el
+  guion locutado y el rótulo de cada tramo; el sitio comprueba que el corte dura ≤ 31 s.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXXIV) · Auditoría encadenada (S-01)
+
+- **S-01 · Registro de seguridad encadenado.** Cada evento guarda una **huella SHA-256**
+  calculada con sus datos y con la huella del evento anterior. Si alguien cambia, borra o
+  inserta una fila por detrás en la base de datos, la cadena deja de cuadrar.
+- **Botón «🔗 Comprobar cadena»** en **Auditoría → Seguridad (servidor)**: el servidor revisa
+  *todos* los eventos (no solo los 200 visibles) y responde **✔ Registro íntegro** con el
+  número de líneas y el **sello actual**, o **⚠ El registro no cuadra** indicando **la línea**
+  y el motivo (*datos cambiados* o *enlace roto*).
+- La tabla muestra una columna **Huella** con los primeros 12 caracteres y el **id** de cada
+  línea, para poder cruzarla con el aviso.
+- **Ruta nueva** `GET /api/security-log/verify` (Administrador, Jefe y Económico), con
+  `?from=N&to=M` para comprobar un tramo; se puede automatizar desde el servidor.
+- **Actualización sin trabajo manual:** al arrancar se añaden las columnas nuevas y se
+  encadenan **una sola vez** los eventos antiguos; los ya encadenados no se recalculan.
+- **Pruebas:** `tools/test_auditoria_encadenada.py` con **30 comprobaciones** contra el
+  servidor real, incluida la manipulación por SQLite, el borrado de una línea intermedia y el
+  reinicio del servidor.
+- **Manual:** nuevo apartado **14.4 Comprobar la cadena del registro de seguridad**, con el
+  paso a paso y qué hacer si el aviso sale en rojo.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXXIII) · Pruebas de interfaz en Android (A-16)
+
+- **A-16 · Pruebas de interfaz en emulador (`app/src/androidTest/`).** Cada cambio de la app
+  Android se comprueba ahora en un teléfono virtual, no solo en la lógica pura:
+  - **Flujo de venta:** tocar un producto lo suma a la cuenta, la cifra de **Cobrar** se
+    recalcula, cobrar registra la venta y vacía el carrito, **no se puede vender más que la
+    existencia** («Solo hay 2 de Arroz 5 kg.»), el buscador filtra y avisa cuando no hay
+    coincidencias y el chip de **centro de venta** cambia la venta.
+  - **Accesibilidad:** se recorre el árbol de la interfaz y se exige que **todo control
+    tocable** tenga texto, descripción o campo editable, para que el lector de pantalla lo
+    anuncie.
+  - **Impresión simulada:** el ticket genera inicio `ESC @`, ajustes, totales, pie y **corte
+    de papel**; se comprueba el plegado de acentos (`Peña` → `Pena`), el ancho de **32 y 48
+    columnas**, la fecha y hora de una venta del historial y la vista previa en pantalla.
+- **El CI compila y ejecuta estas pruebas** con un emulador (Android 11, x86_64) y publica la
+  causa exacta como anotación si algo falla; la compilación de `androidTest` también se
+  adelanta al paso normal de Gradle.
+- Dependencias nuevas de pruebas: `androidx.test:runner`, `androidx.test:rules` y
+  `ui-test-manifest` (solo `debug`).
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXXII) · Exportar a Excel (W-07)
+
+- **W-07 · Exportación real a `.xlsx`.** Las tablas de la app se descargan como libro de
+  Excel, no como CSV: **Inventario**, **Movimientos**, **Clientes**, **Fiados y abonos**,
+  **Cuadres diarios** y **Ventas por categoría**. Los importes van como números y la fecha
+  del día queda en el nombre del archivo (`inventario-2026-10-25.xlsx`).
+- **Se reutiliza el lector de Excel que ya traía la app**, sin descargar nada nuevo ni
+  enviar datos fuera del equipo; la primera exportación lo carga y queda guardado para el
+  modo sin conexión.
+- **Módulo nuevo** `web/js/xlsx-export.js` (filas de cada hoja, sin tocar la interfaz) con
+  **21 comprobaciones** en `tools/test_xlsx_export.mjs` y **100 % de cobertura** de líneas.
+- **Caché del service worker v28** con el módulo nuevo dentro, para que la exportación
+  funcione también sin conexión.
+- **Manual:** nuevo apartado **10.5 Exportar a Excel (.xlsx)** con la tabla de dónde está
+  cada botón, el paso a paso y la recomendación para el contador; se enlaza desde 5.7 y 8.5.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXXI) · Vender desde el buscador (W-04)
+
+- **W-04 · Venta rápida desde `Ctrl + K`.** Basta escribir **«vender arroz 2»** en el buscador:
+  la primera fila propone **Vender ARROZ × 2 · $20.00** y, al pulsar Enter, la venta queda
+  registrada sin abrir la pantalla de venta.
+- **Formatos aceptados:** cantidad al final (`vender arroz 2`), al principio (`vende 2 arroz`),
+  con `x` (`vender arroz x2`), decimales con coma (`vender arroz 2,5`), sin cantidad (1 unidad),
+  por **código de barras** (`vender 7501234567890`) y con artículo (`vender el arroz 2`).
+- **Respeta todas las reglas de la caja:** día cerrado, existencia del almacén en uso, productos
+  borrados y cálculo de comisión y cuadre pasan por `store.posCheckout`, igual que la pantalla de
+  venta. La venta rápida es **de contado**; para fiar se sigue usando la pantalla de venta.
+- **Accesibilidad:** el resultado se anuncia por la región viva (`announce`) además del aviso
+  visual y el confeti de la meta diaria.
+- **Módulo nuevo** `web/js/quick-sale.js` (lectura de la orden y elección del producto, sin tocar
+  el estado) con **18 comprobaciones** en `tools/test_quick_sale.mjs` y **100 % de cobertura** de
+  líneas en `tools/cobertura.mjs`. El buscador enseña la sintaxis en su ayuda.
+- **Manual:** nuevo apartado **6.9 Vender desde el buscador (Ctrl + K)** con la tabla de formatos
+  y lo que el buscador respeta; las buenas prácticas pasan a 6.10.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXX) · Sincronización incremental y registro paginado (S-03)
+
+- **S-03 · Descarga incremental del estado (`GET /api/state?since=N`).** El servidor indexa en la
+  tabla `state_records` qué registro cambió en cada versión y devuelve **solo las diferencias**:
+  `state` con las secciones tocadas y `deleted` con los identificadores que desaparecieron. Si el
+  cliente ya está al día responde `unchanged`; si va demasiado atrasado (más de
+  `DELTA_KEEP_VERSIONS`, 400 por defecto) o por delante, devuelve el estado completo con una nota
+  que lo explica. `?full=1` fuerza la descarga completa.
+- **La Web lo aprovecha sola:** al detectar una versión nueva pide el delta y lo aplica por `id`
+  (`store.applyDelta`), de modo que un refresco normal mueve kilobytes en vez de megabytes. Si el
+  servidor responde con el estado completo, el camino es el de siempre. El Android no cambia: el
+  modo incremental es opcional y compatible.
+- **Registro de seguridad paginado:** `/api/security-log` acepta `limit`, `page`, `offset` y `q`, y
+  devuelve `total`, `pages` y `hasMore`. La pestaña *Auditoría → Seguridad* carga de 200 en 200 con
+  el botón **Ver más eventos** y un pie que dice cuántos eventos se ven del total.
+- **Índice reconstruido** al convertir datos, al migrar y al restaurar una copia, para que el delta
+  nunca mienta.
+- **Pruebas nuevas:** `tools/test_delta_estado.py` (**45 comprobaciones** contra el servidor real)
+  y dos pruebas más en `smoke_web.mjs` (**65** en total). El script nuevo está en el CI.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXIX) · Comparador de períodos en el Panel (W-17)
 
 - **W-17 · El gráfico del Panel se compara con el período anterior.** Un interruptor en la
   cabecera de *Evolución* superpone la serie del **período inmediatamente anterior de la misma

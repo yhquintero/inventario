@@ -212,7 +212,34 @@ puede publicar sin riesgo de datos personales.
 
 ## 6. Versiones cortas para redes
 
-### 6.1 Corte de 30 segundos (WhatsApp / estados / Reels)
+### 6.1 Corte de 30 segundos (WhatsApp / estados / Reels) — **entregado (G-01)**
+
+| Dato | Valor |
+|---|---|
+| Pieza | `docs/assets/video/novagest-reel-vertical-30s.mp4` |
+| Subtítulos | `docs/assets/video/novagest-reel-vertical-30s.srt` |
+| Formato | **1080 × 1920 (9:16)** · H.264 · AAC 160 kbps · 30 fps · `+faststart` |
+| Duración | **30,0 s** exactos |
+| Voz | Español neutro, **voz masculina** (la misma del vídeo largo) |
+| Generación | `tools/build_reel_vertical.py --audio <carpeta con s1…s6.wav>` |
+| Dónde se ve | Sección «El producto en 2 minutos y medio» de `docs/index.html`, junto al vídeo largo |
+
+Guion locutado (el texto en pantalla va aparte y se lee sin sonido):
+
+| Seg | Imagen | Locución | Rótulo en pantalla |
+|---|---|---|---|
+| 0–5 | Portada con el logotipo | «Vende, cuadra y controla tu negocio en una app.» | Todo tu negocio en una app |
+| 5–10 | Venta rápida | «Escanea, cobra y el stock baja solo.» | **Paso 1 · Vender** — Escanea, cobra, listo |
+| 10–14 | Cuadre diario | «La caja del día tiene que dar cero.» | **Paso 2 · Cuadrar** — La caja tiene que dar cero |
+| 14–19 | Análisis y metas | «Informes, metas y existencia siempre al día.» | **Paso 3 · Revisar** — Ventas, metas y existencia |
+| 19–23 | Móvil | «Todo también en tu teléfono, con los mismos datos.» | También en el móvil |
+| 23–30 | Cierre con logotipo y botón dorado | «NovaGest. Gestiona, crece, avanza. Solicita tu licencia.» | Gestiona. Crece. Avanza. |
+
+> El corte se entiende **sin sonido**: cada tramo lleva su rótulo grande, la captura real de la
+> app y una barra de progreso de seis segmentos. Los subtítulos van quemados y además se
+> publican en `.srt` por si se quiere traducir.
+
+**Versión anterior del guion (referencia):**
 
 | Seg | Imagen | Voz / texto |
 |---|---|---|

@@ -40,6 +40,8 @@ jobs:
           bash tools/ci_paso.sh node tools/test_charts.mjs
           bash tools/ci_paso.sh node tools/test_merge.mjs
           bash tools/ci_paso.sh node tools/test_ticket.mjs
+          bash tools/ci_paso.sh node tools/test_quick_sale.mjs
+          node tools/test_xlsx_export.mjs
           bash tools/ci_paso.sh node tools/cobertura.mjs --min 80
           bash tools/ci_paso.sh node tools/test_accesibilidad.mjs
           bash tools/ci_paso.sh node tools/test_sw_precache.mjs
@@ -63,6 +65,8 @@ jobs:
           bash tools/ci_paso.sh python3 tools/test_seguridad_servidor.py
           bash tools/ci_paso.sh python3 tools/test_salud_servidor.py
           bash tools/ci_paso.sh python3 tools/test_compresion.py
+          bash tools/ci_paso.sh python3 tools/test_delta_estado.py
+          bash tools/ci_paso.sh python3 tools/test_auditoria_encadenada.py
           bash tools/ci_paso.sh python3 tools/test_impresiones.py
           bash tools/ci_paso.sh python3 tools/test_restauracion.py
           bash tools/ci_paso.sh python3 tools/test_carga.py --n 12
@@ -92,7 +96,7 @@ jobs:
         run: |
           set -o pipefail
           chmod +x gradlew
-          if ! ./gradlew testDebugUnitTest :keygen:assembleDebug --stacktrace 2>&1 | tee gradle.log; then
+          if ! ./gradlew testDebugUnitTest compileDebugAndroidTestKotlin :keygen:assembleDebug --stacktrace 2>&1 | tee gradle.log; then
             # Publica la causa como anotaciones (visibles en el resumen del CI sin
             # abrir los registros): errores de Kotlin/Java, pruebas fallidas y el
             # bloque «What went wrong» de Gradle.
@@ -103,3 +107,28 @@ jobs:
             echo "::error::Gradle falló:%0A${resumen}"
             exit 1
           fi
+      - name: Habilitar KVM (aceleración del emulador)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Pruebas de interfaz en emulador (A-16)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: pixel_4
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: bash tools/ci_androidtest.sh
+      - name: Guardar informes de las pruebas de interfaz
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informes-androidtest
+          path: |
+            app/build/reports/androidTests/
+            androidtest.log
+          if-no-files-found: ignore
+          retention-days: 7
