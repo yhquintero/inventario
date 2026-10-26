@@ -565,6 +565,14 @@ def init_db():
       license_preview TEXT,
       created_at INTEGER);
     CREATE INDEX IF NOT EXISTS license_requests_status ON license_requests(status, created_at DESC);
+    CREATE TABLE IF NOT EXISTS state_records(
+        section TEXT NOT NULL,
+        rid TEXT NOT NULL,
+        ver INTEGER NOT NULL,
+        deleted INTEGER NOT NULL DEFAULT 0,
+        hash TEXT,
+        PRIMARY KEY(section, rid));
+    CREATE INDEX IF NOT EXISTS state_records_ver ON state_records(ver);
     CREATE TABLE IF NOT EXISTS print_log(
         id INTEGER PRIMARY KEY,
         ts INTEGER,
@@ -746,6 +754,7 @@ def migrate_state():
         if changed:
             q("UPDATE app_state SET version=?, data=?, updated_at=?, updated_by=? WHERE id=1",
               (r["version"] + 1, json.dumps(st, ensure_ascii=False, separators=(",", ":")), now(), "conversión a almacenes"))
+            index_state_changes(st, r["version"] + 1)
             audit("sistema", "MIGRATE", "Datos convertidos al módulo de almacenes (todo quedó en el ALMACÉN PRINCIPAL)")
 
 
@@ -1678,8 +1687,84 @@ def closed_set():
     return {r["date"] for r in q("SELECT date FROM closed_days")}
 
 
+# Secciones del estado que se indexan por registro para poder enviar solo lo que cambió (S-03).
+DELTA_SECTIONS = ("products", "movements", "priceHistory", "cuadres", "rates", "excelDailyReports",
+                  "warehouses", "warehouseEntries", "customers", "credits", "fichas", "ipvControls",
+                  "surveys", "audit")
+# Versiones que se conservan en el índice; un cliente más atrasado recibe el estado completo.
+DELTA_KEEP = int(os.environ.get("DELTA_KEEP_VERSIONS", "400"))
+
+
+def _record_hash(rec):
+    """Huella estable de un registro (claves ordenadas) para saber si cambió."""
+    return hashlib.sha1(json.dumps(rec, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:20]
+
+
+def index_state_changes(state, ver):
+    """Apunta qué registros cambiaron en esta versión del estado (S-03).
+
+    Compara el estado recién guardado con el índice y anota, por sección y registro,
+    la versión en la que cambió. Los registros que desaparecen quedan como borrados
+    (`deleted=1`) para poder avisar de ellos en una descarga incremental.
+    """
+    if not isinstance(state, dict):
+        return
+    with _lock:
+        for sec in DELTA_SECTIONS:
+            filas = state.get(sec)
+            actuales = {}
+            if isinstance(filas, list):
+                for rec in filas:
+                    if isinstance(rec, dict) and rec.get("id") is not None:
+                        actuales[str(rec["id"])] = _record_hash(rec)
+            previos = {str(r["rid"]): r for r in q("SELECT rid,hash,deleted,ver FROM state_records WHERE section=?", (sec,))}
+            for rid, h in actuales.items():
+                viejo = previos.get(rid)
+                if viejo is None or viejo["deleted"] or viejo["hash"] != h:
+                    q("INSERT INTO state_records(section,rid,ver,deleted,hash) VALUES(?,?,?,0,?) "
+                      "ON CONFLICT(section,rid) DO UPDATE SET ver=excluded.ver, deleted=0, hash=excluded.hash",
+                      (sec, rid, ver, h))
+            for rid, viejo in previos.items():
+                if rid not in actuales and not viejo["deleted"]:
+                    q("UPDATE state_records SET ver=?, deleted=1, hash=NULL WHERE section=? AND rid=?", (ver, sec, rid))
+        # Poda: lo muy antiguo ya solo se sirve como estado completo.
+        q("DELETE FROM state_records WHERE ver < ?", (max(0, ver - DELTA_KEEP),))
+
+
+def delta_since(state, ver, since):
+    """Cambios posteriores a `since`, listos para enviar al cliente (S-03)."""
+    filas = q("SELECT section,rid,ver,deleted FROM state_records WHERE ver > ? ORDER BY ver", (since,))
+    por_id = {}
+    for sec in DELTA_SECTIONS:
+        for rec in (state.get(sec) or []):
+            if isinstance(rec, dict) and rec.get("id") is not None:
+                por_id[(sec, str(rec["id"]))] = rec
+    cambios, borrados = {}, {}
+    for f in filas:
+        clave = (f["section"], str(f["rid"]))
+        if f["deleted"] or clave not in por_id:
+            borrados.setdefault(f["section"], []).append(str(f["rid"]))
+        else:
+            cambios.setdefault(f["section"], []).append(por_id[clave])
+    return {"state": cambios, "deleted": borrados,
+            "changed": sum(len(v) for v in cambios.values()),
+            "removed": sum(len(v) for v in borrados.values())}
+
+
 @route("GET", "/api/state")
 def state_get(h, u, _):
+    """Estado del negocio. Con `?since=N` devuelve solo lo que cambió desde esa versión (S-03).
+
+    Es el mismo contrato de siempre más un modo incremental: los clientes que ya tienen
+    la versión N piden solo las diferencias, y los que van muy atrasados (o piden `full=1`)
+    reciben el estado completo. Un estado completo se marca con `"full": true`.
+    """
+    qs = parse_qs(urlparse(h.path).query)
+    try:
+        since = int((qs.get("since") or ["-1"])[0])
+    except ValueError:
+        since = -1
+    quiere_full = (qs.get("full") or ["0"])[0] in ("1", "true", "si", "sí")
     r = q("SELECT * FROM app_state WHERE id=1", one=True)
     if r["data"]:
         st, changed = ensure_warehouses(json.loads(r["data"]))
@@ -1688,10 +1773,29 @@ def state_get(h, u, _):
                 v = q("SELECT version FROM app_state WHERE id=1", one=True)["version"] + 1
                 q("UPDATE app_state SET version=?, data=?, updated_at=?, updated_by=? WHERE id=1",
                   (v, json.dumps(st, ensure_ascii=False, separators=(",", ":")), now(), "conversión a almacenes"))
+                index_state_changes(st, v)
             r = q("SELECT * FROM app_state WHERE id=1", one=True)
             audit(u["username"], "MIGRATE", "Datos convertidos al módulo de almacenes", h.ip())
-    h.send_json(200, {"version": r["version"], "state": json.loads(r["data"]) if r["data"] else None, "updatedBy": r["updated_by"],
-                      "updatedAt": r["updated_at"], "closedDays": [dict(x, snapshot=None) for x in q("SELECT date,closed_by,closed_at,note FROM closed_days ORDER BY date DESC")]})
+    cerrados = [dict(x, snapshot=None) for x in q("SELECT date,closed_by,closed_at,note FROM closed_days ORDER BY date DESC")]
+    estado = json.loads(r["data"]) if r["data"] else None
+    base = {"version": r["version"], "updatedBy": r["updated_by"], "updatedAt": r["updated_at"], "closedDays": cerrados}
+    if since >= 0 and not quiere_full and estado is not None:
+        if since == r["version"]:
+            return h.send_json(200, {**base, "since": since, "full": False, "unchanged": True, "state": None,
+                                     "deleted": {}, "changed": 0, "removed": 0})
+        if since > r["version"]:
+            # El cliente dice ir por delante (p. ej. tras restaurar una copia): se le manda todo.
+            return h.send_json(200, {**base, "since": since, "full": True, "unchanged": False, "state": estado,
+                                     "deleted": {}, "changed": None, "removed": 0,
+                                     "note": f"Tu versión ({since}) va por delante de la del servidor ({r['version']}): se envía el estado completo."})
+        if since < r["version"] - DELTA_KEEP:
+            # Demasiado atrasado para dar garantías: se envía todo.
+            return h.send_json(200, {**base, "since": since, "full": True, "unchanged": False, "state": estado,
+                                     "deleted": {}, "changed": None, "removed": 0,
+                                     "note": f"La versión {since} es más antigua que las {DELTA_KEEP} últimas: se envía el estado completo."})
+        delta = delta_since(estado, r["version"], since)
+        return h.send_json(200, {**base, "since": since, "full": False, "unchanged": False, "delta": True, **delta})
+    h.send_json(200, {**base, "full": True, "unchanged": False, "state": estado, "deleted": {}, "changed": None, "removed": 0})
 
 
 @route("GET", "/api/state/version")
@@ -1723,6 +1827,7 @@ def state_put(h, u, _):
         v = r["version"] + 1
         q("UPDATE app_state SET version=?, data=?, updated_at=?, updated_by=? WHERE id=1",
           (v, json.dumps(new, ensure_ascii=False, separators=(",", ":")), now(), u["display_name"]))
+        index_state_changes(new, v)
     if r["data"] is None: audit(u["username"], "SEED", "Datos iniciales cargados desde el Excel", h.ip())
     h.send_json(200, {"ok": True, "version": v})
 
@@ -1785,6 +1890,8 @@ def backups_restore(h, u, name):
         v = q("SELECT version FROM app_state WHERE id=1", one=True)["version"] + 1
         q("UPDATE app_state SET version=?, data=?, updated_at=?, updated_by=? WHERE id=1",
           (v, json.dumps(data["state"], ensure_ascii=False) if data.get("state") else None, now(), u["display_name"]))
+        q("DELETE FROM state_records")  # restauración: el índice se rehace desde cero
+        index_state_changes(data.get("state") or {}, v)
         q("DELETE FROM closed_days")
         for c in data.get("closedDays", []):
             q("INSERT INTO closed_days(date,closed_by,closed_at,note,snapshot) VALUES(?,?,?,?,?)",
@@ -1891,8 +1998,34 @@ def print_list(h, u, _):
 
 @route("GET", "/api/security-log", roles=ADMINS | {"ECONOMICO"})
 def sec_log(h, u, _):
-    rows = q("SELECT ts,user,action,details,ip FROM audit ORDER BY id DESC LIMIT 500")
-    h.send_json(200, {"log": [dict(r) for r in rows]})
+    """Registro de seguridad paginado (S-03).
+
+    Parámetros: `limit` (1-500, por defecto 200), `page` (desde 1), `offset` (alternativa a
+    `page`) y `q` (texto libre en la acción, el usuario o el detalle).
+    """
+    qs = parse_qs(urlparse(h.path).query)
+
+    def entero(nombre, defecto, minimo, maximo):
+        try:
+            valor = int((qs.get(nombre) or [str(defecto)])[0])
+        except ValueError:
+            return defecto
+        return max(minimo, min(maximo, valor))
+
+    limit = entero("limit", 200, 1, 500)
+    page = entero("page", 1, 1, 100000)
+    offset = entero("offset", (page - 1) * limit, 0, 10 ** 7)
+    texto = ((qs.get("q") or [""])[0] or "").strip()[:80]
+    donde, args = "", []
+    if texto:
+        donde = " WHERE action LIKE ? OR user LIKE ? OR details LIKE ?"
+        args = [f"%{texto}%"] * 3
+    total = q(f"SELECT COUNT(*) n FROM audit{donde}", tuple(args), one=True)["n"] or 0
+    rows = q(f"SELECT ts,user,action,details,ip FROM audit{donde} ORDER BY id DESC LIMIT ? OFFSET ?",
+             (*args, limit, offset))
+    paginas = max(1, (total + limit - 1) // limit)
+    h.send_json(200, {"log": [dict(r) for r in rows], "total": total, "page": page, "pages": paginas,
+                      "limit": limit, "offset": offset, "hasMore": offset + len(rows) < total})
 
 
 def main():

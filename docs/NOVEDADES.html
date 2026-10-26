@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 28 revisiones</title>
+<title>Novedades de NovaGest · 29 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 28 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 29 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,18 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>28</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>29</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Sincronización incremental y registro paginado (S-03)</h2>
+      <ul>
+      <li><b>S-03 · Descarga incremental del estado (<code>GET /api/state?since=N</code>).</b> El servidor indexa en la</li>
+      <li><b>La Web lo aprovecha sola:</b> al detectar una versión nueva pide el delta y lo aplica por <code>id</code></li>
+      <li><b>Registro de seguridad paginado:</b> <code>/api/security-log</code> acepta <code>limit</code>, <code>page</code>, <code>offset</code> y <code>q</code>, y</li>
+      <li><b>Índice reconstruido</b> al convertir datos, al migrar y al restaurar una copia, para que el delta</li>
+      <li><b>Pruebas nuevas:</b> <code>tools/test_delta_estado.py</code> (<b>45 comprobaciones</b> contra el servidor real)</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXIX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
       <h2>Comparador de períodos en el Panel (W-17)</h2>
@@ -196,18 +207,7 @@
       <li><b>Timecodes</b> de la propuesta actualizados escena por escena; README y manual citan <b>2:41</b>.</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XVIII</span><time datetime="2026-10-24">24 de octubre de 2026</time></div>
-      <h2>Reposición sugerida en el Panel (W-11)</h2>
-      <ul>
-      <li><b>Nueva tarjeta «🧾 Reposición sugerida»</b> en el Panel: con las ventas reales de los últimos <b>30 días</b> calcula el ritmo diario de cada producto, <b>cuántos días dura la existencia</b> y <b>cuántas unidades comprar</b> para cubrir <b>14 días</b>, descontando lo que ya hay en el almacén. Ordenada por urgencia: <b>Agotado</b> → <b>Urgente</b> (≤3 días) → <b>Pronto</b> (≤7 días) → <b>Planificar</b>. Los productos sin ventas en la ventana no aparecen (no se inventa un ritmo); para ellos siguen las alertas de <b>Stock bajo</b>.</li>
-      <li><b>Lógica pura en <code>calc.js</code></b>: <code>reorderSuggestions(products, movements, { days, cover, today, warehouseId, limit })</code> y <code>reorderSummary(list)</code>; cuentan solo ventas vivas, en fecha y —si se indica— del almacén elegido.</li>
-      <li><b>Pruebas</b>: 3 bloques nuevos en <code>tools/test_calc.mjs</code> (13 pruebas en total) y cobertura de <code>calc.js</code> al <b>98,7 %</b>.</li>
-      <li><b>Manual</b> §10.4 con la tabla de columnas, cómo leerlo y qué hacer al abrir el negocio; <b>service worker v19</b> (estilos y precache) por los cambios de CSS.</li>
-      <li><b>CHANGELOG</b> y <code>docs/MEJORAS_PROPUESTAS.md</code>: W-11 marcada como hecha.</li>
-      </ul>
-    </article>
-<p class="older">Y 16 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 17 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

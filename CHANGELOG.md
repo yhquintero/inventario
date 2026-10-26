@@ -1,4 +1,24 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXIX) · Comparador de períodos en el Panel (W-17)
+﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXX) · Sincronización incremental y registro paginado (S-03)
+
+- **S-03 · Descarga incremental del estado (`GET /api/state?since=N`).** El servidor indexa en la
+  tabla `state_records` qué registro cambió en cada versión y devuelve **solo las diferencias**:
+  `state` con las secciones tocadas y `deleted` con los identificadores que desaparecieron. Si el
+  cliente ya está al día responde `unchanged`; si va demasiado atrasado (más de
+  `DELTA_KEEP_VERSIONS`, 400 por defecto) o por delante, devuelve el estado completo con una nota
+  que lo explica. `?full=1` fuerza la descarga completa.
+- **La Web lo aprovecha sola:** al detectar una versión nueva pide el delta y lo aplica por `id`
+  (`store.applyDelta`), de modo que un refresco normal mueve kilobytes en vez de megabytes. Si el
+  servidor responde con el estado completo, el camino es el de siempre. El Android no cambia: el
+  modo incremental es opcional y compatible.
+- **Registro de seguridad paginado:** `/api/security-log` acepta `limit`, `page`, `offset` y `q`, y
+  devuelve `total`, `pages` y `hasMore`. La pestaña *Auditoría → Seguridad* carga de 200 en 200 con
+  el botón **Ver más eventos** y un pie que dice cuántos eventos se ven del total.
+- **Índice reconstruido** al convertir datos, al migrar y al restaurar una copia, para que el delta
+  nunca mienta.
+- **Pruebas nuevas:** `tools/test_delta_estado.py` (**45 comprobaciones** contra el servidor real)
+  y dos pruebas más en `smoke_web.mjs` (**65** en total). El script nuevo está en el CI.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXIX) · Comparador de períodos en el Panel (W-17)
 
 - **W-17 · El gráfico del Panel se compara con el período anterior.** Un interruptor en la
   cabecera de *Evolución* superpone la serie del **período inmediatamente anterior de la misma

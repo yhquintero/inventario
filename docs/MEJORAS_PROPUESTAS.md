@@ -5,7 +5,7 @@ Cada paso se revisa, se aprueba y se entrega en su propio pull request; las fila
 terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`ROADMAP.md`](ROADMAP.md).
 
 > **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola en Android) ✅ ·
-> **Hecho:** D-01…D-07 · W-01, W-02, W-05, W-06, W-11, W-13, W-17 · A-01, A-02.
+> **Hecho:** D-01…D-07 · W-01, W-02, W-05, W-06, W-11, W-13, W-17 · A-01, A-02 · S-03.
 > **Lo siguiente, por orden sugerido:** **W-04** (venta desde `Ctrl+K`) → **A-04** (widget) → **S-01** (auditoría encadenada) → **W-07** (XLSX).
 > La segunda ola de propuestas nuevas está al final del documento.
 
@@ -58,7 +58,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 |---|---|---|---|---|---|---|
 | S-01 | Auditoría encadenada (hash de la entrada anterior) | Detectar borrados o cambios silenciosos | `server/` | 🔴 | ⏳ | ⬜ |
 | S-02 | Restauración automática probada en CI nocturno (ya hay prueba; añadir aviso si falla) | Una copia que no se restaura no es una copia | `tools/`, CI | 🟠 | ⏱️ | ⬜ |
-| S-03 | API con paginación y `?since=` | Móviles y catálogos grandes | `server/` | 🟠 | ⏳ | ⬜ |
+| S-03 | ✅ **API con paginación y `?since=`** (delta por registro, registro de seguridad por páginas) | Móviles y catálogos grandes | `server/`, `store.js` | 🟠 | ⏳ | ✅ |
 | S-04 | Instalador de Windows con el entorno incluido | Instalar en 3 clics, sin Python | `deploy/` | 🟠 | ⏳ | ⬜ |
 | S-05 | ✅ **Panel de salud para el titular** (copias, espacio, licencia) | Prevenir antes de que falle | `server/`, `app.js` | 🟢 | ⏱️ | ✅ |
 

@@ -125,6 +125,16 @@ globalThis.fetch = async (url, opts = {}) => {
         copias: { total: 3, ultima: "novagest-2026-10-24.bak", haceHoras: 61.5 }, diasCerrados: 4, sesionesActivas: 2,
         disco: { totalBytes: 64000000000, libreBytes: 24159191040, librePct: 37.7 },
         licencia: { tipo: "FULL", vence: 1794447900, diasRestantes: 30 } } };
+  } else if (u.includes("/api/security-log")) {
+    const limit = Number((u.match(/limit=(\d+)/) || [])[1] || 200);
+    const page = Number((u.match(/page=(\d+)/) || [])[1] || 1);
+    const total = 250;
+    const desde = (page - 1) * limit;
+    const filas = [];
+    for (let i = desde; i < Math.min(total, desde + limit); i++) {
+      filas.push({ ts: 1791855900 - i, user: "jefe", action: i % 2 ? "LOGIN" : "DAY_CLOSE", details: `evento ${i}`, ip: "10.0.0.5" });
+    }
+    data = { log: filas, total, page, pages: Math.ceil(total / limit), limit, offset: desde, hasMore: desde + filas.length < total };
   } else if (u.includes("/api/prints")) {
     data = { ok: true, total: 2, prints: [
       { ts: 1791855900, user: "almacenero", sale_id: "sale-001", code: "ABC-DEFG", width: 58, kind: "ticket", copies: 1 },
@@ -1034,6 +1044,59 @@ await atest("W-01 · el Panel compara el período con el anterior cuando se acti
   } finally {
     if (previo === null) localStorage.removeItem("novagest.dashboardCompare");
     else localStorage.setItem("novagest.dashboardCompare", previo);
+    go("home");
+  }
+});
+
+await atest("S-03 · el registro de seguridad se carga por páginas (200 + «Ver más»)", async () => {
+  go("audit");
+  await flush();
+  clickMatching("audit-tab", { auditTab: "sec" });
+  await flush();
+  let html = go("audit");
+  assert.match(html, /Eventos del servidor/);
+  assert.match(html, /200 de 250/);
+  assert.match(html, /página 1 de 2/);
+  assert.match(html, /data-act="sec-more"/, "debe ofrecer cargar el resto");
+
+  click({ act: "sec-more" });
+  await flush();
+  html = go("audit");
+  assert.match(html, /250 de 250/, "tras cargar la segunda página están todos");
+  assert.match(html, /página 2 de 2/);
+  assert.doesNotMatch(html, /data-act="sec-more"/, "ya no quedan páginas");
+  assert.match(html, /evento 249/);
+});
+
+await atest("S-03 · la descarga incremental aplica altas, cambios y borrados por id", async () => {
+  const { store } = await import(pathToFileURL(join(tmp, "js/store.js")).href);
+  const antes = store.state.products.length;
+  const previo = store.version;
+  const estadoOriginal = store.state;
+  try {
+    const tocados = store.applyDelta({
+      version: previo + 1,
+      state: {
+        products: [
+          { id: "p1", name: "PANEL SOLAR 500W", category: "Solar / Energía", stockInicial: 15, stockActual: 14, stocks: { w1: 11, w2: 3 }, stocksInicial: { w1: 15, w2: 0 }, precioVentaUsd: 120, precioVenta2Usd: 0, precioCostoUsd: 60, comisionCup: 5, minStock: 1, deletedAt: null, createdAt: 1 },
+          { id: "p9", name: "INVERSOR 3K", category: "Solar / Energía", stockInicial: 2, stockActual: 2, stocks: { w1: 2 }, stocksInicial: { w1: 2 }, precioVentaUsd: 300, precioVenta2Usd: 0, precioCostoUsd: 200, comisionCup: 0, minStock: 1, deletedAt: null, createdAt: 9 },
+        ],
+      },
+      deleted: { products: ["p2"] },
+    });
+    assert.ok(tocados > 0, "debía tocar registros");
+    const esperados = new Set(store.state.products.map((p) => p.id));
+    esperados.delete("p2");
+    esperados.add("p9");
+    assert.equal(store.state.products.length, esperados.size, "uno nuevo y uno borrado");
+    assert.equal(store.state.products.find((p) => p.id === "p1").precioVentaUsd, 120, "el cambio se aplica");
+    assert.ok(store.state.products.some((p) => p.id === "p9"), "el nuevo entra");
+    assert.ok(!store.state.products.some((p) => p.id === "p2"), "el borrado sale");
+    assert.equal(store.version, previo + 1, "la versión avanza");
+    assert.ok(Array.isArray(store.state.movements) && store.state.movements.length, "lo que no viene se conserva");
+  } finally {
+    store.state = estadoOriginal;
+    store.version = previo;
     go("home");
   }
 });

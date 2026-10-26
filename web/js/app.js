@@ -1700,6 +1700,32 @@ function usersView() {
     </table></div>`;
 }
 
+/**
+ * Pide una página del registro de seguridad y la añade a lo ya cargado (S-03).
+ *
+ * Mantiene el total y si quedan más páginas, para que la vista muestre un pie honesto.
+ */
+function loadSecLog(page = 1) {
+  const destino = ui.secLog || (ui.secLog = { rows: [], page: 0, pages: 1, total: 0, hasMore: false });
+  destino.cargando = true;
+  api(`/security-log?limit=200&page=${page}`)
+    .then((r) => {
+      const nuevas = r.log || [];
+      destino.rows = page === 1 ? nuevas : destino.rows.concat(nuevas);
+      destino.page = r.page || page;
+      destino.pages = r.pages || 1;
+      destino.total = r.total ?? destino.rows.length;
+      destino.hasMore = !!r.hasMore;
+      destino.cargando = false;
+      render();
+    })
+    .catch(() => {
+      destino.cargando = false;
+      if (page === 1 && !destino.rows.length) destino.rows = [];
+      render();
+    });
+}
+
 function auditView() {
   const canSec = ["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role());
   const tab = ui.auditTab || "app";
@@ -1714,10 +1740,22 @@ function auditView() {
       <tbody>${filas.map((a) => `<tr><td class="hint">${new Date(a.ts * 1000).toLocaleString("es-CU")}</td><td>${esc(a.user)}</td><td class="mono">${esc(a.code || "—")}</td><td class="mono hint">${esc(a.sale_id || "—")}</td><td>${a.width} mm</td><td><span class="tag ${a.kind === "reimpresion" ? "mov" : "entrada"}">${esc(a.kind)}</span></td></tr>`).join("") || "<tr><td colspan=6 class=hint>Sin impresiones registradas.</td></tr>"}</tbody></table></div>`;
   }
   if (tab === "sec" && canSec) {
-    if (!ui.secLog) { ui.secLog = []; api("/security-log").then((r) => { ui.secLog = r.log || []; render(); }); }
-    const rows = ui.secLog.filter((a) => !ui.q || has(a.action, ui.q) || has(a.user || "", ui.q) || has(a.details || "", ui.q) || has(a.ip || "", ui.q));
+    // El registro de seguridad llega por páginas (S-03): se pide la primera y, si hay más,
+    // el botón «Ver más eventos» trae la siguiente y la añade al final.
+    if (!ui.secLog) {
+      ui.secLog = { rows: [], page: 0, pages: 1, total: 0, hasMore: false, cargando: true };
+      loadSecLog(1);
+    }
+    if (ui.secLog.cargando && !ui.secLog.rows.length) {
+      return tabs + `<div class="card"><span class="k">🛡 Seguridad (servidor)</span><p class="hint">Cargando el registro de eventos…</p></div>`;
+    }
+    const rows = ui.secLog.rows.filter((a) => !ui.q || has(a.action, ui.q) || has(a.user || "", ui.q) || has(a.details || "", ui.q) || has(a.ip || "", ui.q));
     const bad = (x) => /FAIL|REVOKE|OFF|REOPEN|RESTORE/.test(x);
-    return tabs + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Detalle</th><th>IP</th></tr></thead>
+    const pie = `<div class="card mb12"><div class="card-h"><span class="k">🛡 Eventos del servidor</span>
+      <span class="hint">${ui.secLog.rows.length} de ${ui.secLog.total} · página ${Math.max(1, ui.secLog.page)} de ${ui.secLog.pages}</span></div>
+      <p class="hint">Inicios de sesión, fallos, revocaciones, reaperturas de día, restauraciones e impresiones. Se cargan por páginas de 200 para no pedirle al servidor más de lo necesario.</p>
+      ${ui.secLog.hasMore ? `<button class="btn ghost small" data-act="sec-more">Ver más eventos</button>` : ""}</div>`;
+    return tabs + pie + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Detalle</th><th>IP</th></tr></thead>
       <tbody>${rows.map((a) => `<tr><td class="hint">${new Date(a.ts * 1000).toLocaleString("es-CU")}</td><td>${esc(a.user)}</td><td><span class="tag ${bad(a.action) ? "salida" : a.action.startsWith("LOGIN") ? "entrada" : "mov"}">${esc(a.action)}</span></td><td>${hl(a.details || "")}</td><td class="mono hint">${esc(a.ip || "")}</td></tr>`).join("") || "<tr><td colspan=5 class=hint>Sin eventos.</td></tr>"}</tbody></table></div>`;
   }
   const logs = store.state.audit.filter((a) => !ui.q || has(a.action, ui.q) || has(a.userName || "", ui.q) || has(a.details || "", ui.q) || has(a.entity || "", ui.q));
@@ -4139,6 +4177,7 @@ function onClick(e) {
   else if (act === "iv-apply") ivApply();
   else if (act === "iv-clear") { const st = ivState(); st.rows = []; st.text = ""; st.last = null; st.warn = false; render(); }
   else if (act === "iv-template") ivTemplate();
+  else if (act === "sec-more") { loadSecLog((ui.secLog?.page || 1) + 1); toast("Cargando más eventos…", "ok"); }
   else if (act === "health-refresh") { ui.health = null; render(); toast("Revisando el estado del servidor…", "ok"); }
   else if (act === "license-refresh") {
     if (!store.state.session) ui.license.loading = true;

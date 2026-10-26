@@ -1698,7 +1698,7 @@ deja escrita), **Desactivar / Activar** y **Quitar 2FA** (si el usuario perdió 
 | Pestaña | Contenido |
 |---|---|
 | **Actividad del negocio** | Quién creó, modificó, eliminó o restauró qué, con fecha, entidad y detalle (últimos 300 registros) |
-| **Seguridad (servidor)** | Inicios de sesión, fallos, revocaciones, reaperturas de día, restauraciones, con IP |
+| **Seguridad (servidor)** | Inicios de sesión, fallos, revocaciones, reaperturas de día, restauraciones e impresiones, con IP. Se carga de **200 en 200**: el pie dice cuántos eventos se ven del total y el botón **Ver más eventos** trae la siguiente página |
 | **Impresiones** | Quién imprimió cada ticket y cuándo, con el código de verificación, la venta, el ancho del papel y si fue impresión o reimpresión |
 
 **Cómo investigar un problema con la auditoría**

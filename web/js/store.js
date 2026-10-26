@@ -97,6 +97,42 @@ class Store {
     return o;
   }
 
+  /**
+   * Aplica una descarga incremental del servidor (S-03).
+   *
+   * `r.state` trae solo los registros que cambiaron desde `r.since` y `r.deleted` los que
+   * desaparecieron. Cada registro entra por su `id`; lo demás del estado se queda como está.
+   * Devuelve cuántos registros se tocaron.
+   */
+  applyDelta(r) {
+    const delta = r.state || {};
+    const borrados = r.deleted || {};
+    let tocados = 0;
+    for (const [seccion, filas] of Object.entries(delta)) {
+      if (!Array.isArray(this.state[seccion])) continue;
+      const actuales = new Map(this.state[seccion].map((x) => [String(x.id), x]));
+      for (const fila of filas) {
+        if (!fila || fila.id === undefined) continue;
+        actuales.set(String(fila.id), fila);
+        tocados++;
+      }
+      this.state[seccion] = [...actuales.values()];
+    }
+    for (const [seccion, ids] of Object.entries(borrados)) {
+      if (!Array.isArray(this.state[seccion]) || !ids.length) continue;
+      const fuera = new Set(ids.map(String));
+      this.state[seccion] = this.state[seccion].filter((x) => !fuera.has(String(x.id)));
+      tocados += ids.length;
+    }
+    if (r.closedDays) this.closedDays = r.closedDays;
+    this.version = r.version;
+    if (tocados) {
+      this.ensureWarehouses();
+      for (const p of this.state.products || []) this.recalcProduct(p.id);
+    }
+    return tocados;
+  }
+
   applyServer(r) {
     const s = r.state || {};
     const keep = { session: this.state.session, users: this.state.users };
@@ -246,9 +282,22 @@ class Store {
     this.onSync?.(v);
   }
 
+  /**
+   * Recarga el estado. Si el servidor puede enviar solo las diferencias desde la versión
+   * que ya tiene este navegador, se aplica la descarga incremental (S-03): menos datos y
+   * el mismo resultado. Cualquier duda cae en la descarga completa, que es la de siempre.
+   */
   async reload() {
-    const r = await api("/state");
+    const desde = Number(this.version);
+    const r = desde > 0 ? await api(`/state?since=${desde}`) : await api("/state");
     if (r.status !== 200) return;
+    if (r.full === false && !r.unchanged && r.delta) {
+      const tocados = this.applyDelta(r);
+      this.setSync("ok");
+      if (tocados) this.emit(false);
+      return;
+    }
+    if (r.full === false && r.unchanged) { this.version = r.version; return; }
     this.applyServer(r);
     this.setSync("ok");
     this.emit(false);
