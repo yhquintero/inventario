@@ -121,10 +121,14 @@ jobs:
           profile: pixel_4
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
-          script: |
-            chmod +x gradlew
-            if ! ./gradlew connectedDebugAndroidTest --stacktrace 2>&1 | tee androidtest.log; then
-              resumen="$(grep -E '^e: |error:|FAILED|Tests? on|AssertionError|Caused by' androidtest.log | head -40 | sed -e 's/%/%25/g' -e 's/\r//g' | awk 'BEGIN { ORS = "%0A" } { print }')"
-              echo "::error::Pruebas de interfaz Android fallaron:%0A${resumen}"
-              exit 1
-            fi
+          script: bash tools/ci_androidtest.sh
+      - name: Guardar informes de las pruebas de interfaz
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informes-androidtest
+          path: |
+            app/build/reports/androidTests/
+            androidtest.log
+          if-no-files-found: ignore
+          retention-days: 7
