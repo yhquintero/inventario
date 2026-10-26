@@ -1134,5 +1134,19 @@ test("W-07 · las tablas se exportan a Excel (.xlsx) con el lector que ya trae l
   assert.match(sw, /"\.\/js\/xlsx-export\.js"/, "el módulo entra en el precache (sin conexión)");
 });
 
+test("S-01 · el registro de seguridad se puede comprobar encadenado desde la pantalla", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  assert.match(source, /function verificarCadenaAuditoria\(/, "debe existir el verificador");
+  assert.match(source, /api\("\/security-log\/verify"\)/, "pide la comprobación al servidor");
+  assert.match(source, /act === "sec-verify"/, "el botón está conectado");
+  assert.match(source, /data-act="sec-verify"/, "la tarjeta de seguridad ofrece el botón");
+  assert.match(source, /hashShort \|\| "—"/, "la tabla enseña la huella de cada línea");
+  assert.match(source, /La cadena se rompe en la línea/, "avisa si la cadena no cuadra");
+  assert.match(source, /announce\(`Registro de seguridad íntegro/, "anuncia el resultado al lector de pantalla");
+  const server = readFileSync(join(root, "server/novagest_server.py"), "utf8");
+  assert.match(server, /@route\("GET", "\/api\/security-log\/verify"/, "existe la ruta de verificación en el servidor");
+  assert.match(server, /def _hash_auditoria\(/, "el servidor calcula la huella encadenada");
+});
+
 console.log(`\n${ok} comprobaciones correctas, ${fail} fallidas\n`);
 process.exit(fail ? 1 : 0);

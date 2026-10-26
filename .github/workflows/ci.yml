@@ -66,6 +66,7 @@ jobs:
           bash tools/ci_paso.sh python3 tools/test_salud_servidor.py
           bash tools/ci_paso.sh python3 tools/test_compresion.py
           bash tools/ci_paso.sh python3 tools/test_delta_estado.py
+          bash tools/ci_paso.sh python3 tools/test_auditoria_encadenada.py
           bash tools/ci_paso.sh python3 tools/test_impresiones.py
           bash tools/ci_paso.sh python3 tools/test_restauracion.py
           bash tools/ci_paso.sh python3 tools/test_carga.py --n 12

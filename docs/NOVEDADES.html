@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 32 revisiones</title>
+<title>Novedades de NovaGest · 33 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 32 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 33 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,20 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>32</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>33</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXXIV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Auditoría encadenada (S-01)</h2>
+      <ul>
+      <li><b>S-01 · Registro de seguridad encadenado.</b> Cada evento guarda una <b>huella SHA-256</b></li>
+      <li><b>Botón «🔗 Comprobar cadena»</b> en <b>Auditoría → Seguridad (servidor)</b>: el servidor revisa</li>
+      <li>La tabla muestra una columna <b>Huella</b> con los primeros 12 caracteres y el <b>id</b> de cada</li>
+      <li><b>Ruta nueva</b> <code>GET /api/security-log/verify</code> (Administrador, Jefe y Económico), con</li>
+      <li><b>Actualización sin trabajo manual:</b> al arrancar se añaden las columnas nuevas y se</li>
+      <li><b>Pruebas:</b> <code>tools/test_auditoria_encadenada.py</code> con <b>30 comprobaciones</b> contra el</li>
+      <li><b>Manual:</b> nuevo apartado <b>14.4 Comprobar la cadena del registro de seguridad</b>, con el</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXXIII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
       <h2>Pruebas de interfaz en Android (A-16)</h2>
@@ -196,18 +209,7 @@
       <li><b>Manual</b> §10.4 (tabla de la comparación) y §16.3 / §16.5 (impresora, insignia y cola); <b>service worker v21</b>; <code>docs/MEJORAS_PROPUESTAS.md</code> con W-15, A-17 y A-14 en ✅.</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Recibo Bluetooth en Android (A-02)</h2>
-      <ul>
-      <li><b>Impresión de tickets en impresoras térmicas Bluetooth</b> desde <b>Venta rápida</b>: tras cobrar aparecen <b>🖨 58 mm</b> y <b>🖨 80 mm</b> y el ticket sale por el perfil SPP con el formato ESC/POS.</li>
-      <li><b>Módulo <code>data/printer/EscPos.kt</code></b> (Kotlin puro, sin Android): cabecera, líneas con cantidad e importe, total USD, equivalente CUP, forma de pago, cliente del fiado, vendedor, avance y corte de papel. Los acentos se pliegan a ASCII para que ninguna impresora muestre símbolos raros.</li>
-      <li><b><code>data/printer/BluetoothPrinter.kt</code></b>: impresoras <b>ya emparejadas</b>, conexión RFCOMM con tiempo de espera y memoria de la última usada; permiso <code>BLUETOOTH_CONNECT</code> solicitado en pantalla (Android 12+).</li>
-      <li><b>Pruebas <code>EscPosTest.kt</code></b> (10 casos): inicialización, corte, contenido, fiado, alineación a 32/48 columnas, recorte de nombres largos y plegado de acentos.</li>
-      <li><b>Manual</b> §16.3 con el paso a paso de emparejar e imprimir; <code>MANIFEST</code> con los permisos nuevos; <code>docs/MEJORAS_PROPUESTAS.md</code> con A-02 en ✅.</li>
-      </ul>
-    </article>
-<p class="older">Y 20 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 21 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

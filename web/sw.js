@@ -1,4 +1,6 @@
 /* Service worker: la interfaz abre al instante y sin conexión; los datos (/api) siempre van al servidor.
+   v29: auditoría encadenada: la pantalla de Seguridad enseña la huella de cada línea y el
+        botón «Comprobar cadena» (S-01).
    v28: exportación a Excel (.xlsx) de inventario, movimientos, clientes, fiados, cuadres y categorías
         y módulo nuevo xlsx-export.js.
    v27: venta rápida desde el buscador (Ctrl+K «vender arroz 2») y módulo nuevo quick-sale.js.
@@ -20,7 +22,7 @@
    v13: solicitud de licencia con consentimiento visible y accesible en el flujo de WhatsApp.
    v14: aviso de activación explícita; ya no se ofrece una prueba automática.
    v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos. */
-const CACHE = "novagest-v28";
+const CACHE = "novagest-v29";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",

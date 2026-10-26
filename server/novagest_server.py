@@ -515,7 +515,9 @@ def init_db():
       created INTEGER, last_seen INTEGER, ip TEXT, ua TEXT);
     CREATE TABLE IF NOT EXISTS app_state(id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER, data TEXT, updated_at INTEGER, updated_by TEXT);
     CREATE TABLE IF NOT EXISTS closed_days(date TEXT PRIMARY KEY, closed_by TEXT, closed_at INTEGER, note TEXT, snapshot TEXT);
-    CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, ts INTEGER, user TEXT, action TEXT, details TEXT, ip TEXT);
+    CREATE TABLE IF NOT EXISTS audit(
+      id INTEGER PRIMARY KEY, ts INTEGER, user TEXT, action TEXT, details TEXT, ip TEXT,
+      prev TEXT, hash TEXT);
     CREATE TABLE IF NOT EXISTS fails(k TEXT PRIMARY KEY, n INTEGER, until INTEGER);
     CREATE TABLE IF NOT EXISTS licenses(
       id INTEGER PRIMARY KEY,
@@ -588,6 +590,8 @@ def init_db():
     CREATE TABLE IF NOT EXISTS rate_hits(k TEXT PRIMARY KEY, hits TEXT);
     """)
     CON.commit()
+    migrar_auditoria()
+    encadenar_auditoria()
     # No se activa ninguna licencia durante el arranque. La primera activación
     # debe llegar explícitamente a /api/license/activate con una clave válida.
     if not q("SELECT 1 FROM users LIMIT 1", one=True):
@@ -616,8 +620,95 @@ def init_db():
         q("INSERT INTO app_state(id,version,data,updated_at) VALUES(1,0,NULL,?)", (now(),))
 
 
+# ------------------------------------------------------------------ auditoría encadenada (S-01)
+# Cada línea del registro de seguridad guarda el hash de la anterior. Si alguien cambia o
+# borra una fila por detrás (SQLite, copia manipulada), la cadena deja de cuadrar y el aviso
+# aparece en la pantalla de Seguridad. El hash no esconde nada: es una huella SHA-256 de los
+# datos de la línea más el hash anterior, en orden de `id`.
+_CHAIN_LOCK = threading.Lock()
+
+
+def _hash_auditoria(prev, ts, user, action, details, ip):
+    """Huella SHA-256 de una línea de auditoría encadenada a la anterior."""
+    base = "\x1f".join([prev or "", str(ts or 0), user or "", action or "", details or "", ip or ""])
+    return hashlib.sha256(base.encode("utf-8")).hexdigest()
+
+
+def migrar_auditoria():
+    """Añade las columnas `prev` y `hash` a bases de datos creadas antes de S-01."""
+    columnas = {r["name"] for r in q("PRAGMA table_info(audit)")}
+    with _lock:
+        if "prev" not in columnas:
+            CON.execute("ALTER TABLE audit ADD COLUMN prev TEXT")
+        if "hash" not in columnas:
+            CON.execute("ALTER TABLE audit ADD COLUMN hash TEXT")
+        CON.commit()
+
+
+def encadenar_auditoria():
+    """Calcula el hash de las líneas antiguas que todavía no lo tienen.
+
+    Se ejecuta al arrancar. Las líneas ya encadenadas no se tocan, así que reiniciar el
+    servidor no invalida el registro.
+    """
+    with _CHAIN_LOCK:
+        pendientes = q("SELECT id, ts, user, action, details, ip, prev, hash FROM audit ORDER BY id")
+        prev = ""
+        cambios = []
+        for fila in pendientes:
+            if fila["hash"]:
+                prev = fila["hash"]
+                continue
+            h = _hash_auditoria(prev, fila["ts"], fila["user"], fila["action"], fila["details"], fila["ip"])
+            cambios.append((prev, h, fila["id"]))
+            prev = h
+        if cambios:
+            with _lock:
+                CON.executemany("UPDATE audit SET prev=?, hash=? WHERE id=?", cambios)
+                CON.commit()
+    return len(cambios)
+
+
 def audit(user, action, details="", ip=""):
-    q("INSERT INTO audit(ts,user,action,details,ip) VALUES(?,?,?,?,?)", (now(), user, action, details, ip))
+    """Añade una línea al registro de seguridad, encadenada a la anterior."""
+    with _CHAIN_LOCK:
+        with _lock:
+            ultima = CON.execute("SELECT hash FROM audit ORDER BY id DESC LIMIT 1").fetchone()
+            prev = (ultima["hash"] if ultima else "") or ""
+            ts = now()
+            h = _hash_auditoria(prev, ts, user, action, details, ip)
+            CON.execute("INSERT INTO audit(ts,user,action,details,ip,prev,hash) VALUES(?,?,?,?,?,?,?)",
+                        (ts, user, action, details, ip, prev, h))
+            CON.commit()
+
+
+def verificar_auditoria(desde=1, hasta=None):
+    """Recorre la cadena y devuelve el resultado de la comprobación.
+
+    Devuelve `ok`, el número de líneas revisadas, el `head` (último hash) y, si algo no
+    cuadra, la primera línea rota con el motivo: `hash` (datos cambiados) o `enlace`
+    (falta o sobra una línea en medio).
+    """
+    filas = q("SELECT id, ts, user, action, details, ip, prev, hash FROM audit ORDER BY id")
+    prev = ""
+    revisadas = 0
+    for fila in filas:
+        if hasta is not None and fila["id"] > hasta:
+            break
+        if fila["id"] < desde:
+            prev = fila["hash"] or ""
+            continue
+        revisadas += 1
+        esperado = _hash_auditoria(prev, fila["ts"], fila["user"], fila["action"], fila["details"], fila["ip"])
+        if (fila["prev"] or "") != (prev or ""):
+            return {"ok": False, "checked": revisadas, "brokenAt": fila["id"], "reason": "enlace",
+                    "detail": "la línea no apunta al hash de la anterior", "head": prev}
+        if esperado != (fila["hash"] or ""):
+            return {"ok": False, "checked": revisadas, "brokenAt": fila["id"], "reason": "hash",
+                    "detail": "los datos de la línea no coinciden con su hash", "head": prev}
+        prev = fila["hash"] or ""
+    return {"ok": True, "checked": revisadas, "brokenAt": None, "reason": "", "detail": "",
+            "head": prev, "total": len(filas)}
 
 
 def public_user(r):
@@ -2021,11 +2112,41 @@ def sec_log(h, u, _):
         donde = " WHERE action LIKE ? OR user LIKE ? OR details LIKE ?"
         args = [f"%{texto}%"] * 3
     total = q(f"SELECT COUNT(*) n FROM audit{donde}", tuple(args), one=True)["n"] or 0
-    rows = q(f"SELECT ts,user,action,details,ip FROM audit{donde} ORDER BY id DESC LIMIT ? OFFSET ?",
+    rows = q(f"SELECT id,ts,user,action,details,ip,hash FROM audit{donde} ORDER BY id DESC LIMIT ? OFFSET ?",
              (*args, limit, offset))
     paginas = max(1, (total + limit - 1) // limit)
-    h.send_json(200, {"log": [dict(r) for r in rows], "total": total, "page": page, "pages": paginas,
+    # S-01: se enseña el hash corto y el id de cada línea; con ellos se puede comprobar la cadena.
+    registros = []
+    for r in rows:
+        fila = dict(r)
+        fila["hashShort"] = (fila.get("hash") or "")[:12]
+        fila.pop("hash", None)
+        registros.append(fila)
+    h.send_json(200, {"log": registros, "total": total, "page": page, "pages": paginas,
                       "limit": limit, "offset": offset, "hasMore": offset + len(rows) < total})
+
+
+@route("GET", "/api/security-log/verify", roles=ADMINS | {"ECONOMICO"})
+def sec_log_verify(h, u, _):
+    """Comprueba la cadena del registro de seguridad (S-01).
+
+    Recorre todas las líneas y confirma que cada una apunta a la anterior y que sus datos
+    coinciden con su hash. Devuelve `ok`, cuántas líneas revisó y, si algo no cuadra, cuál.
+    """
+    qs = parse_qs(urlparse(h.path).query)
+    desde = 1
+    hasta = None
+    try:
+        if qs.get("from"):
+            desde = max(1, int(qs["from"][0]))
+        if qs.get("to"):
+            hasta = max(1, int(qs["to"][0]))
+    except ValueError:
+        pass
+    resultado = verificar_auditoria(desde, hasta)
+    resultado["from"], resultado["to"] = desde, hasta
+    resultado["checkedAt"] = now()
+    h.send_json(200, resultado)
 
 
 def main():

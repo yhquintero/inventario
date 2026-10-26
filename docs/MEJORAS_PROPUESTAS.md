@@ -5,8 +5,8 @@ Cada paso se revisa, se aprueba y se entrega en su propio pull request; las fila
 terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`ROADMAP.md`](ROADMAP.md).
 
 > **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola en Android) ✅ ·
-> **Hecho:** D-01…D-07 · W-01, W-02, W-04, W-05, W-06, W-07, W-11, W-13, W-17 · A-01, A-02, A-16 · S-03.
-> **Lo siguiente, por orden sugerido:** **G-01** (vídeo vertical de 30 s) → **S-01** (auditoría encadenada) → **A-04** (widget).
+> **Hecho:** D-01…D-07 · W-01, W-02, W-04, W-05, W-06, W-07, W-11, W-13, W-17 · A-01, A-02, A-16 · S-01, S-03.
+> **Lo siguiente, por orden sugerido:** **G-01** (vídeo vertical de 30 s) → **A-04** (widget) → **W-03** (alertas de reposición).
 > La segunda ola de propuestas nuevas está al final del documento.
 
 **Leyenda:** impacto 🔴 alto · 🟠 medio · 🟢 bajo — esfuerzo ⏱️ bajo (≤1 día) · ⏳ medio (2-5 días) ·
@@ -56,7 +56,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 
 | # | Mejora | Por qué | Dónde | Impacto | Esfuerzo | Estado |
 |---|---|---|---|---|---|---|
-| S-01 | Auditoría encadenada (hash de la entrada anterior) | Detectar borrados o cambios silenciosos | `server/` | 🔴 | ⏳ | ⬜ |
+| S-01 | ✅ **Auditoría encadenada** (hash SHA-256 de cada línea con el de la anterior), botón «Comprobar cadena» en Seguridad y ruta `GET /api/security-log/verify` | Detectar borrados o cambios silenciosos | `server/novagest_server.py`, `web/js/app.js` | 🔴 | ⏳ | ✅ |
 | S-02 | Restauración automática probada en CI nocturno (ya hay prueba; añadir aviso si falla) | Una copia que no se restaura no es una copia | `tools/`, CI | 🟠 | ⏱️ | ⬜ |
 | S-03 | ✅ **API con paginación y `?since=`** (delta por registro, registro de seguridad por páginas) | Móviles y catálogos grandes | `server/`, `store.js` | 🟠 | ⏳ | ✅ |
 | S-04 | Instalador de Windows con el entorno incluido | Instalar en 3 clics, sin Python | `deploy/` | 🟠 | ⏳ | ⬜ |

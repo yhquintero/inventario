@@ -1728,6 +1728,36 @@ function loadSecLog(page = 1) {
     });
 }
 
+/**
+ * Comprueba la cadena del registro de seguridad (S-01).
+ *
+ * El servidor recalcula el hash de cada línea con el de la anterior. Si alguien cambió,
+ * borró o metió una línea por detrás, el resultado lo dice y se marca en rojo.
+ */
+function verificarCadenaAuditoria() {
+  const destino = ui.secLog || (ui.secLog = { rows: [], page: 0, pages: 1, total: 0, hasMore: false });
+  destino.verificando = true;
+  render();
+  api("/security-log/verify")
+    .then((r) => {
+      destino.verificacion = r;
+      destino.verificando = false;
+      if (r.ok) {
+        toast(`Cadena correcta: ${r.checked} línea(s) verificadas`, "ok");
+        announce(`Registro de seguridad íntegro. ${r.checked} líneas verificadas.`);
+      } else {
+        toast(`⚠ La cadena se rompe en la línea ${r.brokenAt}`, "err");
+        announce(`Atención: el registro de seguridad no cuadra en la línea ${r.brokenAt}.`);
+      }
+      render();
+    })
+    .catch(() => {
+      destino.verificando = false;
+      toast("No se pudo comprobar la cadena del registro.", "err");
+      render();
+    });
+}
+
 function auditView() {
   const canSec = ["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role());
   const tab = ui.auditTab || "app";
@@ -1753,12 +1783,21 @@ function auditView() {
     }
     const rows = ui.secLog.rows.filter((a) => !ui.q || has(a.action, ui.q) || has(a.user || "", ui.q) || has(a.details || "", ui.q) || has(a.ip || "", ui.q));
     const bad = (x) => /FAIL|REVOKE|OFF|REOPEN|RESTORE/.test(x);
+    const ver = ui.secLog.verificacion;
+    const veredicto = !ver
+      ? ""
+      : ver.ok
+        ? `<div class="banner ok mt12"><b>✔ Registro íntegro.</b> ${ver.checked} línea(s) comprobadas: cada una encaja con la anterior. Sello actual <span class="mono">${esc(ver.head || "—")}</span></div>`
+        : `<div class="banner err mt12"><b>⚠ El registro no cuadra.</b> La primera línea que no encaja es la <b>${ver.brokenAt}</b> (${esc(ver.detail || ver.reason)}). No siga trabajando sin revisar la copia de seguridad y avise al administrador.</div>`;
     const pie = `<div class="card mb12"><div class="card-h"><span class="k">🛡 Eventos del servidor</span>
       <span class="hint">${ui.secLog.rows.length} de ${ui.secLog.total} · página ${Math.max(1, ui.secLog.page)} de ${ui.secLog.pages}</span></div>
       <p class="hint">Inicios de sesión, fallos, revocaciones, reaperturas de día, restauraciones e impresiones. Se cargan por páginas de 200 para no pedirle al servidor más de lo necesario.</p>
-      ${ui.secLog.hasMore ? `<button class="btn ghost small" data-act="sec-more">Ver más eventos</button>` : ""}</div>`;
-    return tabs + pie + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Detalle</th><th>IP</th></tr></thead>
-      <tbody>${rows.map((a) => `<tr><td class="hint">${new Date(a.ts * 1000).toLocaleString("es-CU")}</td><td>${esc(a.user)}</td><td><span class="tag ${bad(a.action) ? "salida" : a.action.startsWith("LOGIN") ? "entrada" : "mov"}">${esc(a.action)}</span></td><td>${hl(a.details || "")}</td><td class="mono hint">${esc(a.ip || "")}</td></tr>`).join("") || "<tr><td colspan=5 class=hint>Sin eventos.</td></tr>"}</tbody></table></div>`;
+      <p class="hint">Cada línea guarda la huella (hash) de la anterior: si alguien edita o borra una fila por detrás, la cadena deja de cuadrar. Pulse <b>Comprobar cadena</b> para revisarla entera.</p>
+      <div class="row mt12"><button class="btn ghost small" data-act="sec-verify" ${ui.secLog.verificando ? "disabled" : ""}>${ui.secLog.verificando ? "Comprobando…" : "🔗 Comprobar cadena"}</button>
+      ${ui.secLog.hasMore ? `<button class="btn ghost small" data-act="sec-more">Ver más eventos</button>` : ""}</div>
+      ${veredicto}</div>`;
+    return tabs + pie + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Detalle</th><th>Huella</th><th>IP</th></tr></thead>
+      <tbody>${rows.map((a) => `<tr><td class="hint">${new Date(a.ts * 1000).toLocaleString("es-CU")}</td><td>${esc(a.user)}</td><td><span class="tag ${bad(a.action) ? "salida" : a.action.startsWith("LOGIN") ? "entrada" : "mov"}">${esc(a.action)}</span></td><td>${hl(a.details || "")}</td><td class="mono hint" data-tip="Hash SHA-256 de esta línea encadenado con la anterior">${esc(a.hashShort || "—")}</td><td class="mono hint">${esc(a.ip || "")}</td></tr>`).join("") || "<tr><td colspan=6 class=hint>Sin eventos.</td></tr>"}</tbody></table></div>`;
   }
   const logs = store.state.audit.filter((a) => !ui.q || has(a.action, ui.q) || has(a.userName || "", ui.q) || has(a.details || "", ui.q) || has(a.entity || "", ui.q));
   return tabs + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>Detalle</th></tr></thead>
@@ -4235,6 +4274,7 @@ function onClick(e) {
   else if (act === "iv-apply") ivApply();
   else if (act === "iv-clear") { const st = ivState(); st.rows = []; st.text = ""; st.last = null; st.warn = false; render(); }
   else if (act === "iv-template") ivTemplate();
+  else if (act === "sec-verify") { verificarCadenaAuditoria(); }
   else if (act === "export-xlsx") { exportXlsx(d.xlsx || "inventory", d.xlsx === "analytics" ? ui.lastAnalytics || {} : {}); }
   else if (act === "sec-more") { loadSecLog((ui.secLog?.page || 1) + 1); toast("Cargando más eventos…", "ok"); }
   else if (act === "health-refresh") { ui.health = null; render(); toast("Revisando el estado del servidor…", "ok"); }

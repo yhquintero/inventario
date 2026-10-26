@@ -1,4 +1,25 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXXIII) · Pruebas de interfaz en Android (A-16)
+﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXXIV) · Auditoría encadenada (S-01)
+
+- **S-01 · Registro de seguridad encadenado.** Cada evento guarda una **huella SHA-256**
+  calculada con sus datos y con la huella del evento anterior. Si alguien cambia, borra o
+  inserta una fila por detrás en la base de datos, la cadena deja de cuadrar.
+- **Botón «🔗 Comprobar cadena»** en **Auditoría → Seguridad (servidor)**: el servidor revisa
+  *todos* los eventos (no solo los 200 visibles) y responde **✔ Registro íntegro** con el
+  número de líneas y el **sello actual**, o **⚠ El registro no cuadra** indicando **la línea**
+  y el motivo (*datos cambiados* o *enlace roto*).
+- La tabla muestra una columna **Huella** con los primeros 12 caracteres y el **id** de cada
+  línea, para poder cruzarla con el aviso.
+- **Ruta nueva** `GET /api/security-log/verify` (Administrador, Jefe y Económico), con
+  `?from=N&to=M` para comprobar un tramo; se puede automatizar desde el servidor.
+- **Actualización sin trabajo manual:** al arrancar se añaden las columnas nuevas y se
+  encadenan **una sola vez** los eventos antiguos; los ya encadenados no se recalculan.
+- **Pruebas:** `tools/test_auditoria_encadenada.py` con **30 comprobaciones** contra el
+  servidor real, incluida la manipulación por SQLite, el borrado de una línea intermedia y el
+  reinicio del servidor.
+- **Manual:** nuevo apartado **14.4 Comprobar la cadena del registro de seguridad**, con el
+  paso a paso y qué hacer si el aviso sale en rojo.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXXIII) · Pruebas de interfaz en Android (A-16)
 
 - **A-16 · Pruebas de interfaz en emulador (`app/src/androidTest/`).** Cada cambio de la app
   Android se comprueba ahora en un teléfono virtual, no solo en la lógica pura:

@@ -88,7 +88,17 @@ def main():
     ok("hay al menos 8 revisiones publicadas", tarjetas >= 8, str(tarjetas))
     ok("no publica más de 12 revisiones", tarjetas <= 12, str(tarjetas))
     ok("el CHANGELOG tiene las revisiones contadas", total >= tarjetas, f"changelog {total}, página {tarjetas}")
-    ok("la última revisión es la primera de la página", html.index("XXV") < html.index("XXIV") if "XXV" in html else True)
+    # La página publica la revisión más nueva arriba: se comprueba con los dos primeros
+    # títulos del CHANGELOG (no con números romanos fijos, que cambian en cada entrega).
+    titulos = [t.strip() for t in re.findall(r"^##\s+NovaGest\s+v\S+\s+·\s+revisión[^(]*\([^)]+\)\s*·\s*(.+)$",
+                                            CHANGELOG.read_text(encoding="utf-8-sig"), re.M)]
+    if len(titulos) >= 2:
+        ok("la revisión más nueva va primero en la página",
+           html.find(f"<h2>{titulos[0]}</h2>") != -1 and html.find(f"<h2>{titulos[1]}</h2>") != -1
+           and html.index(f"<h2>{titulos[0]}</h2>") < html.index(f"<h2>{titulos[1]}</h2>"),
+           f"{titulos[0]!r} · {titulos[1]!r}")
+    else:
+        ok("la revisión más nueva va primero en la página", False, "no se pudieron leer los títulos")
     ok("cada revisión trae al menos un punto", html.count("<li>") >= tarjetas * 2, str(html.count("<li>")))
     ok("no usa recursos externos", not re.findall(r'(?:src|href)="http(?!s://github\.com)', html))
 
