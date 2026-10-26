@@ -21,16 +21,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodes
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import com.novagest.inventario.domain.model.Product
 import com.novagest.inventario.domain.model.SaleCenter
@@ -214,8 +215,13 @@ class PosFlowUiTest {
             MaterialTheme { KpiCard(title = "Venta del día", value = Money.usd(96502.82), subtitle = "USD") }
         }
 
-        val nodo = compose.onNodeWithText("$96,502.82").fetchSemanticsNode()
-        val lineas = nodo.config.getOrNull(SemanticsProperties.Text)?.firstOrNull()?.layoutResult?.value
-        assertEquals("la cifra se parte en varias líneas", 1, lineas?.lineCount)
+        // Se pide al texto su resultado de maquetación y se cuenta en cuántas líneas salió:
+        // con la fuente del sistema al 130 % la cifra no debe partirse.
+        val medidas = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText("$96,502.82").performSemanticsAction(SemanticsActions.GetTextLayoutResult) { accion ->
+            accion(medidas)
+        }
+        assertEquals("el texto se midió una vez", 1, medidas.size)
+        assertEquals("la cifra se parte en varias líneas", 1, medidas.first().lineCount)
     }
 }
