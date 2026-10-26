@@ -158,6 +158,18 @@ def main() -> int:
         ok("la narración dura menos de 3 minutos", 0 < fin < 180, f"{fin:.1f} s")
         ok("el vídeo tiene subtítulos suficientes para seguir la narración",
            len(re.findall(r"^\d+$", srt.read_text(encoding="utf-8"), re.M)) >= 20)
+    # G-01 · corte vertical de 30 s para estados de WhatsApp y redes.
+    reel = RAIZ / "docs" / "assets" / "video" / "novagest-reel-vertical-30s.mp4"
+    reel_srt = RAIZ / "docs" / "assets" / "video" / "novagest-reel-vertical-30s.srt"
+    ok("el corte vertical existe", reel.is_file())
+    ok("el corte vertical no está vacío", reel.is_file() and reel.stat().st_size > 500_000,
+       f"{reel.stat().st_size // 1024} KB" if reel.is_file() else "no existe")
+    ok("el sitio enlaza el corte vertical", "novagest-reel-vertical-30s.mp4" in html)
+    ok("el corte vertical trae subtítulos", reel_srt.is_file())
+    if reel_srt.is_file():
+        tiempos = re.findall(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})", reel_srt.read_text(encoding="utf-8"))
+        fin = max((int(h) * 3600 + int(m) * 60 + int(se) + int(ms) / 1000) for h, m, se, ms in tiempos) if tiempos else 0
+        ok("el corte vertical no pasa de 31 segundos", 25 < fin <= 31, f"{fin:.1f} s")
     ok("la narración en audio está publicada", mp3.is_file())
     ok("la página trae el reproductor de vídeo", "<video" in html and 'src="assets/video/novagest-promo-720p.mp4"' in html)
     ok("el reproductor ofrece los subtítulos en español",

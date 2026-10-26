@@ -103,7 +103,7 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 | S-10 | ✅ **Auditoría de impresiones**: quién imprimió qué ticket y cuándo | Trazabilidad de documentos | `server/`, `app.js` | 🟢 | ⏱️ |
 | S-11 | ✅ **Compresión gzip de `/state` y límite de tamaño por petición** | Servidores modestos, respuestas grandes | `server/` | 🟠 | ⏱️ |
 | D-10 | ✅ **Guía de dos páginas para el mostrador** (imprimible en A4): vender, fiar, imprimir, verificar y cuadrar | El personal nuevo arranca sin formación | `docs/` | 🟠 | ⏱️ |
-| D-11 | **Vídeo vertical de 30 s para WhatsApp** con la venta y el ticket | Es el canal real de los clientes | `docs/assets/video/` | 🟢 | ⏳ |
+| D-11 | ✅ **Vídeo vertical de 30 s (9:16)** con la venta, la caja y el cierre, con voz masculina, subtítulos quemados y `.srt`, publicado en el sitio | Es el canal real de los clientes | `docs/assets/video/`, `tools/build_reel_vertical.py` | 🟢 | ⏳ | ✅ |
 | D-12 | ✅ **Página de novedades** (`NOVEDADES.html`) generada desde `CHANGELOG.md` | El cliente ve que el producto avanza | `docs/` | 🟢 | ⏱️ |
 | W-17 | ✅ **Comparador de períodos en el gráfico del Panel** (serie anterior punteada, leyenda y columna en la tabla) | Decidir mirando la tendencia, no un número suelto | `homeView`, `app.css` | 🟠 | ⏱️ |
 

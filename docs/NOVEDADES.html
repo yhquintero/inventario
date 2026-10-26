@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 33 revisiones</title>
+<title>Novedades de NovaGest · 34 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 33 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 34 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,19 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>33</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>34</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXXV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
+      <h2>Corte vertical de 30 s (G-01 / D-11)</h2>
+      <ul>
+      <li><b>Vídeo vertical de 30 segundos</b> para <b>estados de WhatsApp, Reels y TikTok</b>:</li>
+      <li><b>Seis tramos</b>: portada, vender, cuadrar, revisar, móvil y cierre con la llamada a la acción</li>
+      <li><b>Voz masculina en español neutro</b> con <b>subtítulos quemados</b> y el <code>.srt</code> aparte</li>
+      <li><b>Publicado en el sitio</b>: la sección del vídeo de <code>docs/index.html</code> muestra ahora el corte</li>
+      <li><b>Generador reproducible</b> <code>tools/build_reel_vertical.py</code> (Pillow + ffmpeg): recibe los seis</li>
+      <li><b>Propuesta actualizada</b> (<code>docs/PROPUESTA_VIDEO_PROMOCIONAL.md</code> §6.1) con la ficha técnica, el</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXXIV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
       <h2>Auditoría encadenada (S-01)</h2>
@@ -199,17 +211,7 @@
       <li><b>Manual</b> §6.6 (QR y código), <b>§6.7 nuevo</b> (verificar un ticket), §16.2 y §16.4 (reimpresión); service worker <b>v22</b>; <code>docs/MEJORAS_PROPUESTAS.md</code> con W-16 y A-15 en ✅.</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXIII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Panel comparado, aviso de pendientes e impresora en Ajustes (W-15 · A-17 · A-14)</h2>
-      <ul>
-      <li><b>W-15 · La venta del día, comparada.</b> El KPI <b>Venta del día</b> del Panel añade una frase con la variación frente al <b>mismo día de la semana anterior</b> («▲ 12% vs 18/10», «▼ 8% vs 18/10», «igual que el 18/10», «sin ventas el 18/10» o «sin base anterior»). Funciones nuevas <code>dayTotals(iso, movements)</code> y <code>sameWeekdayComparison(today, previous, previousISO)</code>, probadas en <code>tools/smoke_web.mjs</code> (<b>54 comprobaciones</b>).</li>
-      <li><b>A-17 · Aviso de cambios sin subir.</b> La nube de la barra superior lleva una <b>insignia con el número de cambios pendientes</b>; el aviso inferior dice cuántos son y en cuántos segundos se reintenta, y su botón pasa a <b>«Sincronizar ahora»</b>. La lógica vive en <code>ui/components/SyncHint.kt</code> (puro, sin Android) con <b>5 pruebas nuevas</b> en <code>SyncHintTest.kt</code>, y <b>Ajustes</b> resume el estado de la cola.</li>
-      <li><b>A-14 · Impresora y ancho en Ajustes.</b> Tarjeta <b>Impresora de tickets</b>: lista las impresoras <b>emparejadas</b> (<code>BluetoothPrinter.paired()</code>), guarda la elegida junto con el ancho (<b>58 / 80 mm</b>) mediante <code>remember(address, width)</code>, y ofrece <b>Imprimir prueba</b>. <b>Venta rápida</b> usa esa configuración en el botón principal <b>🖨 Reimprimir</b> (los botones 58 y 80 mm siguen ahí para el otro rollo) y avisa si no hay impresora configurada.</li>
-      <li><b>Manual</b> §10.4 (tabla de la comparación) y §16.3 / §16.5 (impresora, insignia y cola); <b>service worker v21</b>; <code>docs/MEJORAS_PROPUESTAS.md</code> con W-15, A-17 y A-14 en ✅.</li>
-      </ul>
-    </article>
-<p class="older">Y 21 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 22 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

@@ -1,4 +1,21 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXXIV) · Auditoría encadenada (S-01)
+﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXXV) · Corte vertical de 30 s (G-01 / D-11)
+
+- **Vídeo vertical de 30 segundos** para **estados de WhatsApp, Reels y TikTok**:
+  `docs/assets/video/novagest-reel-vertical-30s.mp4`, formato **1080 × 1920 (9:16)**, 30 fps,
+  H.264 con `+faststart` y **1,6 MB** (se envía sin problema por WhatsApp).
+- **Seis tramos**: portada, vender, cuadrar, revisar, móvil y cierre con la llamada a la acción
+  «Solicita tu licencia por WhatsApp». Cada tramo lleva su rótulo, la **captura real** de la app
+  y una **barra de progreso**; se entiende **sin sonido**.
+- **Voz masculina en español neutro** con **subtítulos quemados** y el `.srt` aparte
+  (`novagest-reel-vertical-30s.srt`, 6 rótulos), por si se quiere traducir.
+- **Publicado en el sitio**: la sección del vídeo de `docs/index.html` muestra ahora el corte
+  vertical junto al vídeo largo, con botón de descarga y sus subtítulos.
+- **Generador reproducible** `tools/build_reel_vertical.py` (Pillow + ffmpeg): recibe los seis
+  clips de voz y compone la pieza; sirve para cambiar textos o locución sin rehacer el montaje.
+- **Propuesta actualizada** (`docs/PROPUESTA_VIDEO_PROMOCIONAL.md` §6.1) con la ficha técnica, el
+  guion locutado y el rótulo de cada tramo; el sitio comprueba que el corte dura ≤ 31 s.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXXIV) · Auditoría encadenada (S-01)
 
 - **S-01 · Registro de seguridad encadenado.** Cada evento guarda una **huella SHA-256**
   calculada con sus datos y con la huella del evento anterior. Si alguien cambia, borra o

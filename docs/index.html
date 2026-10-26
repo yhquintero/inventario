@@ -146,6 +146,11 @@
     border: 1px solid var(--line); box-shadow: var(--shadow); background: #000;
   }
   .video-pie { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+  /* G-01 · corte vertical de 30 s: se muestra en tamaño de móvil, sin ocupar media página. */
+  .video-vertical { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; margin-top: 2rem;
+    background: rgba(129, 122, 255, .08); border: 1px solid rgba(129, 122, 255, .28); border-radius: 16px; padding: 1.25rem; }
+  .video-vertical video { width: 100%; max-width: 260px; border-radius: 14px; background: #080a1a; }
+  .video-vertical div { flex: 1 1 320px; }
 
   /* Pasos */
   .pasos { counter-reset: paso; display: grid; gap: 1.1rem; margin-top: 2rem; }
@@ -322,6 +327,25 @@
           <a class="btn primario" href="assets/video/novagest-promo-720p.mp4">Descargar el vídeo (720p)</a>
           <a class="btn secundario" href="assets/video/novagest-promo-narracion.mp3">Solo la narración (MP3)</a>
           <a class="btn secundario" href="assets/video/novagest-promo-720p.srt">Subtítulos (.srt)</a>
+        </div>
+      </div>
+      <div class="video-vertical">
+        <video controls preload="none" playsinline width="1080" height="1920"
+               poster="assets/social-preview.png"
+               aria-label="Corte vertical de 30 segundos de NovaGest para WhatsApp y redes">
+          <source src="assets/video/novagest-reel-vertical-30s.mp4" type="video/mp4" />
+          <track kind="subtitles" src="assets/video/novagest-reel-vertical-30s.srt" srclang="es" label="Español" default />
+          Tu navegador no puede reproducir el vídeo. <a href="assets/video/novagest-reel-vertical-30s.mp4">Descárgalo aquí</a>.
+        </video>
+        <div>
+          <h3>Corte vertical de 30 segundos</h3>
+          <p>Para <strong>estados de WhatsApp, Reels y TikTok</strong>: formato 9:16 (1080 × 1920), 30 segundos
+            exactos, con narración en español y subtítulos. Se entiende sin sonido, que es como se
+            ve la mayoría de las veces.</p>
+          <div class="video-pie">
+            <a class="btn primario" href="assets/video/novagest-reel-vertical-30s.mp4">Descargar el corte (9:16)</a>
+            <a class="btn secundario" href="assets/video/novagest-reel-vertical-30s.srt">Subtítulos (.srt)</a>
+          </div>
         </div>
       </div>
     </div>
