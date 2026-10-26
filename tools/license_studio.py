@@ -281,7 +281,9 @@ def db_available():
 # funciona aunque el servidor no haya arrancado nunca, y el servidor completa el resto
 # de tablas al arrancar sobre la misma base (CREATE TABLE IF NOT EXISTS).
 LICENSE_SCHEMA = """
-CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, ts INTEGER, user TEXT, action TEXT, details TEXT, ip TEXT);
+CREATE TABLE IF NOT EXISTS audit(
+  id INTEGER PRIMARY KEY, ts INTEGER, user TEXT, action TEXT, details TEXT, ip TEXT,
+  prev TEXT, hash TEXT);
 CREATE TABLE IF NOT EXISTS licenses(
   id INTEGER PRIMARY KEY,
   key TEXT UNIQUE,
