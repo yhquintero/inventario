@@ -1623,6 +1623,63 @@ guarda como PDF desde el navegador, sin instalar nada.
 > entregue además el **Excel** (apartado 10.5) o el **CSV** con el detalle, que es lo que permite
 > sumar y cruzar cifra a cifra.
 
+## 10.7 Previsión de compra: qué pedir y cuánto
+
+**🧭 Menú → Análisis → Previsión de compra**
+
+Esta pantalla contesta la pregunta de cada semana: *«¿qué compro y cuánto?»*. No adivina: usa las
+**ventas reales**, la **existencia del almacén en uso**, el **plazo del proveedor** y la
+**cobertura** que usted quiera tener en el estante.
+
+**Cómo se usa**
+
+1. Elija la **cobertura**: cuántos días de venta quiere tener guardados (7, 14, 21, 30, 45, 60).
+   Lo normal en un mostrador es **14**; en un producto que se trae de lejos, **30**.
+2. Escriba el **plazo del proveedor**: los días que tarda en servir desde que se pide. Se guarda
+   en **Ajustes** y se usa en la próxima vez.
+3. Lea la tabla. Las filas salen ordenadas por urgencia: primero **agotado**, luego **urgente**,
+   **pronto** y **bajo mínimo**.
+4. Pulse **Entrada** en la fila del producto: se abre el formulario de entrada con el producto y
+   la **cantidad sugerida** ya puestos. Solo tiene que confirmar cuando llegue la mercancía.
+
+**Qué significa cada columna**
+
+| Columna | Qué es |
+|---|---|
+| **Hay / Mín.** | Existencia en el almacén en uso y el mínimo configurado del producto |
+| **Vendidos 30 · 60 · 90** | Unidades vendidas en cada ventana de días |
+| **Por día** | Ritmo ponderado: pesa más lo reciente (50 % de los últimos 30 días, 30 % de 60, 20 % de 90) |
+| **Tendencia** | ▲ Sube, ▼ Baja, = Estable (comparando con los 30 días anteriores) o «Sin ventas» |
+| **Alcanza** | Días que dura la existencia al ritmo actual |
+| **Punto de pedido** | Existencia a la que hay que volver: ritmo × (plazo + cobertura) + mínimo |
+| **Pedir** | Lo que falta para llegar al punto de pedido (**la sugerencia**) |
+| **Costo** | Sugerido × precio de costo |
+| **Estado** | Agotado · Urgente · Pronto · Bajo mínimo · Planificar |
+
+**Reglas que aplica (para que no compre de más ni de menos)**
+
+- **Producto nuevo:** el ritmo se mide desde su **primera venta**, no desde que se creó; así un
+  producto que salió a la venta hace diez días no se hunde por los veinte que no existía.
+- **Producto sin ventas:** si está por encima de su mínimo **no se pide nada**, por mucho stock que
+  parezca que falta; si está por debajo, se repone **hasta el mínimo**.
+- **Nunca negativo:** la sugerencia es siempre 0 o más.
+- **Almacén:** con un solo almacén se mira la existencia total; con varios, la del **almacén en
+  uso**. Cambie de almacén arriba y la previsión se recalcula.
+- **Días cerrados:** no afectan al cálculo; se usan las ventas ya registradas.
+
+**Para llevarse el pedido**
+
+| Botón | Qué hace |
+|---|---|
+| **📋 Copiar pedido** | Copia al portapapeles una lista lista para WhatsApp o el correo: `12 × Arroz blanco 5 kg`, con la fecha y el costo estimado |
+| **⬇ CSV** | Descarga la previsión completa (todas las columnas) para abrirla en Excel |
+| **🖨 PDF** | Imprime la pantalla tal como está, con la cabecera del negocio |
+| **Ver también los que no hace falta pedir** | Muestra los productos que están bien, para revisar la cobertura de un vistazo |
+
+> [!TIP]
+> Revise la previsión **después de cada importación de cierre de día**: es el momento en que las
+> ventas del día ya están dentro y la sugerencia es la definitiva.
+
 ---
 
 # 11. Historial de precios y monedas

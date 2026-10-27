@@ -52,6 +52,7 @@ function emptyState() {
       sessionMinutes: 20,
       lowStockAlerts: true,
       restockCover: 14,
+      leadTimeDays: 7,
       autoBackup: true,
     },
     session: null,

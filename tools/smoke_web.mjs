@@ -1172,6 +1172,26 @@ test("S-14 · la copia externa se configura, se prueba y dice lo que pasó", () 
   assert.match(srv, /"copia-externa"/, "avisa en /api/health si falla");
 });
 
+test("W-22 · la previsión de compra dice qué pedir, cuánto y por qué", () => {
+  const html = go("forecast");
+  assert.match(html, /Previsión de compra|¿Qué compro y cuánto\?/, "la pantalla se dibuja");
+  assert.match(html, /id="fcCobertura"/, "se puede cambiar la cobertura");
+  assert.match(html, /id="fcPlazo"/, "se puede cambiar el plazo del proveedor");
+  assert.match(html, /id="fcTodos"/, "se pueden ver también los que no hay que pedir");
+  assert.match(html, /data-act="fc-csv"/, "exporta el CSV");
+  assert.match(html, /data-act="fc-copy"/, "copia el pedido para WhatsApp");
+  const src = readFileSync(join(root, "web/js/app.js"), "utf8");
+  assert.match(src, /import \{[\s\S]*previsionCompra[\s\S]*\} from "\.\/forecast\.js";/, "usa el módulo puro");
+  assert.match(src, /forecast: \{ title: "Previsión de compra"/, "está en el menú de Análisis");
+  assert.match(src, /movementModal\(null, fila\.id, \{ type: "ENTRADA", quantity: fila\.sugerido/, "la sugerencia pasa a entrada");
+  assert.match(src, /store\.stockIn\(p, wid\)/, "con varios almacenes mira el almacén en uso");
+  assert.match(src, /leadTimeDays/, "el plazo del proveedor se guarda en Ajustes");
+  const sw = readFileSync(join(root, "web/sw.js"), "utf8");
+  assert.match(sw, /\.\/js\/forecast\.js/, "forecast.js se cachea");
+  const css = readFileSync(join(root, "web/css/app.css"), "utf8");
+  assert.match(css, /\.forecast-controls/, "los controles tienen estilo");
+});
+
 test("W-07 · las tablas se exportan a Excel (.xlsx) con el lector que ya trae la app", () => {
   const source = readFileSync(join(root, "web/js/app.js"), "utf8");
   assert.match(source, /import \{ buildSheet, sheetFileName \} from "\.\/xlsx-export\.js";/, "usa el módulo de hojas");

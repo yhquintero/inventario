@@ -2887,6 +2887,112 @@ importación antes de generar el PDF.</p>
 entregue además el <strong>Excel</strong> (apartado 10.5) o el <strong>CSV</strong> con el detalle, que es lo que permite
 sumar y cruzar cifra a cifra.</p>
 </div>
+<h2 id="107-previsión-de-compra-qué-pedir-y-cuánto">10.7 Previsión de compra: qué pedir y cuánto</h2>
+<p><strong>🧭 Menú → Análisis → Previsión de compra</strong></p>
+<p>Esta pantalla contesta la pregunta de cada semana: <em>«¿qué compro y cuánto?»</em>. No adivina: usa las
+<strong>ventas reales</strong>, la <strong>existencia del almacén en uso</strong>, el <strong>plazo del proveedor</strong> y la
+<strong>cobertura</strong> que usted quiera tener en el estante.</p>
+<p><strong>Cómo se usa</strong></p>
+<ol>
+<li>Elija la <strong>cobertura</strong>: cuántos días de venta quiere tener guardados (7, 14, 21, 30, 45, 60).
+   Lo normal en un mostrador es <strong>14</strong>; en un producto que se trae de lejos, <strong>30</strong>.</li>
+<li>Escriba el <strong>plazo del proveedor</strong>: los días que tarda en servir desde que se pide. Se guarda
+   en <strong>Ajustes</strong> y se usa en la próxima vez.</li>
+<li>Lea la tabla. Las filas salen ordenadas por urgencia: primero <strong>agotado</strong>, luego <strong>urgente</strong>,
+   <strong>pronto</strong> y <strong>bajo mínimo</strong>.</li>
+<li>Pulse <strong>Entrada</strong> en la fila del producto: se abre el formulario de entrada con el producto y
+   la <strong>cantidad sugerida</strong> ya puestos. Solo tiene que confirmar cuando llegue la mercancía.</li>
+</ol>
+<p><strong>Qué significa cada columna</strong></p>
+<table>
+<thead>
+<tr>
+<th>Columna</th>
+<th>Qué es</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Hay / Mín.</strong></td>
+<td>Existencia en el almacén en uso y el mínimo configurado del producto</td>
+</tr>
+<tr>
+<td><strong>Vendidos 30 · 60 · 90</strong></td>
+<td>Unidades vendidas en cada ventana de días</td>
+</tr>
+<tr>
+<td><strong>Por día</strong></td>
+<td>Ritmo ponderado: pesa más lo reciente (50 % de los últimos 30 días, 30 % de 60, 20 % de 90)</td>
+</tr>
+<tr>
+<td><strong>Tendencia</strong></td>
+<td>▲ Sube, ▼ Baja, = Estable (comparando con los 30 días anteriores) o «Sin ventas»</td>
+</tr>
+<tr>
+<td><strong>Alcanza</strong></td>
+<td>Días que dura la existencia al ritmo actual</td>
+</tr>
+<tr>
+<td><strong>Punto de pedido</strong></td>
+<td>Existencia a la que hay que volver: ritmo × (plazo + cobertura) + mínimo</td>
+</tr>
+<tr>
+<td><strong>Pedir</strong></td>
+<td>Lo que falta para llegar al punto de pedido (<strong>la sugerencia</strong>)</td>
+</tr>
+<tr>
+<td><strong>Costo</strong></td>
+<td>Sugerido × precio de costo</td>
+</tr>
+<tr>
+<td><strong>Estado</strong></td>
+<td>Agotado · Urgente · Pronto · Bajo mínimo · Planificar</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Reglas que aplica (para que no compre de más ni de menos)</strong></p>
+<ul>
+<li><strong>Producto nuevo:</strong> el ritmo se mide desde su <strong>primera venta</strong>, no desde que se creó; así un
+  producto que salió a la venta hace diez días no se hunde por los veinte que no existía.</li>
+<li><strong>Producto sin ventas:</strong> si está por encima de su mínimo <strong>no se pide nada</strong>, por mucho stock que
+  parezca que falta; si está por debajo, se repone <strong>hasta el mínimo</strong>.</li>
+<li><strong>Nunca negativo:</strong> la sugerencia es siempre 0 o más.</li>
+<li><strong>Almacén:</strong> con un solo almacén se mira la existencia total; con varios, la del <strong>almacén en
+  uso</strong>. Cambie de almacén arriba y la previsión se recalcula.</li>
+<li><strong>Días cerrados:</strong> no afectan al cálculo; se usan las ventas ya registradas.</li>
+</ul>
+<p><strong>Para llevarse el pedido</strong></p>
+<table>
+<thead>
+<tr>
+<th>Botón</th>
+<th>Qué hace</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>📋 Copiar pedido</strong></td>
+<td>Copia al portapapeles una lista lista para WhatsApp o el correo: <code>12 × Arroz blanco 5 kg</code>, con la fecha y el costo estimado</td>
+</tr>
+<tr>
+<td><strong>⬇ CSV</strong></td>
+<td>Descarga la previsión completa (todas las columnas) para abrirla en Excel</td>
+</tr>
+<tr>
+<td><strong>🖨 PDF</strong></td>
+<td>Imprime la pantalla tal como está, con la cabecera del negocio</td>
+</tr>
+<tr>
+<td><strong>Ver también los que no hace falta pedir</strong></td>
+<td>Muestra los productos que están bien, para revisar la cobertura de un vistazo</td>
+</tr>
+</tbody>
+</table>
+<div class="callout tip">
+<p class="callout-t">💡 Consejo</p>
+<p>Revise la previsión <strong>después de cada importación de cierre de día</strong>: es el momento en que las
+ventas del día ya están dentro y la sugerencia es la definitiva.</p>
+</div>
 <hr />
 <h1 id="11-historial-de-precios-y-monedas">11. Historial de precios y monedas</h1>
 <h2 id="111-historial-de-precios">11.1 Historial de precios</h2>

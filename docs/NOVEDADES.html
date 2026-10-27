@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 42 revisiones</title>
+<title>Novedades de NovaGest · 43 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 42 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 43 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,20 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>42</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>43</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XLII</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
+      <h2>Previsión de compra (W-22)</h2>
+      <ul>
+      <li><b>«¿Qué compro y cuánto?»</b> Nueva pantalla en <b>Análisis → Previsión de compra</b>: con las ventas</li>
+      <li><b>Rotación ponderada de 30 / 60 / 90 días</b> (50 % / 30 % / 20 %): reacciona antes a un producto</li>
+      <li><b>Punto de pedido</b> = ritmo × (plazo + cobertura) + mínimo, con <b>tendencia</b> (▲ sube, ▼ baja,</li>
+      <li><b>Del cálculo a la entrada en un clic:</b> el botón <b>Entrada</b> abre el formulario de mercancía con</li>
+      <li><b>El plazo se guarda en Ajustes</b> (<code>leadTimeDays</code>) y la cobertura usa la misma que las alertas de</li>
+      <li><b>Cálculo aislado y probado:</b> <code>web/js/forecast.js</code> (sin DOM ni store) con <b>85 comprobaciones</b> en</li>
+      <li><b>Manual:</b> nuevo apartado <b>10.7 Previsión de compra</b>, con el significado de cada columna.</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XLI</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
       <h2>Copia externa con verificación (S-14)</h2>
@@ -210,18 +223,7 @@
       <li>Dependencias nuevas de pruebas: <code>androidx.test:runner</code>, <code>androidx.test:rules</code> y</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXXII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Exportar a Excel (W-07)</h2>
-      <ul>
-      <li><b>W-07 · Exportación real a <code>.xlsx</code>.</b> Las tablas de la app se descargan como libro de</li>
-      <li><b>Se reutiliza el lector de Excel que ya traía la app</b>, sin descargar nada nuevo ni</li>
-      <li><b>Módulo nuevo</b> <code>web/js/xlsx-export.js</code> (filas de cada hoja, sin tocar la interfaz) con</li>
-      <li><b>Caché del service worker v28</b> con el módulo nuevo dentro, para que la exportación</li>
-      <li><b>Manual:</b> nuevo apartado <b>10.5 Exportar a Excel (.xlsx)</b> con la tabla de dónde está</li>
-      </ul>
-    </article>
-<p class="older">Y 30 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 31 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>
