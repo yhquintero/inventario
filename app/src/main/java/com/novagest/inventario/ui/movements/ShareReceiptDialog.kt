@@ -5,20 +5,19 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,12 +35,12 @@ import com.novagest.inventario.domain.model.Movement
 /**
  * A-19 · Compartir el ticket por WhatsApp.
  *
- * Muestra **cómo va a quedarles el mensaje** antes de enviarlo, deja elegir el cliente
- * (para que el texto lleve su **saldo pendiente**) y ofrece tres salidas: imagen + texto
- * por el selector del sistema, solo texto por WhatsApp o copiar el texto.
+ * Muestra **cómo va a quedar el mensaje** antes de enviarlo, deja elegir el cliente (para
+ * que el texto lleve su **saldo pendiente**) y ofrece tres salidas: imagen + texto por el
+ * selector del sistema, solo texto por WhatsApp o copiar el texto.
  *
- * La imagen la dibuja [ReceiptImage] con el mismo contenido que el ticket impreso, así
- * que el cliente recibe algo que se lee igual en papel y en el móvil.
+ * La imagen la dibuja [ReceiptImage] con el mismo contenido que el ticket impreso, así que
+ * el cliente recibe algo que se lee igual en papel y en el móvil.
  */
 @Composable
 fun ShareReceiptDialog(
@@ -50,17 +49,20 @@ fun ShareReceiptDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val customers = remember { vm.customers }
+    val customers = vm.customers
     var selected by remember { mutableStateOf<Customer?>(null) }
     var expanded by remember { mutableStateOf(false) }
     var payload by remember { mutableStateOf<ReceiptShare.SharePayload?>(null) }
 
-    LaunchedEffect(movement, selected) {
-        payload = runCatching { vm.prepareShare(movement, selected) }.getOrNull()
-    }
-
     val aviso: (String) -> Unit = { texto ->
         Toast.makeText(context, texto, Toast.LENGTH_SHORT).show()
+    }
+
+    // La lista de fiados puede haber cambiado desde que se abrió Movimientos.
+    LaunchedEffect(Unit) { runCatching { vm.reloadCustomers() } }
+
+    LaunchedEffect(movement, selected) {
+        payload = runCatching { vm.prepareShare(movement, selected) }.getOrNull()
     }
 
     AlertDialog(
@@ -69,20 +71,16 @@ fun ShareReceiptDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "Se envía el ticket como imagen y, debajo, este texto con el total y el saldo.",
+                    "Se envía la imagen del ticket y, debajo, este texto. Si elige un cliente, " +
+                        "el mensaje lleva su saldo pendiente.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                ExposedDropdownMenuBox(expanded, { expanded = it }) {
-                    OutlinedTextField(
-                        value = selected?.name ?: "Sin cliente",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("CLIENTE (para el saldo)") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(expanded, { expanded = false }) {
+                Box {
+                    OutlinedButton(onClick = { expanded = true }) {
+                        Text(selected?.name?.let { "Cliente: $it" } ?: "Sin cliente")
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         DropdownMenuItem(
                             text = { Text("Sin cliente") },
                             onClick = { selected = null; expanded = false }

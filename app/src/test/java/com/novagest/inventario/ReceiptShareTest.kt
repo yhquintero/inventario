@@ -215,9 +215,13 @@ class ReceiptShareTest {
         assertTrue("total", p.ticket.totalUsd == 13.0)
         assertEquals("nombre por la fecha de la venta", "ticket-2026-10-24-1532.png", p.fileName)
         assertTrue("saldo del cliente", p.text.contains("*Saldo pendiente: $120.00*"))
-        assertTrue("pago fiado si la nota lo dice", ReceiptShare
-            .payloadFor(movement(notes = "Venta rápida a fiado (App)"), "Bodega", pendingOf = { 0.0 })
-            .text.contains("Pago: FIADO"))
+        val fiado = ReceiptShare.payloadFor(
+            movement = movement(notes = "Venta rápida a fiado (App)"),
+            businessName = "Bodega",
+            customerName = "José Pérez",
+            pendingOf = { 0.0 }
+        )
+        assertTrue("pago fiado si la nota lo dice", fiado.text.contains("Pago: FIADO"))
     }
 
     @Test
