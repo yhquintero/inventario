@@ -19,6 +19,7 @@ import { quickSalePlan, quickSaleLabel, quickSaleSummary } from "./quick-sale.js
 import { buildSheet, sheetFileName } from "./xlsx-export.js";
 import { alertsSummary, alertSignature, severityLabel, shouldNotify, sortAlerts, stockAlerts } from "./alerts.js";
 import { KIOSK_ACTIONS, canFullscreen, kioskClock, kioskHint, readKiosk, writeKiosk } from "./kiosk.js";
+import { monthKey, monthLabel, monthlyReport, shiftMonth, variationText } from "./monthly.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -37,6 +38,7 @@ const routes = {
   weekly: { title: "Informe semanal", icon: "▤", perm: "WEEKLY_VIEW", group: "Análisis" },
   analytics: { title: "Análisis y metas", icon: "📈", perm: "REPORTS_VIEW", group: "Análisis" },
   reports: { title: "Comprobación", icon: "▦", perm: "REPORTS_VIEW", group: "Análisis", search: true },
+  monthly: { title: "Informe mensual", icon: "🗓", perm: "REPORTS_VIEW", group: "Análisis" },
   history: { title: "Historial precios", icon: "↻", perm: "HISTORY_VIEW", group: "Análisis", search: true },
   finance: { title: "Monedas", icon: "$", perm: "REPORTS_FINANCIAL", group: "Análisis" },
   fichas: { title: "Fichas de costo · IPV", icon: "▤", perm: "IPV_VIEW", group: "Análisis", search: true },
@@ -1659,6 +1661,88 @@ function compareCard(cmp, nowSum) {
       </table></div>
       ${cmp.empty ? `<p class="hint pad">En el período anterior no hay movimientos registrados: las variaciones se mostrarán en cuanto exista esa base.</p>` : ""}
     </div>`;
+}
+
+/**
+ * Informe mensual imprimible (W-20).
+ *
+ * Reúne el mes completo en una hoja: ventas, comparación con el anterior, producto a producto,
+ * categorías, caja, fiados y existencias en riesgo. El botón **PDF** abre el diálogo del
+ * navegador; «Guardar como PDF» deja el archivo con el nombre del mes.
+ */
+function monthlyView() {
+  const mes = monthKey(ui.mesInforme || todayISO());
+  if (!ui.mesInforme) ui.mesInforme = mes;
+  const inf = monthlyReport(store.state, mes);
+  const meses = [];
+  for (let i = -11; i <= 0; i++) meses.push(shiftMonth(mes, i));
+  const varTxt = variationText(inf);
+  const varColor = inf.anterior.variacionPct === null ? "" : inf.anterior.variacionPct >= 0 ? "green" : "gold";
+  const filaDia = (d) => `<tr><td>${formatDate(d.date)}</td><td class="mono r">${qty(d.unidades)}</td>
+    <td class="mono r">${d.lineas}</td><td class="mono r">${usd(d.totalUsd)}</td>
+    <td class="mono r">${inf.ventas.totalUsd ? Math.round((d.totalUsd / inf.ventas.totalUsd) * 100) : 0} %</td></tr>`;
+  const productos = inf.topProductos.length
+    ? `<table><thead><tr><th>Producto</th><th class="r">Unidades</th><th class="r">Venta</th><th class="r">% del mes</th></tr></thead>
+        <tbody>${inf.topProductos.map((p) => `<tr><td>${esc(p.name)}</td><td class="mono r">${qty(p.unidades)}</td>
+          <td class="mono r">${usd(p.totalUsd)}</td><td class="mono r">${inf.ventas.totalUsd ? Math.round((p.totalUsd / inf.ventas.totalUsd) * 100) : 0} %</td></tr>`).join("")}</tbody></table>`
+    : `<p class="hint">Sin ventas registradas en ${esc(inf.label)}.</p>`;
+  const categorias = inf.porCategoria.length
+    ? inf.porCategoria.map((c) => `<li><span>${esc(c.name)}</span><b class="mono">${usd(c.totalUsd)}</b></li>`).join("")
+    : `<li class="hint">Sin datos.</li>`;
+  const centros = inf.porCentro.length
+    ? inf.porCentro.map((c) => `<li><span>${esc(c.center === "GESTOR" ? "Gestor (comisión)" : c.center === "TIENDA" ? "Tienda" : c.center)}</span><b class="mono">${usd(c.totalUsd)}</b></li>`).join("")
+    : `<li class="hint">Sin datos.</li>`;
+  const cuadresTxt = inf.caja.cuadres
+    ? `${inf.caja.cuadres} día(s) con cuadre guardado · ${inf.caja.descuadrados} con diferencia${inf.caja.descuadrados ? ` (${inf.caja.diasDescuadrados.map((d) => formatDate(d)).join(", ")})` : ""}`
+    : "Sin cuadres guardados en el mes";
+  return `
+    ${printReportHeader("Informe mensual", inf.label)}
+    <div class="toolbar no-print">
+      <div class="row">
+        <button class="btn ghost small" data-act="mes-prev" data-tip="Mes anterior">←</button>
+        <label>Mes<select id="mesInforme">${meses.map((m) => `<option value="${m}" ${m === mes ? "selected" : ""}>${esc(monthLabel(m))}</option>`).join("")}</select></label>
+        <button class="btn ghost small" data-act="mes-next" data-tip="Mes siguiente">→</button>
+      </div>
+      <div class="row">
+        <span class="hint">${esc(inf.from)} → ${esc(inf.to)}</span>
+        <button class="btn gold small" data-act="print">🖨 PDF</button>
+      </div>
+    </div>
+    <div class="banner mt12 ${inf.anterior.variacionPct !== null && inf.anterior.variacionPct < 0 ? "warn" : "ok"}">
+      <b>${esc(inf.label)}:</b> ${usd(inf.ventas.totalUsd)} en ${inf.ventas.lineas} línea(s) y ${qty(inf.ventas.unidades)} unidades.
+      ${esc(varTxt)}.
+    </div>
+    <div class="kpis">
+      ${kpi("Ventas del mes", usd(inf.ventas.totalUsd), varTxt, varColor)}
+      ${kpi("Utilidad bruta", usd(inf.utilidadUsd), `Margen ${inf.margenPct} % · costo ${usd(inf.costoUsd)}`, "blue")}
+      ${kpi("Ticket promedio", usd(inf.ventas.ticketPromedio), `${inf.ventas.lineas} línea(s) de venta`, "teal")}
+      ${kpi("Días con venta", `${inf.ventas.dias}`, `Promedio ${usd(inf.ventas.promedioDia)} por día`, "gold")}
+    </div>
+    <div class="summary"><span>Mejor día <b>${inf.ventas.mejorDia ? `${formatDate(inf.ventas.mejorDia.date)} · ${usd(inf.ventas.mejorDia.totalUsd)}` : "—"}</b></span>
+      <span>Caja <b>${esc(cuadresTxt)}</b></span><span>Diferencia acumulada <b>${usd(inf.caja.diferencia)}</b></span></div>
+    <div class="card table-wrap flush mt14">
+      <div class="card-h pad"><span class="k">Ventas día a día</span><span class="hint">${inf.ventas.dias} día(s) con movimiento</span></div>
+      ${inf.porDia.length ? `<table><thead><tr><th>Fecha</th><th class="r">Unidades</th><th class="r">Líneas</th><th class="r">Venta</th><th class="r">% del mes</th></tr></thead>
+        <tbody>${inf.porDia.map(filaDia).join("")}</tbody>
+        <tfoot><tr><th>Total</th><th class="r">${qty(inf.ventas.unidades)}</th><th class="r">${inf.ventas.lineas}</th><th class="r">${usd(inf.ventas.totalUsd)}</th><th class="r">100 %</th></tr></tfoot></table>`
+        : `<p class="hint pad">No hay ventas registradas en ${esc(inf.label)}.</p>`}
+    </div>
+    <div class="monthly-grid mt14">
+      <div class="card"><div class="card-h"><span class="k">Productos que más vendieron</span><span class="hint">Top 10 por importe</span></div>${productos}</div>
+      <div class="card"><div class="card-h"><span class="k">Categorías</span><span class="hint">Reparto de la venta</span></div><ul class="list">${categorias}</ul>
+        <div class="card-h mt12"><span class="k">Centro de venta</span></div><ul class="list">${centros}</ul></div>
+    </div>
+    <div class="monthly-grid mt14">
+      <div class="card"><div class="card-h"><span class="k">Fiados</span></div>
+        <ul class="list">
+          <li><span>Otorgado en el mes</span><b class="mono">${usd(inf.fiados.otorgadosUsd)}</b></li>
+          <li><span>Cobrado en el mes</span><b class="mono">${usd(inf.fiados.abonosUsd)}</b></li>
+          <li><span>Pendiente de cobro (total)</span><b class="mono">${usd(inf.fiados.pendienteUsd)}</b></li>
+        </ul></div>
+      <div class="card"><div class="card-h"><span class="k">Existencias en riesgo</span><span class="hint">Al cerrar el mes</span></div>
+        <p>${inf.criticos.total ? `<b>${inf.criticos.total}</b> producto(s) en el mínimo o por debajo: ${esc(inf.criticos.nombres.join(", "))}${inf.criticos.total > inf.criticos.nombres.length ? "…" : ""}` : "Ningún producto por debajo del mínimo."}</p></div>
+    </div>
+    <p class="hint mt14 no-print">El informe se calcula con los movimientos y cuadres guardados en este equipo y en el servidor. Para entregarlo, pulse <b>🖨 PDF</b> y elija «Guardar como PDF» en el diálogo de impresión.</p>`;
 }
 
 function reportsView() {
@@ -3711,7 +3795,7 @@ function readFichaEditor() {
 
 /* ============================ RENDER ============================ */
 function page() {
-  const views = { verificar: verifyView, license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, fichas: fichasView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
+  const views = { monthly: monthlyView, verificar: verifyView, license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, fichas: fichasView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
   return (views[ui.route] || homeView)();
 }
 
@@ -4083,6 +4167,7 @@ function bindApp() {
   $("#reportFrom")?.addEventListener("change", (e) => { ui.reportFrom = e.target.value; render(); });
   $("#reportTo")?.addEventListener("change", (e) => { ui.reportTo = e.target.value; render(); });
   $("#reportWh")?.addEventListener("change", (e) => { ui.reportWarehouse = e.target.value; render(); });
+  $("#mesInforme")?.addEventListener("change", (e) => { ui.mesInforme = e.target.value; render(); });
   $("#weeklySummaryFile")?.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -4538,6 +4623,8 @@ function onClick(e) {
   else if (act === "iv-template") ivTemplate();
   else if (act === "sec-verify") { verificarCadenaAuditoria(); }
   else if (act === "export-xlsx") { exportXlsx(d.xlsx || "inventory", d.xlsx === "analytics" ? ui.lastAnalytics || {} : {}); }
+  else if (act === "mes-prev") { ui.mesInforme = shiftMonth(ui.mesInforme || monthKey(todayISO()), -1); render(); }
+  else if (act === "mes-next") { ui.mesInforme = shiftMonth(ui.mesInforme || monthKey(todayISO()), 1); render(); }
   else if (act === "sec-anchor") anclarSello();
   else if (act === "sec-anchor-del") borrarAnclaje(d.id);
   else if (act === "sec-more") { loadSecLog((ui.secLog?.page || 1) + 1); toast("Cargando más eventos…", "ok"); }
@@ -4820,6 +4907,8 @@ function printCurrentView() {
   else if (ui.route === "weekly") {
     const range = weekRange(ui.weekDate || lastDataDate());
     label = `Informe semanal · ${formatDate(range.from)}-${formatDate(range.to)}`;
+  } else if (ui.route === "monthly") {
+    label = `Informe mensual · ${monthLabel(ui.mesInforme || todayISO())}`;
   } else if (ui.route === "reports") {
     const range = reportContext();
     label = `Informe · ${formatDate(range.from)}-${formatDate(range.to)}`;

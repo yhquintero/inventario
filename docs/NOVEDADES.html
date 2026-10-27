@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 37 revisiones</title>
+<title>Novedades de NovaGest · 38 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 37 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 38 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,19 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>37</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>38</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXXVII</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
+      <h2>Informe mensual en PDF (W-20)</h2>
+      <ul>
+      <li><b>Informe mensual</b> en <b>Menú → Análisis → Informe mensual</b>: el mes completo en una hoja que se</li>
+      <li><b>Qué incluye:</b> ventas del mes con <b>variación frente al mes anterior</b> (▲/▼, o «sin datos»</li>
+      <li><b>Selector de mes</b> con los últimos doce, botones ← y →, y botón <b>🖨 PDF</b> que abre el diálogo de</li>
+      <li><b>Cálculo aislado y probado:</b> <code>web/js/monthly.js</code> (sin DOM ni store) con <b>70 comprobaciones</b> en</li>
+      <li><b>Cobertura:</b> <code>monthly.js</code> al <b>100 %</b>; <code>tools/cobertura.mjs</code> lo exige desde ahora.</li>
+      <li><b>Manual:</b> nuevo apartado <b>10.6 Informe mensual en PDF</b>, con el paso a paso de «Guardar como</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXXVI</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
       <h2>Sello de tiempo RFC 3161 (S-13)</h2>
@@ -204,18 +216,7 @@
       <li><b>Duraciones y tiempos al día</b> en README, sitio del proyecto, manual y</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXVII</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Servidor comprimido, impresiones auditadas y salud del sistema (S-11 · S-10 · S-05)</h2>
-      <ul>
-      <li><b>S-11 · Respuestas comprimidas con gzip y límites de tamaño.</b> El servidor comprime con gzip</li>
-      <li><b>S-10 · Auditoría de impresiones.</b> Cada ticket que se imprime desde la Web deja constancia</li>
-      <li><b>S-05 · Salud del sistema para el titular.</b> Tarjeta nueva en <i>Ajustes</i> con copias de</li>
-      <li><b>Pruebas nuevas:</b> <code>tools/test_compresion.py</code> (21 comprobaciones, sin levantar el servidor) y</li>
-      <li><b>Manual:</b> «Salud del sistema» en <i>Ajustes</i> (§3.2), pestaña <i>Impresiones</i> en <i>Auditoría</i></li>
-      </ul>
-    </article>
-<p class="older">Y 25 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 26 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

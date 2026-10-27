@@ -1181,6 +1181,20 @@ test("S-13 · el anclaje puede llevar sello de tiempo de un tercero (RFC 3161)",
   assert.match(server, /tsa_token TEXT/, "el token se guarda en la base");
 });
 
+test("W-20 · el informe mensual se puede imprimir con los números del mes", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  const mod = readFileSync(join(root, "web/js/monthly.js"), "utf8");
+  assert.match(source, /function monthlyView\(/, "existe la pantalla del informe");
+  assert.match(source, /monthly: \{ title: "Informe mensual"/, "aparece en el menú");
+  assert.match(source, /data-act="print"/, "ofrece el botón de PDF");
+  assert.match(source, /data-act="mes-prev"|data-act="mes-next"/, "se puede cambiar de mes");
+  assert.match(mod, /export function monthlyReport\(/, "el cálculo está aislado y probado");
+  assert.match(mod, /export function monthRange\(/, "calcula el rango del mes");
+  assert.match(mod, /variationText/, "explica la variación frente al mes anterior");
+  const sw = readFileSync(join(root, "web/sw.js"), "utf8");
+  assert.match(sw, /"\.\/js\/monthly\.js"/, "el módulo entra en el precache");
+});
+
 test("W-03 · las alertas de reposición dicen cuándo se agota y se pueden silenciar", () => {
   const original = store.state;
   try {
