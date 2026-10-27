@@ -8,7 +8,7 @@
 - **Sin inventar:** un producto **sin contar** no es un faltante; un código que no está en el
   catálogo se anota como **desconocido** y no crea productos.
 - **Ajuste con un botón:** al aplicar, se registra **un movimiento por diferencia** —entrada si se
-  contó de más, salida si sobraba en el sistema— con la nota «Conteo físico» y la fecha, así que
+  contó de más (sobraba mercancía), salida si se contó de menos (faltaba)— con la nota «Conteo físico» y la fecha, así que
   queda en el historial y en la auditoría con el usuario que lo hizo. Antes de aplicar pide
   confirmación; **Reiniciar** no toca el stock.
 - **Acta y CSV:** **📋 Acta** copia el resumen para WhatsApp o el correo.

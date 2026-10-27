@@ -27,7 +27,7 @@ object ConteoFisico {
         PENDIENTE("Sin contar"),
         OK("Cuadra"),
         FALTANTE("Falta mercancía"),
-        SOBRANTE("Sobra en el sistema"),
+        SOBRANTE("Sobra mercancía"),
         DESCONOCIDO("No está en el catálogo")
     }
 
@@ -46,8 +46,10 @@ object ConteoFisico {
         val estado: Estado
             get() = when {
                 contado == null -> Estado.PENDIENTE
-                diferencia > 0 -> Estado.FALTANTE
-                diferencia < 0 -> Estado.SOBRANTE
+                // Se cuenta de menos → falta mercancía en el estante (el sistema tiene de más).
+                diferencia < 0 -> Estado.FALTANTE
+                // Se cuenta de más → sobra mercancía en el estante (al sistema le falta).
+                diferencia > 0 -> Estado.SOBRANTE
                 else -> Estado.OK
             }
         /** Valor en USD de la diferencia, a precio de costo. */
@@ -56,7 +58,9 @@ object ConteoFisico {
         val ajuste: MovementType?
             get() = when {
                 contado == null || diferencia == 0.0 -> null
+                // Sobra en el estante: hay que sumarlo al sistema.
                 diferencia > 0 -> MovementType.ENTRADA
+                // Falta en el estante: hay que sacarlo del sistema.
                 else -> MovementType.SALIDA
             }
         /** Unidades a mover en el ajuste (siempre positiva). */
@@ -199,9 +203,9 @@ object ConteoFisico {
             cuadran = contadas.count { it.estado == Estado.OK },
             faltantes = faltan.size,
             sobrantes = sobran.size,
-            unidadesFaltantes = redondear(faltan.sumOf { it.diferencia }),
+            unidadesFaltantes = redondear(kotlin.math.abs(faltan.sumOf { it.diferencia })),
             unidadesSobrantes = redondear(kotlin.math.abs(sobran.sumOf { it.diferencia })),
-            valorFaltante = redondear(faltan.sumOf { it.valorDiferencia }),
+            valorFaltante = redondear(kotlin.math.abs(faltan.sumOf { it.valorDiferencia })),
             valorSobrante = redondear(kotlin.math.abs(sobran.sumOf { it.valorDiferencia })),
             desconocidos = desconocidos.sumOf { it.veces }
         )
@@ -228,7 +232,7 @@ object ConteoFisico {
             sb.append("Todo lo contado cuadra con el sistema.")
         } else {
             conDif.sortedBy { it.nombre.lowercase() }.forEach { l ->
-                val signo = if (l.diferencia > 0) "+" else "−"
+                val signo = if (l.estado == Estado.SOBRANTE) "+" else "−"
                 sb.append("• ").append(l.nombre).append(": ")
                     .append(Money.qty(l.esperado)).append(" → ").append(Money.qty(l.contado ?: 0.0))
                     .append(" (").append(signo).append(Money.qty(l.unidadesAjuste)).append(")\n")

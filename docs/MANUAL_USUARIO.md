@@ -2472,8 +2472,8 @@ con el teléfono en la mano y dejar el inventario cuadrado sin libreta:
 |---|---|
 | **Sin contar** | Todavía no se ha contado: **no es un faltante** y no genera ajuste |
 | **Cuadra** | Lo contado es igual a lo que dice el sistema |
-| **Falta mercancía** | Se contó **más** de lo que dice el sistema: hay que darlo de **entrada** |
-| **Sobra en el sistema** | Se contó **menos**: hay que darlo de **salida** |
+| **Falta mercancía** | Se contó **menos** de lo que dice el sistema: hay que darlo de **salida** |
+| **Sobra mercancía** | Se contó **más** de lo que dice el sistema: hay que darlo de **entrada** |
 | **No está en el catálogo** | El código leído no existe entre los productos activos: se anota para cargarlo después, **no se inventa** |
 
 > [!IMPORTANT]

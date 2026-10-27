@@ -69,9 +69,9 @@ class ConteoFisicoTest {
         val lineas = ConteoFisico.fijar(ConteoFisico.lineasDe(catalogo), 1L, 8.0)
         val l = lineas.first { it.productId == 1L }
         assertEquals("faltante", Estado.FALTANTE, l.estado)
-        assertEquals("diferencia positiva", 2.0, l.diferencia, 0.001)
-        assertEquals("hay que sacar del sistema", MovementType.SALIDA, l.ajuste)
-        assertEquals("valor a costo", 200.0, l.valorDiferencia, 0.001)
+        assertEquals("diferencia negativa", -2.0, l.diferencia, 0.001)
+        assertEquals("hay que sacarlo del sistema", MovementType.SALIDA, l.ajuste)
+        assertEquals("valor a costo", -200.0, l.valorDiferencia, 0.001)
     }
 
     @Test
@@ -79,8 +79,8 @@ class ConteoFisicoTest {
         val lineas = ConteoFisico.fijar(ConteoFisico.lineasDe(catalogo), 2L, 5.0)
         val l = lineas.first { it.productId == 2L }
         assertEquals("sobrante", Estado.SOBRANTE, l.estado)
-        assertEquals("diferencia negativa", -2.0, l.diferencia, 0.001)
-        assertEquals("hay que meter al sistema", MovementType.ENTRADA, l.ajuste)
+        assertEquals("diferencia positiva", 2.0, l.diferencia, 0.001)
+        assertEquals("hay que sumarlo al sistema", MovementType.ENTRADA, l.ajuste)
         assertEquals("unidades sin signo", 2.0, l.unidadesAjuste, 0.001)
     }
 
@@ -97,7 +97,7 @@ class ConteoFisicoTest {
         val lineas = ConteoFisico.fijar(ConteoFisico.lineasDe(catalogo), 1L, 0.0)
         val l = lineas.first { it.productId == 1L }
         assertEquals("quedó en cero", 0.0, l.contado!!, 0.001)
-        assertEquals("faltan diez", 10.0, l.diferencia, 0.001)
+        assertEquals("faltan diez", -10.0, l.diferencia, 0.001)
         assertEquals("salida", MovementType.SALIDA, l.ajuste)
     }
 
@@ -188,7 +188,7 @@ class ConteoFisicoTest {
         assertTrue("no repite el contado", orden.none { it.productId == 3L })
         val completo = ConteoFisico.ordenGuiado(lineas, soloPendientes = false)
         assertEquals("con todos son cuatro", 4, completo.size)
-        assertEquals("eléctricos primero", "Cable 12", completo.first().nombre)
+        assertEquals("eléctricos primero", "Bombillo LED", completo.first().nombre)
         assertEquals("y después los solares", "Batería 12V", completo[2].nombre)
     }
 
@@ -196,9 +196,9 @@ class ConteoFisicoTest {
     fun `sigue con el pendiente siguiente`() {
         val lineas = ConteoFisico.lineasDe(catalogo)
         val primero = ConteoFisico.siguientePendiente(lineas)
-        assertEquals("empieza por Cable 12", "Cable 12", primero?.nombre)
+        assertEquals("empieza por el bombillo", "Bombillo LED", primero?.nombre)
         val siguiente = ConteoFisico.siguientePendiente(lineas, primero?.productId)
-        assertEquals("luego el bombillo", "Bombillo LED", siguiente?.nombre)
+        assertEquals("luego el cable", "Cable 12", siguiente?.nombre)
         assertNull("sin pendientes no hay siguiente", ConteoFisico.siguientePendiente(emptyList()))
     }
 
