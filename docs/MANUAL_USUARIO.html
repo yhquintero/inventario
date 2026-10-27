@@ -4051,6 +4051,65 @@ el permiso de Bluetooth.</p>
 <p>La imagen se genera en el propio teléfono (no se envía nada a ningún servidor) y se guarda en la
 caché de la app. El formato es el mismo del ticket impreso, así que se lee igual en pantalla.</p>
 </div>
+<p><strong>🧮 Conteo físico guiado con la cámara.</strong> <strong>Menú ☰ → Conteo físico</strong> sirve para contar el estante
+con el teléfono en la mano y dejar el inventario cuadrado sin libreta:</p>
+<ol>
+<li>Elija <strong>📷 Escanear</strong>: se abre la cámara trasera. Apunte al <strong>código de barras</strong> de cada
+   producto y <strong>cada lectura suma una unidad</strong> a ese producto. El aviso de arriba dice el nombre y
+   cuánto va contado de lo que dice el sistema.
+   - La primera vez Android pedirá el <strong>permiso de cámara</strong>. Si lo niega, el conteo se hace igual a
+     mano.
+   - Todo se lee <strong>en el propio teléfono</strong>: la imagen no se envía a ningún servidor.</li>
+<li>Productos sin código (o cajas a granel): pulse <strong>Contar</strong> en la fila y escriba la cantidad.
+   <strong>+1</strong> y <strong>−1</strong> corrigen sin abrir el teclado; <strong>Dejar sin contar</strong> devuelve la fila a pendiente.
+   Contar <strong>cero</strong> es un conteo válido: quiere decir que no queda nada.</li>
+<li>Use la <strong>búsqueda</strong> y el filtro <strong>Solo pendientes</strong> para recorrer el almacén en orden: la lista
+   va por <strong>categoría y nombre</strong>, que es como está el estante.</li>
+<li>Al terminar, pulse <strong>Aplicar N ajuste(s)</strong> y confirme. Por cada diferencia se registra <strong>un
+   movimiento</strong>: <strong>entrada</strong> si se contó más de lo que decía el sistema y <strong>salida</strong> si sobraba en
+   el sistema. La nota del movimiento dice «Conteo físico» con la fecha y las dos cantidades, así
+   que queda en el historial y en la auditoría con <strong>su nombre</strong>.</li>
+<li><strong>📋 Acta</strong> copia el resumen para pegarlo en WhatsApp o en el correo.</li>
+</ol>
+<p><strong>Qué significa cada estado</strong></p>
+<table>
+<thead>
+<tr>
+<th>Estado</th>
+<th>Qué quiere decir</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sin contar</strong></td>
+<td>Todavía no se ha contado: <strong>no es un faltante</strong> y no genera ajuste</td>
+</tr>
+<tr>
+<td><strong>Cuadra</strong></td>
+<td>Lo contado es igual a lo que dice el sistema</td>
+</tr>
+<tr>
+<td><strong>Falta mercancía</strong></td>
+<td>Se contó <strong>más</strong> de lo que dice el sistema: hay que darlo de <strong>entrada</strong></td>
+</tr>
+<tr>
+<td><strong>Sobra en el sistema</strong></td>
+<td>Se contó <strong>menos</strong>: hay que darlo de <strong>salida</strong></td>
+</tr>
+<tr>
+<td><strong>No está en el catálogo</strong></td>
+<td>El código leído no existe entre los productos activos: se anota para cargarlo después, <strong>no se inventa</strong></td>
+</tr>
+</tbody>
+</table>
+<div class="callout important">
+<p class="callout-t">❗ Importante</p>
+<p>El conteo <strong>no cambia el inventario mientras cuenta</strong>: solo se aplica cuando usted pulsa
+<strong>Aplicar</strong> y confirma. Si se equivoca, <strong>Reiniciar</strong> borra lo contado sin tocar el stock (y antes
+de aplicar puede corregir cualquier fila).</p>
+<p>Si el día está <strong>cerrado</strong> o una salida dejaría el stock en negativo, la app aplica lo que puede y
+<strong>se detiene diciendo cuál producto falló</strong>: no deja el conteo a medias sin avisar.</p>
+</div>
 <h2 id="165-sincronización-los-tres-iconos">16.5 Sincronización: los tres iconos</h2>
 <table>
 <thead>
