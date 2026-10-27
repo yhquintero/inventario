@@ -168,7 +168,15 @@ def background() -> Image.Image:
     return Image.alpha_composite(base.convert("RGBA"), glow.filter(ImageFilter.GaussianBlur(110)))
 
 
-BG = background()
+_FONDO = None
+
+
+def fondo():
+    """Fondo compartido por las seis piezas (se dibuja una sola vez, la primera que haga falta)."""
+    global _FONDO
+    if _FONDO is None:
+        _FONDO = background()
+    return _FONDO
 
 
 def shot_card(name: str | None, max_w: int) -> Image.Image:
@@ -221,7 +229,7 @@ def slide_frame(sl: Slide, index: int, total: int) -> Image.Image:
     luego los puntos y el subtítulo, y la imagen se queda con lo que sobre. Así ninguna
     pieza se sale del lienzo, por largo que sea el texto.
     """
-    frame = BG.copy()
+    frame = fondo().copy()
     d = ImageDraw.Draw(frame)
 
     F_TITULO, F_SUB, F_PUNTO = font(70, True), font(35), font(31)
