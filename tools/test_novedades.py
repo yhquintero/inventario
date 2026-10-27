@@ -102,6 +102,14 @@ def main():
     ok("cada revisión trae al menos un punto", html.count("<li>") >= tarjetas * 2, str(html.count("<li>")))
     ok("no usa recursos externos", not re.findall(r'(?:src|href)="http(?!s://github\.com)', html))
 
+    # El generador lee el número romano de la revisión: si algún día pasa de XXXIX no se
+    # puede quedar una revisión fuera de la página sin que nadie se entere.
+    numeros = re.findall(
+        r"^##\s+NovaGest\s+v\S+\s+·\s+revisión\s+\d{4}-\d{2}-\d{2}\s+\(([IVXLCDM]+)\)",
+        CHANGELOG.read_text(encoding="utf-8-sig"), re.M)
+    ok("todas las revisiones llevan número romano reconocible", len(numeros) == total,
+       f"{len(numeros)} de {total}")
+
     print("\nEnlaces")
     for ref in ("index.html", "MANUAL_USUARIO.html", "GUIA_MOSTRADOR.html"):
         ok(f"enlaza con {ref}", f'href="./{ref}"' in html or f'href="{ref}"' in html)

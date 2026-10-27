@@ -919,8 +919,9 @@ sincronizado</strong>.</p>
    opción muestra una descripción al pasar el ratón.</li>
 <li><strong>Guía integrada</strong> — pulse el botón <strong>?</strong> de la barra superior (o la tecla <code>?</code>) para
    repetir el tour guiado paso a paso cuando quiera.</li>
-<li><strong>Búsqueda global</strong> — pulse <code>Ctrl + K</code> y escriba el nombre de un producto, una sección o
-   una acción. Con ↑ ↓ se mueve y con <strong>Enter</strong> abre.</li>
+<li><strong>Búsqueda global</strong> — pulse <code>Ctrl + K</code> y escriba el nombre de un producto, de un cliente, de
+   una venta, de una sección o de una acción: sale todo agrupado. Con ↑ ↓ se mueve y con
+   <strong>Enter</strong> abre (ver §18.5).</li>
 <li><strong>Tema</strong> — el botón ◐ alterna claro / oscuro / automático; la elección se guarda.</li>
 <li><strong>Almacén en uso</strong> — confirme que el selector 🏬 de arriba apunta al almacén correcto
    antes de vender o importar.</li>
@@ -4092,7 +4093,7 @@ aviso «Conflicto resuelto». Nadie tiene que volver a escribir lo perdido.</p>
 <tbody>
 <tr>
 <td><code>Ctrl + K</code></td>
-<td><strong>Búsqueda global</strong>: productos, secciones y acciones</td>
+<td><strong>Búsqueda global</strong>: productos, clientes, movimientos, fichas, almacenes, secciones y acciones</td>
 </tr>
 <tr>
 <td><code>/</code></td>
@@ -4122,7 +4123,8 @@ aviso «Conflicto resuelto». Nadie tiene que volver a escribir lo perdido.</p>
 </table>
 <h2 id="182-trucos-de-uso-diario">18.2 Trucos de uso diario</h2>
 <ul>
-<li><strong>Paleta de comandos:</strong> escriba «nuevo», «almacén», «cuadre»… y ejecute sin tocar el menú.</li>
+<li><strong>Paleta de comandos:</strong> escriba «nuevo», «almacén», «cuadre»… y ejecute sin tocar el menú; con
+  <strong>Ctrl + K</strong> busca además en clientes, ventas y fichas (ver §18.5).</li>
 <li><strong>Búsqueda con resaltado:</strong> el buscador global resalta coincidencias en la tabla.</li>
 <li><strong>Doble clic en el producto</strong> en Inventario: abre la edición.</li>
 <li><strong>Botón flotante ＋</strong> en móvil: crear producto desde cualquier punto de la lista.</li>
@@ -4187,6 +4189,81 @@ abrió, así no se pierde el sitio con el teclado.</p>
 <p class="callout-t">ℹ Nota</p>
 <p>Estas preferencias son <strong>de la persona y del equipo</strong>, no del negocio: cada cual puede tener su
 tema y su tamaño sin molestar a los demás, y no viajan en las copias de seguridad.</p>
+</div>
+<h2 id="185-búsqueda-global-encontrar-cualquier-cosa-ctrl--k">18.5 Búsqueda global: encontrar cualquier cosa (Ctrl + K)</h2>
+<p>La paleta de búsqueda es el atajo más rentable de la app: <strong>un solo cuadro</strong> para todo lo que hay
+en el negocio. Se abre con <strong>Ctrl + K</strong> (<strong>⌘ + K</strong> en Mac), con el botón <strong>⌕ Buscar</strong> del Panel o
+con el botón <strong>⌘K</strong> de la barra superior.</p>
+<p><strong>Qué busca</strong></p>
+<table>
+<thead>
+<tr>
+<th>Grupo</th>
+<th>Ejemplos de lo que encuentra</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Productos</strong></td>
+<td>«arroz», «7745», el <strong>código de barras</strong>, la categoría o una nota del producto</td>
+</tr>
+<tr>
+<td><strong>Clientes y fiados</strong></td>
+<td>«José», el teléfono o parte de la dirección; muestra <strong>cuánto debe</strong></td>
+</tr>
+<tr>
+<td><strong>Movimientos</strong></td>
+<td>«VENTA arroz», el cliente de un fiado, el centro o la observación</td>
+</tr>
+<tr>
+<td><strong>Fichas de costo · IPV</strong></td>
+<td>«arroz v3», el <strong>código</strong> de la ficha o su estado (Borrador, Aprobada…)</td>
+</tr>
+<tr>
+<td><strong>Almacenes</strong></td>
+<td>el nombre o el código del local (<strong>TIENDA PINAR</strong>, PRI…)</td>
+</tr>
+<tr>
+<td><strong>Secciones</strong></td>
+<td>«cuadre», «informe», «auditoría»… para saltar sin usar el menú</td>
+</tr>
+<tr>
+<td><strong>Acciones</strong></td>
+<td>«nuevo producto», «importar valores», «cambiar tema», «guía»</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cómo se usa</strong></p>
+<ol>
+<li>Pulse <strong>Ctrl + K</strong> y escriba. No hace falta elegir primero la pantalla: busque y ya.</li>
+<li>Los resultados salen <strong>agrupados</strong> y con lo que coincide <strong>resaltado</strong>; arriba siempre está lo
+   más probable (el nombre que empieza por lo que escribió).</li>
+<li>Muévase con <strong>↑</strong> y <strong>↓</strong> (o con el ratón) y abra con <strong>Enter</strong>. <strong>Esc</strong> cierra sin hacer nada.</li>
+<li>Cada tipo de resultado lleva a su sitio, ya filtrado:
+   - <strong>Producto</strong> → abre la ficha para editarla (si tiene permiso) o el Inventario filtrado.
+   - <strong>Cliente</strong> → <strong>Clientes y fiados</strong> con su nombre ya escrito en el filtro.
+   - <strong>Movimiento</strong> → <strong>Movimientos</strong> del <strong>día</strong> de ese movimiento, con el producto filtrado.
+   - <strong>Ficha</strong> → <strong>Fichas de costo · IPV</strong> con esa versión seleccionada.
+   - <strong>Almacén</strong> → lo pone como <strong>almacén en uso</strong> y abre el Inventario.
+   - <strong>Sección</strong> y <strong>Acción</strong> → se ejecutan en el acto.</li>
+</ol>
+<p><strong>Detalles que conviene saber</strong></p>
+<ul>
+<li><strong>No distingue mayúsculas ni tildes:</strong> «perez» encuentra a <strong>Pérez</strong> y «refrigeracion» a
+  <strong>Refrigeración</strong>.</li>
+<li><strong>Todas las palabras cuentan:</strong> «arroz integral» descarta lo que solo diga «arroz».</li>
+<li><strong>Sin recordar nada raro:</strong> el buscador solo <strong>lee</strong>; no cambia datos. Lo único que puede
+  cambiar es el <strong>almacén en uso</strong> cuando abre un almacén desde ahí.</li>
+<li><strong>Con la consulta vacía</strong> enseña las <strong>secciones</strong> y las <strong>acciones</strong> disponibles: es la forma
+  más rápida de llegar a cualquier pantalla con el teclado.</li>
+<li><strong>Vender desde el buscador</strong> sigue funcionando igual: escriba «vender arroz 2» (ver §6.9).</li>
+<li>El índice se arma <strong>cada vez que abre la paleta</strong>, así que un producto recién creado o una
+  venta de hace un minuto ya aparecen.</li>
+</ul>
+<div class="callout tip">
+<p class="callout-t">💡 Consejo</p>
+<p>Para buscar <strong>solo</strong> dentro de una pantalla, use <code>/</code> (enfoca su buscador) y escriba. Use
+<strong>Ctrl + K</strong> cuando no se acuerde de en qué pantalla está lo que busca.</p>
 </div>
 <hr />
 <h1 id="19-solución-de-problemas">19. Solución de problemas</h1>

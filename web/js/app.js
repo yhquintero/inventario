@@ -3,7 +3,7 @@ import { api, setLicenseErrorHandler } from "./api.js";
 import { parseLegacyCuadreGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
 import { LicenseManager } from "./license.js";
 import qrcode from "../vendor/qrcode.mjs";
-import { applyTips, initTooltips, startTour, tourSeen, openPalette, animateCounters } from "./ux.js";
+import { applyTips, initTooltips, startTour, tourSeen, openPalette, animateCounters, NAV_TIPS } from "./ux.js";
 import {
   addDays, can, CATEGORIES, cup, CURRENCIES, cuadreCalc, formatDate, inRange, normName, reportPeriodRange, stockAtStart,
   qty, round2, todayISO, usd, validatePassword, validateProduct, weekday, weekRange,
@@ -20,6 +20,10 @@ import { buildSheet, sheetFileName } from "./xlsx-export.js";
 import { alertsSummary, alertSignature, severityLabel, shouldNotify, sortAlerts, stockAlerts } from "./alerts.js";
 import { KIOSK_ACTIONS, canFullscreen, kioskClock, kioskHint, readKiosk, writeKiosk } from "./kiosk.js";
 import { monthKey, monthLabel, monthlyReport, shiftMonth, variationText } from "./monthly.js";
+import {
+  agrupar as agruparEntradas, buscar as buscarGlobal, construirIndice, GRUPO_POR_TIPO,
+  pieDeBusqueda, resaltarHTML,
+} from "./search.js";
 import {
   applyTextSize, applyTheme as aplicarTemaDocumento, nextTheme, readTextSize,
   systemPrefersDark, textSizeOptions, themeIcon, themeLabel, watchSystemTheme, writeTextSize,
@@ -3977,13 +3981,125 @@ function ejecutarVentaRapida(plan) {
   render();
 }
 
-function paletteCtx() {
+/* ===================== W-21 · Búsqueda global (Ctrl + K) =====================
+ * Un solo índice con lo que la persona busca a diario: productos (con su código de
+ * barras), clientes y su deuda, movimientos de los últimos días, fichas de costo,
+ * almacenes, secciones y acciones. Se arma **al abrir la paleta**, así que siempre
+ * está al día después de vender o de crear un producto.
+ */
+const BUSQUEDA_MAX_MOVIMIENTOS = 600;
+
+/** Índice en memoria mientras la paleta está abierta (se rehace en cada apertura). */
+let cacheIndice = null;
+
+/** Índice plano de todo lo buscable, con la forma que espera `search.js`. */
+function indiceGlobal() {
+  if (cacheIndice) return cacheIndice;
+  const wid = store.activeWarehouseId();
+  const productos = store.activeProducts().map((p) => ({
+    id: p.id, label: p.name,
+    detail: `${qty(store.stockIn(p, wid))} uds · ${usd(p.precioVentaUsd)}`,
+    extra: [p.barcode, p.category, p.codigo, p.notes].filter(Boolean).join(" "),
+    ref: p,
+  }));
+  const clientes = store.activeCustomers().map((c) => {
+    const debe = store.customerBalance(c.id);
+    return {
+      id: c.id, label: c.name,
+      detail: debe > 0 ? `Debe ${usd(debe)}` : (c.phone || "al día"),
+      extra: [c.phone, c.email, c.address, c.notes].filter(Boolean).join(" "),
+      ref: c,
+    };
+  });
+  const movimientos = store.activeMovements()
+    .slice()
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0))
+    .slice(0, BUSQUEDA_MAX_MOVIMIENTOS)
+    .map((m) => ({
+      id: m.id, label: `${m.type} · ${m.productName}`,
+      detail: `${formatDate(m.date)} · ${m.type === "VENTA" ? usd(m.importeUsd) : qty(m.quantity)}`,
+      extra: [m.customerName, m.center, m.notes].filter(Boolean).join(" "),
+      ref: m,
+    }));
+  const fichas = store.activeFichas().map((f) => ({
+    id: f.id, label: `${f.productName} v${f.version}`,
+    detail: [f.code, f.status].filter(Boolean).join(" · "),
+    extra: f.notes || "", ref: f,
+  }));
+  const almacenes = store.warehousesActive().map((w) => ({
+    id: w.id, label: w.name, detail: w.code || "almacén",
+    extra: w.address || "", ref: w,
+  }));
+  const secciones = Object.entries(routes)
+    .filter(([, r]) => allowed(r.perm) && !r.hidden)
+    .map(([k, r]) => ({ id: k, label: `Ir a ${r.title}`, detail: r.group, extra: (NAV_TIPS[k] || ""), ref: k }));
+  const acciones = [
+    allowed("INVENTORY_EDIT") && { id: "new-product", label: "Nuevo producto", detail: "Acción · N", extra: "crear alta" },
+    allowed("MOVEMENT_CREATE") && { id: "new-movement", label: "Nuevo movimiento", detail: "Acción · M", extra: "venta entrada salida" },
+    allowed("WAREHOUSE_EDIT") && { id: "new-warehouse", label: "Nuevo almacén", detail: "Acción", extra: "crear" },
+    allowed("VALUES_IMPORT") && { id: "import-values", label: "Importar valores a un almacén", detail: "Acción", extra: "excel pegar" },
+    { id: "theme", label: "Cambiar tema", detail: "Acción", extra: "claro oscuro automático" },
+    { id: "tour", label: "Ver la guía de uso", detail: "Ayuda", extra: "tutorial" },
+  ].filter(Boolean);
+  cacheIndice = construirIndice({ producto: productos, cliente: clientes, movimiento: movimientos, ficha: fichas, almacen: almacenes, seccion: secciones, accion: acciones });
+  return cacheIndice;
+}
+
+/** Convierte una entrada del índice en la fila que pinta la paleta. */
+function filaBusqueda(entrada, texto) {
+  const icono = GRUPO_POR_TIPO[entrada.kind]?.icon || "•";
   return {
-    routes, allowed, norm: normName, products: () => store.activeProducts(),
+    icon: icono,
+    html: resaltarHTML(entrada.label, texto),
+    detailHTML: entrada.detail ? resaltarHTML(entrada.detail, texto) : "",
+    run: () => abrirResultado(entrada),
+  };
+}
+
+/** Qué hace Enter sobre cada tipo de resultado. */
+function abrirResultado(entrada) {
+  const ref = entrada.ref;
+  if (entrada.kind === "producto") {
+    if (allowed("INVENTORY_EDIT")) { productModal(ref); ui.route = "inventory"; render(); }
+    else { navTo("inventory"); ui.q = ref.name; render(); }
+  } else if (entrada.kind === "cliente") {
+    navTo("customers"); ui.custTab = "clientes"; ui.q = ref.name; render();
+  } else if (entrada.kind === "movimiento") {
+    navTo("movements"); ui.movDate = ref.date; ui.filter = "TODOS"; ui.q = ref.productName; render();
+  } else if (entrada.kind === "ficha") {
+    navTo("fichas"); ui.fichaTab = "fichas"; ui.fichaSel = ref.id; render();
+  } else if (entrada.kind === "almacen") {
+    store.setActiveWarehouse(ref.id); ui.cart = [];
+    navTo("inventory"); toast(`Almacén en uso: ${ref.name}`, "ok");
+  } else if (entrada.kind === "seccion") {
+    navTo(ref);
+  } else if (entrada.kind === "accion") {
+    if (ref === "tour") return startTour();
+    runAct(ref);
+  }
+}
+
+/** Grupos de la paleta: con texto busca en todo; vacío enseña secciones y acciones. */
+function gruposBusqueda(texto) {
+  const indice = indiceGlobal();
+  const q = String(texto || "").trim();
+  const r = q ? buscarGlobal(indice, q, { limiteTotal: 24 })
+    : agruparEntradas(indice.filter((e) => e.kind === "seccion" || e.kind === "accion"), { limiteTotal: 12 });
+  return r.grupos.map((g) => ({
+    title: g.title,
+    icon: g.icon,
+    items: g.items.map(({ entrada }) => filaBusqueda(entrada, q)),
+  }));
+}
+
+function paletteCtx() {
+  cacheIndice = null;              // datos frescos en cada apertura
+  return {
+    groups: gruposBusqueda,
     commands: paletteCommands,
-    go: (k) => navTo(k),
-    act: (a) => runAct(a),
-    openProduct: (p) => { if (allowed("INVENTORY_EDIT")) { productModal(p); ui.route = "inventory"; render(); } else { ui.q = p.name; navTo("inventory"); } },
+    footer: (texto) => (String(texto || "").trim()
+      ? pieDeBusqueda(buscarGlobal(indiceGlobal(), texto, { limiteTotal: 24 }))
+      : "Escribe para buscar en todo el negocio · ↑↓ navegar · Enter abrir · Esc cerrar"),
   };
 }
 function runAct(a) {
