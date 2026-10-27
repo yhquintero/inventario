@@ -67,6 +67,7 @@ jobs:
           bash tools/ci_paso.sh python3 tools/test_sitio.py
           bash tools/ci_paso.sh python3 tools/test_guia_mostrador.py
           bash tools/ci_paso.sh python3 tools/test_que_hacer_si.py
+          bash tools/ci_paso.sh python3 tools/test_mejoras.py
           bash tools/ci_paso.sh python3 tools/test_carrusel_redes.py
           bash tools/ci_paso.sh python3 tools/test_novedades.py
           bash tools/ci_paso.sh python3 tools/test_reel_corto.py
