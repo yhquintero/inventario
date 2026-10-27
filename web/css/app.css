@@ -908,3 +908,8 @@ html[data-kiosk="1"] .content { padding: 18px 22px 28px; }
   .no-print { display: none !important; }
   .list li { padding: 3px 0; }
 }
+
+/* A-18 · tamaño de letra elegido por la persona (además del tema del sistema) */
+html { --texto-zoom: 1; }
+html[data-texto="grande"] body, html[data-texto="muy-grande"] body { zoom: var(--texto-zoom); }
+@media print { html[data-texto] body { zoom: 1 !important; } }

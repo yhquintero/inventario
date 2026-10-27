@@ -1,4 +1,21 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVII) · Informe mensual en PDF (W-20)
+﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVIII) · Modo oscuro automático y tamaño de letra (A-18)
+
+- **Tema automático de verdad:** con **Automático** (◐), la Web **escucha** la preferencia del
+  sistema y cambia **en vivo** cuando el equipo entra en modo nocturno, sin recargar ni volver a
+  entrar. Los modos se llaman ya en español: *Automático (sigue al sistema)*, *Claro* y *Oscuro*.
+- **Tamaño del texto** en **Ajustes → Tamaño del texto**: *Normal*, *Grande* o *Muy grande*.
+  Agranda texto, botones y tablas de forma proporcionada, se aplica al instante y se **recuerda
+  por equipo**; las impresiones y el PDF salen siempre en tamaño normal.
+- **Nada de esto toca el negocio:** son preferencias de la persona y del equipo, no viajan en las
+  copias ni cambian datos.
+- **Android ya cumplía su parte:** el tema «sistema» sigue el modo nocturno del teléfono y la
+  tipografía va en `sp`, así que respeta el **tamaño de letra del sistema**; el manual lo explica.
+- **Pruebas:** `web/js/theme.js` (puro, sin DOM obligatorio) con **57 comprobaciones** en
+  `tools/test_tema.mjs`, incluidos los navegadores que no dejan guardar, los que no tienen
+  `matchMedia` y el cambio de tema en vivo con un `MediaQueryList` simulado. Cobertura **100 %**.
+- **Manual:** nuevo apartado **18.4 Tema y tamaño de letra**.
+
+## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVII) · Informe mensual en PDF (W-20)
 
 - **Informe mensual** en **Menú → Análisis → Informe mensual**: el mes completo en una hoja que se
   imprime o se guarda como PDF desde el navegador, sin instalar nada ni salir a Internet.
