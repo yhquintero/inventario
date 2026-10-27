@@ -29,6 +29,10 @@ import {
   TENDENCIAS as TENDENCIAS_PREVISION, URGENCIAS as URGENCIAS_PREVISION, listaCompraTexto,
 } from "./forecast.js";
 import {
+  OBJETIVO_DEFECTO, ESTADOS_MARGEN, objetivoMargen, filasMargen, resumenMargen,
+  historialProducto, evolucionCostos, textoMargenes, margenCsv, avisoMargen, fmtPct,
+} from "./margin.js";
+import {
   applyTextSize, applyTheme as aplicarTemaDocumento, nextTheme, readTextSize,
   systemPrefersDark, textSizeOptions, themeIcon, themeLabel, watchSystemTheme, writeTextSize,
 } from "./theme.js";
@@ -52,6 +56,7 @@ const routes = {
   reports: { title: "Comprobación", icon: "▦", perm: "REPORTS_VIEW", group: "Análisis", search: true },
   monthly: { title: "Informe mensual", icon: "🗓", perm: "REPORTS_VIEW", group: "Análisis" },
   forecast: { title: "Previsión de compra", icon: "🧮", perm: "REPORTS_VIEW", group: "Análisis", search: true },
+  margins: { title: "Costos y márgenes", icon: "📊", perm: "REPORTS_VIEW", group: "Análisis", search: true },
   history: { title: "Historial precios", icon: "↻", perm: "HISTORY_VIEW", group: "Análisis", search: true },
   finance: { title: "Monedas", icon: "$", perm: "REPORTS_FINANCIAL", group: "Análisis" },
   fichas: { title: "Fichas de costo · IPV", icon: "▤", perm: "IPV_VIEW", group: "Análisis", search: true },
@@ -100,6 +105,7 @@ let ui = {
   verifyResult: null, verifyText: "", busy: false, modalReturn: null, _hadModal: false,
   custTab: "clientes",
   forecastCobertura: null, forecastPlazo: null, forecastTodos: false,
+  margenObjetivo: null, margenSoloBajos: false, margenHist: null,
   fichaTab: "fichas", fichaSel: null, fichaEdit: null, fichaShowTrash: false, legalDoc: "aviso", legalData: null,
 };
 
@@ -1217,6 +1223,7 @@ function homeView() {
       </div>` : ""}
     </div>
     ${alertsCardMarkup()}
+    ${marginCardMarkup()}
     <div class="grid-2 mt16">
       <div class="card">
         <div class="card-h"><span class="k">Últimos movimientos</span><button class="btn ghost small" data-nav="movements">Ver todos</button></div>
@@ -2444,6 +2451,7 @@ function settingsView() {
       <label>Tamaño del texto<select id="textoSize">${textSizeOptions().map((o) => `<option value="${o.value}" ${(ui.textSize || readTextSize(safeStorage())) === o.value ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select></label>
       <label>Cobertura de reposición <small>días</small><input name="restockCover" ${dis} type="number" min="1" max="365" value="${diasDeCobertura()}"></label>
       <label>Plazo del proveedor <small>días que tarda en servir</small><input name="leadTimeDays" ${dis} type="number" min="0" max="180" value="${plazoPrevision()}"></label>
+      <label>Margen objetivo <small>% sobre la venta</small><input name="margenObjetivo" ${dis} type="number" min="1" max="95" step="1" value="${objetivoDeMargen()}"></label>
       <label>Alertas stock bajo<select name="lowStockAlerts" ${dis}><option value="true" ${s.lowStockAlerts ? "selected" : ""}>Sí</option><option value="false" ${!s.lowStockAlerts ? "selected" : ""}>No</option></select></label>
       <label>Comisión<select name="comisionSoloGestor" ${dis}><option value="false" ${!s.comisionSoloGestor ? "selected" : ""}>En todas las ventas (como el Excel)</option><option value="true" ${s.comisionSoloGestor ? "selected" : ""}>Solo ventas GESTOR</option></select></label>
       <label>Meta diaria <small>USD</small><input name="goalDaily" ${dis} type="number" step="any" value="${s.goalDaily}"></label>
@@ -2574,6 +2582,166 @@ function forecastView() {
     <div class="hline dashboard-total"><span>${esc(resumen.texto)}</span><b class="mono">${qty(resumen.unidades)} uds · ${usd(resumen.costo)}</b></div>
     <p class="hint mt8">Se revisaron ${todas.length} producto(s) activos. «Alcanza» son los días que dura la existencia al ritmo
       actual; «Punto de pedido» es la existencia a la que hay que volver para no quedarse sin mercancía.</p>`;
+}
+
+/* ==================== W-23 · Costos y márgenes ==================== */
+
+/** Objetivo de margen en uso: lo elegido en la pantalla o lo guardado en Ajustes. */
+function objetivoDeMargen() {
+  return objetivoMargen(ui.margenObjetivo ?? store.state.settings.margenObjetivo);
+}
+
+/** Filas de la tabla, con el número de cambios de costo de cada producto. */
+function filasDeMargen({ soloBajos = ui.margenSoloBajos } = {}) {
+  return filasMargen(store.activeProducts(), {
+    objetivo: objetivoDeMargen(),
+    q: ui.q,
+    soloBajos,
+    historialDe: (id) => historialProducto(store.state.priceHistory, id).length,
+  });
+}
+
+/**
+ * Pantalla de costos y márgenes (W-23).
+ *
+ * Cada producto con costo y precio muestra su **ganancia por unidad** y su **margen sobre la
+ * venta**; los que están por debajo del objetivo se marcan en rojo y se dice **a qué precio**
+ * habría que venderlos para llegar. Con un clic se abre su **historial de costo y precio** y
+ * la evolución del margen.
+ */
+function marginsView() {
+  const filas = filasDeMargen();
+  const todas = filasDeMargen({ soloBajos: false });
+  const res = resumenMargen(todas);
+  const objetivo = objetivoDeMargen();
+  const puedeExportar = allowed("REPORTS_VIEW");
+  const aviso = avisoMargen(todas, objetivo);
+  return `
+    <div class="kpis">
+      ${kpi("Margen medio", fmtPct(res.promedio), `objetivo ${fmtPct(objetivo)} · ${res.conMargen} producto(s) con costo`, res.promedio != null && res.promedio >= objetivo ? "green" : "gold")}
+      ${kpi("Bajo el objetivo", String(res.bajos), res.bajos ? "revisar precio o costo" : "todo en orden", res.bajos ? "red" : "green")}
+      ${kpi("Sin costo cargado", String(res.sinCosto), "no se puede calcular su margen", res.sinCosto ? "gold" : "green")}
+      ${kpi("Peor margen", res.peor ? fmtPct(res.peor.margenPct) : "—", res.peor ? esc(res.peor.nombre) : "sin datos", "blue")}
+    </div>
+    ${aviso ? `<div class="card mt14" id="marginWarn">
+      <div class="card-h"><span class="k">⚠ ${esc(aviso)}</span><span class="tag salida">Revisar</span></div>
+      <p class="hint">Suba el precio a la columna «Para el objetivo» o negocie mejor el costo. Los productos sin costo cargado no entran en esta cuenta.</p></div>` : ""}
+    <div class="card mt14">
+      <div class="card-h"><span class="k">📊 ¿Cuánto gano con cada producto?</span>
+        <span class="hint">${esc(todas.length)} producto(s) activos</span></div>
+      <p class="hint">El <b>margen</b> se mide sobre el precio de venta: (precio − costo) ÷ precio. El
+        <b>markup</b> se mide sobre el costo y siempre sale más alto (un 50 % de markup son 33 % de margen).
+        «Para el objetivo» es el precio que, con el costo actual, deja justo el margen que pida; se redondea
+        hacia arriba al centavo para no quedarse corto.</p>
+      <div class="row mt8 forecast-controls">
+        <label class="sel-label">Objetivo de margen <input id="mgObjetivo" class="sel" type="number" min="1" max="95" step="1" value="${objetivo}"> %</label>
+        <label class="chk"><input type="checkbox" id="mgSoloBajos" ${ui.margenSoloBajos ? "checked" : ""}> Ver solo los que están bajo el objetivo</label>
+        <span class="spacer"></span>
+        ${puedeExportar ? `<button class="btn ghost small" data-act="mg-copy">📋 Copiar resumen</button>
+        <button class="btn ghost small" data-act="mg-csv">⬇ CSV</button>` : ""}
+        <button class="btn ghost small" data-act="print">🖨 PDF</button>
+      </div>
+    </div>
+    <div class="card table-wrap flush mt14"><table>
+      <thead><tr>
+        <th>Producto</th><th class="r">Costo</th><th class="r">Precio</th>
+        <th class="r" data-tip="Lo que queda por cada unidad vendida">Ganancia</th>
+        <th class="r" data-tip="Ganancia sobre el precio de venta">Margen</th>
+        <th class="r" data-tip="Ganancia sobre el costo: siempre mayor que el margen">Markup</th>
+        <th class="r" data-tip="Precio de venta que deja el margen objetivo con el costo actual">Para el objetivo</th>
+        <th>Estado</th><th class="r" data-tip="Cambios de costo, precio o comisión registrados">Cambios</th>
+      </tr></thead>
+      <tbody>${filas.map((f) => {
+        const est = ESTADOS_MARGEN[f.estado] || ESTADOS_MARGEN["sin-precio"];
+        return `<tr>
+          <td><strong>${esc(f.nombre)}</strong><div class="hint">${esc(f.categoria)}</div></td>
+          <td class="mono r">${f.costo ? usd(f.costo) : "—"}</td>
+          <td class="mono r">${f.precio ? usd(f.precio) : "—"}</td>
+          <td class="mono r">${f.margenUsd == null ? "—" : usd(f.margenUsd)}</td>
+          <td class="mono r"><b>${fmtPct(f.margenPct)}</b></td>
+          <td class="mono r">${f.markupPct == null ? "—" : fmtPct(f.markupPct)}</td>
+          <td class="mono r">${f.subirPrecio ? `<b>${usd(f.precioObjetivo)}</b><div class="hint">+${usd(f.subirPrecio)}</div>` : f.precioObjetivo ? usd(f.precioObjetivo) : "—"}</td>
+          <td><span class="tag ${est.tono}">${est.etiqueta}</span></td>
+          <td class="mono r">${f.historial ? `<button class="btn ghost small" data-mg-hist="${esc(f.id)}">${f.historial}</button>` : "—"}</td>
+        </tr>`;
+      }).join("") || `<tr><td colspan="9" class="empty">${ui.margenSoloBajos
+        ? "Ningún producto está por debajo del objetivo: todo en orden."
+        : ui.q ? "Ningún producto coincide con la búsqueda." : "Todavía no hay productos en el inventario."}</td></tr>`}</tbody>
+    </table></div>
+    <div class="hline dashboard-total"><span>${esc(res.texto)}</span><b class="mono">${fmtPct(res.promedio)}</b></div>
+    <p class="hint mt8">Los productos <b>sin costo cargado</b> aparecen como «Sin costo» y no entran en el margen medio:
+      sin costo no hay margen que calcular. Complete el costo en Inventario → Editar para verlos aquí.</p>`;
+}
+
+/** Margen actual de un producto, para el modal. */
+function margenActualDe(p) {
+  return filasMargen([p], { objetivo: objetivoDeMargen() })[0] || {};
+}
+
+/** Modal con el historial de costo, precio y comisión de un producto (W-23). */
+function marginHistoryModal(id) {
+  const p = store.state.products.find((x) => String(x.id) === String(id));
+  if (!p) return;
+  const cambios = historialProducto(store.state.priceHistory, id);
+  const evo = evolucionCostos(store.state.priceHistory, p);
+  const actual = margenActualDe(p);
+  const filasCambios = cambios.map((h) => `<tr>
+      <td class="hint">${formatDate(h.date)}</td>
+      <td>${esc(h.campoEtiqueta)}</td>
+      <td class="mono r">${h.campo === "comisionCup" ? `${qty(h.antes)} CUP` : usd(h.antes)}</td>
+      <td class="mono r">${h.campo === "comisionCup" ? `${qty(h.ahora)} CUP` : usd(h.ahora)}</td>
+      <td class="mono r">${h.variacionPct == null ? "—" : `${h.variacion > 0 ? "▲" : h.variacion < 0 ? "▼" : "="} ${fmtPct(Math.abs(h.variacionPct))}`}</td>
+      <td class="hint">${esc(h.quien || "—")}</td>
+    </tr>`).join("");
+  const filasEvo = evo.map((e) => `<tr>
+      <td class="hint">${e.date ? formatDate(e.date) : "—"}</td>
+      <td class="mono r">${e.costo ? usd(e.costo) : "—"}</td>
+      <td class="mono r">${e.precio ? usd(e.precio) : "—"}</td>
+      <td class="mono r"><b>${fmtPct(e.margenPct)}</b></td>
+    </tr>`).join("");
+  modal(`Historial de ${esc(p.name)}`, `
+    <div class="kpis">
+      ${kpi("Costo actual", actual.costo ? usd(actual.costo) : "—", `${cambios.filter((c) => c.campo === "precioCostoUsd").length} cambio(s) de costo`, "blue")}
+      ${kpi("Precio actual", actual.precio ? usd(actual.precio) : "—", `${cambios.filter((c) => c.campo === "precioVentaUsd").length} cambio(s) de precio`, "gold")}
+      ${kpi("Margen de hoy", fmtPct(actual.margenPct), `objetivo ${fmtPct(objetivoDeMargen())}`, actual.estado === "bajo" ? "red" : "green")}
+      ${kpi("Para el objetivo", actual.precioObjetivo ? usd(actual.precioObjetivo) : "—", actual.subirPrecio ? `subir ${usd(actual.subirPrecio)}` : "ya cumple", "teal")}
+    </div>
+    <div class="card-h mt14"><span class="k">Cambios registrados</span><span class="hint">${cambios.length}</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fecha</th><th>Qué cambió</th><th class="r">Antes</th><th class="r">Después</th><th class="r">Variación</th><th>Quién</th></tr></thead>
+      <tbody>${filasCambios || `<tr><td colspan="6" class="empty">Sin cambios registrados: el costo y el precio no se han tocado desde que existe el producto.</td></tr>`}</tbody>
+    </table></div>
+    <div class="card-h mt14"><span class="k">Cómo se movió el margen</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fecha</th><th class="r">Costo</th><th class="r">Precio</th><th class="r">Margen</th></tr></thead>
+      <tbody>${filasEvo}</tbody>
+    </table></div>
+    <p class="hint mt8">El historial se llena solo: cada cambio de costo, precio o comisión que se guarda en
+      Inventario (o que entra con una importación) queda aquí.</p>
+    <div class="row mt14"><button type="button" class="btn ghost" data-act="close-modal">Cerrar</button></div>`,
+    "marginHistForm");
+  render();
+}
+
+/** Tarjeta del Panel: los productos que quedan por debajo del margen objetivo (W-23). */
+function marginCardMarkup(filas = filasDeMargen({ soloBajos: false })) {
+  const res = resumenMargen(filas);
+  if (!res.bajos) return "";
+  const objetivo = objetivoDeMargen();
+  const peores = filas.filter((f) => f.estado === "bajo").slice(0, 5);
+  return `<section class="card mt16" id="marginCard" aria-labelledby="marginTitle">
+      <div class="card-h"><span class="k" id="marginTitle">📊 Margen por debajo del ${esc(fmtPct(objetivo))}</span>
+        <span class="row"><span class="hint">${esc(res.texto)}</span><button class="btn ghost small" data-nav="margins">Ver todos</button></span></div>
+      <p class="hint">Con el costo cargado de cada producto. «Para el objetivo» es el precio de venta que deja el
+        margen que se pide en <a href="#margins" data-nav="margins">Costos y márgenes</a>.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Producto</th><th class="r">Costo</th><th class="r">Precio</th><th class="r">Margen</th><th class="r">Para el objetivo</th><th class="r">Subir</th></tr></thead>
+        <tbody>${peores.map((f) => `<tr>
+          <td>${esc(f.nombre)}</td><td class="mono r">${usd(f.costo)}</td><td class="mono r">${usd(f.precio)}</td>
+          <td class="mono r"><b>${fmtPct(f.margenPct)}</b></td>
+          <td class="mono r">${usd(f.precioObjetivo)}</td><td class="mono r">+${usd(f.subirPrecio)}</td></tr>`).join("")}</tbody>
+      </table></div>
+    </section>`;
 }
 
 function customersView() {
@@ -3993,7 +4161,7 @@ function readFichaEditor() {
 
 /* ============================ RENDER ============================ */
 function page() {
-  const views = { forecast: forecastView, monthly: monthlyView, verificar: verifyView, license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, fichas: fichasView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
+  const views = { margins: marginsView, forecast: forecastView, monthly: monthlyView, verificar: verifyView, license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, fichas: fichasView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
   return (views[ui.route] || homeView)();
 }
 
@@ -4479,6 +4647,13 @@ function bindApp() {
     render();
   });
   $("#fcTodos")?.addEventListener("change", (e) => { ui.forecastTodos = !!e.target.checked; render(); });
+  // W-23 · costos y márgenes: objetivo y filtro de los que están bajo
+  $("#mgObjetivo")?.addEventListener("change", (e) => {
+    ui.margenObjetivo = Math.min(95, Math.max(1, Number(e.target.value) || OBJETIVO_DEFECTO));
+    store.saveSettings({ margenObjetivo: ui.margenObjetivo });
+    render();
+  });
+  $("#mgSoloBajos")?.addEventListener("change", (e) => { ui.margenSoloBajos = !!e.target.checked; render(); });
   $("#cuadreDate")?.addEventListener("change", (e) => { ui.cuadreDate = e.target.value; render(); });
   $("#weekDate")?.addEventListener("change", (e) => { ui.weekDate = e.target.value; render(); });
   $("#reportDate")?.addEventListener("change", (e) => { ui.reportDate = e.target.value; render(); });
@@ -4560,7 +4735,7 @@ function bindApp() {
     if (!["ADMINISTRADOR", "JEFE"].includes(role())) { store.saveSettings({ theme: fd.get("theme") }); return toast("Tema guardado", "ok"); }
     const soloG = fd.get("comisionSoloGestor") === "true";
     const changed = soloG !== !!store.state.settings.comisionSoloGestor;
-    store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", restockCover: Math.min(365, Math.max(1, Number(fd.get("restockCover")) || 14)), leadTimeDays: Math.min(180, Math.max(0, Number(fd.get("leadTimeDays")) || 0)), comisionSoloGestor: soloG, goalDaily: Number(fd.get("goalDaily")) || 0, goalWeekly: Number(fd.get("goalWeekly")) || 0, sessionMinutes: Math.max(1, Number(fd.get("sessionMinutes")) || 20) });
+    store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", restockCover: Math.min(365, Math.max(1, Number(fd.get("restockCover")) || 14)), leadTimeDays: Math.min(180, Math.max(0, Number(fd.get("leadTimeDays")) || 0)), margenObjetivo: objetivoMargen(fd.get("margenObjetivo")), comisionSoloGestor: soloG, goalDaily: Number(fd.get("goalDaily")) || 0, goalWeekly: Number(fd.get("goalWeekly")) || 0, sessionMinutes: Math.max(1, Number(fd.get("sessionMinutes")) || 20) });
     if (changed) { store.state.products.forEach((p) => store.recalcProduct(p.id)); store.emit(); }
     toast("Ajustes guardados", "ok");
   });
@@ -4750,7 +4925,7 @@ function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"
 
 function onClick(e) {
   const openerBefore = document.activeElement;
-  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last],[data-fc-order]");
+  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last],[data-fc-order],[data-mg-hist]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
@@ -4883,6 +5058,23 @@ function onClick(e) {
       .then(() => toast("Pedido copiado: péguelo en WhatsApp o en el correo", "ok"))
       .catch(() => download(`pedido-${todayISO()}.txt`, texto, "text/plain"));
     else download(`pedido-${todayISO()}.txt`, texto, "text/plain");
+  }
+  else if (d.mgHist) { marginHistoryModal(d.mgHist); }
+  else if (act === "mg-csv") {
+    download(`margenes-${todayISO()}.csv`, margenCsv(filasDeMargen({ soloBajos: false })), "text/csv");
+    toast("Márgenes descargados en CSV", "ok");
+  }
+  else if (act === "mg-copy") {
+    const texto = textoMargenes(filasDeMargen({ soloBajos: false }), {
+      negocio: store.state.settings.businessName,
+      fecha: formatDate(todayISO()),
+      objetivo: objetivoDeMargen(),
+    });
+    if (!texto) return toast("No hay productos con costo y precio para resumir.", "");
+    if (navigator.clipboard) navigator.clipboard.writeText(texto)
+      .then(() => toast("Resumen copiado: péguelo en WhatsApp o en el correo", "ok"))
+      .catch(() => download(`margenes-${todayISO()}.txt`, texto, "text/plain"));
+    else download(`margenes-${todayISO()}.txt`, texto, "text/plain");
   }
   else if (act === "fc-csv") {
     download(`prevision-compra-${todayISO()}.csv`, previsionCsv(filasPrevision()), "text/csv");

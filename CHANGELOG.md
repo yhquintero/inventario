@@ -1,4 +1,26 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XLIII) · Compartir el ticket por WhatsApp (A-19)
+﻿## NovaGest v1.0.0 · revisión 2026-10-27 (XLIV) · Costos y márgenes por producto (W-23)
+
+- **Nueva pantalla «Costos y márgenes»** (Análisis): producto por producto, **ganancia por unidad**,
+  **margen sobre la venta**, **markup**, y el **precio que haría falta** para llegar al objetivo.
+  Ordenada de peor a mejor, con búsqueda y filtro «solo los que están bajo el objetivo».
+- **Objetivo de margen configurable** (30 % de fábrica) desde la propia pantalla o en
+  **Ajustes → Margen objetivo**; se guarda y se aplica en todas partes.
+- **Aviso en el Panel:** tarjeta con los cinco productos que están por debajo del objetivo, su costo,
+  su precio, su margen y cuánto subir. Se apaga sola cuando todo cumple.
+- **Historial por producto:** qué cambió (costo, precio, comisión), **antes y después**, la
+  variación en % y **quién** lo hizo, más la evolución del margen en el tiempo. Se llena solo con
+  cada edición y con cada importación de Excel.
+- **Sin inventar cifras:** los productos sin costo cargado se marcan como «Sin costo» y quedan fuera
+  del margen medio y de los avisos.
+- **Para llevarse:** **📋 Copiar resumen** (texto para WhatsApp o correo), **⬇ CSV** de once columnas
+  y **🖨 PDF**.
+- **Pruebas:** `test_margenes.mjs` con **124 comprobaciones** (margen y markup, objetivo, precio
+  para el objetivo, redondeos, historial, evolución, texto, CSV y avisos) y cobertura de
+  `margin.js` al **99,3 %**; `smoke_web` en **78**. Service worker **v38**.
+- **Manual:** nuevo apartado **10.8**, con el paso a paso, el significado de cada columna y las
+  reglas del cálculo.
+
+## NovaGest v1.0.0 · revisión 2026-10-26 (XLIII) · Compartir el ticket por WhatsApp (A-19)
 
 - **El cliente se lleva su comprobante sin papel.** En **Android → Movimientos**, cada venta gana
   el botón **📤 Compartir**: abre una ventana con el **texto exacto** que va a recibir el cliente y

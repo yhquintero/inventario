@@ -1680,6 +1680,73 @@ Esta pantalla contesta la pregunta de cada semana: *«¿qué compro y cuánto?»
 > Revise la previsión **después de cada importación de cierre de día**: es el momento en que las
 > ventas del día ya están dentro y la sugerencia es la definitiva.
 
+## 10.8 Costos y márgenes: cuánto gano con cada producto
+
+**🧭 Menú → Análisis → Costos y márgenes**
+
+Aquí se ve, producto por producto, **cuánto queda de cada venta** y **cuáles se están vendiendo
+por debajo del margen que usted quiere**. No hay que calcularlo a mano ni abrir el Excel: sale de
+los mismos datos del inventario (precio de costo y precio de venta).
+
+**Cómo se usa**
+
+1. Escriba el **objetivo de margen** en el control de arriba (por defecto **30 %**). Se guarda en
+   **Ajustes → Margen objetivo** y se aplica en todas las pantallas.
+2. Lea la tabla, ordenada **de peor a mejor**: primero los que están bajo el objetivo, después los
+   que van bien y, al final, los que **no tienen costo cargado**.
+3. Si un producto aparece en rojo, mire la columna **Para el objetivo**: ahí está el precio al que
+   tendría que venderlo para llegar al margen que pidió. Ajuste el precio en
+   **Inventario → Editar** o negocie mejor el costo con el proveedor.
+4. Pulse el número de la columna **Cambios** para ver el **historial** de ese producto: qué costo
+   tenía antes, cuándo cambió, quién lo cambió y cómo se movió el margen.
+
+**Qué significa cada columna**
+
+| Columna | Qué es |
+|---|---|
+| **Costo · Precio** | Los dos datos del producto, en USD |
+| **Ganancia** | Lo que queda por cada unidad vendida: precio − costo |
+| **Margen** | La ganancia **sobre el precio de venta**: (precio − costo) ÷ precio. Es el número que se usa para comparar con el objetivo |
+| **Markup** | La ganancia **sobre el costo**. Siempre es mayor: un 50 % de markup son solo un 33 % de margen |
+| **Para el objetivo** | Precio de venta que, con el costo actual, deja exacto el margen pedido. Si hay que subir, lo dice debajo (**+$2.86**) |
+| **Estado** | **Bajo objetivo** (rojo) · **En objetivo** (verde) · **Margen alto** (amarillo) · **Sin costo** · **Sin precio** |
+| **Cambios** | Cuántas veces cambió el costo, el precio o la comisión; se pulsa para ver el detalle |
+
+**Avisos del Panel**
+
+- Cuando hay productos bajo el objetivo, el **Panel** muestra la tarjeta **📊 Margen por debajo del
+  30 %** con los cinco peores: costo, precio, margen y el precio que haría falta.
+- El aviso se apaga solo cuando todos cumplen: no hay que cerrarlo a mano.
+
+> [!IMPORTANT]
+> Un producto **sin costo cargado** aparece como «Sin costo» y **no entra** en el margen medio ni
+> en los avisos: sin costo no hay margen que calcular, y suponerlo sería inventar cifras. Cárguelo
+> en **Inventario → Editar → P. COSTO (USD)** y la fila se calcula sola.
+
+**Reglas del cálculo**
+
+- **Margen, no markup:** el objetivo se compara siempre contra el margen sobre la venta.
+- **Redondeo hacia arriba:** el precio «Para el objetivo» se sube al centavo siguiente, así nunca
+  queda un céntimo por debajo.
+- **Margen alto:** si un producto supera el doble del objetivo (o el objetivo + 25 puntos) se marca
+  en amarillo: o el costo está mal cargado o el precio se quedó viejo. En ambos casos, conviene
+  revisarlo.
+- **Historial automático:** cada cambio de costo, precio o comisión —hecho a mano o traído por una
+  importación de Excel— queda registrado con fecha y usuario.
+
+**Para llevarse el resumen**
+
+| Botón | Qué hace |
+|---|---|
+| **📋 Copiar resumen** | Copia al portapapeles una lista lista para WhatsApp o el correo: margen de cada producto y cuánto habría que subir los que están bajo |
+| **⬇ CSV** | Descarga las once columnas para abrirlo en Excel (con punto y coma, como espera Excel en español) |
+| **🖨 PDF** | Imprime la pantalla tal como está, con la cabecera del negocio |
+
+> [!TIP]
+> Revise esta pantalla **cuando cambie el costo de un proveedor**: es el momento en que el margen
+> se estrecha sin que nadie toque el precio. El **Historial** (apartado 11.1) dice cuándo subió el
+> costo; esta pantalla dice cuánto hay que subir el precio para no perder.
+
 ---
 
 # 11. Historial de precios y monedas

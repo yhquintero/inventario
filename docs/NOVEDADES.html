@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 44 revisiones</title>
+<title>Novedades de NovaGest · 45 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 44 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 45 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,21 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>44</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>45</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XLIV</span><time datetime="2026-10-27">27 de octubre de 2026</time></div>
+      <h2>Costos y márgenes por producto (W-23)</h2>
+      <ul>
+      <li><b>Nueva pantalla «Costos y márgenes»</b> (Análisis): producto por producto, <b>ganancia por unidad</b>,</li>
+      <li><b>Objetivo de margen configurable</b> (30 % de fábrica) desde la propia pantalla o en</li>
+      <li><b>Aviso en el Panel:</b> tarjeta con los cinco productos que están por debajo del objetivo, su costo,</li>
+      <li><b>Historial por producto:</b> qué cambió (costo, precio, comisión), <b>antes y después</b>, la</li>
+      <li><b>Sin inventar cifras:</b> los productos sin costo cargado se marcan como «Sin costo» y quedan fuera</li>
+      <li><b>Para llevarse:</b> <b>📋 Copiar resumen</b> (texto para WhatsApp o correo), <b>⬇ CSV</b> de once columnas</li>
+      <li><b>Pruebas:</b> <code>test_margenes.mjs</code> con <b>124 comprobaciones</b> (margen y markup, objetivo, precio</li>
+      <li><b>Manual:</b> nuevo apartado <b>10.8</b>, con el paso a paso, el significado de cada columna y las</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XLIII</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
       <h2>Compartir el ticket por WhatsApp (A-19)</h2>
@@ -213,20 +227,7 @@
       <li><b>Propuesta actualizada</b> (<code>docs/PROPUESTA_VIDEO_PROMOCIONAL.md</code> §6.1) con la ficha técnica, el</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXXIV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Auditoría encadenada (S-01)</h2>
-      <ul>
-      <li><b>S-01 · Registro de seguridad encadenado.</b> Cada evento guarda una <b>huella SHA-256</b></li>
-      <li><b>Botón «🔗 Comprobar cadena»</b> en <b>Auditoría → Seguridad (servidor)</b>: el servidor revisa</li>
-      <li>La tabla muestra una columna <b>Huella</b> con los primeros 12 caracteres y el <b>id</b> de cada</li>
-      <li><b>Ruta nueva</b> <code>GET /api/security-log/verify</code> (Administrador, Jefe y Económico), con</li>
-      <li><b>Actualización sin trabajo manual:</b> al arrancar se añaden las columnas nuevas y se</li>
-      <li><b>Pruebas:</b> <code>tools/test_auditoria_encadenada.py</code> con <b>30 comprobaciones</b> contra el</li>
-      <li><b>Manual:</b> nuevo apartado <b>14.4 Comprobar la cadena del registro de seguridad</b>, con el</li>
-      </ul>
-    </article>
-<p class="older">Y 32 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 33 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

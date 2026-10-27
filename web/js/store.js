@@ -53,6 +53,7 @@ function emptyState() {
       lowStockAlerts: true,
       restockCover: 14,
       leadTimeDays: 7,
+      margenObjetivo: 30,
       autoBackup: true,
     },
     session: null,

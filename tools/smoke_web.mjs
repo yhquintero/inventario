@@ -1192,6 +1192,29 @@ test("W-22 · la previsión de compra dice qué pedir, cuánto y por qué", () =
   assert.match(css, /\.forecast-controls/, "los controles tienen estilo");
 });
 
+test("W-23 · los costos y márgenes dicen cuánto se gana y quién está bajo el objetivo", () => {
+  const html = go("margins");
+  assert.match(html, /¿Cuánto gano con cada producto\?/, "la pantalla se dibuja");
+  assert.match(html, /id="mgObjetivo"/, "se puede cambiar el objetivo de margen");
+  assert.match(html, /id="mgSoloBajos"/, "se pueden ver solo los que están bajo el objetivo");
+  assert.match(html, /data-act="mg-csv"/, "exporta el CSV");
+  assert.match(html, /data-act="mg-copy"/, "copia el resumen para WhatsApp");
+  const src = readFileSync(join(root, "web/js/app.js"), "utf8");
+  assert.match(src, /import \{[\s\S]*filasMargen[\s\S]*\} from "\.\/margin\.js";/, "usa el módulo puro");
+  assert.match(src, /margins: \{ title: "Costos y márgenes"/, "está en el menú de Análisis");
+  assert.match(src, /function marginHistoryModal\(id\)/, "abre el historial del producto");
+  assert.match(src, /function marginCardMarkup\(/, "el Panel avisa de los márgenes bajos");
+  assert.match(src, /name="margenObjetivo"/, "el objetivo se ajusta en Ajustes");
+  assert.match(src, /store\.saveSettings\(\{ margenObjetivo: ui\.margenObjetivo \}\)/, "el objetivo elegido se guarda");
+  const sw = readFileSync(join(root, "web/sw.js"), "utf8");
+  assert.match(sw, /"\.\/js\/margin\.js"/, "margin.js se cachea");
+  const store = readFileSync(join(root, "web/js/store.js"), "utf8");
+  assert.match(store, /margenObjetivo: 30/, "el objetivo de fábrica es 30 %");
+  const mod = readFileSync(join(root, "web/js/margin.js"), "utf8");
+  assert.match(mod, /export function margenDeProducto\(/, "el módulo calcula el margen");
+  assert.match(mod, /export function evolucionCostos\(/, "el módulo reconstruye la evolución del costo");
+});
+
 test("W-07 · las tablas se exportan a Excel (.xlsx) con el lector que ya trae la app", () => {
   const source = readFileSync(join(root, "web/js/app.js"), "utf8");
   assert.match(source, /import \{ buildSheet, sheetFileName \} from "\.\/xlsx-export\.js";/, "usa el módulo de hojas");
