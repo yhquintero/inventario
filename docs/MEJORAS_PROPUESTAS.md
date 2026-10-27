@@ -6,8 +6,9 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 
 > **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola en Android) ✅ ·
 > **Hecho:** D-01…D-07 · W-01, W-02, W-04, W-05, W-06, W-07, W-11, W-13, W-17 · A-01, A-02, A-16 · S-01, S-03.
-> **Lo siguiente, por orden sugerido:** **G-01** (vídeo vertical de 30 s) → **A-04** (widget) → **W-03** (alertas de reposición).
-> La segunda ola de propuestas nuevas está al final del documento.
+> **Lo siguiente, por orden sugerido:** **S-04** (instalador de Windows) → **A-22** (escanear el código al crear un producto)
+> → **W-27** (utilidad neta con los gastos). El detalle, con criterio de aceptación por fila, está en la
+> **cuarta ola** (al final del documento), que sustituye a las listas sueltas de la segunda y la tercera.
 
 **Leyenda:** impacto 🔴 alto · 🟠 medio · 🟢 bajo — esfuerzo ⏱️ bajo (≤1 día) · ⏳ medio (2-5 días) ·
 🧱 alto (>1 semana).
@@ -125,6 +126,69 @@ paralelo los rápidos ~~W-09~~, ~~D-12~~ y ~~A-08~~. Entregados: **W-15, A-17, A
 **W-16, A-15** (XXIV), **S-09, D-10** (XXV), **W-12, W-09, D-12, A-08** (XXVI), **S-11, S-10, S-05**
 (XXVII), **W-03** (XXVIII), **A-04, A-13** (XXXV), **W-08, S-12** (XXXVI), **S-13** (XXXVI),
 **W-20** (XXXVII), **A-18** (XXXVIII), **G-02** (XXXIX), **W-21** (XL), **S-14** (XLI), **W-22** (XLII), **A-19** (XLIII) y **W-23** (XLIV) y **G-03** (XLV) y **D-13** (XLVI) y **A-20** (XLVII). Siguiente: **S-04** (instalador de Windows).
+
+## Cuarta ola · por dónde seguir (2026-10-27)
+
+Cuando se cierra una tanda conviene decidir **con criterio, no por entusiasmo**. Estas propuestas
+salen de mirar lo que ya está construido y preguntar: *¿qué duele hoy en la caja, qué dato ya
+existe y qué se puede entregar sin tocar lo que funciona?*
+
+**Cómo se ordena** (de más a menos peso):
+
+1. **Dolor comprobado en el mostrador:** el cliente lo pide o lo hace a mano cada semana.
+2. **Datos que ya están en la app:** si el cálculo ya existe (`calc.js`, `margin.js`, `forecast.js`,
+   `ConteoFisico.kt`), la mejora es sobre todo pantalla y pruebas.
+3. **Riesgo bajo:** nada que cambie el formato del estado compartido sin migración probada.
+4. **Se puede comprobar:** cada fila trae su **criterio de aceptación**, que es lo que se mira en el
+   pull request antes de aprobarlo.
+
+### A · Corto plazo · rematar lo empezado (2-3 semanas)
+
+| # | Mejora | Por qué duele hoy | Dónde | Impacto | Esfuerzo | Criterio de aceptación |
+|---|---|---|---|---|---|---|
+| S-04 | **Instalador de Windows** con el entorno incluido, acceso directo y arranque al iniciar sesión | Es lo único que queda del plan: hoy hay que abrir una consola y escribir el comando; en una caja nueva eso lo hace el técnico | `deploy/`, `docs/INSTALACION.md` | 🔴 | ⏳ | Un `.exe`/`.ps1` deja el servidor funcionando en un equipo limpio y el manual lo explica paso a paso |
+| A-22 | **Escanear el código al crear o editar un producto** con la cámara (reutiliza `CameraScanner` de A-20) | Hoy el código de barras se teclea o se copia del lector; un error de un dígito manda la venta al producto equivocado | `ui/inventory`, `ui/count/CameraScanner.kt` | 🟠 | ⏱️ | Se rellena el campo **Código de barras** con la cámara, avisa si ya existe y no hay que teclear |
+| W-26 | **Etiquetas de precio con código de barras** imprimibles (hojas de 24 y 40, A4) | El producto tiene `barcode` y el ticket lo ignora; las etiquetas del estante se escriben a mano | `web/js/labels.js`, `web/css/app.css` | 🟠 | ⏳ | Se eligen productos y cantidad, sale una hoja A4 con nombre, precio y **Code 128** legible por el lector y por la cámara |
+| A-25 | **Márgenes en el móvil**: ver el margen por producto y el aviso de los que van bajo el objetivo | W-23 ya calcula todo en la Web; el dueño está en el mostrador con el teléfono | `ui/reports`, `data/sync` | 🟠 | ⏳ | La lista ordena de peor a mejor, muestra margen, ganancia y precio para el objetivo, y respeta el objetivo de Ajustes |
+| W-27 | **Utilidad neta**: restar los **gastos del cuadre** (comisiones, domicilios, gastos y combos) en Análisis y en el informe mensual | Hoy la ganancia es **bruta** y la pantalla lo dice con letra pequeña; el dueño pregunta «¿y los gastos?» | `web/js/monthly.js`, `analyticsView`, `calc.js` | 🔴 | ⏳ | El mes muestra venta, costo, gastos y **utilidad neta**, con la misma cifra en pantalla, PDF y CSV |
+| D-14 | **Cartel A4 de precios y mínimos** imprimible desde Inventario (hermano de D-13) | El estante necesita el precio y el mínimo a la vista; hoy se imprime la tabla entera o nada | `docs/`, `inventoryView` (`@media print`) | 🟢 | ⏱️ | Sale una página por almacén, con categoría, precio, mínimo y fecha, sin menús ni botones |
+
+### B · Medio plazo · completar la operación diaria (1-2 meses)
+
+| # | Mejora | Por qué duele hoy | Dónde | Impacto | Esfuerzo | Criterio de aceptación |
+|---|---|---|---|---|---|---|
+| W-24 | **Devoluciones con motivo y nota de crédito**: devolver una venta sin borrarla, eligiendo si vuelve al stock y si se devuelve el dinero o se abona al fiado | Hoy solo se puede **enviar el movimiento a la papelera**, que reescribe el historial y no dice por qué | `web/js/app.js`, `store.js`, `calc.js` | 🔴 | ⏳ | Una devolución deja la venta original visible, genera el movimiento contrario con motivo, ajusta el stock y (si toca) el saldo del cliente |
+| W-25 | **Proveedores y órdenes de compra**: convertir la previsión de W-22 en una orden con número, costo y recepción parcial | La previsión dice *qué comprar*, pero el pedido se hace por WhatsApp y nadie sabe qué llegó | `web/js/purchases.js`, `forecast.js`, `store.js` | 🔴 | 🧱 | La orden se crea desde una fila de la previsión, se recibe por partes y al recibirla entra el stock con su costo |
+| W-28 | **Importar clientes y fiados desde Excel** (hoy solo productos, valores y cuadres) | Migrar un negocio que lleva los fiados en una libreta es la primera traba real | `web/js/excel-import.js`, `docs/MAPEO_EXCEL.md` | 🟠 | ⏳ | Se sube el archivo, se ve una vista previa con lo que entra y lo que se rechaza, y no se duplica ningún cliente |
+| S-15 | **Retención de copias con política** (diarias/semanales/mensuales) y **aviso si la última copia tiene más de 48 h** | Hoy se guarda una copia automática al día y nada poda ni avisa; el disco se llena o el respaldo lleva una semana roto | `server/novagest_server.py`, `/api/health` | 🟠 | ⏱️ | El titular ve en **Copias** cuántas hay y de qué fechas, la poda respeta la política y `/health` avisa cuando la última copia es vieja |
+| A-21 | **Devolución rápida desde el ticket** en el móvil: buscar la venta por su código de verificación y devolver | Es el caso más común tras una cola: el cliente vuelve con el papel y hay que buscar la venta a mano | `ui/movements`, `data/repository` | 🟠 | ⏳ | Con el código del ticket se abre la venta, se devuelve total o parcial y el stock se corrige con nota y usuario |
+| S-16 | **Aviso al titular** (correo o webhook) cuando hay intentos fallidos de acceso, copia externa fallida o licencia por vencer | Los avisos ya existen en `/health` y en la auditoría, pero nadie los mira si no abre la pantalla | `server/`, `docs/INSTALACION.md` | 🟠 | ⏳ | Un administrador configura el destino, se prueba con un botón y llega el aviso con el mismo texto que muestra la app |
+
+### C · Largo plazo · crecer sin romper (trimestre)
+
+| # | Mejora | Por qué merece la pena | Dónde | Impacto | Esfuerzo | Criterio de aceptación |
+|---|---|---|---|---|---|---|
+| W-29 | **Presupuestos y cotizaciones** con vencimiento, impresión y paso a venta en un clic | El cliente pide precio antes de comprar; hoy se manda una foto de la pantalla | `web/js/quotes.js` | 🟠 | 🧱 | Se arma con productos del catálogo, se imprime con validez y número, y al aceptar se convierte en venta (o en fiado) |
+| A-23 | **Conteo con varios operarios**: cada teléfono cuenta una parte y se fusionan los resultados por producto | A-20 ya cuenta con un teléfono; un almacén grande se cuenta entre dos o tres y hoy hay que repetirlo | `domain/count`, `SyncManager` | 🟠 | 🧱 | Dos conteos del mismo día se suman por producto sin duplicar y el acta dice quién contó cada parte |
+| W-30 | **Consolidado de almacenes**: una vista que suma existencias y ventas de todos los almacenes y compara | Los almacenes existen y se traspasa entre ellos, pero no hay una foto conjunta para decidir | `web/js/app.js`, `store.js` | 🟠 | ⏳ | Se ve existencia y valor por almacén y el total, con exportación y sin cambiar el almacén en uso |
+| S-17 | **Segundo equipo en la misma red con sesión propia** (hoy es un servidor y varios clientes del navegador) | Dos cajas y un despacho necesitan entrar a la vez sin compartir usuario | `server/`, `docs/INSTALACION.md` | 🟠 | 🧱 | Dos equipos trabajan a la vez con usuarios distintos, cada uno con su sesión, y la auditoría dice quién hizo qué desde dónde |
+| G-04 | **Clip vertical de 6 s** para el estado de WhatsApp y para que el cliente lo reenvíe | El reel de 15 s ya existe; un corte de 6 s cabe en un estado y se comparte sin pensarlo | `tools/build_reel_vertical.py` | 🟢 | ⏱️ | Tres tramos (marca → vender → cierre), con subtítulos, menos de 1 MB y `.srt` al lado |
+
+### Descartadas por ahora (y por qué)
+
+| Idea | Por qué no |
+|---|---|
+| **App para iPhone** | No hay proyecto iOS en el repositorio; la Web instalable cubre el móvil y el Android cubre la caja. Abrirlo son meses de trabajo paralelo |
+| **Precios sugeridos por IA** | El producto no debe inventar cifras: W-23 y W-22 ya calculan con datos reales y explican el porqué. Una caja negra rompería esa regla |
+| **Multi-idioma de la interfaz** | El manual en inglés (D-08) tiene sentido para abrir mercado; traducir la app entera antes de tener clientes fuera es esfuerzo sin retorno |
+| **Facturación electrónica / impuestos** | Depende de la jurisdicción y de un certificado; el producto se define como gestión, no como sistema fiscal (ver `docs/CUMPLIMIENTO.md`) |
+| **Microservicios o base de datos externa** | El servidor actual (Python + SQLite, un solo archivo) instala en un equipo modesto y se respalda copiando un archivo: es una ventaja, no una limitación |
+
+### Orden recomendado
+
+**S-04** (cierra el plan) → **A-22** (aprovecha A-20 y quita tecleo) → **W-27** (la pregunta que
+siempre aparece) → **W-26** (etiquetas) → **W-24** (devoluciones) → **W-25** (proveedores) →
+**A-25** → **W-28** → **S-15** → **A-21** → **S-16** → **W-30** → **W-29** → **A-23** → **S-17** → **G-04**.
 
 ## Cómo se supervisa
 
