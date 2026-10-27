@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 36 revisiones</title>
+<title>Novedades de NovaGest · 37 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 36 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 37 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,21 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>36</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>37</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXXVI</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
+      <h2>Sello de tiempo RFC 3161 (S-13)</h2>
+      <ul>
+      <li><b>Sello de tiempo de un tercero.</b> Si se define <b><code>NOVAGEST_TSA_URL</code></b>, al anclar el sello de</li>
+      <li><b>Se comprueba que el token es de este anclaje:</b> al leer los anclajes se relee el token y se</li>
+      <li><b>Pantalla</b>: nueva columna <b>Sello de tiempo</b> en *Auditoría → Seguridad (servidor) → 🔏 Sello</li>
+      <li><b>Anclar nunca depende de Internet:</b> si la autoridad no responde, el anclaje se crea igual, con</li>
+      <li><b>Ruta nueva</b> <code>GET /api/security-log/anchor-token/:id</code> (Administrador, Jefe y Económico), que</li>
+      <li><b>Implementación sin dependencias:</b> codificador y lector DER propios (petición <code>TimeStampReq</code>,</li>
+      <li><b>Pruebas:</b> <code>tools/test_sello_tiempo.py</code> con <b>28 comprobaciones</b>, incluida una **autoridad de</li>
+      <li><b>Manual:</b> nuevo apartado <b>14.6 Sello de tiempo de un tercero (RFC 3161)</b>.</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXXVI</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
       <h2>Sello anclado de la auditoría (S-12)</h2>
@@ -201,18 +215,7 @@
       <li><b>Manual:</b> «Salud del sistema» en <i>Ajustes</i> (§3.2), pestaña <i>Impresiones</i> en <i>Auditoría</i></li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXVI</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Hoja imprimible del Análisis, accesibilidad, novedades y aviso de cierre (W-12 · W-09 · D-12 · A-08)</h2>
-      <ul>
-      <li><b>W-12 · Hoja imprimible del Análisis.</b> Botón <b>🖨 Hoja imprimible</b> en <i>Análisis y metas</i>: cabecera con negocio y período, los cuatro indicadores, los tres gráficos (tendencia con meta, mapa de calor y categorías) y las metas, todo en <b>una A4 apaisada</b>; fuera van botones, ayudas y la tabla de productos sin movimiento. Reglas nuevas en <code>@media print</code> (<code>analytics-sheet</code>).</li>
-      <li><b>W-09 · Lo que pasa se anuncia.</b> Región viva permanente <code>#live</code> fuera de <code>#app</code> (<code>role=&quot;status&quot;</code>, <code>aria-live=&quot;polite&quot;</code>), función <code>announce()</code> conectada a todos los avisos, estado <b><code>aria-busy</code></b> mientras corre una operación larga (importación de Excel, copia cifrada) y <b>retorno del foco</b> al botón que abrió un diálogo.</li>
-      <li><b>D-12 · Página de novedades.</b> <code>docs/NOVEDADES.html</code> se <b>genera sola</b> desde <code>CHANGELOG.md</code> con <code>tools/build_novedades.py</code> (últimas 12 revisiones, sin dependencias), enlazada desde la portada y desde el pie del sitio. <code>--check</code> falla si la página queda desfasada.</li>
-      <li><b>A-08 · Aviso de cierre a las 20:00 (Android).</b> <code>DayCloseWorker</code> (WorkManager + Hilt) avisa solo si hubo ventas y el día <b>no está cuadrado</b>; <code>DayCloseCheck</code> concentra la decisión y los textos, con <b>4 pruebas</b> nuevas (<code>DayCloseCheckTest.kt</code>). Interruptor en <b>Ajustes → Aviso de cierre</b>.</li>
-      <li><b>Pruebas nuevas</b>: <code>tools/test_novedades.py</code> (23 comprobaciones) y 2 casos más en <code>tools/smoke_web.mjs</code> (<b>57 en total</b>). Manual §10.3 (hoja imprimible), §18.3 (accesibilidad) y §16.9 (aviso de cierre); <code>docs/INSTALACION.md</code> con la sección de <code>/api/health</code>. Service worker <b>v23</b>.</li>
-      </ul>
-    </article>
-<p class="older">Y 24 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 25 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

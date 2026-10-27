@@ -61,6 +61,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | S-03 | ✅ **API con paginación y `?since=`** (delta por registro, registro de seguridad por páginas) | Móviles y catálogos grandes | `server/`, `store.js` | 🟠 | ⏳ | ✅ |
 | S-04 | Instalador de Windows con el entorno incluido | Instalar en 3 clics, sin Python | `deploy/` | 🟠 | ⏳ | ⬜ |
 | S-05 | ✅ **Panel de salud para el titular** (copias, espacio, licencia) | Prevenir antes de que falle | `server/`, `app.js` | 🟢 | ⏱️ | ✅ |
+| S-13 | ✅ **Sello de tiempo RFC 3161** sobre el anclaje: la hora la firma una autoridad externa (`NOVAGEST_TSA_URL`), se guarda el token `.tsr` y se verifica por fuera con `openssl ts -verify` | Una fecha que no depende del reloj del servidor | `server/`, `app.js` | 🔴 | ⏳ | ✅ |
 | S-12 | ✅ **Anclaje firmado del sello de auditoría** (HMAC del sello, las líneas y la fecha): detecta el borrado de las últimas líneas, que la cadena sola no ve; rutas `GET/POST /api/security-log/anchor(s)` | Prueba de integridad verificable ante un auditor | `server/`, `app.js` | 🔴 | ⏳ | ✅ |
 
 ## Segunda ola · propuestas nuevas (2026-10-24)

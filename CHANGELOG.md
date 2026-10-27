@@ -1,4 +1,29 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVI) · Sello anclado de la auditoría (S-12)
+﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVI) · Sello de tiempo RFC 3161 (S-13)
+
+- **Sello de tiempo de un tercero.** Si se define **`NOVAGEST_TSA_URL`**, al anclar el sello de
+  auditoría NovaGest pide a esa **autoridad de sellado de tiempo** (RFC 3161) la hora firmada de
+  la huella del anclaje. La respuesta se guarda **tal cual** (token DER en base64), con su hora y
+  su huella.
+- **Se comprueba que el token es de este anclaje:** al leer los anclajes se relee el token y se
+  verifica que la huella que firmó la autoridad es la de la firma del anclaje. Si alguien cambia
+  el token, el anclaje pasa a **Roto** con el motivo *el sello de tiempo no corresponde a este
+  anclaje*.
+- **Pantalla**: nueva columna **Sello de tiempo** en *Auditoría → Seguridad (servidor) → 🔏 Sello
+  anclado*, con la hora de la autoridad, el estado y un botón **⬇ .tsr** para descargar el token y
+  verificarlo con `openssl ts -verify`. La tarjeta explica si hay autoridad configurada y cuántos
+  anclajes van sellados.
+- **Anclar nunca depende de Internet:** si la autoridad no responde, el anclaje se crea igual, con
+  el motivo guardado y sin hora de tercero.
+- **Ruta nueva** `GET /api/security-log/anchor-token/:id` (Administrador, Jefe y Económico), que
+  devuelve el token como `application/timestamp-reply`.
+- **Implementación sin dependencias:** codificador y lector DER propios (petición `TimeStampReq`,
+  lectura de `TimeStampResp`, `TSTInfo` y `GeneralizedTime`), sin `asn1crypto` ni `cryptography`.
+- **Pruebas:** `tools/test_sello_tiempo.py` con **28 comprobaciones**, incluida una **autoridad de
+  sellado de prueba** que responde DER de verdad: hora guardada, huella del token, descarga `.tsr`,
+  token manipulado, autoridad que rechaza y autoridad caída.
+- **Manual:** nuevo apartado **14.6 Sello de tiempo de un tercero (RFC 3161)**.
+
+## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVI) · Sello anclado de la auditoría (S-12)
 
 - **S-12 · Anclaje firmado del sello.** Un anclaje guarda, en una línea **independiente del
   registro**, **cuántas líneas** tenía la auditoría, **cuál era su último hash** y **cuándo** se
