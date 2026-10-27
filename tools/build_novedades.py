@@ -88,7 +88,7 @@ def leer_revisiones(texto: str) -> list[dict]:
     revisiones: list[dict] = []
     actual: dict | None = None
     for linea in texto.splitlines():
-        cabecera = re.match(r"^##\s+NovaGest\s+v(\S+)\s+·\s+revisión\s+(\d{4}-\d{2}-\d{2})\s+\((XX[IVX]+|X{0,3}[IVX]+)\)\s+·\s+(.+)$", linea)
+        cabecera = re.match(r"^##\s+NovaGest\s+v(\S+)\s+·\s+revisión\s+(\d{4}-\d{2}-\d{2})\s+\(([IVXLCDM]+)\)\s+·\s+(.+)$", linea)
         if cabecera:
             version, fecha, numero, titulo = cabecera.groups()
             actual = {"version": version, "fecha": fecha, "numero": numero, "titulo": titulo.strip(), "puntos": []}

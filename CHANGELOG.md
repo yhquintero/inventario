@@ -1,4 +1,29 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XXXIX) · Reel vertical de 15 s (G-02)
+﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XL) · Búsqueda global (W-21)
+
+- **Un solo buscador para todo el negocio.** Con **Ctrl + K** (o el botón ⌕ Buscar) aparece una
+  paleta que busca a la vez en **productos** (nombre, categoría, notas y **código de barras**),
+  **clientes** (nombre, teléfono, dirección, y lo que deben), **movimientos** (ventas, entradas y
+  salidas de los últimos días, con su cliente y su observación), **fichas de costo · IPV**,
+  **almacenes**, **secciones** y **acciones**.
+- **Resultados agrupados, resaltados y ordenados por probabilidad:** primero lo que empieza por
+  lo escrito y con más peso en el **nombre** que en el detalle; acepta **sin tildes** («perez» →
+  Pérez) y exige que aparezcan **todas** las palabras. Las cabeceras de grupo no se seleccionan:
+  ↑ ↓ recorren solo resultados y **Enter** abre.
+- **Cada resultado lleva a su sitio, ya filtrado:** el producto abre su ficha (o el inventario
+  filtrado sin permiso de edición), el cliente abre Clientes y fiados con su nombre escrito, el
+  movimiento abre **ese día** en Movimientos, la ficha se selecciona sola y el almacén pasa a ser
+  el **almacén en uso**.
+- **Con la consulta vacía** enseña secciones y acciones: es la forma más rápida de navegar con el
+  teclado. El índice se arma **en cada apertura**, así que un producto recién creado ya aparece.
+- **Cálculo aislado y probado:** `web/js/search.js` (sin DOM ni store) con **83 comprobaciones**
+  en `tools/test_busqueda.mjs`, cobertura **99,2 %**. La paleta (`web/js/ux.js`) es ahora una vista
+  tonta que solo pinta lo que el módulo decide.
+- **Prueba de humo:** `tools/smoke_web.mjs` sube a **75** comprobaciones; el service worker pasa a
+  **v36** con el módulo nuevo en el precache.
+- **Manual:** nuevo apartado **18.5 Búsqueda global: encontrar cualquier cosa**, más los atajos y la
+  visita guiada puestos al día.
+
+## NovaGest v1.0.0 · revisión 2026-10-26 (XXXIX) · Reel vertical de 15 s (G-02)
 
 - **Corte vertical de 15 segundos** para TikTok, Reels, Shorts y estados de WhatsApp:
   `docs/assets/video/novagest-reel-vertical-15s.mp4` (**1080 × 1920**, H.264 + AAC, 14,7 s,

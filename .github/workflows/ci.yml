@@ -45,6 +45,7 @@ jobs:
           bash tools/ci_paso.sh node tools/test_kiosco.mjs
           bash tools/ci_paso.sh node tools/test_informe_mensual.mjs
           bash tools/ci_paso.sh node tools/test_tema.mjs
+          bash tools/ci_paso.sh node tools/test_busqueda.mjs
           node tools/test_xlsx_export.mjs
           bash tools/ci_paso.sh node tools/cobertura.mjs --min 80
           bash tools/ci_paso.sh node tools/test_accesibilidad.mjs

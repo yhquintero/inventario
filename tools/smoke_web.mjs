@@ -1113,8 +1113,42 @@ test("W-04 · el buscador (Ctrl+K) ofrece vender y usa la misma caja que la vent
   assert.match(source, /store\.stockIn\(plan\.product, almacen\)/, "respeta la existencia del almacén");
   assert.match(source, /announce\(`Venta registrada: \$\{quickSaleSummary/, "avisa al lector de pantalla");
   const ux = readFileSync(join(root, "web/js/ux.js"), "utf8");
-  assert.match(ux, /vender: escribe «vender arroz 2»/, "el buscador enseña la sintaxis");
-  assert.match(ux, /const orden = \(q && commands \? commands\(input\.value\) : \[\]\) \|\| \[\];/);
+  assert.match(ux, /function openPalette\(\{ groups, commands = null/, "la paleta recibe la búsqueda y las órdenes");
+  assert.match(ux, /const orden = \(commands \? commands\(q\) : \[\]\) \|\| \[\];/, "las órdenes de venta van primero");
+  assert.match(readFileSync(join(root, "web/js/app.js"), "utf8"), /groups: gruposBusqueda/, "la paleta usa la búsqueda global");
+});
+
+test("W-21 · la búsqueda global (Ctrl+K) cubre productos, clientes, ventas, fichas y secciones", () => {
+  const app = readFileSync(join(root, "web/js/app.js"), "utf8");
+  const ux = readFileSync(join(root, "web/js/ux.js"), "utf8");
+  const css = readFileSync(join(root, "web/css/app.css"), "utf8");
+  assert.match(app, /import \{[\s\S]*construirIndice[\s\S]*\} from "\.\/search\.js";/, "usa el módulo de búsqueda");
+  assert.match(app, /function indiceGlobal\(\)/, "arma el índice de todo el negocio");
+  for (const fuente of ["producto:", "cliente:", "movimiento:", "ficha:", "almacen:", "seccion:", "accion:"])
+    assert.ok(app.includes(fuente), `el índice debe incluir ${fuente.replace(":", "")}`);
+  assert.match(app, /extra: \[p\.barcode, p\.category/, "los productos se buscan por código de barras");
+  assert.match(app, /store\.customerBalance\(c\.id\)/, "los clientes muestran lo que deben");
+  assert.match(app, /function gruposBusqueda\(texto\)/, "agrupa los resultados");
+  assert.match(app, /function abrirResultado\(entrada\)/, "sabe a dónde llevar cada resultado");
+  assert.match(app, /navTo\("customers"\); ui\.custTab = "clientes"; ui\.q = ref\.name/, "abre el cliente con su nombre filtrado");
+  assert.match(app, /navTo\("movements"\); ui\.movDate = ref\.date/, "abre el día del movimiento");
+  assert.match(app, /navTo\("fichas"\); ui\.fichaTab = "fichas"; ui\.fichaSel = ref\.id/, "abre la ficha de costo");
+  assert.match(app, /store\.setActiveWarehouse\(ref\.id\)/, "cambia el almacén en uso desde el buscador");
+  assert.match(app, /cacheIndice = null;\s+\/\/ datos frescos/, "rehace el índice en cada apertura");
+  // La paleta pinta grupos, resalta y recorre solo resultados con el teclado.
+  assert.match(ux, /class="palette-head"/, "cabeceras de grupo");
+  assert.match(ux, /role="listbox"/, "lista accesible");
+  assert.match(ux, /role="option"/, "cada resultado es una opción");
+  assert.match(ux, /aria-selected=/, "marca la opción activa");
+  assert.match(ux, /e\.key === "ArrowDown"/, "baja con la flecha");
+  assert.match(ux, /e\.key === "Enter"/, "abre con Enter");
+  assert.match(ux, /e\.key === "Escape"/, "cierra con Escape");
+  assert.match(ux, /<mark>\$1<\/mark>/, "resalta la coincidencia");
+  assert.match(ux, /const escaparLocal = /, "escapa lo que escribe la persona");
+  assert.match(css, /\.palette-head \{/, "estilo de las cabeceras");
+  assert.match(css, /\.palette mark \{/, "estilo del resaltado");
+  const sw = readFileSync(join(root, "web/sw.js"), "utf8");
+  assert.match(sw, /\.\/js\/search\.js/, "search.js se cachea para el modo sin conexión");
 });
 
 test("W-07 · las tablas se exportan a Excel (.xlsx) con el lector que ya trae la app", () => {

@@ -399,8 +399,9 @@ sincronizado**.
    opción muestra una descripción al pasar el ratón.
 3. **Guía integrada** — pulse el botón **?** de la barra superior (o la tecla `?`) para
    repetir el tour guiado paso a paso cuando quiera.
-4. **Búsqueda global** — pulse `Ctrl + K` y escriba el nombre de un producto, una sección o
-   una acción. Con ↑ ↓ se mueve y con **Enter** abre.
+4. **Búsqueda global** — pulse `Ctrl + K` y escriba el nombre de un producto, de un cliente, de
+   una venta, de una sección o de una acción: sale todo agrupado. Con ↑ ↓ se mueve y con
+   **Enter** abre (ver §18.5).
 5. **Tema** — el botón ◐ alterna claro / oscuro / automático; la elección se guarda.
 6. **Almacén en uso** — confirme que el selector 🏬 de arriba apunta al almacén correcto
    antes de vender o importar.
@@ -2441,7 +2442,7 @@ la app: cuánto se vendió hoy y qué se está quedando sin existencia.
 
 | Atajo | Acción |
 |---|---|
-| `Ctrl + K` | **Búsqueda global**: productos, secciones y acciones |
+| `Ctrl + K` | **Búsqueda global**: productos, clientes, movimientos, fichas, almacenes, secciones y acciones |
 | `/` | Enfocar el buscador de la pantalla actual |
 | `N` | **Nuevo producto** (con permiso de edición) |
 | `M` | **Nuevo movimiento** (con permiso de creación) |
@@ -2451,7 +2452,8 @@ la app: cuánto se vendió hoy y qué se está quedando sin existencia.
 
 ## 18.2 Trucos de uso diario
 
-- **Paleta de comandos:** escriba «nuevo», «almacén», «cuadre»… y ejecute sin tocar el menú.
+- **Paleta de comandos:** escriba «nuevo», «almacén», «cuadre»… y ejecute sin tocar el menú; con
+  **Ctrl + K** busca además en clientes, ventas y fichas (ver §18.5).
 - **Búsqueda con resaltado:** el buscador global resalta coincidencias en la tabla.
 - **Doble clic en el producto** en Inventario: abre la edición.
 - **Botón flotante ＋** en móvil: crear producto desde cualquier punto de la lista.
@@ -2517,6 +2519,55 @@ La Web se adapta a como esté configurado el equipo o el móvil, y también se p
 > [!NOTE]
 > Estas preferencias son **de la persona y del equipo**, no del negocio: cada cual puede tener su
 > tema y su tamaño sin molestar a los demás, y no viajan en las copias de seguridad.
+
+## 18.5 Búsqueda global: encontrar cualquier cosa (Ctrl + K)
+
+La paleta de búsqueda es el atajo más rentable de la app: **un solo cuadro** para todo lo que hay
+en el negocio. Se abre con **Ctrl + K** (**⌘ + K** en Mac), con el botón **⌕ Buscar** del Panel o
+con el botón **⌘K** de la barra superior.
+
+**Qué busca**
+
+| Grupo | Ejemplos de lo que encuentra |
+|---|---|
+| **Productos** | «arroz», «7745», el **código de barras**, la categoría o una nota del producto |
+| **Clientes y fiados** | «José», el teléfono o parte de la dirección; muestra **cuánto debe** |
+| **Movimientos** | «VENTA arroz», el cliente de un fiado, el centro o la observación |
+| **Fichas de costo · IPV** | «arroz v3», el **código** de la ficha o su estado (Borrador, Aprobada…) |
+| **Almacenes** | el nombre o el código del local (**TIENDA PINAR**, PRI…) |
+| **Secciones** | «cuadre», «informe», «auditoría»… para saltar sin usar el menú |
+| **Acciones** | «nuevo producto», «importar valores», «cambiar tema», «guía» |
+
+**Cómo se usa**
+
+1. Pulse **Ctrl + K** y escriba. No hace falta elegir primero la pantalla: busque y ya.
+2. Los resultados salen **agrupados** y con lo que coincide **resaltado**; arriba siempre está lo
+   más probable (el nombre que empieza por lo que escribió).
+3. Muévase con **↑** y **↓** (o con el ratón) y abra con **Enter**. **Esc** cierra sin hacer nada.
+4. Cada tipo de resultado lleva a su sitio, ya filtrado:
+   - **Producto** → abre la ficha para editarla (si tiene permiso) o el Inventario filtrado.
+   - **Cliente** → **Clientes y fiados** con su nombre ya escrito en el filtro.
+   - **Movimiento** → **Movimientos** del **día** de ese movimiento, con el producto filtrado.
+   - **Ficha** → **Fichas de costo · IPV** con esa versión seleccionada.
+   - **Almacén** → lo pone como **almacén en uso** y abre el Inventario.
+   - **Sección** y **Acción** → se ejecutan en el acto.
+
+**Detalles que conviene saber**
+
+- **No distingue mayúsculas ni tildes:** «perez» encuentra a **Pérez** y «refrigeracion» a
+  **Refrigeración**.
+- **Todas las palabras cuentan:** «arroz integral» descarta lo que solo diga «arroz».
+- **Sin recordar nada raro:** el buscador solo **lee**; no cambia datos. Lo único que puede
+  cambiar es el **almacén en uso** cuando abre un almacén desde ahí.
+- **Con la consulta vacía** enseña las **secciones** y las **acciones** disponibles: es la forma
+  más rápida de llegar a cualquier pantalla con el teclado.
+- **Vender desde el buscador** sigue funcionando igual: escriba «vender arroz 2» (ver §6.9).
+- El índice se arma **cada vez que abre la paleta**, así que un producto recién creado o una
+  venta de hace un minuto ya aparecen.
+
+> [!TIP]
+> Para buscar **solo** dentro de una pantalla, use `/` (enfoca su buscador) y escriba. Use
+> **Ctrl + K** cuando no se acuerde de en qué pantalla está lo que busca.
 
 ---
 

@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 40 revisiones</title>
+<title>Novedades de NovaGest · 41 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 40 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 41 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,20 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>40</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>41</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XL</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
+      <h2>Búsqueda global (W-21)</h2>
+      <ul>
+      <li><b>Un solo buscador para todo el negocio.</b> Con <b>Ctrl + K</b> (o el botón ⌕ Buscar) aparece una</li>
+      <li><b>Resultados agrupados, resaltados y ordenados por probabilidad:</b> primero lo que empieza por</li>
+      <li><b>Cada resultado lleva a su sitio, ya filtrado:</b> el producto abre su ficha (o el inventario</li>
+      <li><b>Con la consulta vacía</b> enseña secciones y acciones: es la forma más rápida de navegar con el</li>
+      <li><b>Cálculo aislado y probado:</b> <code>web/js/search.js</code> (sin DOM ni store) con <b>83 comprobaciones</b></li>
+      <li><b>Prueba de humo:</b> <code>tools/smoke_web.mjs</code> sube a <b>75</b> comprobaciones; el service worker pasa a</li>
+      <li><b>Manual:</b> nuevo apartado <b>18.5 Búsqueda global: encontrar cualquier cosa</b>, más los atajos y la</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXXIX</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
       <h2>Reel vertical de 15 s (G-02)</h2>
@@ -207,18 +220,7 @@
       <li><b>Manual:</b> nuevo apartado <b>6.9 Vender desde el buscador (Ctrl + K)</b> con la tabla de formatos</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXX</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Sincronización incremental y registro paginado (S-03)</h2>
-      <ul>
-      <li><b>S-03 · Descarga incremental del estado (<code>GET /api/state?since=N</code>).</b> El servidor indexa en la</li>
-      <li><b>La Web lo aprovecha sola:</b> al detectar una versión nueva pide el delta y lo aplica por <code>id</code></li>
-      <li><b>Registro de seguridad paginado:</b> <code>/api/security-log</code> acepta <code>limit</code>, <code>page</code>, <code>offset</code> y <code>q</code>, y</li>
-      <li><b>Índice reconstruido</b> al convertir datos, al migrar y al restaurar una copia, para que el delta</li>
-      <li><b>Pruebas nuevas:</b> <code>tools/test_delta_estado.py</code> (<b>45 comprobaciones</b> contra el servidor real)</li>
-      </ul>
-    </article>
-<p class="older">Y 28 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 29 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

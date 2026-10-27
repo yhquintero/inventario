@@ -186,44 +186,130 @@ export const tourSeen = () => {
   return !!localStorage.getItem("novagest.tour");
 };
 
-/* ---------------- Paleta de comandos (Ctrl+K) ---------------- */
-export function openPalette({ routes, products, allowed, go, act, openProduct, norm, commands }) {
+/* ---------------- Paleta de comandos / búsqueda global (Ctrl+K) ---------------- */
+
+/**
+ * W-21 · Paleta de búsqueda.
+ *
+ * Se le pasan dos funciones y ella solo pinta:
+ *   · `commands(texto)` → filas de venta rápida («vender arroz 2»), siempre arriba.
+ *   · `groups(texto)`   → grupos ya buscados y ordenados por `search.js`
+ *                         (`[{ title, icon, items: [{ icon, label, detail, run }] }]`).
+ *
+ * El teclado recorre **solo** las filas de resultados (las cabeceras de grupo no se
+ * seleccionan) y Enter abre la marcada.
+ */
+export function openPalette({ groups, commands = null, placeholder, footer } = {}) {
   closePalette();
   const box = document.createElement("div");
   box.className = "palette-back";
-  box.innerHTML = `<div class="palette"><div class="palette-in"><span>⌕</span><input placeholder="Buscar producto, sección o acción… (o «vender arroz 2»)" autocomplete="off"><kbd>Esc</kbd></div><div class="palette-list"></div><div class="palette-foot">↑↓ navegar · Enter abrir · Esc cerrar · vender: escribe «vender arroz 2»</div></div>`;
+  box.innerHTML = `<div class="palette" role="dialog" aria-modal="true" aria-label="Búsqueda global">
+    <div class="palette-in"><span aria-hidden="true">⌕</span><input autocomplete="off" spellcheck="false"
+      aria-label="Buscar en todo el negocio"
+      placeholder="${placeholder || "Buscar producto, cliente, venta, sección o acción… (o «vender arroz 2»)"}"><kbd>Esc</kbd></div>
+    <div class="palette-list" role="listbox" aria-label="Resultados"></div>
+    <div class="palette-foot">${footer || "↑↓ navegar · Enter abrir · Esc cerrar"}</div></div>`;
   document.body.appendChild(box);
-  const input = box.querySelector("input"), list = box.querySelector(".palette-list");
-  const base = [
-    ...Object.entries(routes).filter(([, r]) => allowed(r.perm)).map(([k, r]) => ({ icon: r.icon, label: "Ir a " + r.title, hint: "Sección", run: () => go(k) })),
-    allowed("INVENTORY_EDIT") && { icon: "＋", label: "Nuevo producto", hint: "Acción · N", run: () => act("new-product") },
-    allowed("MOVEMENT_CREATE") && { icon: "⇄", label: "Nuevo movimiento", hint: "Acción · M", run: () => act("new-movement") },
-    allowed("WAREHOUSE_EDIT") && { icon: "🏬", label: "Nuevo almacén", hint: "Acción", run: () => act("new-warehouse") },
-    allowed("VALUES_IMPORT") && { icon: "📥", label: "Importar valores a un almacén", hint: "Acción", run: () => act("import-values") },
-    { icon: "◐", label: "Cambiar tema", hint: "Acción", run: () => act("theme") },
-    { icon: "?", label: "Ver guía de uso", hint: "Ayuda", run: () => startTour() },
-  ].filter(Boolean);
-  let sel = 0, items = [];
-  const draw = () => {
-    const q = norm(input.value);
-    const prods = q ? products().filter((p) => norm(p.name).includes(q)).slice(0, 8)
-      .map((p) => ({ icon: "▣", label: p.name, hint: `Stock ${p.stockActual} · $${p.precioVentaUsd}`, run: () => openProduct(p) })) : [];
-    // Órdenes de venta escritas en el buscador (W-04): van siempre arriba.
-    const orden = (q && commands ? commands(input.value) : []) || [];
-    items = [...orden, ...base.filter((b) => !q || norm(b.label).includes(q)), ...prods];
-    sel = Math.min(sel, Math.max(0, items.length - 1));
-    list.innerHTML = items.map((it, i) => `<div class="pi ${i === sel ? "on" : ""}" data-i="${i}"><span class="pic">${it.icon}</span><span>${it.label.replace(/</g, "&lt;")}</span><small>${it.hint}</small></div>`).join("") || `<div class="hint p16">Sin resultados</div>`;
+  const input = box.querySelector("input");
+  const list = box.querySelector(".palette-list");
+  const foot = box.querySelector(".palette-foot");
+
+  /** Filas visibles: cabeceras de grupo y resultados, en orden. */
+  let filas = [];
+  /** Índices de `filas` que se pueden seleccionar. */
+  let elegibles = [];
+  let sel = 0;
+
+  const pintar = () => {
+    list.innerHTML = filas.map((f, i) => {
+      if (f.head) return `<div class="palette-head">${f.icon ? `<span aria-hidden="true">${f.icon}</span>` : ""}${f.head}</div>`;
+      const on = i === filas[elegibles[sel]] ? " on" : "";
+      return `<div class="pi${on}" role="option" aria-selected="${on ? "true" : "false"}" data-i="${i}">
+        <span class="pic" aria-hidden="true">${f.icon || "•"}</span>
+        <span class="pl">${f.html}</span>
+        <small>${f.detailHTML || f.detail || ""}</small></div>`;
+    }).join("") || `<div class="hint p16">Escribe para buscar en todo el negocio: productos, clientes, ventas, fichas, almacenes y secciones.</div>`;
+    const activo = filas[elegibles[sel]];
+    if (activo) list.querySelector(`[data-i="${elegibles[sel]}"]`)?.scrollIntoView({ block: "nearest" });
   };
-  const run = (i) => { const it = items[i]; closePalette(); it?.run(); };
-  input.addEventListener("input", () => { sel = 0; draw(); });
+
+  const dibujar = () => {
+    const q = input.value;
+    filas = [];
+    const bloques = [];
+    const orden = (commands ? commands(q) : []) || [];
+    if (orden.length) bloques.push({ title: "Venta rápida", icon: "🛒", items: orden });
+    for (const g of (groups ? groups(q) : []) || []) {
+      if (g && Array.isArray(g.items) && g.items.length) bloques.push(g);
+    }
+    for (const b of bloques) {
+      filas.push({ head: b.title, icon: b.icon });
+      for (const it of b.items) {
+        filas.push({
+          icon: it.icon,
+          html: it.html ?? resaltarHTMLLocal(it.label, q),
+          detailHTML: it.detailHTML ?? (it.detail ? resaltarHTMLLocal(it.detail, q) : ""),
+          run: it.run,
+        });
+      }
+    }
+    elegibles = filas.map((f, i) => (f.head ? -1 : i)).filter((i) => i >= 0);
+    sel = Math.min(sel, Math.max(0, elegibles.length - 1));
+    pintar();
+    if (typeof footerText === "function") foot.textContent = footerText(q);
+  };
+
+  /** Resalta sin depender de `search.js`: la paleta también sirve sin búsqueda global. */
+  const resaltarHTMLLocal = (texto, q) => {
+    const limpio = String(texto ?? "");
+    const tokens = String(q ?? "").trim().split(/\s+/).filter((t) => t.length > 1);
+    if (!tokens.length) return escaparLocal(limpio);
+    let html = escaparLocal(limpio);
+    for (const t of tokens) {
+      const seguro = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      try {
+        html = html.replace(new RegExp(`(${seguro})`, "gi"), "<mark>$1</mark>");
+      } catch { /* consulta rara: se deja sin resaltar */ }
+    }
+    return html;
+  };
+  const escaparLocal = (texto) => String(texto ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  let footerText = typeof footer === "function" ? footer : null;
+
+  const mover = (delta) => {
+    if (!elegibles.length) return;
+    sel = (sel + delta + elegibles.length) % elegibles.length;
+    pintar();
+  };
+  const abrir = (i) => {
+    const f = filas[i];
+    closePalette();
+    f?.run?.();
+  };
+
+  input.addEventListener("input", () => { sel = 0; dibujar(); });
   input.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowDown") { sel = (sel + 1) % items.length; draw(); e.preventDefault(); }
-    else if (e.key === "ArrowUp") { sel = (sel - 1 + items.length) % items.length; draw(); e.preventDefault(); }
-    else if (e.key === "Enter") run(sel);
-    else if (e.key === "Escape") closePalette();
+    if (e.key === "ArrowDown") { mover(1); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { mover(-1); e.preventDefault(); }
+    else if (e.key === "Home" && e.ctrlKey) { sel = 0; pintar(); e.preventDefault(); }
+    else if (e.key === "End" && e.ctrlKey) { sel = Math.max(0, elegibles.length - 1); pintar(); e.preventDefault(); }
+    else if (e.key === "Enter") { if (elegibles.length) abrir(elegibles[sel]); e.preventDefault(); }
+    else if (e.key === "Escape") { closePalette(); e.preventDefault(); }
   });
-  box.addEventListener("click", (e) => { const p = e.target.closest(".pi"); if (p) run(+p.dataset.i); else if (e.target === box) closePalette(); });
-  draw();
+  list.addEventListener("mousemove", (e) => {
+    const p = e.target.closest(".pi");
+    if (!p) return;
+    const i = Number(p.dataset.i);
+    const k = elegibles.indexOf(i);
+    if (k >= 0 && k !== sel) { sel = k; pintar(); }
+  });
+  box.addEventListener("click", (e) => {
+    const p = e.target.closest(".pi");
+    if (p) abrir(Number(p.dataset.i));
+    else if (e.target === box) closePalette();
+  });
+  dibujar();
   input.focus();
 }
 export function closePalette() { document.querySelector(".palette-back")?.remove(); }

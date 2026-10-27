@@ -24,11 +24,11 @@
    v13: solicitud de licencia con consentimiento visible y accesible en el flujo de WhatsApp.
    v14: aviso de activación explícita; ya no se ofrece una prueba automática.
    v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos. */
-const CACHE = "novagest-v35";
+const CACHE = "novagest-v36";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js",
-  "./js/monthly.js",
+  "./js/monthly.js", "./js/search.js",
   "./js/theme.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
   "./js/excel-import.js", "./js/license.js", "./js/seed-data.js",
   "./vendor/qrcode.mjs",
