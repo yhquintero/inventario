@@ -411,6 +411,7 @@ kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); 
 .forecast-controls .sel-label { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted);
   text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
 .forecast-controls .sel { min-width: 90px; }
+.forecast-controls input[type="number"] { width: 84px; }
 .forecast-controls .chk { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .forecast-controls .spacer { flex: 1 1 auto; }
 @media print { .forecast-controls { display: none !important; } }

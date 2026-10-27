@@ -2534,7 +2534,7 @@ function forecastView() {
         30, 60 y 90 días (pesa más lo reciente), y los productos nuevos se miden desde su primera venta.</p>
       <div class="row mt8 forecast-controls">
         <label class="sel-label">Cobertura<select id="fcCobertura" class="sel">${opcionesCob.map((d) => `<option value="${d}" ${d === coberturaPrevision() ? "selected" : ""}>${d} días</option>`).join("")}</select></label>
-        <label class="sel-label">Plazo del proveedor <input id="fcPlazo" class="sel" type="number" min="0" max="180" step="1" value="${plazoPrevision()}" style="width:80px"> días</label>
+        <label class="sel-label">Plazo del proveedor <input id="fcPlazo" class="sel" type="number" min="0" max="180" step="1" value="${plazoPrevision()}"> días</label>
         <label class="chk"><input type="checkbox" id="fcTodos" ${ui.forecastTodos ? "checked" : ""}> Ver también los que no hace falta pedir</label>
         <span class="spacer"></span>
         ${puedeExportar ? `<button class="btn ghost small" data-act="fc-copy">📋 Copiar pedido</button>
