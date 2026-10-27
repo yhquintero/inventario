@@ -26,6 +26,22 @@ también las capturas de `docs/assets/`, que muestran estas imágenes.
 
 En la interfaz son decorativas (`alt=""`): el nombre de la categoría va en texto.
 
+## Carrusel para redes (`docs/assets/redes/`, G-03)
+
+Seis piezas de **1080 × 1350 px** (`01-portada.png` … `06-cierre.png`) y su ZIP
+`novagest-carrusel-6.zip`, generadas por `tools/build_carrusel_redes.py`.
+
+- **Qué contienen:** degradado y formas geométricas dibujadas por el script, el icono de la marca
+  (`brand/novagest-icon.png`) y **capturas reales** de la aplicación tomadas de
+  `docs/assets/capturas/` (venta rápida, cuadre diario, inventario) más la del móvil
+  (`docs/assets/novagest-movil.png`).
+- **Procedencia:** obra propia del proyecto, generada aquí. No hay fotos, plantillas ni material de
+  terceros, y no se usan imágenes de IA en estas piezas.
+- **Deterministas:** el mismo script y los mismos insumos producen las mismas piezas; se pueden
+  regenerar en cualquier momento sin depender de archivos externos.
+- **Cómo se publican:** `docs/REDES_SOCIALES.md` (va también dentro del ZIP como
+  `textos-para-publicar.md`).
+
 ## Capturas del README (`docs/assets/`)
 
 - `docs/assets/capturas/*.png`: capturas de la propia aplicación NovaGest tomadas el
