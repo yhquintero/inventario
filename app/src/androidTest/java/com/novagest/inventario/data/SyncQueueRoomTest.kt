@@ -12,6 +12,7 @@ import com.novagest.inventario.data.sync.SyncRecord
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -149,7 +150,10 @@ class SyncQueueRoomTest {
         val editado = SyncRecord(id = "p1", updatedAt = 2_000L, deleted = false)
 
         assertTrue("el cambio posterior gana al borrado", ConflictResolver.localWins(editado, borrado))
-        assertTrue("un borrado más reciente sí se aplica", ConflictResolver.localWins(borrado, editado))
+        // El borrado tiene que ser el MÁS RECIENTE para aplicarse; si es más viejo, pierde.
+        val borradoNuevo = SyncRecord(id = "p1", updatedAt = 3_000L, deleted = true)
+        assertTrue("un borrado más reciente sí se aplica", ConflictResolver.localWins(borradoNuevo, editado))
+        assertFalse("un borrado más viejo no pisa la edición", ConflictResolver.localWins(borrado, editado))
     }
 
     @Test
@@ -172,9 +176,14 @@ class SyncQueueRoomTest {
     fun fusionarRoomConElServidorConservaTodo() = runBlocking {
         db.products().insert(producto("Arroz", updatedAt = 2_000L))
         db.products().insert(producto("Frijol", updatedAt = 1_000L))
-        val locales = db.products().all().mapIndexed { i, p ->
-            SyncRecord(id = "srv-$i", updatedAt = p.updatedAt, payload = p.name)
-        }
+        // Se toman de la base real, pero emparejados por nombre: `all()` no garantiza el orden.
+        val guardados = db.products().all().associateBy { it.name }
+        val arroz = guardados.getValue("Arroz")
+        val frijol = guardados.getValue("Frijol")
+        val locales = listOf(
+            SyncRecord(id = "srv-0", updatedAt = arroz.updatedAt, payload = arroz.name),
+            SyncRecord(id = "srv-1", updatedAt = frijol.updatedAt, payload = frijol.name),
+        )
 
         val remotos = listOf(
             SyncRecord(id = "srv-0", updatedAt = 1_000L, payload = "Arroz viejo"), // pierde
