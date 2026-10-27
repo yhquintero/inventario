@@ -1192,5 +1192,33 @@ test("W-03 · las alertas de reposición dicen cuándo se agota y se pueden sile
   }
 });
 
+test("W-08 · el modo mostrador oculta los menús y deja tres accesos grandes", () => {
+  try {
+    localStorage.removeItem("novagest.kiosco");
+    assert.doesNotMatch(go("home"), /kiosk-bar/, "al inicio no hay franja de mostrador");
+    assert.match(app.innerHTML, /data-act="kiosk-on"/, "hay botón para activarlo");
+
+    clickMatching("act", { act: "kiosk-on" });
+    assert.equal(localStorage.getItem("novagest.kiosco"), "1", "la preferencia queda guardada en el equipo");
+    assert.equal(document.documentElement.dataset.kiosk, "1", "la hoja de estilos oculta menús y barra");
+    assert.match(app.innerHTML, /class="kiosk-bar"/, "aparece la franja del mostrador");
+    assert.match(app.innerHTML, /data-nav="pos"/, "acceso grande a vender");
+    assert.match(app.innerHTML, /data-nav="inventory"/, "acceso grande al inventario");
+    assert.match(app.innerHTML, /data-nav="cuadre"/, "acceso grande al cuadre");
+    assert.match(app.innerHTML, /data-act="kiosk-off"/, "se puede salir");
+
+    // Al cambiar de pantalla el modo se mantiene.
+    assert.match(go("inventory"), /class="kiosk-bar"/);
+
+    clickMatching("act", { act: "kiosk-off" });
+    assert.equal(localStorage.getItem("novagest.kiosco"), null);
+    assert.equal(document.documentElement.dataset.kiosk, "0");
+    assert.doesNotMatch(app.innerHTML, /class="kiosk-bar"/);
+  } finally {
+    localStorage.removeItem("novagest.kiosco");
+    go("home");
+  }
+});
+
 console.log(`\n${ok} comprobaciones correctas, ${fail} fallidas\n`);
 process.exit(fail ? 1 : 0);

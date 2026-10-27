@@ -1,4 +1,5 @@
 /* Service worker: la interfaz abre al instante y sin conexión; los datos (/api) siempre van al servidor.
+   v31: modo mostrador para la tablet (W-08) y módulo nuevo kiosk.js.
    v30: alertas de reposición predictivas (W-03) y módulo nuevo alerts.js.
    v29: auditoría encadenada: la pantalla de Seguridad enseña la huella de cada línea y el
         botón «Comprobar cadena» (S-01).
@@ -23,10 +24,10 @@
    v13: solicitud de licencia con consentimiento visible y accesible en el flujo de WhatsApp.
    v14: aviso de activación explícita; ya no se ofrece una prueba automática.
    v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos. */
-const CACHE = "novagest-v30";
+const CACHE = "novagest-v31";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
-  "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
+  "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
   "./js/excel-import.js", "./js/license.js", "./js/seed-data.js",
   "./vendor/qrcode.mjs",
   "./public/icon-app.png", "./public/icon-192.png", "./public/icon-512.png",

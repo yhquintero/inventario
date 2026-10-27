@@ -18,6 +18,7 @@ import { findSaleByCode, saleTicket, ticketCode, ticketTotals, verifyTicket } fr
 import { quickSalePlan, quickSaleLabel, quickSaleSummary } from "./quick-sale.js";
 import { buildSheet, sheetFileName } from "./xlsx-export.js";
 import { alertsSummary, alertSignature, severityLabel, shouldNotify, sortAlerts, stockAlerts } from "./alerts.js";
+import { KIOSK_ACTIONS, canFullscreen, kioskClock, kioskHint, readKiosk, writeKiosk } from "./kiosk.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -183,6 +184,44 @@ const catBadge = (cat) => {
 };
 
 /* ============================ SHELL ============================ */
+/* ============================ MODO KIOSCO (W-08) ============================ */
+// La tablet del mostrador se queda en la app: sin menú lateral, sin barra del navegador
+// (cuando el navegador lo permite) y con tres accesos grandes. La preferencia es del
+// equipo, así que se guarda en el navegador y no en los datos compartidos del negocio.
+function kioscoActivo() {
+  if (ui.kiosco === undefined) ui.kiosco = readKiosk(safeStorage());
+  return !!ui.kiosco;
+}
+function safeStorage() {
+  try { return window.localStorage; } catch { return undefined; }
+}
+function pintarKiosco() {
+  const on = kioscoActivo();
+  document.documentElement.dataset.kiosk = on ? "1" : "0";
+  return on;
+}
+/** Entra o sale del modo mostrador y, si se puede, pone la app a pantalla completa. */
+function setKiosco(on) {
+  ui.kiosco = writeKiosk(safeStorage(), on);
+  if (on) document.documentElement.requestFullscreen?.().catch?.(() => {});
+  else if (document.fullscreenElement) document.exitFullscreen?.().catch?.(() => {});
+  pintarKiosco();
+}
+function kioskBarMarkup() {
+  if (!kioscoActivo()) return "";
+  const full = !!document.fullscreenElement;
+  return `<div class="kiosk-bar" role="region" aria-label="Modo mostrador">
+    <span class="kiosk-reloj">${esc(store.state.settings.businessName || "NovaGest")} · ${esc(kioskClock(new Date()))}</span>
+    <nav class="kiosk-nav">${KIOSK_ACTIONS.filter((a) => allowed(routes[a.route]?.perm)).map((a) =>
+      `<button class="btn kiosk-btn ${ui.route === a.route ? "on" : ""}" data-nav="${a.route}" aria-label="${esc(a.label)}: ${esc(a.hint)}"><span aria-hidden="true">${a.icon}</span> ${esc(a.label)}</button>`).join("")}</nav>
+    <span class="row">
+      <span class="hint kiosk-hint">${esc(kioskHint(true, full))}</span>
+      ${!full && canFullscreen(document) ? `<button class="btn ghost small" data-act="kiosk-full" aria-label="Pantalla completa">⛶ Pantalla completa</button>` : ""}
+      <button class="btn ghost small" data-act="kiosk-off" aria-label="Salir del modo mostrador">✕ Salir</button>
+    </span>
+  </div>`;
+}
+
 function shell(body) {
   const u = store.state.session;
   const items = Object.entries(routes).filter(([, r]) => allowed(r.perm) && !r.hidden);
@@ -221,11 +260,12 @@ function shell(body) {
             const n = alertasReposicion().filter((a) => a.severity === "alta").length;
             return `<button class="btn ghost small" data-act="alerts-open" aria-label="Alertas de reposición${n ? `: ${n} urgente(s)` : ""}" data-tip="${n ? `${n} producto(s) urgente(s) por reponer` : "Sin urgencias de reposición"}">🔔${n ? `<span class="pill">${n}</span>` : ""}</button>`;
           })()}
+          <button class="btn ghost small kiosk-toggle" data-act="kiosk-on" title="Modo mostrador (tablet sin menús)" aria-label="Activar el modo mostrador para la tablet">⛶</button>
           <button class="btn ghost small kbd-btn" data-act="palette" aria-label="Búsqueda rápida (Ctrl+K)">⌘K</button>
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema" aria-label="Cambiar tema: claro, oscuro o automático">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
         </div>
-        <main class="content dashboard-page" id="contenido">${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
+        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
       </section>
     </div>
     ${consentBanner()}
@@ -3580,6 +3620,7 @@ function hydrateStyles(root = document) {
 function render() {
   rememberSidebarScroll();
   applyTheme();
+  pintarKiosco();
   // Páginas legales: públicas, también sin licencia ni sesión.
   if (ui.route === "legal") {
     if (ui.legalData === null) fetchLegal().then(() => { if (ui.route === "legal") render(); });
@@ -3718,6 +3759,8 @@ document.addEventListener("keydown", (e) => {
   const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName);
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openPalette(paletteCtx()); return; }
   if (e.key === "Escape" && ui.modal) { ui.modal = null; render(); return; }
+  // W-08: con Escape se sale de la pantalla completa; si ya no hay pantalla completa, del modo mostrador.
+  if (e.key === "Escape" && kioscoActivo() && !document.fullscreenElement) { setKiosco(false); render(); return; }
   // Foco atrapado dentro del modal: con Tab no se debe llegar al contenido de detrás.
   // (render() ya enfoca el primer campo al abrirlo; esto cierra el círculo.)
   if (e.key === "Tab" && ui.modal) {
@@ -4314,6 +4357,9 @@ function onClick(e) {
   else if (act === "reopen-day") { const reason = prompt("Motivo de la reapertura (queda en la auditoría):"); if (reason) store.reopenDay(d.date, reason).then((r) => result(r, "Día reabierto")); }
   else if (act === "confirm-yes") { const fn = ui.confirm; ui.confirm = null; ui.modal = null; fn?.(); render(); }
   else if (act === "logout") { ui.sec = null; ui.usersLoaded = false; ui.backups = null; ui.license.infoTried = false; ui.license.infoLoaded = false; store.logout(); }
+  else if (act === "kiosk-on") { setKiosco(true); toast("Modo mostrador activado", "ok"); render(); }
+  else if (act === "kiosk-off") { setKiosco(false); toast("Modo mostrador desactivado", "ok"); render(); }
+  else if (act === "kiosk-full") { document.documentElement.requestFullscreen?.().then?.(() => render()); }
   else if (act === "alerts-open") { ui.modal = alertsModalMarkup(alertasReposicion()); render(); }
   else if (act === "alerts-go") { ui.modal = null; navTo("inventory"); }
   else if (act === "alerts-silence") {
