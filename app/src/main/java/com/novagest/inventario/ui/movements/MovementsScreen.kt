@@ -42,6 +42,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.novagest.inventario.data.printer.BluetoothPrinter
 import com.novagest.inventario.data.printer.EscPos
+import com.novagest.inventario.data.printer.ReceiptShare
 import com.novagest.inventario.data.printer.TicketFactory
 import com.novagest.inventario.data.repository.MovementRepository
 import com.novagest.inventario.data.repository.SettingsRepository
@@ -69,11 +70,49 @@ class MovementViewModel @Inject constructor(
     private val repo: MovementRepository,
     products: ProductRepository,
     private val printer: BluetoothPrinter,
-    private val settings: SettingsRepository
+    private val settings: SettingsRepository,
+    private val sync: com.novagest.inventario.data.sync.SyncManager
 ) : ViewModel() {
     val movements = repo.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val products = products.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     var message by mutableStateOf<String?>(null)
+
+    /** Clientes del libro de fiados: sirven para poner el saldo en el ticket que se comparte (A-19). */
+    var customers by mutableStateOf<List<com.novagest.inventario.domain.model.Customer>>(emptyList())
+        private set
+
+    init { reloadCustomers() }
+
+    fun reloadCustomers() {
+        customers = runCatching { sync.customers() }.getOrDefault(emptyList())
+    }
+
+    /** Lo que debe un cliente, sumando sus fiados pendientes (A-19). */
+    fun pendingOf(customerName: String): Double =
+        runCatching {
+            val id = sync.customers().firstOrNull { it.name.equals(customerName, ignoreCase = true) }?.id
+            if (id == null) 0.0 else sync.credits().filter { it.customerId == id }.sumOf { it.pending }
+        }.getOrDefault(0.0)
+
+    /**
+     * Prepara el ticket para compartir: mismo formato que el impreso, con el saldo del
+     * cliente elegido.
+     */
+    suspend fun prepareShare(
+        m: Movement,
+        customer: com.novagest.inventario.domain.model.Customer? = null
+    ): ReceiptShare.SharePayload {
+        val conf = settings.get()
+        return ReceiptShare.payloadFor(
+            movement = m,
+            businessName = conf.businessName,
+            rateCupUsd = conf.defaultCupUsd,
+            customerName = customer?.name ?: "",
+            customerPhone = customer?.phone ?: "",
+            pendingOf = { nombre -> pendingOf(nombre) },
+            width = printer.savedWidth
+        )
+    }
 
     /** Reimprime el ticket de una venta del historial (A-15). */
     fun printReceipt(m: Movement) {
@@ -113,6 +152,8 @@ fun MovementsScreen(user: UserAccount, vm: MovementViewModel = hiltViewModel()) 
     // A-15: imprimir necesita el permiso de Bluetooth del teléfono (Android 12+).
     val context = LocalContext.current
     var pendingPrint by remember { mutableStateOf<Movement?>(null) }
+    // A-19: ticket listo para WhatsApp (imagen + texto con el saldo del cliente).
+    var sharing by remember { mutableStateOf<Movement?>(null) }
     val blePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val m = pendingPrint
         pendingPrint = null
@@ -151,12 +192,19 @@ fun MovementsScreen(user: UserAccount, vm: MovementViewModel = hiltViewModel()) 
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         if (m.type == MovementType.VENTA) {
-                            TextButton(onClick = { doPrint(m) }) { Text("🧾 Imprimir ticket") }
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                TextButton(onClick = { doPrint(m) }) { Text("🧾 Imprimir ticket") }
+                                TextButton(onClick = { sharing = m }) { Text("📤 Compartir") }
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    sharing?.let { m ->
+        ShareReceiptDialog(movement = m, vm = vm, onDismiss = { sharing = null })
     }
 
     if (open) {

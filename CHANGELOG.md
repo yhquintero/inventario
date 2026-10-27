@@ -1,4 +1,23 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XLII) · Previsión de compra (W-22)
+﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XLIII) · Compartir el ticket por WhatsApp (A-19)
+
+- **El cliente se lleva su comprobante sin papel.** En **Android → Movimientos**, cada venta gana
+  el botón **📤 Compartir**: abre una ventana con el **texto exacto** que va a recibir el cliente y
+  permite enviar la **imagen del ticket** con el texto como pie, abrir **WhatsApp** con el mensaje
+  escrito o **copiar** el texto.
+- **Con el saldo del fiado.** Si la venta es a fiado, se elige el **cliente** y el mensaje añade
+  **su saldo pendiente** (o «al día» si no debe nada). Sin cliente no se menciona ningún saldo: no
+  se inventan cifras.
+- **El texto, pensado para WhatsApp:** negocio, fecha y hora, una línea por producto, **total** en
+  negrita, equivalente en **CUP** a la tasa del día, forma de pago y quién atendió.
+- **La imagen se dibuja en el teléfono** (nada se sube a ningún servidor) y se comparte con el
+  `FileProvider` que ya usaba la app: **sin permisos nuevos**. Se guarda en la caché como
+  `ticket-AAAA-MM-DD-HHmm.png`.
+- **Pruebas:** `ReceiptShareTest` con **20 comprobaciones** en la máquina de desarrollo (texto,
+  saldo, tasa, enlaces `wa.me` codificados, nombre del archivo y payload completo). El cálculo vive
+  en `data/printer/ReceiptShare.kt`, sin Android, y el dibujo en `ReceiptImage.kt`.
+- **Manual:** Android → Movimientos, con el paso a paso de las tres formas de enviar.
+
+## NovaGest v1.0.0 · revisión 2026-10-26 (XLII) · Previsión de compra (W-22)
 
 - **«¿Qué compro y cuánto?»** Nueva pantalla en **Análisis → Previsión de compra**: con las ventas
   reales, la existencia del almacén en uso, el **plazo del proveedor** y la **cobertura** deseada,

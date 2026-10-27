@@ -2361,6 +2361,24 @@ esa venta en una impresora térmica Bluetooth.
 fecha, hora y quién atendió, y lo manda a la impresora de Ajustes. La primera vez Android pedirá
 el permiso de Bluetooth.
 
+**📤 Enviar el ticket por WhatsApp.** Al lado está **📤 Compartir**:
+
+1. Se abre una ventana con el **texto tal como lo va a recibir el cliente**: negocio, fecha y hora,
+   líneas con cantidad e importe, **total**, equivalente en CUP, forma de pago y quién atendió.
+2. Si la venta es **a fiado** (o el cliente tiene deuda), elija el **cliente** en la lista: el
+   mensaje añade **su saldo pendiente** (o «al día», si no debe nada). Si no elige ninguno, el
+   mensaje sale sin saldo: **no se inventa** ninguna cifra.
+3. Elija la salida:
+   - **📤 Imagen + texto**: abre el selector de Android. Al elegir WhatsApp, el cliente recibe la
+     **imagen del ticket** con el texto como pie. Sirve igual para Telegram, correo o guardarlo.
+   - **WhatsApp (texto)**: abre WhatsApp directamente con el mensaje escrito (si no está
+     instalado, se abre en el navegador).
+   - **Copiar texto**: deja el mensaje en el portapapeles para pegarlo donde quiera.
+
+> [!NOTE]
+> La imagen se genera en el propio teléfono (no se envía nada a ningún servidor) y se guarda en la
+> caché de la app. El formato es el mismo del ticket impreso, así que se lee igual en pantalla.
+
 ## 16.5 Sincronización: los tres iconos
 
 | Icono | Estado | Qué significa |
