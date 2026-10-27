@@ -1,4 +1,24 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XLI) · Copia externa con verificación (S-14)
+﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XLII) · Previsión de compra (W-22)
+
+- **«¿Qué compro y cuánto?»** Nueva pantalla en **Análisis → Previsión de compra**: con las ventas
+  reales, la existencia del almacén en uso, el **plazo del proveedor** y la **cobertura** deseada,
+  dice la cantidad a pedir de cada producto y **por qué**.
+- **Rotación ponderada de 30 / 60 / 90 días** (50 % / 30 % / 20 %): reacciona antes a un producto
+  que empieza a venderse y no se hunde con los que ya no se mueven. Los productos nuevos se miden
+  **desde su primera venta**, y los que no venden y están sobre su mínimo **no se piden**.
+- **Punto de pedido** = ritmo × (plazo + cobertura) + mínimo, con **tendencia** (▲ sube, ▼ baja,
+  = estable), **días de existencia** y estado por urgencia (agotado, urgente, pronto, bajo mínimo).
+- **Del cálculo a la entrada en un clic:** el botón **Entrada** abre el formulario de mercancía con
+  el producto y la cantidad sugerida ya puestos. **📋 Copiar pedido** genera la lista para WhatsApp,
+  **⬇ CSV** la descarga y **🖨 PDF** la imprime.
+- **El plazo se guarda en Ajustes** (`leadTimeDays`) y la cobertura usa la misma que las alertas de
+  reposición, así que las dos pantallas dicen lo mismo.
+- **Cálculo aislado y probado:** `web/js/forecast.js` (sin DOM ni store) con **85 comprobaciones** en
+  `tools/test_prevision_compra.mjs`; cobertura **99,2 %**. Prueba de humo: **77** comprobaciones y
+  service worker **v37**.
+- **Manual:** nuevo apartado **10.7 Previsión de compra**, con el significado de cada columna.
+
+## NovaGest v1.0.0 · revisión 2026-10-26 (XLI) · Copia externa con verificación (S-14)
 
 - **La copia sale del equipo.** Además de la copia cifrada local, el servidor puede enviarla a
   una **carpeta de red** (`BACKUP_MIRROR_DIRS`) o a un **WebDAV** (`BACKUP_WEBDAV_URL`, usuario y

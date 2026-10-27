@@ -25,6 +25,10 @@ import {
   pieDeBusqueda, resaltarHTML,
 } from "./search.js";
 import {
+  motivo as motivoPrevision, previsionCompra, previsionCsv, resumenPrevision,
+  TENDENCIAS as TENDENCIAS_PREVISION, URGENCIAS as URGENCIAS_PREVISION, listaCompraTexto,
+} from "./forecast.js";
+import {
   applyTextSize, applyTheme as aplicarTemaDocumento, nextTheme, readTextSize,
   systemPrefersDark, textSizeOptions, themeIcon, themeLabel, watchSystemTheme, writeTextSize,
 } from "./theme.js";
@@ -47,6 +51,7 @@ const routes = {
   analytics: { title: "Análisis y metas", icon: "📈", perm: "REPORTS_VIEW", group: "Análisis" },
   reports: { title: "Comprobación", icon: "▦", perm: "REPORTS_VIEW", group: "Análisis", search: true },
   monthly: { title: "Informe mensual", icon: "🗓", perm: "REPORTS_VIEW", group: "Análisis" },
+  forecast: { title: "Previsión de compra", icon: "🧮", perm: "REPORTS_VIEW", group: "Análisis", search: true },
   history: { title: "Historial precios", icon: "↻", perm: "HISTORY_VIEW", group: "Análisis", search: true },
   finance: { title: "Monedas", icon: "$", perm: "REPORTS_FINANCIAL", group: "Análisis" },
   fichas: { title: "Fichas de costo · IPV", icon: "▤", perm: "IPV_VIEW", group: "Análisis", search: true },
@@ -94,6 +99,7 @@ let ui = {
   },
   verifyResult: null, verifyText: "", busy: false, modalReturn: null, _hadModal: false,
   custTab: "clientes",
+  forecastCobertura: null, forecastPlazo: null, forecastTodos: false,
   fichaTab: "fichas", fichaSel: null, fichaEdit: null, fichaShowTrash: false, legalDoc: "aviso", legalData: null,
 };
 
@@ -2437,6 +2443,7 @@ function settingsView() {
       <label>Tema<select name="theme">${["system", "light", "dark"].map((t) => `<option value="${t}" ${(s.theme || "system") === t ? "selected" : ""}>${esc(themeLabel(t))}</option>`).join("")}</select></label>
       <label>Tamaño del texto<select id="textoSize">${textSizeOptions().map((o) => `<option value="${o.value}" ${(ui.textSize || readTextSize(safeStorage())) === o.value ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select></label>
       <label>Cobertura de reposición <small>días</small><input name="restockCover" ${dis} type="number" min="1" max="365" value="${diasDeCobertura()}"></label>
+      <label>Plazo del proveedor <small>días que tarda en servir</small><input name="leadTimeDays" ${dis} type="number" min="0" max="180" value="${plazoPrevision()}"></label>
       <label>Alertas stock bajo<select name="lowStockAlerts" ${dis}><option value="true" ${s.lowStockAlerts ? "selected" : ""}>Sí</option><option value="false" ${!s.lowStockAlerts ? "selected" : ""}>No</option></select></label>
       <label>Comisión<select name="comisionSoloGestor" ${dis}><option value="false" ${!s.comisionSoloGestor ? "selected" : ""}>En todas las ventas (como el Excel)</option><option value="true" ${s.comisionSoloGestor ? "selected" : ""}>Solo ventas GESTOR</option></select></label>
       <label>Meta diaria <small>USD</small><input name="goalDaily" ${dis} type="number" step="any" value="${s.goalDaily}"></label>
@@ -2468,6 +2475,107 @@ function settingsView() {
 }
 
 /* ============================ CLIENTES Y FIADOS ============================ */
+/* ==================== W-22 · Previsión de compra ==================== */
+/** Días de cobertura que se quieren tener en el estante (Ajustes → reposición). */
+function coberturaPrevision() {
+  const n = Number(ui.forecastCobertura ?? store.state.settings.restockCover);
+  return Number.isFinite(n) && n > 0 ? Math.min(365, Math.round(n)) : 14;
+}
+/** Días que tarda el proveedor: se guarda con la elección de la pantalla. */
+function plazoPrevision() {
+  const n = Number(ui.forecastPlazo ?? store.state.settings.leadTimeDays ?? 7);
+  return Number.isFinite(n) && n >= 0 ? Math.min(180, Math.round(n)) : 7;
+}
+
+/** Filas de la previsión, con el almacén en uso como referencia. */
+function filasPrevision({ incluirTodos = ui.forecastTodos } = {}) {
+  const wid = store.activeWarehouseId();
+  const multi = store.warehousesActive().length > 1;
+  return previsionCompra(store.activeProducts(), store.activeMovements(), {
+    hoy: lastDataDate() > todayISO() ? lastDataDate() : todayISO(),
+    cobertura: coberturaPrevision(),
+    plazo: plazoPrevision(),
+    incluirTodos,
+    // Con un solo almacén se usa la existencia total; con varios, la del almacén en uso.
+    stockDe: (p) => (multi ? store.stockIn(p, wid) : Math.max(0, Number(p.stockActual) || 0)),
+  });
+}
+
+/**
+ * Pantalla de previsión de compra (W-22).
+ *
+ * Responde «¿qué compro y cuánto?» con la rotación de 30/60/90 días, lo que hay en el
+ * almacén en uso, el plazo del proveedor y la cobertura deseada. Cada fila explica el
+ * cálculo y se puede pasar a una **entrada** en un clic.
+ */
+function forecastView() {
+  const filas = filasPrevision();
+  const todas = filasPrevision({ incluirTodos: true });
+  const resumen = resumenPrevision(filas);
+  const wid = store.activeWarehouseId();
+  const puedeEntrar = allowed("MOVEMENT_CREATE");
+  const puedeExportar = allowed("REPORTS_VIEW");
+  const opcionesCob = [7, 14, 21, 30, 45, 60];
+  if (!opcionesCob.includes(coberturaPrevision())) opcionesCob.push(coberturaPrevision());
+  const urgenciaDe = (u) => URGENCIAS_PREVISION[u] || URGENCIAS_PREVISION.normal;
+  const tendenciaDe = (t) => TENDENCIAS_PREVISION[t] || TENDENCIAS_PREVISION["sin-datos"];
+  return `
+    <div class="kpis">
+      ${kpi("Productos por pedir", String(resumen.productos), `${resumen.urgentes} urgente(s)`, resumen.urgentes ? "red" : "green")}
+      ${kpi("Unidades a comprar", qty(resumen.unidades), `cobertura ${coberturaPrevision()} días + plazo ${plazoPrevision()}`, "gold")}
+      ${kpi("Costo estimado", usd(resumen.costo), "a precio de costo", "blue")}
+      ${kpi("Venta subiendo", String(resumen.suben), `${resumen.sinVentas} sin ventas en 90 días`, "teal")}
+    </div>
+    <div class="card mt14">
+      <div class="card-h"><span class="k">🧮 ¿Qué compro y cuánto?</span>
+        <span class="hint">Almacén: ${esc(store.warehouseName(wid))}</span></div>
+      <p class="hint">Cada sugerencia cubre <b>lo que tarda el proveedor</b> más la <b>cobertura</b> que quiera tener,
+        y nunca baja del <b>mínimo</b> del producto. La rotación se pondera con las ventas de los últimos
+        30, 60 y 90 días (pesa más lo reciente), y los productos nuevos se miden desde su primera venta.</p>
+      <div class="row mt8 forecast-controls">
+        <label class="sel-label">Cobertura<select id="fcCobertura" class="sel">${opcionesCob.map((d) => `<option value="${d}" ${d === coberturaPrevision() ? "selected" : ""}>${d} días</option>`).join("")}</select></label>
+        <label class="sel-label">Plazo del proveedor <input id="fcPlazo" class="sel" type="number" min="0" max="180" step="1" value="${plazoPrevision()}" style="width:80px"> días</label>
+        <label class="chk"><input type="checkbox" id="fcTodos" ${ui.forecastTodos ? "checked" : ""}> Ver también los que no hace falta pedir</label>
+        <span class="spacer"></span>
+        ${puedeExportar ? `<button class="btn ghost small" data-act="fc-copy">📋 Copiar pedido</button>
+        <button class="btn ghost small" data-act="fc-csv">⬇ CSV</button>` : ""}
+        <button class="btn ghost small" data-act="print">🖨 PDF</button>
+      </div>
+    </div>
+    <div class="card table-wrap flush mt14"><table>
+      <thead><tr>
+        <th>Producto</th><th class="r">Hay</th><th class="r">Mín.</th>
+        <th class="r" data-tip="Unidades vendidas en los últimos 30 / 60 / 90 días">Vendidos 30 · 60 · 90</th>
+        <th class="r">Por día</th><th>Tendencia</th><th class="r">Alcanza</th>
+        <th class="r" data-tip="Lo que hay que tener para cubrir el plazo del proveedor más la cobertura, más el mínimo">Punto de pedido</th>
+        <th class="r">Pedir</th><th class="r">Costo</th><th>Estado</th>${puedeEntrar ? "<th></th>" : ""}
+      </tr></thead>
+      <tbody>${filas.map((f) => {
+        const u = urgenciaDe(f.urgencia);
+        const t = tendenciaDe(f.tendencia);
+        const alcanza = Number.isFinite(f.diasRestantes) ? `${f.diasRestantes} d` : "sin ventas";
+        return `<tr>
+          <td><strong>${esc(f.nombre)}</strong><div class="hint">${esc(f.categoria)}</div></td>
+          <td class="mono r">${qty(f.stock)}</td>
+          <td class="mono r">${qty(f.minimo)}</td>
+          <td class="mono r">${qty(f.vendidos[30])} · ${qty(f.vendidos[60])} · ${qty(f.vendidos[90])}</td>
+          <td class="mono r" data-tip="${esc(motivoPrevision(f))}">${f.ritmo}</td>
+          <td><span class="tag ${t.tono}">${t.etiqueta}</span></td>
+          <td class="mono r">${alcanza}</td>
+          <td class="mono r">${qty(f.puntoPedido)}</td>
+          <td class="mono r"><b>${qty(f.sugerido)}</b></td>
+          <td class="mono r">${f.costo ? usd(f.costo) : "—"}</td>
+          <td><span class="tag ${u.tono}">${u.etiqueta}</span></td>
+          ${puedeEntrar ? `<td class="nowrap">${f.sugerido ? `<button class="btn small" data-fc-order="${esc(f.id)}">Entrada</button>` : ""}</td>` : ""}
+        </tr>`;
+      }).join("") || `<tr><td colspan="${puedeEntrar ? 12 : 11}" class="empty">Con esta cobertura y este plazo no hay nada que pedir.
+        Baje la cobertura, suba el plazo o revise las ventas del período.</td></tr>`}</tbody>
+    </table></div>
+    <div class="hline dashboard-total"><span>${esc(resumen.texto)}</span><b class="mono">${qty(resumen.unidades)} uds · ${usd(resumen.costo)}</b></div>
+    <p class="hint mt8">Se revisaron ${todas.length} producto(s) activos. «Alcanza» son los días que dura la existencia al ritmo
+      actual; «Punto de pedido» es la existencia a la que hay que volver para no quedarse sin mercancía.</p>`;
+}
+
 function customersView() {
   const canEdit = allowed("CUSTOMER_EDIT");
   const customers = store.activeCustomers().filter((c) => !ui.q || has(c.name, ui.q) || has(c.phone || "", ui.q));
@@ -3634,11 +3742,15 @@ function productModal(p = null, presetBarcode = "") {
   ui.pendingImage = undefined;
 }
 
-function movementModal(m = null, productId = null) {
+function movementModal(m = null, productId = null, prefill = {}) {
   const products = store.activeProducts();
   const whs = store.warehousesActive();
   const wid = m ? store.warehouseOf(m) : store.activeWarehouseId();
-  const x = m || { productId: productId || products[0]?.id, type: "VENTA", center: "TIENDA", quantity: 1, date: lastDataDate() > todayISO() ? lastDataDate() : todayISO(), notes: "", unitPriceUsd: "", domicilioCup: 0, warehouseId: wid };
+  const x = m || {
+    productId: productId || products[0]?.id, type: "VENTA", center: "TIENDA", quantity: 1,
+    date: lastDataDate() > todayISO() ? lastDataDate() : todayISO(), notes: "", unitPriceUsd: "",
+    domicilioCup: 0, warehouseId: wid, ...(prefill || {}),
+  };
   modal(m ? "Modificar movimiento" : "Nuevo movimiento", `
     <label>PRODUCTO <input id="movProdSearch" placeholder="Filtrar productos…" autocomplete="off"></label>
     <select name="productId" id="movProd" size="6" class="prod-list" required>
@@ -3881,7 +3993,7 @@ function readFichaEditor() {
 
 /* ============================ RENDER ============================ */
 function page() {
-  const views = { monthly: monthlyView, verificar: verifyView, license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, fichas: fichasView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
+  const views = { forecast: forecastView, monthly: monthlyView, verificar: verifyView, license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, fichas: fichasView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
   return (views[ui.route] || homeView)();
 }
 
@@ -4359,6 +4471,14 @@ function bindApp() {
   $("#catFilter")?.addEventListener("change", (e) => { ui.cat = e.target.value; render(); });
   $("#sortSel")?.addEventListener("change", (e) => { ui.sort = e.target.value; render(); });
   $("#movDate")?.addEventListener("change", (e) => { ui.movDate = e.target.value; render(); });
+  // W-22 · previsión de compra: cobertura, plazo y "ver todo"
+  $("#fcCobertura")?.addEventListener("change", (e) => { ui.forecastCobertura = Number(e.target.value) || 14; render(); });
+  $("#fcPlazo")?.addEventListener("change", (e) => {
+    ui.forecastPlazo = Math.min(180, Math.max(0, Number(e.target.value) || 0));
+    store.saveSettings({ leadTimeDays: ui.forecastPlazo });
+    render();
+  });
+  $("#fcTodos")?.addEventListener("change", (e) => { ui.forecastTodos = !!e.target.checked; render(); });
   $("#cuadreDate")?.addEventListener("change", (e) => { ui.cuadreDate = e.target.value; render(); });
   $("#weekDate")?.addEventListener("change", (e) => { ui.weekDate = e.target.value; render(); });
   $("#reportDate")?.addEventListener("change", (e) => { ui.reportDate = e.target.value; render(); });
@@ -4440,7 +4560,7 @@ function bindApp() {
     if (!["ADMINISTRADOR", "JEFE"].includes(role())) { store.saveSettings({ theme: fd.get("theme") }); return toast("Tema guardado", "ok"); }
     const soloG = fd.get("comisionSoloGestor") === "true";
     const changed = soloG !== !!store.state.settings.comisionSoloGestor;
-    store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", restockCover: Math.min(365, Math.max(1, Number(fd.get("restockCover")) || 14)), comisionSoloGestor: soloG, goalDaily: Number(fd.get("goalDaily")) || 0, goalWeekly: Number(fd.get("goalWeekly")) || 0, sessionMinutes: Math.max(1, Number(fd.get("sessionMinutes")) || 20) });
+    store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", restockCover: Math.min(365, Math.max(1, Number(fd.get("restockCover")) || 14)), leadTimeDays: Math.min(180, Math.max(0, Number(fd.get("leadTimeDays")) || 0)), comisionSoloGestor: soloG, goalDaily: Number(fd.get("goalDaily")) || 0, goalWeekly: Number(fd.get("goalWeekly")) || 0, sessionMinutes: Math.max(1, Number(fd.get("sessionMinutes")) || 20) });
     if (changed) { store.state.products.forEach((p) => store.recalcProduct(p.id)); store.emit(); }
     toast("Ajustes guardados", "ok");
   });
@@ -4630,7 +4750,7 @@ function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"
 
 function onClick(e) {
   const openerBefore = document.activeElement;
-  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last]");
+  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last],[data-fc-order]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
@@ -4721,6 +4841,13 @@ function onClick(e) {
     confirmModal(`¿Enviar <b>${esc(p.name)}</b> y sus movimientos a la papelera? Podrás restaurarlo.`, () => result(store.deleteProduct(p.id), "Producto enviado a la papelera"));
   }
   else if (d.editMov) { movementModal(store.state.movements.find((x) => x.id === d.editMov)); render(); }
+  else if (d.fcOrder) {
+    // W-22: pasar la sugerencia a una entrada de mercancía, con producto y cantidad ya puestos.
+    const fila = filasPrevision({ incluirTodos: true }).find((f) => f.id === d.fcOrder);
+    if (!fila) return toast("Ese producto ya no está en la previsión.", "err");
+    movementModal(null, fila.id, { type: "ENTRADA", quantity: fila.sugerido, notes: `Pedido sugerido (${fila.urgencia})` });
+    render();
+  }
   else if (d.ticketMov) {
     const m = store.state.movements.find((x) => x.id === d.ticketMov);
     if (m) { printTicket(saleTicket([m], ticketOptions())); recordPrint([m], 58); }
@@ -4746,6 +4873,21 @@ function onClick(e) {
   else if (d.bkRestore) confirmModal(`¿Restaurar <b>${esc(d.bkRestore)}</b>? Los datos actuales se reemplazarán para todos los usuarios (antes se guarda una copia).`, () => api("/backups/" + encodeURIComponent(d.bkRestore), { method: "POST" }).then(async (r) => { if (r.error) return toast(r.error, "err"); await store.reload(); ui.backups = null; toast("Copia restaurada", "ok"); }));
   else if (act === "verify-clear") { ui.verifyResult = null; ui.verifyText = ""; render(); }
   else if (act === "verify-open") { ui.movDate = d.date || ""; navTo("movements"); }
+  else if (act === "fc-copy") {
+    const texto = listaCompraTexto(filasPrevision(), {
+      negocio: store.state.settings.businessName,
+      fecha: formatDate(todayISO()),
+    });
+    if (!texto) return toast("No hay nada que pedir con estos parámetros.", "");
+    if (navigator.clipboard) navigator.clipboard.writeText(texto)
+      .then(() => toast("Pedido copiado: péguelo en WhatsApp o en el correo", "ok"))
+      .catch(() => download(`pedido-${todayISO()}.txt`, texto, "text/plain"));
+    else download(`pedido-${todayISO()}.txt`, texto, "text/plain");
+  }
+  else if (act === "fc-csv") {
+    download(`prevision-compra-${todayISO()}.csv`, previsionCsv(filasPrevision()), "text/csv");
+    toast("Previsión descargada en CSV", "ok");
+  }
   else if (act === "bk-ext-refresh") { ui.backupExt = undefined; render(); }
   else if (act === "bk-ext-test") {
     setBusy(true, "Enviando la copia a los destinos externos");
