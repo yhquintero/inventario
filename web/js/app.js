@@ -20,6 +20,10 @@ import { buildSheet, sheetFileName } from "./xlsx-export.js";
 import { alertsSummary, alertSignature, severityLabel, shouldNotify, sortAlerts, stockAlerts } from "./alerts.js";
 import { KIOSK_ACTIONS, canFullscreen, kioskClock, kioskHint, readKiosk, writeKiosk } from "./kiosk.js";
 import { monthKey, monthLabel, monthlyReport, shiftMonth, variationText } from "./monthly.js";
+import {
+  applyTextSize, applyTheme as aplicarTemaDocumento, nextTheme, readTextSize,
+  systemPrefersDark, textSizeOptions, themeIcon, themeLabel, watchSystemTheme, writeTextSize,
+} from "./theme.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -151,10 +155,46 @@ function toast(msg, kind = "") {
   toast._t = setTimeout(() => { ui.toast = null; render(); }, 3200);
 }
 
+/**
+ * Pinta el tema y el tamaño de letra elegidos (A-18).
+ *
+ * «Automático» sigue al sistema y se actualiza en vivo: la escucha del cambio se engancha una
+ * sola vez al arrancar (`vigilarTemaDelSistema`).
+ */
 function applyTheme() {
   const t = store.state.settings.theme || "system";
-  const dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
-  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  aplicarTemaDocumento(document, resolveThemeLocal(t));
+  applyTextSize(document, ui.textSize || readTextSize(safeStorage()));
+}
+
+/** Tema resuelto (claro/oscuro) según la preferencia guardada y el sistema. */
+function resolveThemeLocal(pref) {
+  const p = pref || "system";
+  if (p === "dark") return "dark";
+  if (p === "light") return "light";
+  return systemPrefersDark(window) ? "dark" : "light";
+}
+
+/**
+ * Escucha el cambio de tema del sistema una sola vez.
+ *
+ * Con «Automático» elegido, la app cambia sola cuando el móvil entra en modo nocturno, sin
+ * recargar ni volver a entrar.
+ */
+function vigilarTemaDelSistema() {
+  if (vigilarTemaDelSistema.hecho) return;
+  vigilarTemaDelSistema.hecho = true;
+  const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+  watchSystemTheme(media, () => {
+    if ((store.state.settings.theme || "system") === "system") applyTheme();
+  });
+}
+
+/** Cambia el tamaño de letra, lo guarda y repinta. */
+function setTexto(size) {
+  ui.textSize = writeTextSize(safeStorage(), size);
+  applyTextSize(document, ui.textSize);
+  render();
 }
 
 function navTo(route) {
@@ -265,7 +305,7 @@ function shell(body) {
           <button class="btn ghost small kiosk-toggle" data-act="kiosk-on" title="Modo mostrador (tablet sin menús)" aria-label="Activar el modo mostrador para la tablet">⛶</button>
           <button class="btn ghost small kbd-btn" data-act="palette" aria-label="Búsqueda rápida (Ctrl+K)">⌘K</button>
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
-          <button class="btn ghost small" data-act="theme" title="Tema" aria-label="Cambiar tema: claro, oscuro o automático">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
+          <button class="btn ghost small" data-act="theme" title="Tema: ${esc(themeLabel(store.state.settings.theme))}" aria-label="Cambiar tema (ahora: ${esc(themeLabel(store.state.settings.theme))})">${themeIcon(store.state.settings.theme)}</button>
         </div>
         <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
       </section>
@@ -2349,7 +2389,8 @@ function settingsView() {
       <div class="span-2 card-h"><span class="k">Ajustes del negocio</span>${admin ? "" : `<span class="hint">Solo administrador o jefe pueden cambiarlos (salvo el tema).</span>`}</div>
       <label class="span-2">Nombre del negocio <input name="businessName" ${dis} value="${esc(s.businessName)}"></label>
       <label>CUP/USD por defecto <input name="defaultCupUsd" ${dis} type="number" step="any" value="${s.defaultCupUsd}"></label>
-      <label>Tema<select name="theme">${["light", "dark", "system"].map((t) => `<option ${s.theme === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      <label>Tema<select name="theme">${["system", "light", "dark"].map((t) => `<option value="${t}" ${(s.theme || "system") === t ? "selected" : ""}>${esc(themeLabel(t))}</option>`).join("")}</select></label>
+      <label>Tamaño del texto<select id="textoSize">${textSizeOptions().map((o) => `<option value="${o.value}" ${(ui.textSize || readTextSize(safeStorage())) === o.value ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select></label>
       <label>Cobertura de reposición <small>días</small><input name="restockCover" ${dis} type="number" min="1" max="365" value="${diasDeCobertura()}"></label>
       <label>Alertas stock bajo<select name="lowStockAlerts" ${dis}><option value="true" ${s.lowStockAlerts ? "selected" : ""}>Sí</option><option value="false" ${!s.lowStockAlerts ? "selected" : ""}>No</option></select></label>
       <label>Comisión<select name="comisionSoloGestor" ${dis}><option value="false" ${!s.comisionSoloGestor ? "selected" : ""}>En todas las ventas (como el Excel)</option><option value="true" ${s.comisionSoloGestor ? "selected" : ""}>Solo ventas GESTOR</option></select></label>
@@ -3950,7 +3991,7 @@ function runAct(a) {
   else if (a === "new-movement") { movementModal(); render(); }
   else if (a === "new-warehouse") { warehouseModal(); ui.route = "warehouses"; render(); }
   else if (a === "import-values") { const st = ivState(); st.warehouseId = store.activeWarehouseId(); ui.route = "importValues"; render(); }
-  else if (a === "theme") { const o = ["light", "dark", "system"]; store.saveSettings({ theme: o[(o.indexOf(store.state.settings.theme) + 1) % 3] }); }
+  else if (a === "theme") { store.saveSettings({ theme: nextTheme(store.state.settings.theme) }); toast(`Tema: ${themeLabel(store.state.settings.theme)}`, "ok"); }
 }
 
 document.addEventListener("keydown", (e) => {
@@ -4168,6 +4209,7 @@ function bindApp() {
   $("#reportTo")?.addEventListener("change", (e) => { ui.reportTo = e.target.value; render(); });
   $("#reportWh")?.addEventListener("change", (e) => { ui.reportWarehouse = e.target.value; render(); });
   $("#mesInforme")?.addEventListener("change", (e) => { ui.mesInforme = e.target.value; render(); });
+  $("#textoSize")?.addEventListener("change", (e) => setTexto(e.target.value));
   $("#weeklySummaryFile")?.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -4819,7 +4861,7 @@ function onClick(e) {
   else if (act === "drawer") { ui.drawer = !ui.drawer; render(); }
   else if (act === "clear-q") { ui.q = ""; render(); $("#globalSearch")?.focus(); }
   else if (act === "clear-date") { ui.movDate = ""; render(); }
-  else if (act === "theme") { const o = ["light", "dark", "system"]; store.saveSettings({ theme: o[(o.indexOf(store.state.settings.theme) + 1) % 3] }); }
+  else if (act === "theme") { store.saveSettings({ theme: nextTheme(store.state.settings.theme) }); toast(`Tema: ${themeLabel(store.state.settings.theme)}`, "ok"); }
   else if (act === "recover") { ui.recover = true; render(); }
   else if (act === "back-login") { ui.recover = false; ui.question = null; ui.recNeed2fa = false; ui.pending2fa = null; ui.loginErr = null; render(); }
   else if (act === "new-product") { productModal(null); render(); }
@@ -5232,6 +5274,7 @@ setLicenseErrorHandler((msg) => {
   });
 });
 store.subscribe(() => render());
+vigilarTemaDelSistema();
 // Flujo de inicio: primero licencia, luego sesión
 LicenseManager.fetchStatus().then((st) => {
   ui.license.status = st;

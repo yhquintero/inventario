@@ -2485,6 +2485,39 @@ abrió, así no se pierde el sitio con el teclado.
 > Si comparte un equipo entre varias personas, configure un **tiempo de inactividad corto**
 > (10–15 minutos) en Ajustes: así nadie queda con la sesión de otro abierta.
 
+## 18.4 Tema y tamaño de letra
+
+La Web se adapta a como esté configurado el equipo o el móvil, y también se puede elegir a mano.
+
+**El tema: claro, oscuro o automático**
+
+- En la **barra superior** hay un botón que dice el modo actual: **◐** automático, **☀** claro,
+  **☾** oscuro. Cada toque pasa al siguiente y **se guarda** para ese usuario y equipo.
+- En **Ajustes → Tema** está el mismo ajuste con el nombre completo.
+- **Automático** sigue al sistema: si el teléfono entra en modo nocturno a las siete de la tarde,
+  la app cambia **en ese momento**, sin recargar y sin volver a entrar.
+- Los tres modos se ven igual de bien: el modo oscuro no es un filtro, tiene sus propios colores
+  (fondo azul noche, texto claro) y los avisos en rojo y verde se distinguen.
+
+**El tamaño de la letra**
+
+- **Ajustes → Tamaño del texto**: **Normal**, **Grande** o **Muy grande**.
+- Se aplica al instante y **se recuerda en ese equipo**, sin tocar los datos del negocio.
+- Agranda el texto y también los botones, las tablas y los gráficos, para que todo quede
+  proporcionado; si elige *Muy grande* en un móvil pequeño, gire el teléfono o use la tablet.
+- El **PDF y las impresiones salen siempre en tamaño normal**, para que el papel no se desborde.
+
+**En la app Android**
+
+- El tema se cambia con el botón del encabezado (**claro → oscuro → sistema**) y queda guardado.
+  Con «sistema» la app sigue el modo nocturno del teléfono.
+- El **tamaño de letra** es el del teléfono: **Ajustes de Android → Pantalla → Tamaño de la letra**.
+  NovaGest respeta esa escala; si las letras se ven pequeñas, súbala ahí y toda la app crecerá.
+
+> [!NOTE]
+> Estas preferencias son **de la persona y del equipo**, no del negocio: cada cual puede tener su
+> tema y su tamaño sin molestar a los demás, y no viajan en las copias de seguridad.
+
 ---
 
 # 19. Solución de problemas

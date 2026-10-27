@@ -430,7 +430,7 @@ test("Inventario: el filtro «En almacén» filtra por existencia real (regresi�
 test("La barra superior expone etiquetas accesibles en los botones de icono", () => {
   const html = go("home");
   assert.match(html, /aria-label="Abrir o cerrar el menú"/);
-  assert.match(html, /aria-label="Cambiar tema: claro, oscuro o automático"/);
+  assert.match(html, /aria-label="Cambiar tema \(ahora: (Automático|Claro|Oscuro)[^"]*\)"/);
   assert.match(html, /aria-label="Cerrar sesión"/);
   assert.match(html, /aria-label="Búsqueda rápida \(Ctrl\+K\)"/);
   assert.match(html, /aria-label="Licencia de uso"/);
@@ -1193,6 +1193,22 @@ test("W-20 · el informe mensual se puede imprimir con los números del mes", ()
   assert.match(mod, /variationText/, "explica la variación frente al mes anterior");
   const sw = readFileSync(join(root, "web/sw.js"), "utf8");
   assert.match(sw, /"\.\/js\/monthly\.js"/, "el módulo entra en el precache");
+});
+
+test("A-18 · el tema sigue al sistema en vivo y el texto se puede agrandar", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  const mod = readFileSync(join(root, "web/js/theme.js"), "utf8");
+  const css = readFileSync(join(root, "web/css/app.css"), "utf8");
+  assert.match(source, /function vigilarTemaDelSistema\(/, "la app escucha el cambio de tema del sistema");
+  assert.match(source, /watchSystemTheme\(media/, "usa el observador del módulo de tema");
+  assert.match(source, /data-act="theme"/, "el botón de la barra superior sigue ahí");
+  assert.match(source, /Tamaño del texto/, "Ajustes ofrece el tamaño de letra");
+  assert.match(source, /id="textoSize"/, "el desplegable está conectado");
+  assert.match(mod, /export function resolveTheme\(/, "resuelve el tema según el sistema");
+  assert.match(mod, /export const TEXT_SIZES/, "define los tamaños");
+  assert.match(mod, /export function watchSystemTheme\(/, "expone el observador");
+  assert.match(mod, /prefers-color-scheme/, "consulta la preferencia del sistema");
+  assert.match(css, /data-texto/, "el CSS aplica el tamaño elegido");
 });
 
 test("W-03 · las alertas de reposición dicen cuándo se agota y se pueden silenciar", () => {

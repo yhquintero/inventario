@@ -101,6 +101,7 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 | A-14 | ✅ **Selector de impresora y ancho en Ajustes**, con ticket de prueba | Varias cajas con impresoras distintas | `ui/settings`, `data/printer` | 🟠 | ⏱️ |
 | A-15 | ✅ **Reimprimir el último ticket** desde Inicio y desde el historial de ventas | Se gasta papel o se estropea el ticket | `ui/pos`, `ui/movements` | 🟠 | ⏱️ |
 | A-16 | ✅ **Pruebas de interfaz en emulador** del flujo de venta (añadir, buscar, tope de existencia, centro, accesibilidad) y de la impresión simulada 58/80 mm, con emulador en el CI | La lógica ESC/POS está probada; falta la pantalla real | `app/src/androidTest/` | 🟠 | ⏳ | ✅ |
+| A-18 | ✅ **Modo oscuro automático y tamaño de letra**: el tema «Automático» sigue al sistema y cambia en vivo, y el texto se puede poner Normal / Grande / Muy grande. En Android ya se seguía el tema del sistema y la tipografía va en `sp` (escala del sistema) | Que la app se lea como el resto del teléfono | `web/js/theme.js`, `Ajustes` | 🟠 | ⏱️ | ✅ |
 | A-17 | ✅ **Aviso de cambios sin subir** con insignia, contador y acción «Sincronizar ahora» | Que nadie cierre la app con ventas pendientes | `ui/`, `SyncManager` | 🟠 | ⏱️ |
 | S-09 | ✅ **`/health` con métricas** (latencia, tamaño de la base, copias, días cerrados, sesiones) y avisos | Prevenir antes de que falle | `server/` | 🟠 | ⏱️ |
 | S-10 | ✅ **Auditoría de impresiones**: quién imprimió qué ticket y cuándo | Trazabilidad de documentos | `server/`, `app.js` | 🟢 | ⏱️ |
