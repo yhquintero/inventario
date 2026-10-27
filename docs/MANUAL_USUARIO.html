@@ -2993,6 +2993,114 @@ sumar y cruzar cifra a cifra.</p>
 <p>Revise la previsión <strong>después de cada importación de cierre de día</strong>: es el momento en que las
 ventas del día ya están dentro y la sugerencia es la definitiva.</p>
 </div>
+<h2 id="108-costos-y-márgenes-cuánto-gano-con-cada-producto">10.8 Costos y márgenes: cuánto gano con cada producto</h2>
+<p><strong>🧭 Menú → Análisis → Costos y márgenes</strong></p>
+<p>Aquí se ve, producto por producto, <strong>cuánto queda de cada venta</strong> y <strong>cuáles se están vendiendo
+por debajo del margen que usted quiere</strong>. No hay que calcularlo a mano ni abrir el Excel: sale de
+los mismos datos del inventario (precio de costo y precio de venta).</p>
+<p><strong>Cómo se usa</strong></p>
+<ol>
+<li>Escriba el <strong>objetivo de margen</strong> en el control de arriba (por defecto <strong>30 %</strong>). Se guarda en
+   <strong>Ajustes → Margen objetivo</strong> y se aplica en todas las pantallas.</li>
+<li>Lea la tabla, ordenada <strong>de peor a mejor</strong>: primero los que están bajo el objetivo, después los
+   que van bien y, al final, los que <strong>no tienen costo cargado</strong>.</li>
+<li>Si un producto aparece en rojo, mire la columna <strong>Para el objetivo</strong>: ahí está el precio al que
+   tendría que venderlo para llegar al margen que pidió. Ajuste el precio en
+   <strong>Inventario → Editar</strong> o negocie mejor el costo con el proveedor.</li>
+<li>Pulse el número de la columna <strong>Cambios</strong> para ver el <strong>historial</strong> de ese producto: qué costo
+   tenía antes, cuándo cambió, quién lo cambió y cómo se movió el margen.</li>
+</ol>
+<p><strong>Qué significa cada columna</strong></p>
+<table>
+<thead>
+<tr>
+<th>Columna</th>
+<th>Qué es</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Costo · Precio</strong></td>
+<td>Los dos datos del producto, en USD</td>
+</tr>
+<tr>
+<td><strong>Ganancia</strong></td>
+<td>Lo que queda por cada unidad vendida: precio − costo</td>
+</tr>
+<tr>
+<td><strong>Margen</strong></td>
+<td>La ganancia <strong>sobre el precio de venta</strong>: (precio − costo) ÷ precio. Es el número que se usa para comparar con el objetivo</td>
+</tr>
+<tr>
+<td><strong>Markup</strong></td>
+<td>La ganancia <strong>sobre el costo</strong>. Siempre es mayor: un 50 % de markup son solo un 33 % de margen</td>
+</tr>
+<tr>
+<td><strong>Para el objetivo</strong></td>
+<td>Precio de venta que, con el costo actual, deja exacto el margen pedido. Si hay que subir, lo dice debajo (<strong>+$2.86</strong>)</td>
+</tr>
+<tr>
+<td><strong>Estado</strong></td>
+<td><strong>Bajo objetivo</strong> (rojo) · <strong>En objetivo</strong> (verde) · <strong>Margen alto</strong> (amarillo) · <strong>Sin costo</strong> · <strong>Sin precio</strong></td>
+</tr>
+<tr>
+<td><strong>Cambios</strong></td>
+<td>Cuántas veces cambió el costo, el precio o la comisión; se pulsa para ver el detalle</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Avisos del Panel</strong></p>
+<ul>
+<li>Cuando hay productos bajo el objetivo, el <strong>Panel</strong> muestra la tarjeta <strong>📊 Margen por debajo del
+  30 %</strong> con los cinco peores: costo, precio, margen y el precio que haría falta.</li>
+<li>El aviso se apaga solo cuando todos cumplen: no hay que cerrarlo a mano.</li>
+</ul>
+<div class="callout important">
+<p class="callout-t">❗ Importante</p>
+<p>Un producto <strong>sin costo cargado</strong> aparece como «Sin costo» y <strong>no entra</strong> en el margen medio ni
+en los avisos: sin costo no hay margen que calcular, y suponerlo sería inventar cifras. Cárguelo
+en <strong>Inventario → Editar → P. COSTO (USD)</strong> y la fila se calcula sola.</p>
+</div>
+<p><strong>Reglas del cálculo</strong></p>
+<ul>
+<li><strong>Margen, no markup:</strong> el objetivo se compara siempre contra el margen sobre la venta.</li>
+<li><strong>Redondeo hacia arriba:</strong> el precio «Para el objetivo» se sube al centavo siguiente, así nunca
+  queda un céntimo por debajo.</li>
+<li><strong>Margen alto:</strong> si un producto supera el doble del objetivo (o el objetivo + 25 puntos) se marca
+  en amarillo: o el costo está mal cargado o el precio se quedó viejo. En ambos casos, conviene
+  revisarlo.</li>
+<li><strong>Historial automático:</strong> cada cambio de costo, precio o comisión —hecho a mano o traído por una
+  importación de Excel— queda registrado con fecha y usuario.</li>
+</ul>
+<p><strong>Para llevarse el resumen</strong></p>
+<table>
+<thead>
+<tr>
+<th>Botón</th>
+<th>Qué hace</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>📋 Copiar resumen</strong></td>
+<td>Copia al portapapeles una lista lista para WhatsApp o el correo: margen de cada producto y cuánto habría que subir los que están bajo</td>
+</tr>
+<tr>
+<td><strong>⬇ CSV</strong></td>
+<td>Descarga las once columnas para abrirlo en Excel (con punto y coma, como espera Excel en español)</td>
+</tr>
+<tr>
+<td><strong>🖨 PDF</strong></td>
+<td>Imprime la pantalla tal como está, con la cabecera del negocio</td>
+</tr>
+</tbody>
+</table>
+<div class="callout tip">
+<p class="callout-t">💡 Consejo</p>
+<p>Revise esta pantalla <strong>cuando cambie el costo de un proveedor</strong>: es el momento en que el margen
+se estrecha sin que nadie toque el precio. El <strong>Historial</strong> (apartado 11.1) dice cuándo subió el
+costo; esta pantalla dice cuánto hay que subir el precio para no perder.</p>
+</div>
 <hr />
 <h1 id="11-historial-de-precios-y-monedas">11. Historial de precios y monedas</h1>
 <h2 id="111-historial-de-precios">11.1 Historial de precios</h2>
