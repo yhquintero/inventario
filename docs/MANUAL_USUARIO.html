@@ -3418,6 +3418,55 @@ instalación. <strong>Conserve ese secreto</strong>: sin él no se pueden verifi
 Guarde aparte, en papel, el <strong>número de líneas</strong> y el <strong>sello corto</strong> de cada anclaje
 importante; eso es lo que un auditor puede verificar sin entrar al sistema.</p>
 </div>
+<h2 id="146-sello-de-tiempo-de-un-tercero-rfc-3161">14.6 Sello de tiempo de un tercero (RFC 3161)</h2>
+<p>La firma del anclaje dice <strong>quién</strong> lo hizo (quien tiene la clave del servidor), pero la hora la
+pone el propio servidor. Si la discusión es «esto se selló el día 3 y usted lo cambió el 4», la
+hora del servidor puede ponerse en duda. Para eso está el <strong>sello de tiempo</strong>: una <strong>autoridad de
+sellado</strong> (TSA, según el estándar RFC 3161) firma con <strong>su</strong> certificado la hora exacta en que
+recibió la huella de su anclaje.</p>
+<p><strong>Qué hace NovaGest, paso a paso</strong></p>
+<ol>
+<li>Al pulsar <strong>🔏 Anclar ahora</strong>, NovaGest calcula la firma del anclaje como siempre.</li>
+<li>Si hay una autoridad configurada, le envía la <strong>huella SHA-256</strong> de esa firma.</li>
+<li>La autoridad responde con un <strong>token</strong> firmado que dice, entre otras cosas, <strong>la hora</strong> en que
+   lo recibió.</li>
+<li>NovaGest comprueba que el token corresponde <strong>a esa firma</strong> (no a otra) y lo guarda <strong>tal cual</strong>
+   en la base de datos, junto con su hora y su propia huella.</li>
+<li>En la columna <strong>Sello de tiempo</strong> de la tabla de anclajes verá <strong>Sellado</strong> con la hora de la
+   autoridad, o el motivo por el que no se pudo sellar.</li>
+</ol>
+<p><strong>Cómo se configura (lo hace el administrador)</strong></p>
+<ul>
+<li>Defina la variable de entorno <strong><code>NOVAGEST_TSA_URL</code></strong> con la dirección de su autoridad, por
+  ejemplo <code>https://tsa.ejemplo.cu/</code> (la dirección exacta la da su proveedor).</li>
+<li>Reinicie el servidor. En la tarjeta <strong>🔏 Sello anclado</strong> aparecerá la dirección configurada y
+  cuántos anclajes van sellados.</li>
+<li>Si no hay ninguna configurada, <strong>todo funciona igual</strong>: los anclajes se firman, pero la hora es
+  la del servidor. La pantalla lo dice con claridad para que nadie crea que tiene una prueba que
+  no tiene.</li>
+</ul>
+<p><strong>Verificar el sello por fuera (sin NovaGest)</strong></p>
+<ol>
+<li>En la tabla de anclajes, pulse <strong>⬇ .tsr</strong> en el anclaje que quiera. Se descarga el token.</li>
+<li>Con OpenSSL y el certificado de la autoridad:
+   <code>openssl ts -verify -in anclaje-3.tsr -data firma.bin -CAfile tsa.crt</code></li>
+<li>El resultado debe decir <code>Verification: OK</code>. Ese es el papel que se guarda cuando hay una
+   auditoría de verdad.</li>
+</ol>
+<div class="callout note">
+<p class="callout-t">ℹ Nota</p>
+<p>NovaGest comprueba que el token <strong>es de este anclaje</strong> (la huella que firmó la autoridad es la
+de su firma) y que el token no se ha cambiado después. La validez del <strong>certificado</strong> de la
+autoridad se verifica con OpenSSL, que es la herramienta con la que lo hará cualquier auditor.
+Guarde el certificado de su autoridad junto con las copias de seguridad.</p>
+</div>
+<div class="callout important">
+<p class="callout-t">❗ Importante</p>
+<p><strong>Si la autoridad no responde, el anclaje se crea igual.</strong> Queda marcado con el motivo
+(<em>No se pudo contactar la autoridad de sellado…</em>) y sin hora de tercero; el anclaje sigue siendo
+válido. No se reintenta solo: si quiere el sello, haga otro anclaje cuando la autoridad vuelva.
+Anclar <strong>nunca</strong> depende de tener Internet.</p>
+</div>
 <hr />
 <h1 id="15-licencia-de-uso">15. Licencia de uso</h1>
 <p>NovaGest es <strong>software propietario</strong>. Sin licencia válida, el sistema <strong>bloquea el acceso</strong>.</p>

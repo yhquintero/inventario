@@ -16,6 +16,7 @@ SESSION_MAX_HOURS (12), BACKUP_HOUR (2), BACKUP_KEEP (30).
 import base64, datetime as dt, gzip, hashlib, hmac, json, os, re, secrets, shutil, sqlite3, struct, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, quote
+import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, "web")
@@ -594,13 +595,20 @@ def init_db():
         user TEXT,
         ip TEXT,
         firma TEXT,
-        nota TEXT);
+        nota TEXT,
+        tsa_ts INTEGER,
+        tsa_url TEXT,
+        tsa_sha256 TEXT,
+        tsa_estado TEXT,
+        tsa_detalle TEXT,
+        tsa_token TEXT);
     CREATE TABLE IF NOT EXISTS legal_info(id INTEGER PRIMARY KEY CHECK(id=1), data TEXT, updated_at INTEGER, updated_by TEXT);
     CREATE TABLE IF NOT EXISTS rate_hits(k TEXT PRIMARY KEY, hits TEXT);
     """)
     CON.commit()
     migrar_auditoria()
     encadenar_auditoria()
+    migrar_anclajes()
     # No se activa ninguna licencia durante el arranque. La primera activación
     # debe llegar explícitamente a /api/license/activate con una clave válida.
     if not q("SELECT 1 FROM users LIMIT 1", one=True):
@@ -957,6 +965,18 @@ class Api(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(encoded if encoded is not None else body)))
         self.end_headers()
         self.wfile.write(encoded if encoded is not None else body)
+
+    def send_bytes(self, code, datos, tipo, nombre=None):
+        """Respuesta binaria (token de sellado de tiempo, S-13)."""
+        self.send_response(code)
+        self.send_header("Content-Type", tipo)
+        self.send_header("Cache-Control", "no-store")
+        if nombre:
+            self.send_header("Content-Disposition", f'attachment; filename="{nombre}"')
+        self.headers_common()
+        self.send_header("Content-Length", str(len(datos)))
+        self.end_headers()
+        self.wfile.write(datos)
 
     def maybe_gzip(self, body, min_bytes=GZIP_MIN):
         """Comprime si el cliente lo acepta y el cuerpo lo justifica (S-11)."""
@@ -2170,7 +2190,7 @@ def sec_anchors(h, u, _):
 def sec_anchor(h, u, _):
     """Ancla el sello actual del registro: queda una línea firmada e independiente (S-12)."""
     cuerpo = h.body()
-    nuevo, estado = crear_anclaje(u["username"], h.ip(), str(cuerpo.get("note") or ""))
+    nuevo, estado, sello = crear_anclaje(u["username"], h.ip(), str(cuerpo.get("note") or ""))
     if nuevo is None:
         h.send_json(409, {"ok": False,
                           "error": "No se ancla un registro que no cuadra. Revise la cadena antes de sellarla.",
@@ -2179,7 +2199,31 @@ def sec_anchor(h, u, _):
     filas = q("SELECT COUNT(*) n FROM audit", one=True)["n"] or 0
     h.send_json(200, {"ok": True, "id": nuevo, "lineas": filas, "head": estado.get("head"),
                       "headShort": (estado.get("head") or "")[:12],
-                      "firmado": True, "checked": estado.get("checked")})
+                      "firmado": True, "checked": estado.get("checked"),
+                      "tsa": {k: v for k, v in sello.items() if k != "token"}})
+
+
+@route("GET", "/api/security-log/anchor-token/:id", roles=ADMINS | {"ECONOMICO"})
+def sec_anchor_token(h, u, aid):
+    """Descarga el token de tiempo (DER) de un anclaje, para verificarlo con `openssl ts`."""
+    try:
+        aid = int(aid)
+    except (TypeError, ValueError):
+        h.send_json(400, {"ok": False, "error": "El anclaje indicado no es válido."})
+        return
+    fila = q("SELECT id, tsa_token FROM audit_anchors WHERE id=?", (aid,), one=True)
+    if not fila:
+        h.send_json(404, {"ok": False, "error": "Ese anclaje no existe."})
+        return
+    if not fila["tsa_token"]:
+        h.send_json(404, {"ok": False, "error": "Ese anclaje no tiene sello de tiempo."})
+        return
+    try:
+        crudo = base64.b64decode(fila["tsa_token"])
+    except Exception:
+        h.send_json(500, {"ok": False, "error": "El token guardado no se puede leer."})
+        return
+    h.send_bytes(200, crudo, "application/timestamp-reply", f"anclaje-{aid}.tsr")
 
 
 @route("DELETE", "/api/security-log/anchor/:id", roles=ADMINS)
@@ -2219,6 +2263,195 @@ def _firmar_anclaje(ts, head, lineas) -> str:
     return hmac.new(_clave_anclaje(), base, hashlib.sha256).hexdigest()
 
 
+# ------------------------------------------------- sello de tiempo RFC 3161 (S-13)
+# Una firma HMAC dice «este sello lo hizo quien tiene la clave», pero no dice CUÁNDO: el reloj
+# del servidor lo pone él mismo. Para eso está una **autoridad de sellado de tiempo** (TSA,
+# RFC 3161): el servidor le manda la huella SHA-256 de la firma del anclaje y la TSA devuelve,
+# firmado con su certificado, la fecha y hora en que lo recibió. Se guarda el token tal cual,
+# para que un tercero pueda verificarlo por fuera con `openssl ts -verify`.
+OID_SHA256 = "2.16.840.1.101.3.4.2.1"
+OID_TSTINFO = "1.2.840.113549.1.9.16.1.4"
+
+
+def _der_len(n):
+    if n < 0x80:
+        return bytes([n])
+    crudo = n.to_bytes((n.bit_length() + 7) // 8, "big")
+    return bytes([0x80 | len(crudo)]) + crudo
+
+
+def _der(tag, cuerpo: bytes) -> bytes:
+    return bytes([tag]) + _der_len(len(cuerpo)) + cuerpo
+
+
+def _der_int(valor: int) -> bytes:
+    if valor == 0:
+        return _der(0x02, b"\x00")
+    crudo = valor.to_bytes((valor.bit_length() + 8) // 8, "big")
+    return _der(0x02, crudo)
+
+
+def _der_oid(puntos: str) -> bytes:
+    partes = [int(x) for x in puntos.split(".")]
+    cuerpo = bytes([40 * partes[0] + partes[1]])
+    for n in partes[2:]:
+        trozos = [n & 0x7F]
+        n >>= 7
+        while n:
+            trozos.append(0x80 | (n & 0x7F))
+            n >>= 7
+        cuerpo += bytes(reversed(trozos))
+    return _der(0x06, cuerpo)
+
+
+def _der_seq(*partes) -> bytes:
+    return _der(0x30, b"".join(partes))
+
+
+def _der_octets(datos: bytes) -> bytes:
+    return _der(0x04, datos)
+
+
+def _der_parse(crudo: bytes):
+    """Lee una secuencia DER y devuelve [(etiqueta, valor)] del mismo nivel.
+
+    Solo lo justo para entender una respuesta de sellado: etiquetas de un byte, longitud corta
+    o larga. No se interpreta el contenido de los tipos que no se usan.
+    """
+    fuera, i = [], 0
+    while i < len(crudo):
+        tag = crudo[i]
+        i += 1
+        if i >= len(crudo):
+            break
+        n = crudo[i]
+        i += 1
+        if n & 0x80:
+            largo = n & 0x7F
+            n = int.from_bytes(crudo[i:i + largo], "big")
+            i += largo
+        fuera.append((tag, crudo[i:i + n]))
+        i += n
+    return fuera
+
+
+def _der_texto_a_epoch(texto: bytes):
+    """`20261026143700Z` (GeneralizedTime) → segundos desde 1970, en UTC."""
+    t = texto.decode("ascii", "ignore").strip()
+    if t.endswith("Z"):
+        t = t[:-1]
+    t = t.split(".")[0]
+    try:
+        return int(dt.datetime.strptime(t, "%Y%m%d%H%M%S").replace(tzinfo=dt.timezone.utc).timestamp())
+    except ValueError:
+        return None
+
+
+def _tsa_peticion(digest: bytes) -> bytes:
+    """TimeStampReq con la huella y un número aleatorio (nonce) para emparejar la respuesta."""
+    imprint = _der_seq(_der_seq(_der_oid(OID_SHA256), b"\x05\x00"), _der_octets(digest))
+    nonce = secrets.randbits(63) + 1
+    return _der_seq(_der_int(1), imprint, _der_int(nonce), _der(0x01, b"\xff"))
+
+
+def _tsa_leer_respuesta(crudo: bytes):
+    """Saca de una TimeStampResp el estado, la hora sellada y la huella que firmó la TSA.
+
+    Devuelve un diccionario con `ok`, `estado`, `detalle`, `ts` y `imprint`.
+    """
+    try:
+        raiz = _der_parse(crudo)
+        if not raiz or raiz[0][0] != 0x30:
+            return {"ok": False, "estado": "respuesta_invalida", "detalle": "La respuesta no es una estructura DER."}
+        partes = _der_parse(raiz[0][1])
+        estado_txt = ""
+        if partes and partes[0][0] == 0x30:
+            estado_info = _der_parse(partes[0][1])
+            estado = int.from_bytes(estado_info[0][1], "big") if estado_info and estado_info[0][0] == 0x02 else -1
+            for tag, valor in estado_info[1:]:
+                if tag in (0x30, 0x0C):
+                    estado_txt = valor.decode("utf-8", "ignore")
+            if estado not in (0, 1):
+                return {"ok": False, "estado": "rechazada",
+                        "detalle": f"La autoridad de sellado rechazó la petición (estado {estado}). {estado_txt}".strip()}
+        if len(partes) < 2 or partes[1][0] != 0x30:
+            return {"ok": False, "estado": "sin_token", "detalle": "La autoridad no devolvió el token de tiempo."}
+        info = _der_parse(partes[1][1])
+        if len(info) < 2 or info[1][0] != 0xA0:
+            return {"ok": False, "estado": "token_invalido", "detalle": "El token no es un ContentInfo de CMS."}
+        firmado = _der_parse(info[1][1])[0][1]
+        trozos = _der_parse(firmado)
+        if len(trozos) < 3 or trozos[2][0] != 0x30:
+            return {"ok": False, "estado": "token_invalido", "detalle": "El token no trae el contenido firmado."}
+        contenido = _der_parse(trozos[2][1])
+        if len(contenido) < 2 or contenido[1][0] != 0xA0:
+            return {"ok": False, "estado": "token_invalido", "detalle": "El token no trae el TSTInfo."}
+        interno = _der_parse(contenido[1][1])
+        if not interno or interno[0][0] != 0x04:
+            return {"ok": False, "estado": "token_invalido", "detalle": "El TSTInfo no está en claro."}
+        # interno[0] es el OCTET STRING; dentro va el TSTInfo como SEQUENCE.
+        tst = _der_parse(_der_parse(interno[0][1])[0][1])
+        if len(tst) < 5:
+            return {"ok": False, "estado": "token_invalido", "detalle": "El TSTInfo está incompleto."}
+        imprint = ""
+        if tst[2][0] == 0x30:
+            dentro = _der_parse(tst[2][1])
+            if len(dentro) >= 2 and dentro[1][0] == 0x04:
+                imprint = dentro[1][1].hex()
+        ts = _der_texto_a_epoch(tst[4][1]) if tst[4][0] == 0x18 else None
+        return {"ok": True, "estado": "sellado", "detalle": estado_txt, "ts": ts, "imprint": imprint}
+    except Exception as e:  # token raro: no se rompe la creación del anclaje
+        return {"ok": False, "estado": "token_ilegible", "detalle": f"No se pudo leer el token de tiempo: {e}"}
+
+
+def sellar_tiempo(firma_hex, url=None, timeout=8):
+    """Pide a la autoridad de sellado (RFC 3161) la hora firmada de una firma de anclaje.
+
+    Sin `NOVAGEST_TSA_URL` no se inventa nada: se devuelve `estado: "sin_tsa"` y el anclaje
+    sigue siendo válido, solo que sin hora de un tercero.
+    """
+    url = (url or os.environ.get("NOVAGEST_TSA_URL", "")).strip()
+    if not url:
+        return {"ok": False, "estado": "sin_tsa", "ts": None,
+                "detalle": "Sin autoridad de sellado configurada (NOVAGEST_TSA_URL)."}
+    digest = hashlib.sha256(bytes.fromhex(firma_hex)).digest()
+    pedido = _tsa_peticion(digest)
+    try:
+        req = urllib.request.Request(url, data=pedido, method="POST",
+                                     headers={"Content-Type": "application/timestamp-query",
+                                              "Accept": "application/timestamp-reply"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            crudo = r.read(262144)
+    except Exception as e:
+        return {"ok": False, "estado": "error", "ts": None,
+                "detalle": f"No se pudo contactar la autoridad de sellado: {e}"}
+    leido = _tsa_leer_respuesta(crudo)
+    if leido.get("ok") and leido.get("imprint") and leido["imprint"] != digest.hex():
+        leido = {"ok": False, "estado": "no_coincide", "ts": leido.get("ts"),
+                 "detalle": "El token no corresponde a la firma de este anclaje."}
+    leido["url"] = url
+    leido["sha256"] = hashlib.sha256(crudo).hexdigest()
+    # Solo se guarda el token si la autoridad lo concedió: de una respuesta rechazada o rota
+    # no hay nada que verificar después, y guardarla daría un «sello roto» falso.
+    if leido.get("ok"):
+        leido["token"] = base64.b64encode(crudo).decode("ascii")
+    else:
+        leido.pop("token", None)
+    return leido
+
+
+def migrar_anclajes():
+    """Añade las columnas del sello de tiempo a bases creadas con el anclaje de S-12."""
+    columnas = {r["name"] for r in q("PRAGMA table_info(audit_anchors)")}
+    nuevas = {"tsa_ts": "INTEGER", "tsa_url": "TEXT", "tsa_sha256": "TEXT",
+              "tsa_estado": "TEXT", "tsa_detalle": "TEXT", "tsa_token": "TEXT"}
+    with _lock:
+        for nombre, tipo in nuevas.items():
+            if nombre not in columnas:
+                CON.execute(f"ALTER TABLE audit_anchors ADD COLUMN {nombre} {tipo}")
+        CON.commit()
+
+
 def crear_anclaje(user, ip="", nota=""):
     """Fija el estado actual de la cadena en una línea firmada e independiente.
 
@@ -2228,7 +2461,8 @@ def crear_anclaje(user, ip="", nota=""):
     """
     estado = verificar_auditoria()
     if not estado.get("ok"):
-        return None, estado
+        return None, estado, {"ok": False, "estado": "sin_anclaje",
+                              "detalle": "No se sella un registro que no cuadra."}
     filas = q("SELECT COUNT(*) n FROM audit", one=True)["n"] or 0
     ts = now()
     head = estado.get("head") or ""
@@ -2239,8 +2473,17 @@ def crear_anclaje(user, ip="", nota=""):
             (ts, head, filas, user, ip, firma, nota[:200]))
         CON.commit()
         nuevo = cur.lastrowid
+    # Sello de tiempo de un tercero (RFC 3161), si hay autoridad configurada. Si falla, el
+    # anclaje vale igual: se guarda el motivo y se puede volver a intentar con otro anclaje.
+    sello = sellar_tiempo(firma)
+    with _lock:
+        CON.execute(
+            "UPDATE audit_anchors SET tsa_ts=?, tsa_url=?, tsa_sha256=?, tsa_estado=?, tsa_detalle=?, tsa_token=? WHERE id=?",
+            (sello.get("ts"), sello.get("url"), sello.get("sha256"), sello.get("estado"),
+             (sello.get("detalle") or "")[:300], sello.get("token"), nuevo))
+        CON.commit()
     audit(user, "AUDIT_ANCHOR", f"anclaje #{nuevo} · {filas} líneas · {head[:12]}", ip)
-    return nuevo, estado
+    return nuevo, estado, sello
 
 
 def verificar_anclajes():
@@ -2249,28 +2492,49 @@ def verificar_anclajes():
     Devuelve la lista con `ok` por anclaje y un resumen. Un anclaje roto significa que el
     registro cambió después de haberlo sellado.
     """
-    anclajes = q("SELECT id, ts, head, lineas, user, nota, firma FROM audit_anchors ORDER BY id")
+    anclajes = q("SELECT id, ts, head, lineas, user, nota, firma, tsa_ts, tsa_url, tsa_sha256, "
+                 "tsa_estado, tsa_detalle, tsa_token FROM audit_anchors ORDER BY id")
     resultado = []
     for a in anclajes:
         firma_ok = hmac.compare_digest(a["firma"] or "", _firmar_anclaje(a["ts"], a["head"], a["lineas"]))
+        # Sello de tiempo: se relee el token guardado y se comprueba que la huella que firmó la
+        # autoridad es la de ESTA firma. La validez de su certificado se verifica por fuera.
+        tsa_ok = None
+        if a["tsa_token"]:
+            try:
+                leido = _tsa_leer_respuesta(base64.b64decode(a["tsa_token"]))
+                esperado = hashlib.sha256(bytes.fromhex(a["firma"] or "")).hexdigest()
+                tsa_ok = bool(leido.get("ok")) and (leido.get("imprint") or esperado) == esperado
+            except Exception:
+                tsa_ok = False
         # Se recorre el prefijo anclado entero: se recalcula el hash de cada línea con sus datos.
         # Así se detecta tanto un cambio de datos como que falten líneas del final.
         estado = verificar_auditoria(1, a["lineas"])
         # `total` es cuántas líneas hay ahora en la tabla: si son menos que las ancladas, se borraron.
         completo = int(estado.get("total") or 0) >= int(a["lineas"] or 0)
         cadena_ok = completo and bool(estado.get("ok")) and estado.get("head") == (a["head"] or "")
+        sano = firma_ok and cadena_ok and tsa_ok is not False
         resultado.append({
             "id": a["id"], "ts": a["ts"], "lineas": a["lineas"], "user": a["user"], "nota": a["nota"] or "",
             "head": a["head"], "headShort": (a["head"] or "")[:12],
             "firmaOk": firma_ok, "lineasOk": completo, "cadenaOk": cadena_ok,
-            "ok": firma_ok and cadena_ok,
-            "motivo": "" if (firma_ok and cadena_ok) else (
+            "tsaOk": tsa_ok, "tsa": None if not a["tsa_estado"] else {
+                "estado": a["tsa_estado"], "ts": a["tsa_ts"], "url": a["tsa_url"] or "",
+                "sha256": a["tsa_sha256"] or "", "detalle": a["tsa_detalle"] or "",
+                "token": a["tsa_token"] or "",
+            },
+            "ok": sano,
+            "motivo": "" if sano else (
                 "la firma no corresponde a estos datos" if not firma_ok else
                 "faltan líneas del registro" if not completo else
+                "el sello de tiempo no corresponde a este anclaje" if tsa_ok is False else
                 "la cadena cambió después del anclaje"),
         })
+    sellados = sum(1 for x in resultado if x["tsaOk"])
     return {"anchors": resultado, "total": len(resultado),
-            "ok": all(x["ok"] for x in resultado) if resultado else True}
+            "ok": all(x["ok"] for x in resultado) if resultado else True,
+            "tsa": {"configurada": bool(os.environ.get("NOVAGEST_TSA_URL", "").strip()),
+                    "url": os.environ.get("NOVAGEST_TSA_URL", "").strip(), "sellados": sellados}}
 
 
 def main():

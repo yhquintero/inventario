@@ -1167,6 +1167,20 @@ test("S-12 · el sello del registro se puede anclar, listar y comprobar", () => 
   assert.match(server, /AUDIT_ANCHOR_DELETE/, "borrar un anclaje queda auditado");
 });
 
+test("S-13 · el anclaje puede llevar sello de tiempo de un tercero (RFC 3161)", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  const server = readFileSync(join(root, "server/novagest_server.py"), "utf8");
+  assert.match(source, /Sello de tiempo/, "la tabla muestra el sello de tiempo de cada anclaje");
+  assert.match(source, /anchor-token\/\$\{x\.id\}/, "se puede descargar el token .tsr");
+  assert.match(source, /NOVAGEST_TSA_URL/, "explica cómo configurar la autoridad");
+  assert.match(server, /def sellar_tiempo\(/, "el servidor pide el sello de tiempo");
+  assert.match(server, /def _tsa_peticion\(/, "construye la petición RFC 3161 en DER");
+  assert.match(server, /def _tsa_leer_respuesta\(/, "lee la respuesta de la autoridad");
+  assert.match(server, /"\/api\/security-log\/anchor-token\/:id"/, "hay ruta para descargar el token");
+  assert.match(server, /OID_TSTINFO/, "conoce el OID del TSTInfo");
+  assert.match(server, /tsa_token TEXT/, "el token se guarda en la base");
+});
+
 test("W-03 · las alertas de reposición dicen cuándo se agota y se pueden silenciar", () => {
   const original = store.state;
   try {

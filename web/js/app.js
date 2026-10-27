@@ -1957,6 +1957,16 @@ function anclajesCard() {
   const puedeBorrar = ["ADMINISTRADOR", "JEFE"].includes(role());
   const fecha = (t) => (t ? new Date(t * 1000).toLocaleString("es-CU") : "—");
   const roto = a.rows.filter((x) => !x.ok);
+  const tsa = a.tsa || {};
+  const sellados = tsa.sellados ?? a.rows.filter((x) => x.tsaOk).length;
+  const selloTxt = (x) => {
+    if (!x.tsa) return "<span class='hint'>Sin sello de tiempo</span>";
+    if (x.tsa.ts) return `<span class="tag entrada">Sellado</span><div class="hint">${fecha(x.tsa.ts)}</div>`;
+    return `<span class="tag mov" title="${esc(x.tsa.detalle || "")}">${esc(x.tsa.estado || "—")}</span><div class="hint">${esc((x.tsa.detalle || "").slice(0, 70))}</div>`;
+  };
+  const avisoTsa = tsa.configurada
+    ? `<p class="hint">Autoridad de sellado de tiempo configurada: <span class="mono">${esc(tsa.url || "")}</span> · ${sellados} de ${a.total} anclaje(s) con hora de un tercero.</p>`
+    : `<p class="hint">No hay autoridad de sellado de tiempo (RFC 3161) configurada: los anclajes se firman, pero la hora la pone este servidor. Para usar una, defina <code>NOVAGEST_TSA_URL</code> con la dirección de su autoridad.</p>`;
   const aviso = roto.length
     ? `<div class="banner err mt12"><b>⚠ ${roto.length} anclaje(s) no cuadran.</b> El registro cambió después de haberlo sellado (${esc(roto[0].motivo || "sin detalle")}). No siga trabajando sin revisar la copia de seguridad y avise al administrador.</div>`
     : a.rows.length
@@ -1973,6 +1983,7 @@ function anclajesCard() {
         <td>${x.lineas} línea(s)</td>
         <td class="mono hint" data-tip="Último hash del registro cuando se ancló">${esc(x.headShort || "—")}</td>
         <td class="hint">${esc(x.nota || "—")}</td>
+        <td>${selloTxt(x)}${x.tsaOk && x.tsa?.token ? ` <a class="btn ghost small" href="/api/security-log/anchor-token/${x.id}" download>⬇ .tsr</a>` : ""}</td>
         <td>${x.ok ? "<span class='tag entrada'>Correcto</span>" : `<span class='tag salida' title='${esc(x.motivo || "")}'>Roto</span><div class="hint">${esc(x.motivo || "")}</div>`}</td>
         ${puedeBorrar ? `<td><button class="btn ghost small" data-act="sec-anchor-del" data-id="${x.id}">Borrar</button></td>` : ""}
       </tr>`
@@ -1982,12 +1993,13 @@ function anclajesCard() {
       <span class="hint">${a.total} anclaje(s)</span></div>
     <p class="hint">Un anclaje fija el registro tal como estaba: cuántas líneas tenía y cuál era su último hash, firmado con una clave que solo tiene este servidor. Sirve para detectar un borrado de las últimas líneas, que la cadena por sí sola no notaría.</p>
     <p class="hint">Ancle al cerrar el día o el mes, y también antes de una copia de seguridad importante. Guarde aparte el número de líneas y el sello corto: son su prueba.</p>
+    ${avisoTsa}
     <div class="row mt12"><button class="btn small" data-act="sec-anchor" ${a.firmando ? "disabled" : ""}>${a.firmando ? "Anclando…" : "🔏 Anclar ahora"}</button>
     ${!puedeBorrar ? `<span class="hint">Solo Administrador y Jefe pueden borrar un anclaje.</span>` : ""}</div>
     ${a.cargando && !a.rows.length ? '<p class="hint">Cargando los anclajes…</p>' : ""}
     ${a.error ? '<p class="hint">No se pudo leer la lista de anclajes.</p>' : ""}
     ${aviso}
-    ${filas ? `<div class="table-wrap mt12"><table><thead><tr><th>Fecha</th><th>Quién</th><th>N.º</th><th>Selló</th><th>Sello</th><th>Nota</th><th>Estado</th>${puedeBorrar ? "<th></th>" : ""}</tr></thead><tbody>${filas}</tbody></table></div>` : ""}
+    ${filas ? `<div class="table-wrap mt12"><table><thead><tr><th>Fecha</th><th>Quién</th><th>N.º</th><th>Selló</th><th>Sello</th><th>Nota</th><th>Sello de tiempo</th><th>Estado</th>${puedeBorrar ? "<th></th>" : ""}</tr></thead><tbody>${filas}</tbody></table></div>` : ""}
   </div>`;
 }
 
