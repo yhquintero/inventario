@@ -3153,11 +3153,97 @@ copias. NovaGest hace copias automáticas, pero usted debe comprobarlas.</p>
 guarda antes una copia de seguridad. Hágalo fuera del horario de venta y avisando al
 equipo. Después de restaurar, los demás dispositivos deben <strong>sincronizar</strong> (o recargar).</p>
 </div>
-<h2 id="134-restaurar-desde-el-excel-solo-casos-extremos">13.4 Restaurar desde el Excel (solo casos extremos)</h2>
+<h2 id="134-copia-externa-carpeta-de-red-o-webdav-s-14">13.4 Copia externa: carpeta de red o WebDAV (S-14)</h2>
+<p>Una copia en el mismo disco que la base de datos se pierde con el disco. Por eso NovaGest
+puede enviar <strong>cada copia</strong> a un destino <strong>fuera del equipo</strong> y, lo más importante,
+<strong>comprobarla</strong>: si lo que llegó no se abre, la copia no cuenta.</p>
+<table>
+<thead>
+<tr>
+<th>Destino</th>
+<th>Qué necesita</th>
+<th>Qué hace el servidor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Carpeta de red</strong> (unidad mapeada, NAS montado, <code>E:\Copias</code>, <code>/mnt/nas</code>)</td>
+<td>Que la carpeta exista y se pueda escribir</td>
+<td>Escribe la copia, la <strong>vuelve a leer</strong> y compara el SHA-256 con lo enviado</td>
+</tr>
+<tr>
+<td><strong>WebDAV</strong> (Nextcloud, OwnCloud, Synology, box…)</td>
+<td>URL de la carpeta + usuario y contraseña</td>
+<td>Sube con <code>PUT</code> y confirma con <code>HEAD</code> que el archivo está y mide lo mismo</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Lo que se configura en el servidor</strong> (variables de entorno, no en la pantalla):</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Ejemplo</th>
+<th>Para qué</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BACKUP_MIRROR_DIRS</code></td>
+<td><code>E:\Copias;/mnt/nas/novagest</code></td>
+<td>Una o varias carpetas, separadas por <code>;</code></td>
+</tr>
+<tr>
+<td><code>BACKUP_WEBDAV_URL</code></td>
+<td><code>https://nube.midominio.cu/remote.php/dav/files/ana/novagest</code></td>
+<td>Carpeta del WebDAV</td>
+</tr>
+<tr>
+<td><code>BACKUP_WEBDAV_USER</code></td>
+<td><code>ana</code></td>
+<td>Usuario del WebDAV</td>
+</tr>
+<tr>
+<td><code>BACKUP_WEBDAV_PASSWORD</code></td>
+<td><code>••••••</code></td>
+<td>Contraseña del WebDAV</td>
+</tr>
+<tr>
+<td><code>BACKUP_WEBDAV_URLS</code></td>
+<td><code>https://nube1/x;https://nube2/y</code></td>
+<td>Varias carpetas WebDAV (opcional)</td>
+</tr>
+</tbody>
+</table>
+<p>Después de cambiarlas, <strong>reinicie el servidor</strong>.</p>
+<p><strong>Qué se ve en la pantalla</strong></p>
+<ol>
+<li><strong>Copias → 🗄 Copia externa</strong> muestra los destinos configurados y si llevan credenciales.
+   <strong>Nunca muestra contraseñas.</strong></li>
+<li>El estado dice <strong>al día</strong>, <strong>revisar</strong> o <strong>sin probar</strong>, con la fecha de la última réplica y
+   cuántos destinos se copiaron.</li>
+<li><strong>Probar ahora</strong> reenvía la copia más reciente sin esperar a la de mañana: úselo al instalar,
+   al cambiar de nube o si un destino estuvo caído.</li>
+</ol>
+<p><strong>Reglas que cumple</strong></p>
+<ul>
+<li>Un destino caído <strong>no</strong> interrumpe la copia local ni los demás destinos: se anota el fallo en
+  la <strong>auditoría</strong> (<code>BACKUP_EXTERNAL_FAILED</code>) y se sigue.</li>
+<li>Cada copia local se <strong>abre</strong> al crearse (<code>BACKUP_VERIFIED</code>) para saber que sirve antes de
+  necesitarla.</li>
+<li>La copia se envía ya <strong>cifrada</strong>: quien mire la carpeta de red o la nube no puede leer nada.</li>
+<li>Si la réplica falla, <strong>Salud del sistema</strong> avisa con el indicador <strong>copia-externa</strong>.</li>
+</ul>
+<div class="callout tip">
+<p class="callout-t">💡 Consejo</p>
+<p>Regla <strong>3-2-1</strong>: tres copias, en dos medios distintos, y una fuera del local. NovaGest ya
+hace la local y la diaria; con una carpeta de red en otro equipo cubre el «fuera del local».</p>
+</div>
+<h2 id="135-restaurar-desde-el-excel-solo-casos-extremos">13.5 Restaurar desde el Excel (solo casos extremos)</h2>
 <p><strong>Recargar desde el Excel</strong> vuelve a dejar los datos de demostración del proyecto. <strong>Borra</strong>
 la operación actual. Úselo solo en una instalación de pruebas o si quiere empezar de cero con
 autorización expresa.</p>
-<h2 id="135-importar-libros-diarios-desde-copias">13.5 Importar libros diarios desde Copias</h2>
+<h2 id="136-importar-libros-diarios-desde-copias">13.6 Importar libros diarios desde Copias</h2>
 <p>La zona <strong>📥 Importar una hoja del Excel</strong> acepta los libros diarios del negocio:</p>
 <table>
 <thead>
@@ -3191,7 +3277,7 @@ autorización expresa.</p>
 <li><strong>Nunca</strong> deduzca la fecha a partir del número de pestaña: léala en la hoja y corríjala.</li>
 <li>La vista previa siempre muestra qué se va a importar antes de aplicar.</li>
 </ul>
-<h2 id="136-plan-de-copias-recomendado">13.6 Plan de copias recomendado</h2>
+<h2 id="137-plan-de-copias-recomendado">13.7 Plan de copias recomendado</h2>
 <table>
 <thead>
 <tr>
@@ -3220,6 +3306,11 @@ autorización expresa.</p>
 <td>Mensual</td>
 <td>Probar una <strong>restauración</strong> en un equipo de prueba</td>
 <td>Administrador</td>
+</tr>
+<tr>
+<td>Diaria (externa)</td>
+<td>La copia se replica sola en la <strong>carpeta de red o el WebDAV</strong>; revise el estado en <strong>Copias</strong></td>
+<td>Sistema / Administrador</td>
 </tr>
 </tbody>
 </table>

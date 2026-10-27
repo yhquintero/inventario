@@ -320,7 +320,7 @@ NovaGest se activa con una **clave de licencia firmada** (HMAC-SHA256, prefijo `
 
 - **Cuentas** — contraseñas PBKDF2-SHA256 (210 000 iteraciones), bloqueo de 5 minutos tras 5 intentos fallidos, verificación en dos pasos (TOTP) obligatoria por defecto para el Administrador y códigos de recuperación.
 - **Sesiones y permisos** — sesiones con caducidad por inactividad y por duración máxima, permisos validados en el servidor, cabecera anti-CSRF y límite de peticiones por IP en acceso, recuperación y solicitudes de licencia.
-- **Datos** — copias cifradas automáticas cada día con rotación, réplica opcional fuera del equipo (`BACKUP_MIRROR_DIRS`, regla 3-2-1), cierre de días y auditoría.
+- **Datos** — copias cifradas automáticas cada día con rotación, **copia externa** opcional en carpeta de red o **WebDAV** con verificación de que se puede restaurar (`BACKUP_MIRROR_DIRS`, `BACKUP_WEBDAV_URL`, regla 3-2-1), cierre de días y auditoría.
 - **Web** — cabeceras CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy` y HSTS cuando se sirve por HTTPS.
 
 Los datos legales públicos (#legal) se rellenan en **Ajustes → Datos legales** — guía: [docs/GUIA_DATOS_LEGALES.md](docs/GUIA_DATOS_LEGALES.md). ¿Encontraste una vulnerabilidad? **No abras un issue público**: sigue la [política de seguridad](SECURITY.md).
@@ -460,7 +460,7 @@ Sí. Los libros de cuadre diario, existencias por ubicación y resumen semanal s
 
 <br />
 
-El servidor hace una copia cifrada cada día y conserva las más recientes; con `BACKUP_MIRROR_DIRS` también las replica en otro disco o carpeta de red. Para recuperar, restaura desde **Copias**. Guarda la clave de cifrado fuera del servidor.
+El servidor hace una copia cifrada cada día y conserva las más recientes; con `BACKUP_MIRROR_DIRS` (carpeta de red) o `BACKUP_WEBDAV_URL` (nube) las replica fuera del equipo y **comprueba que se pueden abrir**. Para recuperar, restaura desde **Copias**. Guarda la clave de cifrado fuera del servidor.
 
 </details>
 

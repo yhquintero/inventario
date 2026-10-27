@@ -1785,13 +1785,58 @@ copias. NovaGest hace copias automáticas, pero usted debe comprobarlas.
 > guarda antes una copia de seguridad. Hágalo fuera del horario de venta y avisando al
 > equipo. Después de restaurar, los demás dispositivos deben **sincronizar** (o recargar).
 
-## 13.4 Restaurar desde el Excel (solo casos extremos)
+## 13.4 Copia externa: carpeta de red o WebDAV (S-14)
+
+Una copia en el mismo disco que la base de datos se pierde con el disco. Por eso NovaGest
+puede enviar **cada copia** a un destino **fuera del equipo** y, lo más importante,
+**comprobarla**: si lo que llegó no se abre, la copia no cuenta.
+
+| Destino | Qué necesita | Qué hace el servidor |
+|---|---|---|
+| **Carpeta de red** (unidad mapeada, NAS montado, `E:\Copias`, `/mnt/nas`) | Que la carpeta exista y se pueda escribir | Escribe la copia, la **vuelve a leer** y compara el SHA-256 con lo enviado |
+| **WebDAV** (Nextcloud, OwnCloud, Synology, box…) | URL de la carpeta + usuario y contraseña | Sube con `PUT` y confirma con `HEAD` que el archivo está y mide lo mismo |
+
+**Lo que se configura en el servidor** (variables de entorno, no en la pantalla):
+
+| Variable | Ejemplo | Para qué |
+|---|---|---|
+| `BACKUP_MIRROR_DIRS` | `E:\Copias;/mnt/nas/novagest` | Una o varias carpetas, separadas por `;` |
+| `BACKUP_WEBDAV_URL` | `https://nube.midominio.cu/remote.php/dav/files/ana/novagest` | Carpeta del WebDAV |
+| `BACKUP_WEBDAV_USER` | `ana` | Usuario del WebDAV |
+| `BACKUP_WEBDAV_PASSWORD` | `••••••` | Contraseña del WebDAV |
+| `BACKUP_WEBDAV_URLS` | `https://nube1/x;https://nube2/y` | Varias carpetas WebDAV (opcional) |
+
+Después de cambiarlas, **reinicie el servidor**.
+
+**Qué se ve en la pantalla**
+
+1. **Copias → 🗄 Copia externa** muestra los destinos configurados y si llevan credenciales.
+   **Nunca muestra contraseñas.**
+2. El estado dice **al día**, **revisar** o **sin probar**, con la fecha de la última réplica y
+   cuántos destinos se copiaron.
+3. **Probar ahora** reenvía la copia más reciente sin esperar a la de mañana: úselo al instalar,
+   al cambiar de nube o si un destino estuvo caído.
+
+**Reglas que cumple**
+
+- Un destino caído **no** interrumpe la copia local ni los demás destinos: se anota el fallo en
+  la **auditoría** (`BACKUP_EXTERNAL_FAILED`) y se sigue.
+- Cada copia local se **abre** al crearse (`BACKUP_VERIFIED`) para saber que sirve antes de
+  necesitarla.
+- La copia se envía ya **cifrada**: quien mire la carpeta de red o la nube no puede leer nada.
+- Si la réplica falla, **Salud del sistema** avisa con el indicador **copia-externa**.
+
+> [!TIP]
+> Regla **3-2-1**: tres copias, en dos medios distintos, y una fuera del local. NovaGest ya
+> hace la local y la diaria; con una carpeta de red en otro equipo cubre el «fuera del local».
+
+## 13.5 Restaurar desde el Excel (solo casos extremos)
 
 **Recargar desde el Excel** vuelve a dejar los datos de demostración del proyecto. **Borra**
 la operación actual. Úselo solo en una instalación de pruebas o si quiere empezar de cero con
 autorización expresa.
 
-## 13.5 Importar libros diarios desde Copias
+## 13.6 Importar libros diarios desde Copias
 
 La zona **📥 Importar una hoja del Excel** acepta los libros diarios del negocio:
 
@@ -1808,7 +1853,7 @@ La zona **📥 Importar una hoja del Excel** acepta los libros diarios del negoc
 - **Nunca** deduzca la fecha a partir del número de pestaña: léala en la hoja y corríjala.
 - La vista previa siempre muestra qué se va a importar antes de aplicar.
 
-## 13.6 Plan de copias recomendado
+## 13.7 Plan de copias recomendado
 
 | Frecuencia | Acción | Responsable |
 |---|---|---|
@@ -1816,6 +1861,7 @@ La zona **📥 Importar una hoja del Excel** acepta los libros diarios del negoc
 | Semanal | Descargar la última copia y guardarla **fuera** del equipo (pendrive, nube) | Administrador |
 | Antes de cambios grandes | **Crear copia ahora** | Administrador |
 | Mensual | Probar una **restauración** en un equipo de prueba | Administrador |
+| Diaria (externa) | La copia se replica sola en la **carpeta de red o el WebDAV**; revise el estado en **Copias** | Sistema / Administrador |
 
 > [!TIP]
 > Una copia que nunca se restauró no es una copia: es una esperanza. Pruebe la restauración

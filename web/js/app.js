@@ -2201,6 +2201,11 @@ function backupView() {
   const isAdmin = role() === "ADMINISTRADOR";
   if (!ui.backups) { ui.backups = { list: [] }; api("/backups").then((r) => { ui.backups = { list: r.backups || [], keep: r.keep, hour: r.hour }; render(); }); }
   const b = ui.backups;
+  if (ui.backupExt === undefined && isAdmin) {
+    ui.backupExt = null;
+    api("/backups/external").then((r) => { ui.backupExt = r.error ? { error: r.error } : r; render(); })
+      .catch(() => { ui.backupExt = { error: "No se pudo consultar la copia externa." }; render(); });
+  }
   const kb = (n) => (n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.ceil(n / 1024) + " KB");
   return `
     <div class="card">
@@ -2213,6 +2218,7 @@ function backupView() {
         ${isAdmin ? `<button class="btn danger" data-act="reset">Recargar desde el Excel</button>` : ""}
       </div>
     </div>
+    ${isAdmin ? copiaExternaCard() : ""}
     <div class="card table-wrap flush mt14"><table>
       <thead><tr><th>Copia</th><th>Tipo</th><th>Fecha</th><th>Tamaño</th>${isAdmin ? "<th></th>" : ""}</tr></thead>
       <tbody>${b.list.map((x) => `<tr><td class="mono">${esc(x.name)}</td><td><span class="tag ${x.kind === "auto" ? "entrada" : "mov"}">${x.name.includes("pre-restore") ? "antes de restaurar" : x.kind}</span></td><td class="hint">${new Date(x.createdAt * 1000).toLocaleString("es-CU")}</td><td>${kb(x.size)}</td>
@@ -2224,6 +2230,41 @@ function backupView() {
       <span class="hint">Arrastra el archivo .xlsx aquí o haz clic. Elige la hoja del día (p. ej. «26 9 26»).</span>
       <input type="file" id="xlsxFile" accept=".xlsx,.xls" hidden>
     </label>`;
+}
+
+/**
+ * S-14 · Copia externa: carpeta de red o WebDAV.
+ *
+ * Enseña los destinos configurados en el servidor (`BACKUP_MIRROR_DIRS`,
+ * `BACKUP_WEBDAV_URL`…) y cómo fue la última réplica. Nunca muestra contraseñas: el
+ * servidor no las devuelve.
+ */
+function copiaExternaCard() {
+  const e = ui.backupExt;
+  if (!e) return `<div class="card mt14"><span class="k">🗄 Copia externa</span><p class="hint">Consultando los destinos…</p></div>`;
+  if (e.error) return `<div class="card mt14"><div class="card-h"><span class="k">🗄 Copia externa</span><span class="tag salida">sin respuesta</span></div>
+    <p class="hint">${esc(e.error)}</p></div>`;
+  const destinos = e.destinos || [];
+  const ultimo = e.ultimo;
+  const cuando = ultimo ? new Date(ultimo.cuando * 1000).toLocaleString("es-CU") : "";
+  const bien = ultimo && ultimo.todoBien;
+  return `<div class="card mt14">
+    <div class="card-h"><span class="k">🗄 Copia externa (fuera del equipo)</span>
+      ${!destinos.length ? `<span class="tag">sin configurar</span>` : bien ? `<span class="tag entrada">al día</span>` : ultimo ? `<span class="tag salida">revisar</span>` : `<span class="tag mov">sin probar</span>`}</div>
+    ${!destinos.length ? `<p class="hint">Una copia en el mismo disco no protege de un disco roto. Configure una <b>carpeta de red</b>
+      (<code>BACKUP_MIRROR_DIRS</code>) o un <b>WebDAV</b> (<code>BACKUP_WEBDAV_URL</code>, <code>BACKUP_WEBDAV_USER</code>,
+      <code>BACKUP_WEBDAV_PASSWORD</code>) en el servidor y reinicie. Cada copia se envía sola y se comprueba releyéndola.</p>` : `
+      <p class="hint">Cada copia diaria se envía a estos destinos y se <b>vuelve a leer</b> para comprobar que se puede restaurar.</p>
+      <div class="table-wrap"><table><thead><tr><th>Destino</th><th>Tipo</th><th>Credenciales</th></tr></thead>
+      <tbody>${destinos.map((d) => `<tr><td class="mono">${esc(d.destino)}</td><td><span class="tag ${d.tipo === "webdav" ? "mov" : "entrada"}">${esc(d.tipo)}</span></td>
+        <td class="hint">${d.conCredenciales ? `sí (${esc(d.usuario)})` : "no"}</td></tr>`).join("")}</tbody></table></div>`}
+    ${ultimo ? `<p class="hint">Última réplica: <b>${cuando}</b> · ${ultimo.correctos} copiado(s)${ultimo.fallidos ? ` · <b class="salida">${ultimo.fallidos} fallido(s)</b>` : ""}</p>` : ""}
+    <div class="row mt12">
+      <button class="btn" data-act="bk-ext-test" ${destinos.length ? "" : "disabled"}>Probar ahora</button>
+      <button class="btn ghost" data-act="bk-ext-refresh">↻ Actualizar</button>
+    </div>
+    <p class="hint">«Probar ahora» reenvía la copia más reciente, sin esperar a la de mañana.</p>
+  </div>`;
 }
 
 /**
@@ -4705,7 +4746,20 @@ function onClick(e) {
   else if (d.bkRestore) confirmModal(`¿Restaurar <b>${esc(d.bkRestore)}</b>? Los datos actuales se reemplazarán para todos los usuarios (antes se guarda una copia).`, () => api("/backups/" + encodeURIComponent(d.bkRestore), { method: "POST" }).then(async (r) => { if (r.error) return toast(r.error, "err"); await store.reload(); ui.backups = null; toast("Copia restaurada", "ok"); }));
   else if (act === "verify-clear") { ui.verifyResult = null; ui.verifyText = ""; render(); }
   else if (act === "verify-open") { ui.movDate = d.date || ""; navTo("movements"); }
-  else if (act === "srv-backup") { setBusy(true, "Creando la copia cifrada"); api("/backups", { method: "POST" }).then((r) => { setBusy(false); if (r.error) return toast(r.error, "err"); ui.backups = null; toast("Copia cifrada creada", "ok"); render(); }); }
+  else if (act === "bk-ext-refresh") { ui.backupExt = undefined; render(); }
+  else if (act === "bk-ext-test") {
+    setBusy(true, "Enviando la copia a los destinos externos");
+    api("/backups/external", { method: "POST" }).then((r) => {
+      setBusy(false);
+      if (r.error) return toast(r.error, "err");
+      ui.backupExt = undefined;
+      const p = r.parte || {};
+      if (p.todoBien) toast(`Copia enviada: ${p.correctos} destino(s)`, "ok");
+      else toast(`Se copió en ${p.correctos} de ${p.destinos} destino(s). Revise el detalle.`, "err");
+      render();
+    }).catch(() => { setBusy(false); toast("No se pudo enviar la copia externa.", "err"); });
+  }
+  else if (act === "srv-backup") { setBusy(true, "Creando la copia cifrada"); api("/backups", { method: "POST" }).then((r) => { setBusy(false); if (r.error) return toast(r.error, "err"); ui.backups = null; ui.backupExt = undefined; toast("Copia cifrada creada", "ok"); render(); }); }
   else if (act === "tfa-setup") api("/2fa/setup", { method: "POST" }).then((r) => { if (r.error) return toast(r.error, "err"); ui.sec.setup = r; render(); });
   else if (act === "tfa-cancel") { ui.sec.setup = null; render(); }
   else if (act === "codes-done") { ui.sec.codes = null; render(); }
@@ -4714,7 +4768,7 @@ function onClick(e) {
   else if (act === "close-day") confirmModal(`¿Cerrar el día <b>${formatDate(d.date)}</b>? Nadie podrá modificar sus movimientos ni el cuadre (solo un administrador puede reabrirlo).`, () => store.closeDay(d.date).then((r) => (r.error ? toast(r.error, "err") : confetti(`<b>🔒 Día cerrado</b><span>${formatDate(d.date)}</span>`))));
   else if (act === "reopen-day") { const reason = prompt("Motivo de la reapertura (queda en la auditoría):"); if (reason) store.reopenDay(d.date, reason).then((r) => result(r, "Día reabierto")); }
   else if (act === "confirm-yes") { const fn = ui.confirm; ui.confirm = null; ui.modal = null; fn?.(); render(); }
-  else if (act === "logout") { ui.sec = null; ui.usersLoaded = false; ui.backups = null; ui.license.infoTried = false; ui.license.infoLoaded = false; store.logout(); }
+  else if (act === "logout") { ui.sec = null; ui.usersLoaded = false; ui.backups = null; ui.backupExt = undefined; ui.license.infoTried = false; ui.license.infoLoaded = false; store.logout(); }
   else if (act === "kiosk-on") { setKiosco(true); toast("Modo mostrador activado", "ok"); render(); }
   else if (act === "kiosk-off") { setKiosco(false); toast("Modo mostrador desactivado", "ok"); render(); }
   else if (act === "kiosk-full") { document.documentElement.requestFullscreen?.().then?.(() => render()); }

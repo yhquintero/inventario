@@ -92,8 +92,13 @@ try:
     ok("sin licencia activa los días son nulos", licencia.get("diasRestantes") is None, str(licencia.get("diasRestantes")))
     ok("sin licencia no hay tipo", licencia.get("tipo") is None, str(licencia.get("tipo")))
     ok("los avisos son claves cortas conocidas",
-       all(a in {"licencia", "sin-copias", "copias-viejas", "disco-bajo", "licencia-vence"} for a in salud.get("avisos") or []),
+       all(a in {"licencia", "sin-copias", "copias-viejas", "disco-bajo", "licencia-vence", "copia-externa"}
+           for a in salud.get("avisos") or []),
        str(salud.get("avisos")))
+    # S-14: la copia externa se informa sin credenciales.
+    externa = salud.get("copiaExterna") or {}
+    ok("informa de la copia externa", "configurados" in externa and "destinos" in externa, str(externa))
+    ok("sin destinos configurados son cero", externa.get("configurados") == 0, str(externa))
 
     # S-11: la compresión llega al cliente y los archivos viajan comprimidos.
     def pedir(path, gzip_ok=True):

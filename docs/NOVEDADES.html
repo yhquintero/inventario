@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 41 revisiones</title>
+<title>Novedades de NovaGest · 42 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 41 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 42 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,20 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>41</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>42</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XLI</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
+      <h2>Copia externa con verificación (S-14)</h2>
+      <ul>
+      <li><b>La copia sale del equipo.</b> Además de la copia cifrada local, el servidor puede enviarla a</li>
+      <li><b>Comprobar que sirve, no solo que llegó:</b> en la carpeta se escribe, se <b>vuelve a leer</b> y se</li>
+      <li><b>Un destino caído no rompe nada:</b> la copia local y los demás destinos siguen; el fallo queda</li>
+      <li><b>Pantalla nueva en Copias:</b> tarjeta <b>🗄 Copia externa</b> con los destinos, su tipo, si llevan</li>
+      <li><b>API:</b> <code>GET /api/backups/external</code> y <code>POST /api/backups/external</code> (Administrador y Jefe).</li>
+      <li><b>Pruebas:</b> <code>tools/test_copia_externa.py</code> con <b>94 comprobaciones</b> (configuración, máscaras de</li>
+      <li><b>Manual:</b> nuevo apartado <b>13.4 Copia externa</b> y el plan de copias al día; <code>INSTALACION.md</code>,</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XL</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
       <h2>Búsqueda global (W-21)</h2>
@@ -208,19 +221,7 @@
       <li><b>Manual:</b> nuevo apartado <b>10.5 Exportar a Excel (.xlsx)</b> con la tabla de dónde está</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXXI</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Vender desde el buscador (W-04)</h2>
-      <ul>
-      <li><b>W-04 · Venta rápida desde <code>Ctrl + K</code>.</b> Basta escribir <b>«vender arroz 2»</b> en el buscador:</li>
-      <li><b>Formatos aceptados:</b> cantidad al final (<code>vender arroz 2</code>), al principio (<code>vende 2 arroz</code>),</li>
-      <li><b>Respeta todas las reglas de la caja:</b> día cerrado, existencia del almacén en uso, productos</li>
-      <li><b>Accesibilidad:</b> el resultado se anuncia por la región viva (<code>announce</code>) además del aviso</li>
-      <li><b>Módulo nuevo</b> <code>web/js/quick-sale.js</code> (lectura de la orden y elección del producto, sin tocar</li>
-      <li><b>Manual:</b> nuevo apartado <b>6.9 Vender desde el buscador (Ctrl + K)</b> con la tabla de formatos</li>
-      </ul>
-    </article>
-<p class="older">Y 29 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 30 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

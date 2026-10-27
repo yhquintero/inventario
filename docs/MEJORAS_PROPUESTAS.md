@@ -110,6 +110,7 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 | D-11 | ✅ **Vídeo vertical de 30 s (9:16)** con la venta, la caja y el cierre, con voz masculina, subtítulos quemados y `.srt`, publicado en el sitio | Es el canal real de los clientes | `docs/assets/video/`, `tools/build_reel_vertical.py` | 🟢 | ⏳ | ✅ |
 | G-02 | ✅ **Reel vertical de 15 s (9:16)**: el mismo mensaje en cuatro tramos, con voz masculina, subtítulos quemados y `.srt`, para TikTok, Reels, Shorts y estados | Es el formato donde está el cliente | `docs/assets/video/novagest-reel-vertical-15s.mp4`, `tools/build_reel_vertical.py --corto` | 🟢 | ⏱️ | ✅ |
 | W-21 | ✅ **Búsqueda global (Ctrl + K)**: producto (con código de barras), cliente, movimiento, ficha, almacén, sección y acción, en grupos resaltados y abriendo el sitio ya filtrado | Hoy hay que entrar pantalla por pantalla | `web/js/search.js`, `web/js/ux.js` | 🔴 | ⏳ | ✅ |
+| S-14 | ✅ **Copia externa opcional** (carpeta de red o WebDAV) con **verificación de que la copia se puede restaurar**: relectura y SHA-256 en carpeta, `HEAD` en WebDAV, y cada copia local se abre al crearse | Una copia en el mismo disco no es copia | `server/copias_externas.py`, `server/novagest_server.py`, `web/js/app.js` | 🔴 | ⏳ | ✅ |
 | D-12 | ✅ **Página de novedades** (`NOVEDADES.html`) generada desde `CHANGELOG.md` | El cliente ve que el producto avanza | `docs/` | 🟢 | ⏱️ |
 | W-17 | ✅ **Comparador de períodos en el gráfico del Panel** (serie anterior punteada, leyenda y columna en la tabla) | Decidir mirando la tendencia, no un número suelto | `homeView`, `app.css` | 🟠 | ⏱️ |
 
@@ -117,8 +118,8 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 paralelo los rápidos ~~W-09~~, ~~D-12~~ y ~~A-08~~. Entregados: **W-15, A-17, A-14** (revisión XXIII),
 **W-16, A-15** (XXIV), **S-09, D-10** (XXV), **W-12, W-09, D-12, A-08** (XXVI), **S-11, S-10, S-05**
 (XXVII), **W-03** (XXVIII), **A-04, A-13** (XXXV), **W-08, S-12** (XXXVI), **S-13** (XXXVI),
-**W-20** (XXXVII), **A-18** (XXXVIII), **G-02** (XXXIX) y **W-21** (XL). Siguiente: **S-14** (copia externa)
-→ **W-22** (previsión de compra) → **S-04** (instalador de Windows).
+**W-20** (XXXVII), **A-18** (XXXVIII), **G-02** (XXXIX), **W-21** (XL) y **S-14** (XLI). Siguiente: **W-22** (previsión de compra)
+→ **A-19** (ticket por WhatsApp) → **S-04** (instalador de Windows).
 
 ## Cómo se supervisa
 

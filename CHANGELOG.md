@@ -1,4 +1,27 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XL) · Búsqueda global (W-21)
+﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XLI) · Copia externa con verificación (S-14)
+
+- **La copia sale del equipo.** Además de la copia cifrada local, el servidor puede enviarla a
+  una **carpeta de red** (`BACKUP_MIRROR_DIRS`) o a un **WebDAV** (`BACKUP_WEBDAV_URL`, usuario y
+  contraseña; varias con `BACKUP_WEBDAV_URLS`). Sin dependencias nuevas: solo la biblioteca
+  estándar.
+- **Comprobar que sirve, no solo que llegó:** en la carpeta se escribe, se **vuelve a leer** y se
+  compara el **SHA-256**; en WebDAV se sube con `PUT` y se confirma con `HEAD`. Además, **cada
+  copia local se descifra al crearse**: si no abre, queda anotada como ilegible en vez de pasar
+  por buena.
+- **Un destino caído no rompe nada:** la copia local y los demás destinos siguen; el fallo queda
+  en la auditoría (`BACKUP_EXTERNAL_FAILED`) y aparece como aviso **`copia-externa`** en
+  `/api/health`.
+- **Pantalla nueva en Copias:** tarjeta **🗄 Copia externa** con los destinos, su tipo, si llevan
+  credenciales (nunca la contraseña), la fecha de la última réplica y el botón **Probar ahora**
+  para reenviar la copia más reciente sin esperar a la de mañana.
+- **API:** `GET /api/backups/external` y `POST /api/backups/external` (Administrador y Jefe).
+- **Pruebas:** `tools/test_copia_externa.py` con **94 comprobaciones** (configuración, máscaras de
+  credenciales, nombres peligrosos, verificación, carpetas, WebDAV simulado y réplica parcial) y
+  `tools/test_copia_externa_servidor.py` con **29** (copia real y réplica de extremo a extremo).
+- **Manual:** nuevo apartado **13.4 Copia externa** y el plan de copias al día; `INSTALACION.md`,
+  `README.md` y `SECURITY.md` explican las variables.
+
+## NovaGest v1.0.0 · revisión 2026-10-26 (XL) · Búsqueda global (W-21)
 
 - **Un solo buscador para todo el negocio.** Con **Ctrl + K** (o el botón ⌕ Buscar) aparece una
   paleta que busca a la vez en **productos** (nombre, categoría, notas y **código de barras**),
