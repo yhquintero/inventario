@@ -1148,5 +1148,96 @@ test("S-01 · el registro de seguridad se puede comprobar encadenado desde la pa
   assert.match(server, /def _hash_auditoria\(/, "el servidor calcula la huella encadenada");
 });
 
+test("S-12 · el sello del registro se puede anclar, listar y comprobar", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  const server = readFileSync(join(root, "server/novagest_server.py"), "utf8");
+  assert.match(source, /function loadAnclajes\(/, "la pantalla pide la lista de anclajes");
+  assert.match(source, /api\("\/security-log\/anchors"\)/, "consulta la ruta de anclajes");
+  assert.match(source, /function anclarSello\(/, "existe la acción de anclar");
+  assert.match(source, /api\("\/security-log\/anchor", \{ method: "POST"/, "firma contra el servidor");
+  assert.match(source, /data-act="sec-anchor"/, "hay botón «Anclar ahora»");
+  assert.match(source, /data-act="sec-anchor-del"/, "cada anclaje se puede borrar");
+  assert.match(source, /function anclajesCard\(/, "la tarjeta del sello existe");
+  assert.match(source, /no cuadran/, "avisa en rojo si un anclaje está roto");
+  assert.match(source, /Solo Administrador y Jefe pueden borrar un anclaje/, "explica quién puede borrar");
+  assert.match(server, /@route\("GET", "\/api\/security-log\/anchors"/, "el servidor lista los anclajes");
+  assert.match(server, /@route\("POST", "\/api\/security-log\/anchor"/, "el servidor firma el anclaje");
+  assert.match(server, /CREATE TABLE IF NOT EXISTS audit_anchors/, "hay tabla propia para los anclajes");
+  assert.match(server, /def _firmar_anclaje\(/, "la firma es HMAC del sello, las líneas y la fecha");
+  assert.match(server, /AUDIT_ANCHOR_DELETE/, "borrar un anclaje queda auditado");
+});
+
+test("W-03 · las alertas de reposición dicen cuándo se agota y se pueden silenciar", () => {
+  const original = store.state;
+  try {
+    // Un producto que se vende 2 al día y solo tiene 3: debe salir como urgente.
+    const hoy = new Date();
+    const z = (n) => String(n).padStart(2, "0");
+    const iso = (d) => `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+    const fechas = Array.from({ length: 10 }, (_, i) => {
+      const d = new Date(hoy);
+      d.setDate(d.getDate() - i);
+      return iso(d);
+    });
+    store.state = {
+      ...original,
+      products: [{ id: "p1", name: "ARROZ", category: "General", stockInicial: 60, stockActual: 3,
+        stocks: { w1: 3 }, stocksInicial: { w1: 60 }, precioVentaUsd: 10, precioVenta2Usd: 0,
+        precioCostoUsd: 6, comisionCup: 0, minStock: 1, observaciones: "", barcode: "", createdAt: 1, updatedAt: 1 }],
+      movements: fechas.map((f, i) => ({ id: `m${i}`, date: f, type: "VENTA", productId: "p1", productName: "ARROZ",
+        quantity: 6, unitPriceUsd: 10, importeUsd: 60, costoUsd: 36, center: "TIENDA", warehouseId: "w1",
+        createdAt: 1, updatedAt: 1 })),
+      settings: { ...original.settings, lowStockAlerts: true, restockCover: 14 },
+    };
+    const html = go("home");
+    assert.match(html, /Reposición: se agota pronto/, "el Panel enseña la tarjeta de reposición");
+    assert.match(html, /data-act="alerts-open"/, "hay acceso a la lista completa");
+    assert.match(html, /Urgente/, "marca la prioridad");
+    assert.match(html, /Reponer/, "dice cuánto reponer");
+
+    clickMatching("act", { act: "alerts-open" });
+    assert.match(app.innerHTML, /Reposición sugerida/, "se abre el detalle");
+    assert.match(app.innerHTML, /No avisar más hoy/, "se puede silenciar el aviso del día");
+    clickMatching("act", { act: "alerts-silence" });
+    assert.ok(localStorage.getItem("novagest.alerts.visto"), "la marca del día queda guardada");
+
+    // Con el aviso desactivado, ni tarjeta ni campana.
+    store.state.settings = { ...store.state.settings, lowStockAlerts: false };
+    assert.doesNotMatch(go("home"), /Reposición: se agota pronto/);
+  } finally {
+    store.state = original;
+    localStorage.removeItem("novagest.alerts.visto");
+    go("home");
+  }
+});
+
+test("W-08 · el modo mostrador oculta los menús y deja tres accesos grandes", () => {
+  try {
+    localStorage.removeItem("novagest.kiosco");
+    assert.doesNotMatch(go("home"), /kiosk-bar/, "al inicio no hay franja de mostrador");
+    assert.match(app.innerHTML, /data-act="kiosk-on"/, "hay botón para activarlo");
+
+    clickMatching("act", { act: "kiosk-on" });
+    assert.equal(localStorage.getItem("novagest.kiosco"), "1", "la preferencia queda guardada en el equipo");
+    assert.equal(document.documentElement.dataset.kiosk, "1", "la hoja de estilos oculta menús y barra");
+    assert.match(app.innerHTML, /class="kiosk-bar"/, "aparece la franja del mostrador");
+    assert.match(app.innerHTML, /data-nav="pos"/, "acceso grande a vender");
+    assert.match(app.innerHTML, /data-nav="inventory"/, "acceso grande al inventario");
+    assert.match(app.innerHTML, /data-nav="cuadre"/, "acceso grande al cuadre");
+    assert.match(app.innerHTML, /data-act="kiosk-off"/, "se puede salir");
+
+    // Al cambiar de pantalla el modo se mantiene.
+    assert.match(go("inventory"), /class="kiosk-bar"/);
+
+    clickMatching("act", { act: "kiosk-off" });
+    assert.equal(localStorage.getItem("novagest.kiosco"), null);
+    assert.equal(document.documentElement.dataset.kiosk, "0");
+    assert.doesNotMatch(app.innerHTML, /class="kiosk-bar"/);
+  } finally {
+    localStorage.removeItem("novagest.kiosco");
+    go("home");
+  }
+});
+
 console.log(`\n${ok} comprobaciones correctas, ${fail} fallidas\n`);
 process.exit(fail ? 1 : 0);

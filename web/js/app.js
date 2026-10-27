@@ -17,6 +17,8 @@ import { consentBanner, setConsent, resetConsent } from "./consent.js";
 import { findSaleByCode, saleTicket, ticketCode, ticketTotals, verifyTicket } from "./ticket.js";
 import { quickSalePlan, quickSaleLabel, quickSaleSummary } from "./quick-sale.js";
 import { buildSheet, sheetFileName } from "./xlsx-export.js";
+import { alertsSummary, alertSignature, severityLabel, shouldNotify, sortAlerts, stockAlerts } from "./alerts.js";
+import { KIOSK_ACTIONS, canFullscreen, kioskClock, kioskHint, readKiosk, writeKiosk } from "./kiosk.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -182,6 +184,44 @@ const catBadge = (cat) => {
 };
 
 /* ============================ SHELL ============================ */
+/* ============================ MODO KIOSCO (W-08) ============================ */
+// La tablet del mostrador se queda en la app: sin menú lateral, sin barra del navegador
+// (cuando el navegador lo permite) y con tres accesos grandes. La preferencia es del
+// equipo, así que se guarda en el navegador y no en los datos compartidos del negocio.
+function kioscoActivo() {
+  if (ui.kiosco === undefined) ui.kiosco = readKiosk(safeStorage());
+  return !!ui.kiosco;
+}
+function safeStorage() {
+  try { return window.localStorage; } catch { return undefined; }
+}
+function pintarKiosco() {
+  const on = kioscoActivo();
+  document.documentElement.dataset.kiosk = on ? "1" : "0";
+  return on;
+}
+/** Entra o sale del modo mostrador y, si se puede, pone la app a pantalla completa. */
+function setKiosco(on) {
+  ui.kiosco = writeKiosk(safeStorage(), on);
+  if (on) document.documentElement.requestFullscreen?.().catch?.(() => {});
+  else if (document.fullscreenElement) document.exitFullscreen?.().catch?.(() => {});
+  pintarKiosco();
+}
+function kioskBarMarkup() {
+  if (!kioscoActivo()) return "";
+  const full = !!document.fullscreenElement;
+  return `<div class="kiosk-bar" role="region" aria-label="Modo mostrador">
+    <span class="kiosk-reloj">${esc(store.state.settings.businessName || "NovaGest")} · ${esc(kioskClock(new Date()))}</span>
+    <nav class="kiosk-nav">${KIOSK_ACTIONS.filter((a) => allowed(routes[a.route]?.perm)).map((a) =>
+      `<button class="btn kiosk-btn ${ui.route === a.route ? "on" : ""}" data-nav="${a.route}" aria-label="${esc(a.label)}: ${esc(a.hint)}"><span aria-hidden="true">${a.icon}</span> ${esc(a.label)}</button>`).join("")}</nav>
+    <span class="row">
+      <span class="hint kiosk-hint">${esc(kioskHint(true, full))}</span>
+      ${!full && canFullscreen(document) ? `<button class="btn ghost small" data-act="kiosk-full" aria-label="Pantalla completa">⛶ Pantalla completa</button>` : ""}
+      <button class="btn ghost small" data-act="kiosk-off" aria-label="Salir del modo mostrador">✕ Salir</button>
+    </span>
+  </div>`;
+}
+
 function shell(body) {
   const u = store.state.session;
   const items = Object.entries(routes).filter(([, r]) => allowed(r.perm) && !r.hidden);
@@ -215,11 +255,17 @@ function shell(body) {
           ${whPicker()}
           <span class="sync-dot ${store.sync}" id="syncDot" role="status" aria-live="polite" aria-atomic="true" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
           <button class="btn ghost small lic-btn ${ui.route === "license" ? "on" : ""}" data-act="license-manage" title="Gestionar la licencia de uso" aria-label="Licencia de uso" data-tip="Gestionar la licencia de uso · Licencia ${ui.license.status?.valid ? `${ui.license.status.type} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}` : "no válida"}${pendingReq ? ` · ${pendingReq} solicitud(es) pendiente(s)` : ""}">🔐${pendingReq ? `<span class="pill">${pendingReq}</span>` : ""}</button>
+          ${(() => {
+            if (!store.state.settings.lowStockAlerts) return "";
+            const n = alertasReposicion().filter((a) => a.severity === "alta").length;
+            return `<button class="btn ghost small" data-act="alerts-open" aria-label="Alertas de reposición${n ? `: ${n} urgente(s)` : ""}" data-tip="${n ? `${n} producto(s) urgente(s) por reponer` : "Sin urgencias de reposición"}">🔔${n ? `<span class="pill">${n}</span>` : ""}</button>`;
+          })()}
+          <button class="btn ghost small kiosk-toggle" data-act="kiosk-on" title="Modo mostrador (tablet sin menús)" aria-label="Activar el modo mostrador para la tablet">⛶</button>
           <button class="btn ghost small kbd-btn" data-act="palette" aria-label="Búsqueda rápida (Ctrl+K)">⌘K</button>
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema" aria-label="Cambiar tema: claro, oscuro o automático">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
         </div>
-        <main class="content dashboard-page" id="contenido">${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
+        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
       </section>
     </div>
     ${consentBanner()}
@@ -935,6 +981,89 @@ function sameWeekdayComparison(today, previous, previousISO) {
   return `${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}% vs ${fecha}`;
 }
 
+/** Días de cobertura para la reposición (ajustable en Ajustes). */
+function diasDeCobertura() {
+  const n = Number(store.state.settings.restockCover);
+  return Number.isFinite(n) && n >= 1 && n <= 365 ? Math.round(n) : 14;
+}
+
+/**
+ * Alertas de reposición predictivas (W-03).
+ *
+ * Usa las ventas de los últimos 30 días y la existencia del almacén en uso para decir
+ * **cuándo** se agota cada producto, no solo que está bajo.
+ */
+function alertasReposicion() {
+  const lista = stockAlerts(store.activeProducts(), store.activeMovements(), {
+    today: todayISO(),
+    days: 30,
+    cover: diasDeCobertura(),
+    warehouseId: store.activeWarehouseId(),
+  });
+  return sortAlerts(lista);
+}
+
+/** Aviso de reposición del Panel: lo urgente con su fecha y cuánto reponer. */
+function alertsCardMarkup(lista = alertasReposicion()) {
+  if (!lista.length || !store.state.settings.lowStockAlerts) return "";
+  const resumen = alertsSummary(lista);
+  const tono = { alta: "salida", media: "gestor", baja: "entrada" };
+  return `<section class="card mt16" id="alertsCard" aria-labelledby="alertsTitle">
+      <div class="card-h"><span class="k" id="alertsTitle">🔔 Reposición: se agota pronto</span>
+        <span class="row"><span class="hint">${esc(resumen.text)}</span><button class="btn ghost small" data-act="alerts-open">Ver todos</button></span></div>
+      <p class="hint">Calculado con las ventas de los últimos 30 días y la existencia del almacén en uso. «Se agota» es el día en que se acaba al ritmo actual; la sugerencia cubre ${diasDeCobertura()} días. Se ajusta en <a href="#settings" data-nav="settings">Ajustes</a>.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Producto</th><th class="r">Por día</th><th class="r">Quedan</th><th>Se agota</th><th class="r">Reponer</th><th>Prioridad</th></tr></thead>
+        <tbody>${lista.slice(0, 6).map((a) => `<tr>
+          <td>${esc(a.product.name)}</td><td class="mono r">${a.perDay}</td><td class="mono r">${qty(a.stock)}</td>
+          <td>${esc(a.when)}</td><td class="mono r"><b>${qty(a.suggested)}</b></td>
+          <td><span class="tag ${tono[a.severity] || "mov"}">${severityLabel(a.severity)}</span></td></tr>`).join("")}</tbody>
+      </table></div>
+    </section>`;
+}
+
+/** Modal con la lista completa de alertas y el botón para ir a reponer. */
+function alertsModalMarkup(lista) {
+  const resumen = alertsSummary(lista);
+  return `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="alertsModalTitle">
+    <div class="modal-card">
+      <div class="card-h"><span class="k" id="alertsModalTitle">🔔 Reposición sugerida</span><button class="btn ghost small" data-act="close-modal" aria-label="Cerrar">✕</button></div>
+      <p class="hint">${esc(resumen.text)} Con el almacén en uso y las ventas de los últimos 30 días.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Producto</th><th class="r">Vendidos</th><th class="r">Por día</th><th class="r">Quedan</th><th>Se agota</th><th class="r">Reponer</th><th>Prioridad</th></tr></thead>
+        <tbody>${lista.map((a) => `<tr><td>${esc(a.product.name)}</td><td class="mono r">${qty(a.sold)}</td><td class="mono r">${a.perDay}</td>
+          <td class="mono r">${qty(a.stock)}</td><td>${esc(a.when)}</td><td class="mono r"><b>${qty(a.suggested)}</b></td>
+          <td><span class="tag ${{ alta: "salida", media: "gestor", baja: "entrada" }[a.severity] || "mov"}">${severityLabel(a.severity)}</span></td></tr>`).join("")}</tbody>
+      </table></div>
+      <div class="row mt12"><button class="btn" data-act="alerts-go">Ir al inventario</button>
+        <button class="btn ghost" data-act="alerts-silence">No avisar más hoy</button>
+        <button class="btn ghost" data-act="close-modal">Cerrar</button></div>
+    </div>
+  </div>`;
+}
+
+/**
+ * Avisa al entrar (una vez al día y solo si hay algo urgente).
+ *
+ * La marca se guarda en el navegador con la huella de la lista: si mañana cambia lo que
+ * hay que reponer, vuelve a avisar; si es lo mismo, no molesta.
+ */
+function maybeNotifyAlerts() {
+  if (!store.state.session || ui._alertsNotified) return;
+  ui._alertsNotified = true;
+  const lista = alertasReposicion();
+  if (!shouldNotify(lista, { enabled: store.state.settings.lowStockAlerts !== false })) return;
+  const firma = `${todayISO()}|${alertSignature(lista.filter((a) => a.severity === "alta"))}`;
+  let visto = "";
+  try { visto = localStorage.getItem("novagest.alerts.visto") || ""; } catch {}
+  if (visto === firma) return;
+  const urgentes = lista.filter((a) => a.severity === "alta").length;
+  setTimeout(() => {
+    toast(`🔔 ${urgentes} producto(s) se agotan: revisa la reposición`, "warn");
+    announce(`Aviso de reposición: ${urgentes} producto(s) urgente(s). ${alertsSummary(lista).text}`);
+  }, 700);
+}
+
 function homeView() {
   const prods = store.activeProducts();
   const movs = store.activeMovements();
@@ -1035,6 +1164,7 @@ function homeView() {
         <div class="hline dashboard-total"><span>Total general</span><b class="mono">${qty(warehouseUnits)} uds · ${usd(warehouseValue)}</b></div>
       </div>` : ""}
     </div>
+    ${alertsCardMarkup()}
     <div class="grid-2 mt16">
       <div class="card">
         <div class="card-h"><span class="k">Últimos movimientos</span><button class="btn ghost small" data-nav="movements">Ver todos</button></div>
@@ -1758,6 +1888,109 @@ function verificarCadenaAuditoria() {
     });
 }
 
+/**
+ * Pide la lista de anclajes del sello (S-12).
+ *
+ * Un anclaje es una línea firmada e independiente que recuerda cuántas líneas tenía el
+ * registro y cuál era su último hash. La cadena sola no ve un borrado del final; el anclaje sí.
+ */
+function loadAnclajes() {
+  if (!ui.anclajes) ui.anclajes = { rows: [], total: 0, ok: true, cargando: true };
+  ui.anclajes.cargando = true;
+  api("/security-log/anchors")
+    .then((r) => {
+      ui.anclajes = { rows: r.anchors || [], total: r.total ?? (r.anchors || []).length, ok: r.ok !== false, cargando: false };
+      render();
+    })
+    .catch(() => {
+      ui.anclajes = { rows: [], total: 0, ok: true, cargando: false, error: true };
+      render();
+    });
+}
+
+/**
+ * Ancla ahora el sello del registro (S-12).
+ *
+ * El servidor comprueba primero la cadena entera: si no cuadra se niega (409) para no firmar
+ * un estado ya corrupto. La nota es opcional y queda guardada con el anclaje.
+ */
+function anclarSello() {
+  if (ui.anclajes) ui.anclajes.firmando = true;
+  render();
+  const nota = prompt("Nota del anclaje (opcional, por ejemplo «cierre de octubre»):", "") || "";
+  api("/security-log/anchor", { method: "POST", body: { note: nota } })
+    .then((r) => {
+      if (ui.anclajes) ui.anclajes.firmando = false;
+      if (r.status === 409) {
+        toast("No se ancló: el registro no cuadra. Compruébalo antes de firmar.", "err");
+        announce("Atención: no se pudo anclar el sello porque el registro no cuadra.");
+      } else {
+        result(r, `Sello anclado: ${r.lineas ?? "?"} línea(s) firmadas`);
+        announce("Sello del registro anclado y firmado correctamente.");
+      }
+      loadAnclajes();
+    })
+    .catch(() => {
+      if (ui.anclajes) ui.anclajes.firmando = false;
+      toast("No se pudo anclar el sello del registro.", "err");
+      render();
+    });
+}
+
+/**
+ * Borra un anclaje (solo Administrador/Jefe). Queda registrado en la auditoría (S-12).
+ */
+function borrarAnclaje(id) {
+  if (!confirm("¿Borrar este anclaje? El sello seguirá siendo válido, pero se perderá esta referencia firmada. El borrado queda auditado.")) return;
+  api(`/security-log/anchor/${encodeURIComponent(id)}`, { method: "DELETE" })
+    .then((r) => {
+      result(r, "Anclaje borrado");
+      loadAnclajes();
+    })
+    .catch(() => toast("No se pudo borrar el anclaje.", "err"));
+}
+
+/** Tarjeta con los anclajes del sello: estado, quién firmó, cuándo y qué selló (S-12). */
+function anclajesCard() {
+  if (!ui.anclajes) loadAnclajes();
+  const a = ui.anclajes || { rows: [], total: 0, ok: true, cargando: true };
+  const puedeBorrar = ["ADMINISTRADOR", "JEFE"].includes(role());
+  const fecha = (t) => (t ? new Date(t * 1000).toLocaleString("es-CU") : "—");
+  const roto = a.rows.filter((x) => !x.ok);
+  const aviso = roto.length
+    ? `<div class="banner err mt12"><b>⚠ ${roto.length} anclaje(s) no cuadran.</b> El registro cambió después de haberlo sellado (${esc(roto[0].motivo || "sin detalle")}). No siga trabajando sin revisar la copia de seguridad y avise al administrador.</div>`
+    : a.rows.length
+      ? `<div class="banner ok mt12"><b>✔ ${a.rows.length} anclaje(s) correctos.</b> La firma, el número de líneas y la cadena de cada sello coinciden.</div>`
+      : "";
+  const filas = a.rows
+    .slice()
+    .reverse()
+    .map(
+      (x) => `<tr>
+        <td class="hint">${fecha(x.ts)}</td>
+        <td>${esc(x.user || "—")}</td>
+        <td class="mono">#${x.id}</td>
+        <td>${x.lineas} línea(s)</td>
+        <td class="mono hint" data-tip="Último hash del registro cuando se ancló">${esc(x.headShort || "—")}</td>
+        <td class="hint">${esc(x.nota || "—")}</td>
+        <td>${x.ok ? "<span class='tag entrada'>Correcto</span>" : `<span class='tag salida' title='${esc(x.motivo || "")}'>Roto</span><div class="hint">${esc(x.motivo || "")}</div>`}</td>
+        ${puedeBorrar ? `<td><button class="btn ghost small" data-act="sec-anchor-del" data-id="${x.id}">Borrar</button></td>` : ""}
+      </tr>`
+    )
+    .join("");
+  return `<div class="card mb12"><div class="card-h"><span class="k">🔏 Sello anclado</span>
+      <span class="hint">${a.total} anclaje(s)</span></div>
+    <p class="hint">Un anclaje fija el registro tal como estaba: cuántas líneas tenía y cuál era su último hash, firmado con una clave que solo tiene este servidor. Sirve para detectar un borrado de las últimas líneas, que la cadena por sí sola no notaría.</p>
+    <p class="hint">Ancle al cerrar el día o el mes, y también antes de una copia de seguridad importante. Guarde aparte el número de líneas y el sello corto: son su prueba.</p>
+    <div class="row mt12"><button class="btn small" data-act="sec-anchor" ${a.firmando ? "disabled" : ""}>${a.firmando ? "Anclando…" : "🔏 Anclar ahora"}</button>
+    ${!puedeBorrar ? `<span class="hint">Solo Administrador y Jefe pueden borrar un anclaje.</span>` : ""}</div>
+    ${a.cargando && !a.rows.length ? '<p class="hint">Cargando los anclajes…</p>' : ""}
+    ${a.error ? '<p class="hint">No se pudo leer la lista de anclajes.</p>' : ""}
+    ${aviso}
+    ${filas ? `<div class="table-wrap mt12"><table><thead><tr><th>Fecha</th><th>Quién</th><th>N.º</th><th>Selló</th><th>Sello</th><th>Nota</th><th>Estado</th>${puedeBorrar ? "<th></th>" : ""}</tr></thead><tbody>${filas}</tbody></table></div>` : ""}
+  </div>`;
+}
+
 function auditView() {
   const canSec = ["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role());
   const tab = ui.auditTab || "app";
@@ -1796,7 +2029,7 @@ function auditView() {
       <div class="row mt12"><button class="btn ghost small" data-act="sec-verify" ${ui.secLog.verificando ? "disabled" : ""}>${ui.secLog.verificando ? "Comprobando…" : "🔗 Comprobar cadena"}</button>
       ${ui.secLog.hasMore ? `<button class="btn ghost small" data-act="sec-more">Ver más eventos</button>` : ""}</div>
       ${veredicto}</div>`;
-    return tabs + pie + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Detalle</th><th>Huella</th><th>IP</th></tr></thead>
+    return tabs + pie + anclajesCard() + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Detalle</th><th>Huella</th><th>IP</th></tr></thead>
       <tbody>${rows.map((a) => `<tr><td class="hint">${new Date(a.ts * 1000).toLocaleString("es-CU")}</td><td>${esc(a.user)}</td><td><span class="tag ${bad(a.action) ? "salida" : a.action.startsWith("LOGIN") ? "entrada" : "mov"}">${esc(a.action)}</span></td><td>${hl(a.details || "")}</td><td class="mono hint" data-tip="Hash SHA-256 de esta línea encadenado con la anterior">${esc(a.hashShort || "—")}</td><td class="mono hint">${esc(a.ip || "")}</td></tr>`).join("") || "<tr><td colspan=6 class=hint>Sin eventos.</td></tr>"}</tbody></table></div>`;
   }
   const logs = store.state.audit.filter((a) => !ui.q || has(a.action, ui.q) || has(a.userName || "", ui.q) || has(a.details || "", ui.q) || has(a.entity || "", ui.q));
@@ -2021,6 +2254,7 @@ function settingsView() {
       <label class="span-2">Nombre del negocio <input name="businessName" ${dis} value="${esc(s.businessName)}"></label>
       <label>CUP/USD por defecto <input name="defaultCupUsd" ${dis} type="number" step="any" value="${s.defaultCupUsd}"></label>
       <label>Tema<select name="theme">${["light", "dark", "system"].map((t) => `<option ${s.theme === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      <label>Cobertura de reposición <small>días</small><input name="restockCover" ${dis} type="number" min="1" max="365" value="${diasDeCobertura()}"></label>
       <label>Alertas stock bajo<select name="lowStockAlerts" ${dis}><option value="true" ${s.lowStockAlerts ? "selected" : ""}>Sí</option><option value="false" ${!s.lowStockAlerts ? "selected" : ""}>No</option></select></label>
       <label>Comisión<select name="comisionSoloGestor" ${dis}><option value="false" ${!s.comisionSoloGestor ? "selected" : ""}>En todas las ventas (como el Excel)</option><option value="true" ${s.comisionSoloGestor ? "selected" : ""}>Solo ventas GESTOR</option></select></label>
       <label>Meta diaria <small>USD</small><input name="goalDaily" ${dis} type="number" step="any" value="${s.goalDaily}"></label>
@@ -3489,6 +3723,7 @@ function hydrateStyles(root = document) {
 function render() {
   rememberSidebarScroll();
   applyTheme();
+  pintarKiosco();
   // Páginas legales: públicas, también sin licencia ni sesión.
   if (ui.route === "legal") {
     if (ui.legalData === null) fetchLegal().then(() => { if (ui.route === "legal") render(); });
@@ -3555,6 +3790,7 @@ function render() {
     }
   }
   if (!tourSeen() && !ui.modal && !document.querySelector(".tour") && innerWidth > 860) setTimeout(startTour, 400);
+  maybeNotifyAlerts();
 }
 
 /**
@@ -3626,6 +3862,8 @@ document.addEventListener("keydown", (e) => {
   const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName);
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openPalette(paletteCtx()); return; }
   if (e.key === "Escape" && ui.modal) { ui.modal = null; render(); return; }
+  // W-08: con Escape se sale de la pantalla completa; si ya no hay pantalla completa, del modo mostrador.
+  if (e.key === "Escape" && kioscoActivo() && !document.fullscreenElement) { setKiosco(false); render(); return; }
   // Foco atrapado dentro del modal: con Tab no se debe llegar al contenido de detrás.
   // (render() ya enfoca el primer campo al abrirlo; esto cierra el círculo.)
   if (e.key === "Tab" && ui.modal) {
@@ -3906,7 +4144,7 @@ function bindApp() {
     if (!["ADMINISTRADOR", "JEFE"].includes(role())) { store.saveSettings({ theme: fd.get("theme") }); return toast("Tema guardado", "ok"); }
     const soloG = fd.get("comisionSoloGestor") === "true";
     const changed = soloG !== !!store.state.settings.comisionSoloGestor;
-    store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", comisionSoloGestor: soloG, goalDaily: Number(fd.get("goalDaily")) || 0, goalWeekly: Number(fd.get("goalWeekly")) || 0, sessionMinutes: Math.max(1, Number(fd.get("sessionMinutes")) || 20) });
+    store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", restockCover: Math.min(365, Math.max(1, Number(fd.get("restockCover")) || 14)), comisionSoloGestor: soloG, goalDaily: Number(fd.get("goalDaily")) || 0, goalWeekly: Number(fd.get("goalWeekly")) || 0, sessionMinutes: Math.max(1, Number(fd.get("sessionMinutes")) || 20) });
     if (changed) { store.state.products.forEach((p) => store.recalcProduct(p.id)); store.emit(); }
     toast("Ajustes guardados", "ok");
   });
@@ -4222,6 +4460,18 @@ function onClick(e) {
   else if (act === "reopen-day") { const reason = prompt("Motivo de la reapertura (queda en la auditoría):"); if (reason) store.reopenDay(d.date, reason).then((r) => result(r, "Día reabierto")); }
   else if (act === "confirm-yes") { const fn = ui.confirm; ui.confirm = null; ui.modal = null; fn?.(); render(); }
   else if (act === "logout") { ui.sec = null; ui.usersLoaded = false; ui.backups = null; ui.license.infoTried = false; ui.license.infoLoaded = false; store.logout(); }
+  else if (act === "kiosk-on") { setKiosco(true); toast("Modo mostrador activado", "ok"); render(); }
+  else if (act === "kiosk-off") { setKiosco(false); toast("Modo mostrador desactivado", "ok"); render(); }
+  else if (act === "kiosk-full") { document.documentElement.requestFullscreen?.().then?.(() => render()); }
+  else if (act === "alerts-open") { ui.modal = alertsModalMarkup(alertasReposicion()); render(); }
+  else if (act === "alerts-go") { ui.modal = null; navTo("inventory"); }
+  else if (act === "alerts-silence") {
+    const lista = alertasReposicion().filter((a) => a.severity === "alta");
+    try { localStorage.setItem("novagest.alerts.visto", `${todayISO()}|${alertSignature(lista)}`); } catch {}
+    ui.modal = null;
+    toast("Sin avisos de reposición durante hoy.", "ok");
+    render();
+  }
   else if (act === "palette") openPalette(paletteCtx());
   else if (act === "cart-clear") { ui.cart = []; render(); }
   else if (act === "checkout") {
@@ -4276,6 +4526,8 @@ function onClick(e) {
   else if (act === "iv-template") ivTemplate();
   else if (act === "sec-verify") { verificarCadenaAuditoria(); }
   else if (act === "export-xlsx") { exportXlsx(d.xlsx || "inventory", d.xlsx === "analytics" ? ui.lastAnalytics || {} : {}); }
+  else if (act === "sec-anchor") anclarSello();
+  else if (act === "sec-anchor-del") borrarAnclaje(d.id);
   else if (act === "sec-more") { loadSecLog((ui.secLog?.page || 1) + 1); toast("Cargando más eventos…", "ok"); }
   else if (act === "health-refresh") { ui.health = null; render(); toast("Revisando el estado del servidor…", "ok"); }
   else if (act === "license-refresh") {

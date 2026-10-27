@@ -30,12 +30,12 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 |---|---|---|---|---|---|---|
 | W-01 | **Mapa de calor de ventas (8 semanas) y barras de venta/utilidad por categoría en Análisis**, con tabla de datos equivalente | Los días flojos y la categoría que deja margen se ven de un vistazo | `web/js/charts.js`, `app.js` | 🔴 | ⏳ | ✅ |
 | W-02 | **Cola de cambios sin conexión en el navegador** (`localStorage`) y **conflictos resueltos por `updatedAt`** | Recargar la pestaña o chocar con otro usuario ya no pierde trabajo | `web/js/merge.js`, `store.js` | 🔴 | 🧱 | ✅ |
-| W-03 | Alertas de reposición predictivas (velocidad de venta × stock) | Evita quedarse sin lo que más rota | Panel + Worker | 🟠 | ⏳ | ⬜ |
+| W-03 | ✅ **Alertas de reposición predictivas** (velocidad de venta × stock): ritmo, días que dura y unidades a comprar, con aviso diario silenciable | Evita quedarse sin lo que más rota | `web/js/alerts.js` + Panel | 🟠 | ⏳ | ✅ |
 | W-04 | ✅ **Comando rápido en la búsqueda global** (`Ctrl + K`): «vender arroz 2» | Vender en 5 segundos desde cualquier pantalla | `web/js/quick-sale.js` | 🟠 | ⏳ | ✅ |
 | W-05 | **Ticket térmico 58/80 mm** de la última venta y de cualquier venta del historial | Impresoras térmicas de mostrador | `web/js/ticket.js`, `app.css` | 🟠 | ⏱️ | ✅ |
 | W-06 | **Comparador de períodos en Informes** (período actual vs anterior de igual duración) | Decisiones con contexto, no cifras sueltas | `web/js/app.js` | 🟠 | ⏳ | ✅ |
 | W-07 | ✅ **Exportación XLSX** de inventario, movimientos, clientes, fiados, cuadres y categorías (libro `.xlsx` generado en el equipo con el lector que ya trae la app, sin `openpyxl` ni salir a Internet) | El contador trabaja en Excel | `web/js/xlsx-export.js`, `app.js` | 🟢 | ⏱️ | ✅ |
-| W-08 | Modo kiosco para tablet de mostrador (sin barra del navegador) | Uso real en el punto de venta | PWA | 🟢 | ⏱️ | ⬜ |
+| W-08 | ✅ **Modo mostrador para la tablet**: un botón ⛶ entra en pantalla completa, oculta menús y deja tres accesos grandes (Vender, Inventario, Cuadre); se recuerda por equipo y `Esc` sale | Uso real en el punto de venta | `web/js/kiosk.js`, `app.css` | 🟢 | ⏱️ | ✅ |
 | W-09 | ✅ `aria-live`, estado ocupado y foco gestionado en operaciones largas | Accesibilidad más allá de WCAG AA | `web/js/app.js` | 🟢 | ⏱️ | ✅ |
 
 ## Paso 3 · App Android
@@ -45,7 +45,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | A-01 | **Cola persistente con reintentos (espera creciente) y conflictos resueltos por `updatedAt`**, con aviso de «cambios sin subir» | Trabajar sin red y con varias personas sin perder trabajo | `data/sync/SyncQueue.kt`, `SyncManager.kt` | 🔴 | ⏳ | ✅ |
 | A-02 | **Recibo Bluetooth ESC/POS 58/80 mm** desde Venta rápida (ticket de la última venta) | Cobrar e imprimir desde el móvil | `data/printer/`, `ui/pos/` | 🟠 | ⏳ | ✅ |
 | A-03 | Escáner con CameraX (sin depender de servicios de Google) | Móviles sin Play Services | `ui/pos/` | 🟠 | ⏳ | ⬜ |
-| A-04 | Widget de inicio: ventas del día y stock bajo | Abrir con la información, sin entrar | `appwidget/` | 🟠 | ⏳ | ⬜ |
+| A-04 | ✅ **Widget de inicio**: venta del día con su detalle y existencias en riesgo, refresco cada 30 minutos y al cobrar | Abrir con la información, sin entrar | `widget/` | 🟠 | ⏳ | ✅ |
 | A-05 | Base local cifrada (SQLCipher) y bloqueo por inactividad | Teléfono perdido = datos protegidos | `data/` | 🟠 | ⏳ | ⬜ |
 | A-06 | Sincronización incremental (delta) en vez de estado completo | Menos datos, más rápido en 3G | `data/sync/` | 🟠 | 🧱 | ⬜ |
 | A-07 | Edición de fichas de costo e IPV (hoy solo consulta) | Paridad real con la Web | `ui/` | 🟠 | ⏳ | ⬜ |
@@ -61,6 +61,7 @@ terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`RO
 | S-03 | ✅ **API con paginación y `?since=`** (delta por registro, registro de seguridad por páginas) | Móviles y catálogos grandes | `server/`, `store.js` | 🟠 | ⏳ | ✅ |
 | S-04 | Instalador de Windows con el entorno incluido | Instalar en 3 clics, sin Python | `deploy/` | 🟠 | ⏳ | ⬜ |
 | S-05 | ✅ **Panel de salud para el titular** (copias, espacio, licencia) | Prevenir antes de que falle | `server/`, `app.js` | 🟢 | ⏱️ | ✅ |
+| S-12 | ✅ **Anclaje firmado del sello de auditoría** (HMAC del sello, las líneas y la fecha): detecta el borrado de las últimas líneas, que la cadena sola no ve; rutas `GET/POST /api/security-log/anchor(s)` | Prueba de integridad verificable ante un auditor | `server/`, `app.js` | 🔴 | ⏳ | ✅ |
 
 ## Segunda ola · propuestas nuevas (2026-10-24)
 
@@ -76,7 +77,7 @@ Ideas que salen de lo ya construido; ninguna está aprobada todavía.
 | A-10 | **Sincronización incremental** (`?since=`): subir y bajar solo lo cambiado | Móvil con datos lentos y catálogos grandes | `SyncManager` + servidor | 🔴 | 🧱 |
 | A-11 | **Recibo con QR** para fiados y ventas: el cliente comprueba su saldo | Menos discusiones en el mostrador | Android + Web `#pos` | 🟠 | ⏳ |
 | A-12 | **Widget de inicio** (ventas del día, stock bajo, cambios sin subir) | Abrir la app ya informado | `appwidget/` | 🟠 | ⏳ |
-| A-13 | **Prueba de instrumentación de la cola** (Room + conflictos reales) | La lógica pura ya está probada; falta la capa de datos | `androidTest/` | 🟠 | ⏳ |
+| A-13 | ✅ **Prueba de instrumentación de la cola** (Room + conflictos reales, persistencia y reintentos) | La lógica pura ya está probada; falta la capa de datos | `androidTest/` | 🟠 | ⏳ ✅ |
 | S-06 | **API con `PUT` por diferencias** y validación por registro | Menos datos, menos conflictos | `server/` | 🔴 | 🧱 |
 | S-07 | **Panel de salud** para el titular: copias, espacio, licencia y días cerrados | Prevenir antes de que falle | `server/` | 🟠 | ⏱️ |
 | S-08 | **Instalador de Windows** con el entorno incluido | Instalar en 3 clics, sin Python | `deploy/` | 🟠 | ⏳ |
@@ -109,10 +110,10 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 
 **Orden que propongo:** ~~W-15~~ → ~~A-17~~ → ~~W-16~~ → ~~A-15~~ → ~~S-09~~ → ~~D-10~~ → ~~W-12~~, y en
 paralelo los rápidos ~~W-09~~, ~~D-12~~ y ~~A-08~~. Entregados: **W-15, A-17, A-14** (revisión XXIII),
-**W-16, A-15** (XXIV), **S-09, D-10** (XXV), **W-12, W-09, D-12, A-08** (XXVI) y **S-11, S-10, S-05**
-(XXVII). Siguiente: **W-14** (objetivo semanal por categoría) → **A-11** (recibo de fiado con QR)
-→ **W-04** (venta desde `Ctrl + K`) → **D-09** (guía de migración desde Excel), y al cierre
-**S-02** (aviso si falla la restauración nocturna) y **A-09** (diseño para tablet).
+**W-16, A-15** (XXIV), **S-09, D-10** (XXV), **W-12, W-09, D-12, A-08** (XXVI), **S-11, S-10, S-05**
+(XXVII), **W-03** (XXVIII), **A-04, A-13** (XXXV) y **W-08, S-12** (XXXVI). Siguiente:
+**S-04** (instalador de Windows) → **W-18** (informe mensual en PDF) → **G-02** (reel de 15 s)
+→ **A-18** (modo oscuro automático y tamaño de letra del sistema), y al cierre **S-02** y **A-09**.
 
 ## Cómo se supervisa
 

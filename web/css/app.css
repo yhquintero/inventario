@@ -704,6 +704,7 @@ tbody tr:hover { background: color-mix(in srgb, var(--primary) 6%, transparent);
 .toast { animation: toastin .28s cubic-bezier(.2,1.2,.3,1) both; background: linear-gradient(135deg, #1e1b4b, #312e81); border-left: 4px solid var(--primary-2); }
 .toast.ok { background: linear-gradient(135deg, #065f46, #059669); border-left-color: #6ee7b7; }
 .toast.err { background: linear-gradient(135deg, #7f1d1d, #dc2626); border-left-color: #fca5a5; }
+.toast.warn { background: linear-gradient(135deg, #78350f, #d97706); border-left-color: #fcd34d; }
 @keyframes toastin { from { opacity: 0; transform: translate(-50%, 16px); } }
 
 /* Skeleton de carga con brillo */
@@ -870,4 +871,27 @@ table td { font-variant-numeric: tabular-nums; }
   .heat-chart .heat-cell { forced-color-adjust: none; fill: Canvas; stroke: CanvasText; }
   .heat-chart .heat-l1, .heat-chart .heat-l2, .heat-chart .heat-l3, .heat-chart .heat-l4 { fill: Highlight; }
   .cat-chart .cat-rev, .cat-chart .cat-profit { forced-color-adjust: none; fill: Highlight; }
+}
+
+/* ===================== Modo mostrador / kiosco (W-08) ===================== */
+/* En la tablet del punto de venta se ocultan el menú lateral y la barra superior: quedan
+   los tres accesos grandes y la pantalla de la app a tamaño completo. */
+html[data-kiosk="1"] .shell .rail,
+html[data-kiosk="1"] .topbar,
+html[data-kiosk="1"] .scrim,
+html[data-kiosk="1"] .legal-footer { display: none !important; }
+html[data-kiosk="1"] .shell { grid-template-columns: 1fr; }
+html[data-kiosk="1"] .content { padding: 18px 22px 28px; }
+.kiosk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between;
+  background: var(--surface, #fff); border: 1px solid var(--line, #e2e8f0); border-radius: 16px;
+  padding: 10px 16px; margin-bottom: 16px; }
+.kiosk-reloj { font-weight: 700; font-size: 14px; }
+.kiosk-nav { display: flex; flex-wrap: wrap; gap: 10px; }
+.kiosk-btn { font-size: 16px; padding: 12px 20px; border-radius: 14px; }
+.kiosk-btn.on { outline: 2px solid var(--primary, #4f46e5); }
+.kiosk-hint { max-width: 260px; }
+@media (max-width: 720px) {
+  .kiosk-nav { width: 100%; }
+  .kiosk-btn { flex: 1 1 30%; }
+  .kiosk-hint { display: none; }
 }

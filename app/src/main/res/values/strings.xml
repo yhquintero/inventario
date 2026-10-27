@@ -5,4 +5,6 @@
     <string name="biometric_subtitle">Usa huella o reconocimiento facial para entrar</string>
     <string name="channel_alerts">Alertas de inventario</string>
     <string name="channel_backup">Copias de seguridad</string>
+    <string name="widget_hoy_venta">Venta de hoy</string>
+    <string name="widget_descripcion">Venta del día, venta del mes y existencias en riesgo, sin abrir la app.</string>
 </resources>

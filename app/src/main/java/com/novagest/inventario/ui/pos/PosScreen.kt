@@ -77,7 +77,8 @@ class PosViewModel @Inject constructor(
     private val movements: MovementRepository,
     private val sync: com.novagest.inventario.data.sync.SyncManager,
     private val db: AppDatabase,
-    private val printer: BluetoothPrinter
+    private val printer: BluetoothPrinter,
+    private val widget: com.novagest.inventario.widget.WidgetUpdater
 ) : ViewModel() {
     val products = products.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val cart = mutableStateListOf<CartLine>()
@@ -146,6 +147,7 @@ class PosViewModel @Inject constructor(
                 )
             }
             cart.removeAll(done)
+            if (done.isNotEmpty()) widget.actualizar() // A-04: el widget de inicio refleja la venta
             message = when {
                 error != null -> error
                 isFiado && done.isNotEmpty() -> sync.createPosCredit(customerId, sum, dueDate) ?: "✔ Fiado registrado · ${Money.usd(sum)}"

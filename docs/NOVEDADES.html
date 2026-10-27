@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 34 revisiones</title>
+<title>Novedades de NovaGest · 36 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 34 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 36 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,31 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>34</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>36</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XXXVI</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
+      <h2>Sello anclado de la auditoría (S-12)</h2>
+      <ul>
+      <li><b>S-12 · Anclaje firmado del sello.</b> Un anclaje guarda, en una línea **independiente del</li>
+      <li><b>Pantalla Auditoría → Seguridad (servidor) → 🔏 Sello anclado:</b> botón <b>«Anclar ahora»</b>, nota</li>
+      <li><b>Tres motivos claros</b> cuando un anclaje falla: <i>la firma no corresponde a estos datos</i> (alguien</li>
+      <li><b>No se firma un registro roto:</b> si la cadena ya no cuadra, el servidor responde <b>409</b> y</li>
+      <li><b>Rutas nuevas:</b> <code>GET /api/security-log/anchors</code> y <code>POST /api/security-log/anchor</code></li>
+      <li><b>Clave:</b> <code>NOVAGEST_ANCHOR_KEY</code> si está definida; si no, se deriva del secreto de licencia con</li>
+      <li><b>Pruebas:</b> <code>tools/test_anclaje_auditoria.py</code>, <b>36 comprobaciones</b> contra el servidor real:</li>
+      <li><b>Manual:</b> nuevo apartado <b>14.5 Anclar el sello del registro</b>, con el paso a paso y qué hacer</li>
+      </ul>
+    </article>
+    <article class="card">
+      <div class="rev"><span class="n">XXXV</span><time datetime="2026-10-26">26 de octubre de 2026</time></div>
+      <h2>Modo mostrador (W-08), widget (A-04) y pruebas de la cola (A-13)</h2>
+      <ul>
+      <li><b>W-08 · Modo mostrador para la tablet.</b> Un botón <b>⛶</b> en la barra superior entra en el modo</li>
+      <li><b>A-04 · Widget de inicio en Android</b> (180 × 110 dp): <b>venta del día</b> con su detalle, número de</li>
+      <li><b>A-13 · Pruebas de instrumentación de la cola contra Room</b> (9 casos): alta pendiente sin</li>
+      <li><b>Pruebas:</b> <code>tools/test_kiosco.mjs</code> (10 comprobaciones, <code>kiosk.js</code> al 100 % de cobertura) y</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XXXV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
       <h2>Corte vertical de 30 s (G-01 / D-11)</h2>
@@ -188,30 +212,7 @@
       <li><b>Pruebas nuevas</b>: <code>tools/test_novedades.py</code> (23 comprobaciones) y 2 casos más en <code>tools/smoke_web.mjs</code> (<b>57 en total</b>). Manual §10.3 (hoja imprimible), §18.3 (accesibilidad) y §16.9 (aviso de cierre); <code>docs/INSTALACION.md</code> con la sección de <code>/api/health</code>. Service worker <b>v23</b>.</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Salud del servidor y guía del mostrador (S-09 · D-10)</h2>
-      <ul>
-      <li><b>S-09 · <code>/api/health</code> con métricas.</b> La comprobación pública del servidor devuelve ahora un bloque <b><code>salud</code></b>: estado (<b>ok</b> / <b>aviso</b>), avisos (<code>licencia</code>, <code>sin-copias</code>, <code>copias-viejas</code>), tiempo en marcha, <b>latencia</b> medida contra SQLite, <b>tamaño de la base</b>, copias de seguridad (total, última y horas desde la última), días cerrados y sesiones activas. No expone ningún dato de personas ni el contenido de la base.</li>
-      <li><b>Prueba nueva <code>tools/test_salud_servidor.py</code></b> (25 comprobaciones): arranca un servidor temporal y verifica el contrato de <code>/api/health</code>, los avisos y que no se filtre nada sensible. Añadida al CI.</li>
-      <li><b>D-10 · Guía de dos páginas para el mostrador.</b> <code>docs/GUIA_MOSTRADOR.html</code> (+ su fuente <code>GUIA_MOSTRADOR.md</code>): hoja imprimible en <b>A4 y dos páginas</b> con los ocho bloques del turno (antes de abrir, vender, fiar, imprimir y verificar el ticket, cuadrar, qué mirar cada mañana, Android y qué hacer si algo va mal), casillas para marcar y tabla de problemas frecuentes. Autocontenida, sin recursos externos.</li>
-      <li><b>Prueba nueva <code>tools/test_guia_mostrador.py</code></b> (25 comprobaciones): estructura HTML, papel A4, corte de página, contenido de los ocho bloques y enlace al manual. Añadida al CI.</li>
-      <li><b>Manual</b>: aviso con la guía al principio de la sección 6; <code>docs/MEJORAS_PROPUESTAS.md</code> con S-09 y D-10 en ✅.</li>
-      </ul>
-    </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXIV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Ticket verificable y reimpresión en Android (W-16 · A-15)</h2>
-      <ul>
-      <li><b>W-16 · El ticket se puede verificar.</b> Cada ticket lleva al pie un <b>QR</b> y un <b>código corto</b> (<code>ABC-DEF</code>) calculado con el identificador de la venta, la fecha, el total, el número de líneas y una <b>clave del negocio</b> que se crea sola y viaja con los datos. Pantalla nueva <b>Verificar ticket</b> (Menú → Sistema): se escribe el código o se pega el texto del QR y responde <b>auténtico</b>, <b>no consta</b>, <b>no coincide</b> o <b>anulada</b>, con acceso directo a la venta en Movimientos.</li>
-      <li><b>Identificador de venta.</b> <code>posCheckout</code> marca todas las líneas de una venta con el mismo <code>saleId</code>: permite agrupar la venta y firmarla. Los movimientos antiguos siguen imprimiéndose igual, sin bloque de verificación.</li>
-      <li><b>Módulo <code>web/js/ticket.js</code></b>: funciones nuevas <code>ticketSignature</code>, <code>ticketCode</code>, <code>verificationPayload</code>, <code>parseVerification</code>, <code>verifyTicket</code>, <code>saleGroups</code>, <code>findSaleByCode</code> y <code>ticketQrSvg</code> (QR en SVG con el generador ya incluido, sin CDN ni imágenes). <b>5 pruebas nuevas</b> en <code>tools/test_ticket.mjs</code> (<b>12 en total</b>, <code>ticket.js</code> al <b>99 % de cobertura</b>).</li>
-      <li><b>A-15 · Reimprimir sin volver a la caja.</b> Android: <b>Inicio</b> muestra la tarjeta <b>Último ticket</b> con <b>🧾 Reimprimir último ticket</b> (misma impresora y ancho de Ajustes) y <b>Movimientos</b> ofrece <b>🧾 Imprimir ticket</b> en cada venta. El ticket se guarda en el teléfono al imprimirlo (<code>TicketFactory.encode</code> / <code>decode</code>, prefs <code>printer</code>), así que la copia sobrevive al cierre de la app.</li>
-      <li><b>Pruebas nuevas</b> <code>TicketFactoryTest.kt</code> (5 casos: fecha y hora, fiado, varias líneas, ida y vuelta del ticket guardado y texto ilegible).</li>
-      <li><b>Manual</b> §6.6 (QR y código), <b>§6.7 nuevo</b> (verificar un ticket), §16.2 y §16.4 (reimpresión); service worker <b>v22</b>; <code>docs/MEJORAS_PROPUESTAS.md</code> con W-16 y A-15 en ✅.</li>
-      </ul>
-    </article>
-<p class="older">Y 22 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 24 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

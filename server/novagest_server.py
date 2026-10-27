@@ -586,6 +586,15 @@ def init_db():
         copies INTEGER,
         ip TEXT
     );
+    CREATE TABLE IF NOT EXISTS audit_anchors(
+        id INTEGER PRIMARY KEY,
+        ts INTEGER,
+        head TEXT,
+        lineas INTEGER,
+        user TEXT,
+        ip TEXT,
+        firma TEXT,
+        nota TEXT);
     CREATE TABLE IF NOT EXISTS legal_info(id INTEGER PRIMARY KEY CHECK(id=1), data TEXT, updated_at INTEGER, updated_by TEXT);
     CREATE TABLE IF NOT EXISTS rate_hits(k TEXT PRIMARY KEY, hits TEXT);
     """)
@@ -702,10 +711,10 @@ def verificar_auditoria(desde=1, hasta=None):
         esperado = _hash_auditoria(prev, fila["ts"], fila["user"], fila["action"], fila["details"], fila["ip"])
         if (fila["prev"] or "") != (prev or ""):
             return {"ok": False, "checked": revisadas, "brokenAt": fila["id"], "reason": "enlace",
-                    "detail": "la línea no apunta al hash de la anterior", "head": prev}
+                    "detail": "la línea no apunta al hash de la anterior", "head": prev, "total": len(filas)}
         if esperado != (fila["hash"] or ""):
             return {"ok": False, "checked": revisadas, "brokenAt": fila["id"], "reason": "hash",
-                    "detail": "los datos de la línea no coinciden con su hash", "head": prev}
+                    "detail": "los datos de la línea no coinciden con su hash", "head": prev, "total": len(filas)}
         prev = fila["hash"] or ""
     return {"ok": True, "checked": revisadas, "brokenAt": None, "reason": "", "detail": "",
             "head": prev, "total": len(filas)}
@@ -2147,6 +2156,121 @@ def sec_log_verify(h, u, _):
     resultado["from"], resultado["to"] = desde, hasta
     resultado["checkedAt"] = now()
     h.send_json(200, resultado)
+
+
+@route("GET", "/api/security-log/anchors", roles=ADMINS | {"ECONOMICO"})
+def sec_anchors(h, u, _):
+    """Lista los anclajes firmados del sello y comprueba si siguen valiendo (S-12)."""
+    datos = verificar_anclajes()
+    datos["comprobadoEn"] = now()
+    h.send_json(200, datos)
+
+
+@route("POST", "/api/security-log/anchor", roles=ADMINS | {"ECONOMICO"})
+def sec_anchor(h, u, _):
+    """Ancla el sello actual del registro: queda una línea firmada e independiente (S-12)."""
+    cuerpo = h.body()
+    nuevo, estado = crear_anclaje(u["username"], h.ip(), str(cuerpo.get("note") or ""))
+    if nuevo is None:
+        h.send_json(409, {"ok": False,
+                          "error": "No se ancla un registro que no cuadra. Revise la cadena antes de sellarla.",
+                          "chain": estado})
+        return
+    filas = q("SELECT COUNT(*) n FROM audit", one=True)["n"] or 0
+    h.send_json(200, {"ok": True, "id": nuevo, "lineas": filas, "head": estado.get("head"),
+                      "headShort": (estado.get("head") or "")[:12],
+                      "firmado": True, "checked": estado.get("checked")})
+
+
+@route("DELETE", "/api/security-log/anchor/:id", roles=ADMINS)
+def sec_anchor_delete(h, u, aid):
+    """Borra un anclaje (solo Administrador y Jefe). Se registra en la auditoría."""
+    try:
+        aid = int(aid)
+    except (TypeError, ValueError):
+        h.send_json(400, {"ok": False, "error": "El anclaje indicado no es válido."})
+        return
+    row = q("SELECT id, lineas, head FROM audit_anchors WHERE id=?", (aid,), one=True)
+    if not row:
+        h.send_json(404, {"ok": False, "error": "Ese anclaje no existe."})
+        return
+    with _lock:
+        CON.execute("DELETE FROM audit_anchors WHERE id=?", (aid,))
+        CON.commit()
+    audit(u["username"], "AUDIT_ANCHOR_DELETE", f"anclaje #{aid} · {row['lineas']} líneas · {(row['head'] or '')[:12]}", h.ip())
+    h.send_json(200, {"ok": True, "deleted": 1})
+
+
+# ------------------------------------------------------------------ anclaje del sello (S-12)
+def _clave_anclaje() -> bytes:
+    """Clave de las firmas de anclaje.
+
+    Usa `NOVAGEST_ANCHOR_KEY` si está definida; si no, deriva una del secreto de licencia, para
+    que una instalación normal no tenga que configurar nada más.
+    """
+    propia = os.environ.get("NOVAGEST_ANCHOR_KEY", "").strip()
+    if propia:
+        return propia.encode()
+    return hmac.new(get_license_secret(), b"novagest-audit-anchor", hashlib.sha256).digest()
+
+
+def _firmar_anclaje(ts, head, lineas) -> str:
+    base = f"{ts}|{head}|{lineas}".encode()
+    return hmac.new(_clave_anclaje(), base, hashlib.sha256).hexdigest()
+
+
+def crear_anclaje(user, ip="", nota=""):
+    """Fija el estado actual de la cadena en una línea firmada e independiente.
+
+    La cadena sola detecta cambios y borrados **intermedios**; este anclaje detecta además que
+    se hayan borrado las últimas líneas, porque la firma dice cuántas había y cuál era el
+    último hash en ese momento.
+    """
+    estado = verificar_auditoria()
+    if not estado.get("ok"):
+        return None, estado
+    filas = q("SELECT COUNT(*) n FROM audit", one=True)["n"] or 0
+    ts = now()
+    head = estado.get("head") or ""
+    firma = _firmar_anclaje(ts, head, filas)
+    with _lock:
+        cur = CON.execute(
+            "INSERT INTO audit_anchors(ts,head,lineas,user,ip,firma,nota) VALUES(?,?,?,?,?,?,?)",
+            (ts, head, filas, user, ip, firma, nota[:200]))
+        CON.commit()
+        nuevo = cur.lastrowid
+    audit(user, "AUDIT_ANCHOR", f"anclaje #{nuevo} · {filas} líneas · {head[:12]}", ip)
+    return nuevo, estado
+
+
+def verificar_anclajes():
+    """Comprueba cada anclaje: su firma y que la cadena siga teniendo esas líneas.
+
+    Devuelve la lista con `ok` por anclaje y un resumen. Un anclaje roto significa que el
+    registro cambió después de haberlo sellado.
+    """
+    anclajes = q("SELECT id, ts, head, lineas, user, nota, firma FROM audit_anchors ORDER BY id")
+    resultado = []
+    for a in anclajes:
+        firma_ok = hmac.compare_digest(a["firma"] or "", _firmar_anclaje(a["ts"], a["head"], a["lineas"]))
+        # Se recorre el prefijo anclado entero: se recalcula el hash de cada línea con sus datos.
+        # Así se detecta tanto un cambio de datos como que falten líneas del final.
+        estado = verificar_auditoria(1, a["lineas"])
+        # `total` es cuántas líneas hay ahora en la tabla: si son menos que las ancladas, se borraron.
+        completo = int(estado.get("total") or 0) >= int(a["lineas"] or 0)
+        cadena_ok = completo and bool(estado.get("ok")) and estado.get("head") == (a["head"] or "")
+        resultado.append({
+            "id": a["id"], "ts": a["ts"], "lineas": a["lineas"], "user": a["user"], "nota": a["nota"] or "",
+            "head": a["head"], "headShort": (a["head"] or "")[:12],
+            "firmaOk": firma_ok, "lineasOk": completo, "cadenaOk": cadena_ok,
+            "ok": firma_ok and cadena_ok,
+            "motivo": "" if (firma_ok and cadena_ok) else (
+                "la firma no corresponde a estos datos" if not firma_ok else
+                "faltan líneas del registro" if not completo else
+                "la cadena cambió después del anclaje"),
+        })
+    return {"anchors": resultado, "total": len(resultado),
+            "ok": all(x["ok"] for x in resultado) if resultado else True}
 
 
 def main():

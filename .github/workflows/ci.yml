@@ -41,6 +41,8 @@ jobs:
           bash tools/ci_paso.sh node tools/test_merge.mjs
           bash tools/ci_paso.sh node tools/test_ticket.mjs
           bash tools/ci_paso.sh node tools/test_quick_sale.mjs
+          bash tools/ci_paso.sh node tools/test_alertas.mjs
+          bash tools/ci_paso.sh node tools/test_kiosco.mjs
           node tools/test_xlsx_export.mjs
           bash tools/ci_paso.sh node tools/cobertura.mjs --min 80
           bash tools/ci_paso.sh node tools/test_accesibilidad.mjs
@@ -67,6 +69,7 @@ jobs:
           bash tools/ci_paso.sh python3 tools/test_compresion.py
           bash tools/ci_paso.sh python3 tools/test_delta_estado.py
           bash tools/ci_paso.sh python3 tools/test_auditoria_encadenada.py
+          bash tools/ci_paso.sh python3 tools/test_anclaje_auditoria.py
           bash tools/ci_paso.sh python3 tools/test_impresiones.py
           bash tools/ci_paso.sh python3 tools/test_restauracion.py
           bash tools/ci_paso.sh python3 tools/test_carga.py --n 12
