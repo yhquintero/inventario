@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Novedades de NovaGest · 45 revisiones</title>
+<title>Novedades de NovaGest · 46 revisiones</title>
 <meta name="description" content="Novedades de NovaGest: cada versión del inventario, la caja diaria, los informes y la app Android, contada en una página generada desde el registro de cambios.">
 <meta name="theme-color" content="#312e81">
-<meta property="og:title" content="Novedades de NovaGest · 45 revisiones">
+<meta property="og:title" content="Novedades de NovaGest · 46 revisiones">
 <meta property="og:description" content="Lo que cambia en cada versión de NovaGest, en español y al día.">
 <meta property="og:type" content="website">
 <style>
@@ -76,7 +76,19 @@
   </div>
 </header>
 <main id="novedades">
-  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>45</b>.</p>
+  <p class="intro">Se muestran las <b>12</b> revisiones más recientes de <b>46</b>.</p>
+    <article class="card">
+      <div class="rev"><span class="n">XLV</span><time datetime="2026-10-27">27 de octubre de 2026</time></div>
+      <h2>Carrusel de 6 imágenes para redes (G-03)</h2>
+      <ul>
+      <li><b>Material listo para publicar:</b> seis piezas de <b>1080 × 1350 px</b> (4:5, el formato vertical que</li>
+      <li><b>Todo en un ZIP:</b> <code>docs/assets/redes/novagest-carrusel-6.zip</code> con los seis PNG y los textos de la</li>
+      <li><b>Guía de publicación</b> (<code>docs/REDES_SOCIALES.md</code>): orden de las piezas, texto largo y corto listos</li>
+      <li><b>Se regenera solo:</b> <code>python3 tools/build_carrusel_redes.py</code> (Pillow) vuelve a dibujar las seis</li>
+      <li><b>Pruebas:</b> <code>tools/test_carrusel_redes.py</code> con <b>111 comprobaciones</b> (guion de las seis piezas,</li>
+      <li><b>Procedencia documentada</b> en <code>docs/IMAGENES.md</code>: obra propia, sin fotos ni material de terceros.</li>
+      </ul>
+    </article>
     <article class="card">
       <div class="rev"><span class="n">XLIV</span><time datetime="2026-10-27">27 de octubre de 2026</time></div>
       <h2>Costos y márgenes por producto (W-23)</h2>
@@ -215,19 +227,7 @@
       <li><b>Pruebas:</b> <code>tools/test_kiosco.mjs</code> (10 comprobaciones, <code>kiosk.js</code> al 100 % de cobertura) y</li>
       </ul>
     </article>
-    <article class="card">
-      <div class="rev"><span class="n">XXXV</span><time datetime="2026-10-25">25 de octubre de 2026</time></div>
-      <h2>Corte vertical de 30 s (G-01 / D-11)</h2>
-      <ul>
-      <li><b>Vídeo vertical de 30 segundos</b> para <b>estados de WhatsApp, Reels y TikTok</b>:</li>
-      <li><b>Seis tramos</b>: portada, vender, cuadrar, revisar, móvil y cierre con la llamada a la acción</li>
-      <li><b>Voz masculina en español neutro</b> con <b>subtítulos quemados</b> y el <code>.srt</code> aparte</li>
-      <li><b>Publicado en el sitio</b>: la sección del vídeo de <code>docs/index.html</code> muestra ahora el corte</li>
-      <li><b>Generador reproducible</b> <code>tools/build_reel_vertical.py</code> (Pillow + ffmpeg): recibe los seis</li>
-      <li><b>Propuesta actualizada</b> (<code>docs/PROPUESTA_VIDEO_PROMOCIONAL.md</code> §6.1) con la ficha técnica, el</li>
-      </ul>
-    </article>
-<p class="older">Y 33 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
+<p class="older">Y 34 revisión(es) más en el <a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">registro de cambios completo</a>.</p>
 </main>
 <footer>
   <span>NovaGest · Gestiona. Crece. Avanza.</span>

@@ -1,4 +1,20 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-27 (XLIV) · Costos y márgenes por producto (W-23)
+﻿## NovaGest v1.0.0 · revisión 2026-10-27 (XLV) · Carrusel de 6 imágenes para redes (G-03)
+
+- **Material listo para publicar:** seis piezas de **1080 × 1350 px** (4:5, el formato vertical que
+  Instagram, Facebook y LinkedIn muestran **sin recortar**), con arte propio de la marca y
+  **capturas reales** de la aplicación: portada, vender, cuadrar, reponer, móvil y cierre.
+- **Todo en un ZIP:** `docs/assets/redes/novagest-carrusel-6.zip` con los seis PNG y los textos de la
+  publicación, para subirlos en orden sin buscar archivos.
+- **Guía de publicación** (`docs/REDES_SOCIALES.md`): orden de las piezas, texto largo y corto listos
+  para copiar, etiquetas y las reglas de la marca (colores, tamaño de texto, «sin prometer cifras»).
+- **Se regenera solo:** `python3 tools/build_carrusel_redes.py` (Pillow) vuelve a dibujar las seis
+  piezas con los mismos colores y el mismo guion; no depende de archivos externos ni de IA.
+- **Pruebas:** `tools/test_carrusel_redes.py` con **111 comprobaciones** (guion de las seis piezas,
+  medidas exactas, peso por debajo de lo que admiten las redes, ZIP completo y guía que cita cada
+  archivo).
+- **Procedencia documentada** en `docs/IMAGENES.md`: obra propia, sin fotos ni material de terceros.
+
+## NovaGest v1.0.0 · revisión 2026-10-27 (XLIV) · Costos y márgenes por producto (W-23)
 
 - **Nueva pantalla «Costos y márgenes»** (Análisis): producto por producto, **ganancia por unidad**,
   **margen sobre la venta**, **markup**, y el **precio que haría falta** para llegar al objetivo.

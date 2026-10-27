@@ -151,6 +151,11 @@
     background: rgba(129, 122, 255, .08); border: 1px solid rgba(129, 122, 255, .28); border-radius: 16px; padding: 1.25rem; }
   .video-vertical video { width: 100%; max-width: 260px; border-radius: 14px; background: #080a1a; }
   .video-vertical div { flex: 1 1 320px; }
+  /* Carrusel de redes (G-03) */
+  .carrusel { display: flex; gap: 1rem; overflow-x: auto; margin-top: 1.75rem; padding-bottom: .75rem; scroll-snap-type: x mandatory; }
+  .carrusel figure { flex: 0 0 auto; width: 216px; margin: 0; scroll-snap-align: start; }
+  .carrusel img { width: 100%; height: auto; border-radius: 12px; display: block; background: #080a1a; }
+  .carrusel figcaption { font-size: .82rem; color: var(--gris); margin-top: .45rem; }
 
   /* Pasos */
   .pasos { counter-reset: paso; display: grid; gap: 1.1rem; margin-top: 2rem; }
@@ -366,6 +371,26 @@
             <a class="btn secundario" href="assets/video/novagest-reel-vertical-15s.srt">Subtítulos (.srt)</a>
           </div>
         </div>
+      </div>
+      <div class="video-vertical">
+        <div>
+          <h3>Carrusel de 6 imágenes para redes</h3>
+          <p>Seis piezas de <strong>1080 × 1350</strong> (4:5, sin recorte en el muro) listas para
+            <strong>Instagram, Facebook y LinkedIn</strong>: portada, vender, cuadrar, reponer, móvil y cierre.
+            Van con los textos de la publicación y las etiquetas.</p>
+          <div class="video-pie">
+            <a class="btn primario" href="assets/redes/novagest-carrusel-6.zip">Descargar el carrusel (ZIP)</a>
+            <a class="btn secundario" href="assets/redes/01-portada.png">Ver la portada</a>
+          </div>
+        </div>
+      </div>
+      <div class="carrusel" role="list" aria-label="Las seis piezas del carrusel para redes">
+        <figure role="listitem"><img src="assets/redes/01-portada.png" alt="Portada del carrusel: Todo tu negocio en una app" width="1080" height="1350" loading="lazy" decoding="async" /><figcaption>1 · Portada</figcaption></figure>
+        <figure role="listitem"><img src="assets/redes/02-vender.png" alt="Pieza 2: escanea, cobra, listo, con la pantalla de venta rápida" width="1080" height="1350" loading="lazy" decoding="async" /><figcaption>2 · Vender</figcaption></figure>
+        <figure role="listitem"><img src="assets/redes/03-cuadrar.png" alt="Pieza 3: el cuadre diario de la caja" width="1080" height="1350" loading="lazy" decoding="async" /><figcaption>3 · Cuadrar</figcaption></figure>
+        <figure role="listitem"><img src="assets/redes/04-reponer.png" alt="Pieza 4: qué comprar y cuánto, con el inventario" width="1080" height="1350" loading="lazy" decoding="async" /><figcaption>4 · Reponer</figcaption></figure>
+        <figure role="listitem"><img src="assets/redes/05-movil.png" alt="Pieza 5: el ticket llega por WhatsApp desde el móvil" width="1080" height="1350" loading="lazy" decoding="async" /><figcaption>5 · Móvil</figcaption></figure>
+        <figure role="listitem"><img src="assets/redes/06-cierre.png" alt="Pieza 6: cierre de marca, gestiona, crece, avanza" width="1080" height="1350" loading="lazy" decoding="async" /><figcaption>6 · Cierre</figcaption></figure>
       </div>
     </div>
   </section>
