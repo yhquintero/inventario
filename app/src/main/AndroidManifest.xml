@@ -47,6 +47,19 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- A-04 · Widget «Hoy en NovaGest»: venta del día y existencias en riesgo. -->
+        <receiver
+            android:name=".widget.TodayWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_hoy_venta">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_hoy_info" />
+        </receiver>
+
         <receiver
             android:name=".worker.BootReceiver"
             android:exported="true">

@@ -32,9 +32,16 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var appLock: com.novagest.inventario.security.AppLock
 
+    /** A-04: deja preparado el resumen del widget de inicio al abrir la app. */
+    @Inject
+    lateinit var widgetUpdater: com.novagest.inventario.widget.WidgetUpdater
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // A-04: el widget no puede consultar la base de datos al dibujarse; la app le deja
+        // el resumen listo en segundo plano (no bloquea la pantalla de entrada).
+        lifecycleScope.launch { widgetUpdater.actualizar() }
         setContent {
             AskNotificationPermissionOnce()
             val auth: AuthViewModel = hiltViewModel()
