@@ -1,4 +1,23 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVI) · Sello de tiempo RFC 3161 (S-13)
+﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVII) · Informe mensual en PDF (W-20)
+
+- **Informe mensual** en **Menú → Análisis → Informe mensual**: el mes completo en una hoja que se
+  imprime o se guarda como PDF desde el navegador, sin instalar nada ni salir a Internet.
+- **Qué incluye:** ventas del mes con **variación frente al mes anterior** (▲/▼, o «sin datos»
+  cuando no hay con qué comparar), utilidad bruta con margen y costo, **ticket promedio**, días con
+  venta y promedio por día, **mejor día**, **ventas día a día** con porcentaje del mes, **top 10 de
+  productos**, reparto por **categoría** y por **centro** (tienda/gestor), **caja** (cuadres
+  guardados, días descuadrados y diferencia acumulada), **fiados** (otorgado, cobrado y pendiente)
+  y **existencias en riesgo** al cierre.
+- **Selector de mes** con los últimos doce, botones ← y →, y botón **🖨 PDF** que abre el diálogo de
+  impresión con la cabecera del negocio y el mes ya puestos.
+- **Cálculo aislado y probado:** `web/js/monthly.js` (sin DOM ni store) con **70 comprobaciones** en
+  `tools/test_informe_mensual.mjs`, incluidos los meses vacíos, el cambio de año y los fiados con
+  abonos.
+- **Cobertura:** `monthly.js` al **100 %**; `tools/cobertura.mjs` lo exige desde ahora.
+- **Manual:** nuevo apartado **10.6 Informe mensual en PDF**, con el paso a paso de «Guardar como
+  PDF» y el nombre de archivo recomendado.
+
+## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVI) · Sello de tiempo RFC 3161 (S-13)
 
 - **Sello de tiempo de un tercero.** Si se define **`NOVAGEST_TSA_URL`**, al anclar el sello de
   auditoría NovaGest pide a esa **autoridad de sellado de tiempo** (RFC 3161) la hora firmada de

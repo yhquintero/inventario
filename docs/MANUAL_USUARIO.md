@@ -1575,6 +1575,53 @@ numéricos, las columnas con ancho razonable y la fecha en el nombre del archivo
 día del mes, pegue cada hoja en su libro y conserve el nombre del archivo: la fecha dentro
 del nombre es la garantía de que está usando la versión correcta.
 
+## 10.6 Informe mensual en PDF
+
+Al cerrar el mes, el dueño quiere **una hoja**: cuánto se vendió, cuánto dejó, qué se vendió más,
+cómo quedó la caja y qué se debe. Eso es el **Informe mensual**: una pantalla que se imprime o se
+guarda como PDF desde el navegador, sin instalar nada.
+
+**Cómo se abre**
+
+1. **🧭 Menú → Análisis → Informe mensual**.
+2. Arriba, elija el **mes** en la lista (los últimos doce) o muévase con **←** y **→**.
+3. Lea el resumen y, cuando esté conforme, pulse **🖨 PDF**.
+
+**Qué trae**
+
+- **Frase de cabecera:** el total del mes, las líneas, las unidades y la **variación** frente al
+  mes anterior (▲ o ▼ con el porcentaje). Si el mes anterior no tiene datos, lo dice en vez de
+  inventar un porcentaje.
+- **Cuatro indicadores:** ventas del mes, utilidad bruta con el margen y el costo, ticket promedio
+  por línea y días con venta (con el promedio por día).
+- **Mejor día del mes**, resumen de caja (días con cuadre guardado, días con diferencia y cuáles) y
+  **diferencia acumulada**.
+- **Ventas día a día**, con unidades, líneas, importe y porcentaje del mes; al pie, el total.
+- **Top 10 de productos** por importe, y reparto por **categoría** y por **centro de venta**
+  (tienda o gestor).
+- **Fiados:** otorgado en el mes, cobrado en el mes y **pendiente total** de cobro.
+- **Existencias en riesgo** al cerrar el mes: cuántos productos están en el mínimo o por debajo.
+
+**Cómo se guarda en PDF, paso a paso**
+
+1. Pulse **🖨 PDF**. Se abre el diálogo de impresión del navegador.
+2. En **Destino** elija **Guardar como PDF** (Chrome, Edge) o **Imprimir a PDF** (Firefox).
+3. Revise la **vista previa**: la cabecera del negocio, el mes y la fecha de generación salen
+   impresos; los botones no.
+4. Guarde con un nombre que se entienda: `2026-10 · Informe mensual · NovaGest.pdf`.
+5. Envíelo al contador o guárdelo en la carpeta del mes. El PDF **no cambia** después: es la foto
+   de ese momento.
+
+> [!NOTE]
+> El informe se calcula con los movimientos y cuadres que ya están guardados (los del servidor y
+> los de este equipo). Si acaba de importar el cierre del día, **espere a que termine** la
+> importación antes de generar el PDF.
+
+> [!IMPORTANT]
+> No es una liquidación fiscal: es el resumen de gestión del negocio. Para la contabilidad,
+> entregue además el **Excel** (apartado 10.5) o el **CSV** con el detalle, que es lo que permite
+> sumar y cruzar cifra a cifra.
+
 ---
 
 # 11. Historial de precios y monedas
