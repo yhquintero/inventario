@@ -114,9 +114,44 @@ publicar detrás del proxy sin riesgo.
 | `copias-viejas` | La última copia tiene más de 48 h | Arrancar el servidor (las copias son diarias) o crear una a mano |
 | `disco-bajo` | Queda menos del 10 % o menos de 500 MB libres donde vive la base | Liberar espacio o mover `DATA_DIR` a un disco mayor |
 | `licencia-vence` | La licencia caduca en 15 días o menos | Renovar la clave con tiempo |
+| `copia-externa` | La última réplica a la carpeta de red o al WebDAV falló en algún destino | Revisar la ruta o las credenciales y usar **Copias → Probar ahora** |
 
 Es la misma llamada que usa el Panel de Control y cualquier monitor externo (Uptime Kuma,
 Healthchecks…) para avisar si el servidor se cae.
+
+## Copia externa: carpeta de red o WebDAV (S-14)
+
+La copia diaria se guarda cifrada dentro de `DATA_DIR`. Para que un disco roto no se lleve
+también las copias, el servidor puede replicarlas **fuera del equipo** y comprobar que se
+pueden abrir:
+
+```bash
+# Carpeta de red (una o varias, separadas por ;)
+BACKUP_MIRROR_DIRS="E:\\Copias;/mnt/nas/novagest"
+
+# WebDAV (Nextcloud, OwnCloud, Synology…)
+BACKUP_WEBDAV_URL="https://nube.midominio.cu/remote.php/dav/files/ana/novagest"
+BACKUP_WEBDAV_USER="ana"
+BACKUP_WEBDAV_PASSWORD="••••••"
+# Varias carpetas WebDAV a la vez (opcional)
+BACKUP_WEBDAV_URLS="https://nube1/x;https://nube2/y"
+```
+
+- **Carpeta:** se escribe la copia, se **vuelve a leer** y se compara el **SHA-256**.
+- **WebDAV:** `PUT` con autenticación básica y luego `HEAD` para confirmar tamaño.
+- **Verificación de la copia local:** cada copia se descifra al crearse (`BACKUP_VERIFIED` en la
+  auditoría); si no abre, se anota como `BACKUP_UNREADABLE`.
+- **Un destino caído no interrumpe nada:** la copia local y los demás destinos siguen; el fallo
+  queda en la auditoría (`BACKUP_EXTERNAL_FAILED`) y en el aviso `copia-externa` de `/api/health`.
+- **Credenciales:** no salen nunca del servidor; la pantalla de Copias muestra el destino y el
+  usuario, jamás la contraseña.
+
+| Endpoint | Quién | Para qué |
+|---|---|---|
+| `GET /api/backups/external` | Administrador y Jefe | Destinos configurados y resultado de la última réplica |
+| `POST /api/backups/external` | Administrador y Jefe | Reenviar la copia más reciente (`{"name": "…"}` para elegir otra) |
+
+La pantalla **Copias → 🗄 Copia externa** enseña el estado y el botón **Probar ahora**.
 
 ## Sincronización incremental y paginación (S-03)
 

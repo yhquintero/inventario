@@ -13,12 +13,17 @@ Servidor de NovaGest: API + archivos estáticos.
 Variables: PORT, DATA_DIR, SSL_CERT, SSL_KEY, BACKUP_KEY, TRUST_PROXY (1), SESSION_IDLE_MIN (20),
 SESSION_MAX_HOURS (12), BACKUP_HOUR (2), BACKUP_KEEP (30).
 """
-import base64, datetime as dt, gzip, hashlib, hmac, json, os, re, secrets, shutil, sqlite3, struct, threading, time
+import base64, datetime as dt, gzip, hashlib, hmac, json, os, re, secrets, shutil, sqlite3, struct, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, quote
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# S-14: el módulo de copia externa vive junto al servidor; se importa por ruta para que
+# funcione igual arrancando desde la raíz que desde `server/`.
+if os.path.join(ROOT, "server") not in sys.path:
+    sys.path.insert(0, os.path.join(ROOT, "server"))
+import copias_externas  # noqa: E402  · carpeta de red y WebDAV
 WEB = os.path.join(ROOT, "web")
 DATA = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
 BACKUPS = os.path.join(DATA, "backups")
@@ -758,31 +763,52 @@ def make_backup(kind="auto", user="sistema"):
     }
     blob = fernet().encrypt(gzip.compress(json.dumps(payload, ensure_ascii=False).encode()))
     name = dt.datetime.now().strftime(f"novagest_%Y-%m-%d_%H%M%S_{kind}.bak")
-    with open(os.path.join(BACKUPS, name), "wb") as f: f.write(blob)
-    # Réplica fuera del equipo (regla 3-2-1): BACKUP_MIRROR_DIRS="E:\\Copias;/ruta/red"
-    # La copia ya va cifrada; un destino caído no interrumpe la copia local.
-    for dest in (os.environ.get("BACKUP_MIRROR_DIRS") or "").split(";"):
-        dest = dest.strip()
-        if not dest: continue
-        try:
-            os.makedirs(dest, exist_ok=True)
-            target = os.path.join(dest, name)
-            with open(target, "wb") as f: f.write(blob)
-            if os.path.getsize(target) != len(blob): raise OSError("tamaño distinto al escribir")
-            audit(user, "BACKUP_MIRROR", f"{name} -> {dest}")
-        except Exception as e:
-            audit(user, "BACKUP_MIRROR_FAILED", f"{dest}: {e}")
+    ruta = os.path.join(BACKUPS, name)
+    with open(ruta, "wb") as f: f.write(blob)
+    # S-14: la copia recién hecha se abre para comprobar que sirve de algo antes de darla por buena.
+    revision = copias_externas.verificar_archivo(ruta, abrir_copia)
+    if revision["ok"]:
+        audit(user, "BACKUP_VERIFIED", f"{name} · se puede restaurar · sha256:{revision['sha256'][:16]}")
+    else:
+        audit(user, "BACKUP_UNREADABLE", f"{name} · {revision['motivo']}: {revision['detalle']}")
+    replicar_copia(blob, name, user)
     files = sorted(f for f in os.listdir(BACKUPS) if f.endswith(".bak"))
     for old in files[:-BACKUP_KEEP]: os.remove(os.path.join(BACKUPS, old))
     audit(user, "BACKUP", f"{name} ({len(blob)} bytes) sha256:{hashlib.sha256(blob).hexdigest()[:16]}")
     return name
 
 
+# Última réplica externa (S-14): se guarda para enseñarla en Copias y en /api/health.
+ULTIMA_REPLICA = {"parte": None}
+
+
+def replicar_copia(blob, name, user="sistema"):
+    """Manda la copia a los destinos externos configurados y anota el resultado.
+
+    Un destino caído no interrumpe nada: la copia local ya está escrita y verificada,
+    y los demás destinos se intentan igual.
+    """
+    destinos = copias_externas.leer_config()
+    if not destinos:
+        ULTIMA_REPLICA["parte"] = None
+        return None
+    parte = copias_externas.replicar(blob, name, destinos, abrir=abrir_copia)
+    ULTIMA_REPLICA["parte"] = parte
+    audit(user, "BACKUP_EXTERNAL" if parte["todoBien"] else "BACKUP_EXTERNAL_FAILED",
+          copias_externas.resumen_texto(parte))
+    return parte
+
+
+def abrir_copia(blob):
+    """Descifra y descomprime una copia. Es lo que usa la verificación de S-14."""
+    return json.loads(gzip.decompress(fernet().decrypt(blob)))
+
+
 def read_backup(name):
     # Acepta el prefijo actual y el legado (antes de renombrar a NovaGest).
     if not re.fullmatch(r"(?:novagest|cuadre)_[\w\-]+\.bak", name): raise ValueError("nombre inválido")
     with open(os.path.join(BACKUPS, name), "rb") as f:
-        return json.loads(gzip.decompress(fernet().decrypt(f.read())))
+        return abrir_copia(f.read())
 
 
 def backup_loop():
@@ -1582,6 +1608,9 @@ def health(h, u, _):
         avisos.append("copias-viejas")
     if disco["libreBytes"] and (disco["librePct"] < 10 or disco["libreBytes"] < 500 * 1024 * 1024):
         avisos.append("disco-bajo")
+    externa = copias_externas.estado_salud(ULTIMA_REPLICA["parte"], copias_externas.leer_config())
+    if externa["problema"]:
+        avisos.append("copia-externa")
     if licencia["diasRestantes"] is not None and licencia["diasRestantes"] <= 15:
         avisos.append("licencia-vence")
     h.send_json(200, {
@@ -1598,6 +1627,14 @@ def health(h, u, _):
             "sesionesActivas": conectados,
             "disco": disco,
             "licencia": licencia,
+            "copiaExterna": {
+                "configurados": externa["configurados"],
+                "destinos": [{"tipo": d["tipo"], "destino": d["destino"]} for d in externa["destinos"]],
+                "ultimo": None if not externa["ultimo"] else {
+                    "cuando": externa["ultimo"]["cuando"], "correctos": externa["ultimo"]["correctos"],
+                    "fallidos": externa["ultimo"]["fallidos"], "todoBien": externa["ultimo"]["todoBien"],
+                },
+            },
         },
     })
 
@@ -1992,6 +2029,50 @@ def backups_list(h, u, _):
 @route("POST", "/api/backups", roles=ADMINS)
 def backups_create(h, u, _):
     h.send_json(200, {"ok": True, "name": make_backup("manual", u["username"])})
+
+
+# ------------------------------------------------------------------ copia externa (S-14)
+@route("GET", "/api/backups/external", roles=ADMINS)
+def backups_external_status(h, u, _):
+    """Destinos externos configurados y cómo fue la última réplica.
+
+    Nunca devuelve contraseñas: de cada destino sale el tipo, dónde está y si usa
+    credenciales.
+    """
+    config = copias_externas.leer_config()
+    h.send_json(200, copias_externas.estado_salud(ULTIMA_REPLICA["parte"], config))
+
+
+@route("POST", "/api/backups/external", roles=ADMINS)
+def backups_external_run(h, u, _):
+    """Reenvía la copia más reciente (o la indicada) a los destinos externos.
+
+    Sirve para probar la carpeta de red o el WebDAV sin esperar a la copia de mañana, y
+    para recuperar un destino que estaba caído.
+    """
+    body = h.body() or {}
+    config = copias_externas.leer_config()
+    if not config:
+        return h.send_json(400, {"error": "No hay destinos externos configurados. "
+                                          "Defina BACKUP_MIRROR_DIRS o BACKUP_WEBDAV_URL y reinicie el servidor."})
+    nombre = (body.get("name") or "").strip()
+    if nombre:
+        try:
+            nombre = copias_externas.nombre_seguro(nombre)
+        except ValueError:
+            return h.send_json(400, {"error": "Nombre de copia inválido."})
+        if not os.path.exists(os.path.join(BACKUPS, nombre)):
+            return h.send_json(404, {"error": "Esa copia no existe."})
+    else:
+        copias = sorted(f for f in os.listdir(BACKUPS) if f.endswith(".bak"))
+        if not copias:
+            return h.send_json(404, {"error": "Todavía no hay copias que enviar."})
+        nombre = copias[-1]
+    with open(os.path.join(BACKUPS, nombre), "rb") as f:
+        blob = f.read()
+    parte = replicar_copia(blob, nombre, u["username"])
+    h.send_json(200, {"ok": bool(parte and parte["todoBien"]), "parte": parte,
+                      "destinos": [copias_externas.limpiar_destino(d) for d in config]})
 
 
 @route("GET", "/api/backups/:id", roles={"ADMINISTRADOR"})

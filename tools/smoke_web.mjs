@@ -1151,6 +1151,27 @@ test("W-21 · la búsqueda global (Ctrl+K) cubre productos, clientes, ventas, fi
   assert.match(sw, /\.\/js\/search\.js/, "search.js se cachea para el modo sin conexión");
 });
 
+test("S-14 · la copia externa se configura, se prueba y dice lo que pasó", () => {
+  const app = readFileSync(join(root, "web/js/app.js"), "utf8");
+  const srv = readFileSync(join(root, "server/novagest_server.py"), "utf8");
+  const ext = readFileSync(join(root, "server/copias_externas.py"), "utf8");
+  assert.match(app, /function copiaExternaCard\(\)/, "la tarjeta existe");
+  assert.match(app, /api\("\/backups\/external"\)/, "consulta los destinos");
+  assert.match(app, /api\("\/backups\/external", \{ method: "POST" \}\)/, "puede probar ahora");
+  assert.match(app, /data-act="bk-ext-test"/, "botón de prueba");
+  assert.match(app, /Nunca muestra contraseñas/, "no enseña credenciales");
+  assert.match(srv, /@route\("GET", "\/api\/backups\/external", roles=ADMINS\)/, "endpoint de estado");
+  assert.match(srv, /@route\("POST", "\/api\/backups\/external", roles=ADMINS\)/, "endpoint de prueba");
+  assert.match(srv, /copias_externas\.verificar_archivo\(ruta, abrir_copia\)/, "verifica la copia al crearla");
+  assert.match(srv, /BACKUP_VERIFIED/, "anota que se puede restaurar");
+  assert.match(srv, /replicar_copia\(blob, name, user\)/, "replica fuera del equipo");
+  assert.match(ext, /def enviar_webdav/, "soporta WebDAV");
+  assert.match(ext, /def copiar_a_carpeta/, "soporta carpetas de red");
+  assert.match(ext, /if leido != blob/, "compara lo leído con lo escrito");
+  assert.match(ext, /def limpiar_destino/, "prepara lo que se muestra sin credenciales");
+  assert.match(srv, /"copia-externa"/, "avisa en /api/health si falla");
+});
+
 test("W-07 · las tablas se exportan a Excel (.xlsx) con el lector que ya trae la app", () => {
   const source = readFileSync(join(root, "web/js/app.js"), "utf8");
   assert.match(source, /import \{ buildSheet, sheetFileName \} from "\.\/xlsx-export\.js";/, "usa el módulo de hojas");

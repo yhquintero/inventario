@@ -72,7 +72,7 @@ No incluyas datos personales reales, claves de licencia válidas, contraseñas n
 2. Mantén `REQUIRE_ADMIN_TOTP=1` (valor por defecto) y activa la verificación en dos pasos de todos los administradores.
 3. Usa **solo HTTPS** (`server/iniciar-https.ps1` con mkcert, o `deploy/` con Caddy) y nunca publiques el servidor por HTTP en Internet.
 4. Guarda `LICENSE_SECRET` y `BACKUP_KEY` fuera del servidor y del repositorio; no subas nunca `data/` ni `certs/`.
-5. Replica las copias fuera del equipo con `BACKUP_MIRROR_DIRS` (regla 3-2-1) y **prueba la restauración** con regularidad.
+5. Replica las copias fuera del equipo con `BACKUP_MIRROR_DIRS` (carpeta de red) o `BACKUP_WEBDAV_URL` (WebDAV), con verificación de que la copia se abre (regla 3-2-1), y **prueba la restauración** con regularidad.
 6. Mantén **privado el generador de licencias**: protégelo con su clave de acceso, ábrelo solo por HTTPS y no lo expongas en Internet.
 7. Publica tu contacto de seguridad: `python3 tools/generar_security_txt.py --contact <tu correo o URL https>` genera `web/.well-known/security.txt`.
 8. Mantén las dependencias al día y usa una versión de Python que todavía reciba parches de seguridad.
@@ -134,7 +134,7 @@ Please include the affected component (Web, Android, server/API, license generat
 2. Keep `REQUIRE_ADMIN_TOTP=1` (the default) and enable two-step verification for every administrator.
 3. Use **HTTPS only** (`server/iniciar-https.ps1` with mkcert, or `deploy/` with Caddy) and never expose the server over plain HTTP on the Internet.
 4. Store `LICENSE_SECRET` and `BACKUP_KEY` outside the server and the repository; never commit `data/` or `certs/`.
-5. Replicate backups off-device with `BACKUP_MIRROR_DIRS` (3-2-1 rule) and **test restores** regularly.
+5. Replicate backups off-device with `BACKUP_MIRROR_DIRS` (network folder) or `BACKUP_WEBDAV_URL` (WebDAV), verifying that each copy opens (3-2-1 rule), and **test restores** regularly.
 6. Keep the **license generator private**: protect it with its access key, open it over HTTPS only, and never expose it to the Internet.
 7. Publish your security contact: `python3 tools/generar_security_txt.py --contact <your email or https URL>` generates `web/.well-known/security.txt`.
 8. Keep dependencies up to date and run a Python version that still receives security patches.
