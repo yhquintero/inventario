@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Genera el corte vertical de 30 s de NovaGest (9:16, 1080 × 1920) para estados de
-WhatsApp, Reels, TikTok y Shorts (G-01 / D-11).
+"""Genera los cortes verticales de NovaGest (9:16, 1080 × 1920) para estados de
+WhatsApp, Reels, TikTok y Shorts (G-01 / D-11 y G-02).
 
 Requisitos: Pillow e imageio-ffmpeg (o un ffmpeg en el PATH).
 
@@ -8,9 +8,12 @@ Uso:
     python3 tools/build_reel_vertical.py \
         --audio /ruta/a/audio      # s1.wav … s6.wav (un clip por escena, en orden)
 
+    python3 tools/build_reel_vertical.py --corto \
+        --audio /ruta/a/corto      # s1.wav … s4.wav (versión de 15 s)
+
 Salida:
-    docs/assets/video/novagest-reel-vertical-30s.mp4
-    docs/assets/video/novagest-reel-vertical-30s.srt
+    docs/assets/video/novagest-reel-vertical-30s.mp4 (+ .srt)
+    docs/assets/video/novagest-reel-vertical-15s.mp4 (+ .srt)   con --corto
 
 El guion está en docs/PROPUESTA_VIDEO_PROMOCIONAL.md (§6.1). El texto en pantalla se
 mantiene legible sin sonido: es la forma normal de verlo en el móvil.
@@ -102,6 +105,37 @@ SCENES: list[Scene] = [
         title="Gestiona. Crece. Avanza.",
         sub="Web y Android, con los mismos datos",
         kind="closing", audio="s6", slot=6.7,
+    ),
+]
+
+
+
+# G-02 · versión de 15 s: cuatro tramos, el mismo lenguaje visual y un cierre de marca.
+SCENES_CORTO: list[Scene] = [
+    Scene(
+        kicker="NOVAGEST 1.0",
+        title="Todo tu negocio en una app",
+        sub="Inventario · Venta · Caja",
+        kind="opening", audio="s1", slot=2.6,
+        bullets=["Web instalable", "Android"],
+    ),
+    Scene(
+        kicker="VENDER",
+        title="Escanea y cobra",
+        sub="El stock baja solo. Contado o fiado.",
+        image="venta-rapida.png", kind="shot", audio="s2", slot=4.5,
+    ),
+    Scene(
+        kicker="CUADRAR",
+        title="La caja da cero",
+        sub="Tasa, fondos, gastos y salidas.",
+        image="cuadre-diario.png", kind="shot", audio="s3", slot=3.1,
+    ),
+    Scene(
+        kicker="NOVAGEST",
+        title="Gestiona. Crece. Avanza.",
+        sub="Web y Android, con los mismos datos",
+        kind="closing", audio="s4", slot=4.4,
     ),
 ]
 
@@ -390,13 +424,30 @@ NARRATION = [
 ]
 
 
+# Locución del corte de 15 s: misma voz y el mismo mensaje, en frases cortas.
+NARRATION_CORTO = [
+    "Todo tu negocio en una app.",
+    "Escanea, cobra y listo: el stock baja solo.",
+    "Al cerrar el día, la caja da cero.",
+    "NovaGest. Web y Android, con los mismos datos.",
+]
+
+
 def main() -> None:
     global BG
     ap = argparse.ArgumentParser()
-    ap.add_argument("--audio", required=True, help="carpeta con s1.wav … s6.wav")
-    ap.add_argument("--out", default=str(ROOT / "docs" / "assets" / "video" / "novagest-reel-vertical-30s.mp4"))
-    ap.add_argument("--build", default="/tmp/novagest-reel", help="carpeta de trabajo")
+    ap.add_argument("--audio", required=True, help="carpeta con s1.wav … s6.wav (o s1 … s4 con --corto)")
+    ap.add_argument("--corto", action="store_true", help="versión de 15 s (cuatro tramos)")
+    ap.add_argument("--out", default=None, help="archivo MP4 de salida")
+    ap.add_argument("--build", default=None, help="carpeta de trabajo")
     args = ap.parse_args()
+
+    scenes = SCENES_CORTO if args.corto else SCENES
+    narracion = NARRATION_CORTO if args.corto else NARRATION
+    nombre = "novagest-reel-vertical-15s.mp4" if args.corto else "novagest-reel-vertical-30s.mp4"
+    args.out = args.out or str(ROOT / "docs" / "assets" / "video" / nombre)
+    args.build = args.build or ("/tmp/novagest-reel-15" if args.corto else "/tmp/novagest-reel")
+    limite = 16 if args.corto else 31
 
     audio_dir = Path(args.audio)
     build_dir = Path(args.build)
@@ -404,22 +455,22 @@ def main() -> None:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    audios = [audio_dir / f"{sc.audio}.wav" for sc in SCENES]
+    audios = [audio_dir / f"{sc.audio}.wav" for sc in scenes]
     for a in audios:
         if not a.exists():
             sys.exit(f"Falta el audio {a}")
 
     full_wav = build_dir / "narracion.wav"
-    starts, total = build_audio(audios, [s.slot for s in SCENES], full_wav)
+    starts, total = build_audio(audios, [s.slot for s in scenes], full_wav)
     print(f"· duración total: {total:.1f} s")
-    if total > 31:
-        print("  aviso: se pasa de 30 s; acorte la locución o el hueco de alguna escena")
+    if total > limite:
+        print(f"  aviso: se pasa de {limite - 1} s; acorte la locución o el hueco de alguna escena")
 
     entradas: list[tuple[float, float, str]] = []
-    for i, sc in enumerate(SCENES):
+    for i, sc in enumerate(scenes):
         dur = wav_duration(audios[i])
         inicio = starts[i]
-        trozos = chunk_text(NARRATION[i])
+        trozos = chunk_text(narracion[i])
         paso = (dur + 0.4) / max(1, len(trozos))
         for k, trozo in enumerate(trozos):
             entradas.append((inicio + k * paso, min(total, inicio + (k + 1) * paso), trozo))
@@ -442,13 +493,13 @@ def main() -> None:
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     assert proc.stdin
     frames = 0
-    for i, sc in enumerate(SCENES):
+    for i, sc in enumerate(scenes):
         dur = wav_duration(audios[i])
         real = max(sc.slot, dur + 0.7)
         n = max(1, int(round(real * FPS)))
         for k in range(n):
             t = k / FPS
-            img = scene_frame(sc, t, real, i, len(SCENES))
+            img = scene_frame(sc, t, real, i, len(scenes))
             if t < 0.25:
                 negro = Image.new("RGBA", (W, H), (8, 10, 26, int(255 * (1 - t / 0.25))))
                 img = Image.alpha_composite(img.convert("RGBA"), negro)

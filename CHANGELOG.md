@@ -1,4 +1,22 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVIII) · Modo oscuro automático y tamaño de letra (A-18)
+﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XXXIX) · Reel vertical de 15 s (G-02)
+
+- **Corte vertical de 15 segundos** para TikTok, Reels, Shorts y estados de WhatsApp:
+  `docs/assets/video/novagest-reel-vertical-15s.mp4` (**1080 × 1920**, H.264 + AAC, 14,7 s,
+  ~1 MB), con **voz masculina** en español neutro, subtítulos quemados y su `.srt` aparte.
+- **Cuatro tramos, el mensaje completo:** portada «Todo tu negocio en una app» → venta rápida
+  («Escanea, cobra y listo: el stock baja solo») → cuadre del día («Al cerrar el día, la caja da
+  cero») → cierre de marca con el botón dorado de contacto. Cada tramo lleva su captura real de
+  la app y una barra de progreso de cuatro segmentos, así que **se entiende sin sonido**.
+- **Un solo generador para los dos cortes:** `tools/build_reel_vertical.py` gana la opción
+  `--corto`; el corte de 30 s queda intacto. La locución va a ritmo de reel (×1,06) y con los
+  silencios de los extremos recortados para que no haya huecos entre escenas.
+- **Pruebas:** `tools/test_reel_corto.py` con **51 comprobaciones** (cuatro tramos, guion de la
+  locución, textos que caben en pantalla, capturas existentes, suma de duraciones por debajo de
+  15 s y, cuando el video existe, su duración real y los bloques del `.srt`).
+- **Documentación:** guion, datos técnicos y pasos de regeneración en
+  `docs/PROPUESTA_VIDEO_PROMOCIONAL.md` §6.2.
+
+## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVIII) · Modo oscuro automático y tamaño de letra (A-18)
 
 - **Tema automático de verdad:** con **Automático** (◐), la Web **escucha** la preferencia del
   sistema y cambia **en vivo** cuando el equipo entra en modo nocturno, sin recargar ni volver a

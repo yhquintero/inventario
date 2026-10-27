@@ -1,0 +1,15 @@
+1
+00:00:00,000 --> 00:00:02,280
+Todo tu negocio en una app.
+
+2
+00:00:02,600 --> 00:00:06,875
+Escanea, cobra y listo: el stock baja solo.
+
+3
+00:00:07,175 --> 00:00:09,996
+Al cerrar el día, la caja da cero.
+
+4
+00:00:10,296 --> 00:00:14,430
+NovaGest. Web y Android, con los mismos datos.

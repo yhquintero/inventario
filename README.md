@@ -150,7 +150,7 @@ interna para quien administra las licencias.
   <br /><sub>La aplicación Web en el móvil: navegación inferior, instalable como app (PWA).</sub>
 </p>
 
-▶️ **Video:** [presentación de 2:26 min (720p, con narración y subtítulos)](docs/assets/video/novagest-promo-720p.mp4) · [guion y plan de producción](docs/PROPUESTA_VIDEO_PROMOCIONAL.md).
+▶️ **Video:** [presentación de 2:26 min (720p, con narración y subtítulos)](docs/assets/video/novagest-promo-720p.mp4) · [corte vertical de 30 s](docs/assets/video/novagest-reel-vertical-30s.mp4) · [corte vertical de 15 s](docs/assets/video/novagest-reel-vertical-15s.mp4) · [guion y plan de producción](docs/PROPUESTA_VIDEO_PROMOCIONAL.md).
 
 ---
 

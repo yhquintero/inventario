@@ -250,16 +250,46 @@ Guion locutado (el texto en pantalla va aparte y se lee sin sonido):
 | 23–27 | Móvil | «Todo también en tu teléfono, con los mismos datos.» |
 | 27–30 | Cierre + CTA | «NovaGest. Gestiona. Crece. Avanza. Solicita tu licencia.» |
 
-### 6.2 Corte vertical de 15 segundos (TikTok / Reels / Shorts)
+### 6.2 Corte vertical de 15 segundos (TikTok / Reels / Shorts) — **entregado (G-02)**
 
-1. **0–3 s:** «¿Cuánto vendiste hoy? ¿Y cuánto te queda?» (gancho).
-2. **3–8 s:** Venta rápida + escáner (plano vertical del móvil).
-3. **8–12 s:** Cuadre en 0.00.
-4. **12–15 s:** Logotipo + «NovaGest · Solicita tu licencia por WhatsApp».
+La versión corta del mismo mensaje: cuatro tramos, **14,7 s**, misma voz masculina, mismos
+subtítulos quemados y su `.srt`. Sirve para TikTok, Reels, Shorts y estados de WhatsApp, donde
+lo que manda es el primer segundo.
 
-> Para las versiones verticales, reencuadrar a **9:16 (1080 × 1920)** poniendo el texto
-> arriba y la captura del móvil en el centro; el video horizontal se puede usar con fondo
-> desenfocado.
+| Dato | Valor |
+|---|---|
+| Pieza | `docs/assets/video/novagest-reel-vertical-15s.mp4` |
+| Subtítulos | `docs/assets/video/novagest-reel-vertical-15s.srt` |
+| Formato | **1080 × 1920 (9:16)** · H.264 · AAC 160 kbps · 30 fps · `+faststart` |
+| Duración | **14,7 s** (por debajo del tope de 15 s que piden las redes) |
+| Peso | ~1,0 MB (se envía por WhatsApp sin comprimir) |
+| Voz | Español neutro, **voz masculina**, la misma del vídeo largo |
+| Generación | `python3 tools/build_reel_vertical.py --corto --audio <carpeta con s1…s4.wav>` |
+| Pruebas | `python3 tools/test_reel_corto.py` (51 comprobaciones) |
+| Dónde se ve | Sección de vídeos de `docs/index.html` y `docs/assets/video/` |
+
+Guion locutado:
+
+| Seg | Imagen | Locución | Rótulo en pantalla |
+|---|---|---|---|
+| 0,0–2,6 | Portada con el logotipo | «Todo tu negocio en una app.» | **NOVAGEST 1.0** — Todo tu negocio en una app |
+| 2,6–7,2 | Venta rápida | «Escanea, cobra y listo: el stock baja solo.» | **VENDER** — Escanea y cobra |
+| 7,2–10,4 | Cuadre diario | «Al cerrar el día, la caja da cero.» | **CUADRAR** — La caja da cero |
+| 10,4–14,7 | Cierre con logotipo y botón dorado | «NovaGest. Web y Android, con los mismos datos.» | Gestiona. Crece. Avanza. |
+
+> Se entiende **sin sonido**: cada tramo lleva rótulo grande, la captura real de la app y una
+> barra de progreso de cuatro segmentos. La locución va a 1,06 × de velocidad (ritmo de reel) y
+> se recortan los silencios del principio y del final de cada clip para que no haya huecos.
+
+**Cómo se regenera** (si cambia un texto, la voz o una captura):
+
+1. Grabar o generar la locución en cuatro archivos `s1.wav … s4.wav` (22 050 Hz, mono).
+   Los textos exactos están en `NARRATION_CORTO` dentro de `tools/build_reel_vertical.py`.
+2. Guardarlos en una carpeta, por ejemplo `/tmp/corto/`.
+3. Ejecutar `python3 tools/build_reel_vertical.py --corto --audio /tmp/corto`.
+4. Comprobar con `python3 tools/test_reel_corto.py` (duración, textos, capturas y `.srt`).
+5. Si se cambia la duración de un tramo, ajustar `slot` de `SCENES_CORTO`: el video no debe
+   pasar de 15 s.
 
 ### 6.3 Formatos de exportación sugeridos
 
@@ -267,6 +297,7 @@ Guion locutado (el texto en pantalla va aparte y se lee sin sonido):
 |---|---|---|
 | WhatsApp (envío directo) | 720p MP4, < 25 MB | 2:26 |
 | Estado / Reels | 1080 × 1920, 30 s | 0:30 |
+| TikTok / Reels / Shorts | 1080 × 1920, 15 s | 0:15 |
 | YouTube (presentación) | 1080p MP4 | 2:26 |
 | Web del producto (hero) | 720p, sin audio, con subtítulos | 2:26 o 0:30 |
 | Feria / pantalla en tienda | 720p en bucle | 2:26 |
