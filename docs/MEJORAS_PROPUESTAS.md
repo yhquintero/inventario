@@ -113,6 +113,7 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 | S-14 | ✅ **Copia externa opcional** (carpeta de red o WebDAV) con **verificación de que la copia se puede restaurar**: relectura y SHA-256 en carpeta, `HEAD` en WebDAV, y cada copia local se abre al crearse | Una copia en el mismo disco no es copia | `server/copias_externas.py`, `server/novagest_server.py`, `web/js/app.js` | 🔴 | ⏳ | ✅ |
 | W-22 | ✅ **Previsión de compra sugerida**: rotación ponderada de 30/60/90 días, plazo del proveedor, cobertura y mínimo; tendencia, punto de pedido, costo, lista para WhatsApp, CSV y paso directo a **entrada** | Se compra «a ojo» y se rompe el stock | `web/js/forecast.js`, `forecastView` | 🔴 | ⏳ | ✅ |
 | W-23 | ✅ **Historial de costo y margen por producto**: margen vs objetivo configurable, precio «para el objetivo», historial de cambios con quién y cuánto, evolución del margen, aviso en el Panel, texto/CSV/PDF | Se vende sin saber si queda ganancia, y los costos suben sin que nadie lo note | `web/js/margin.js`, `marginsView` | 🟠 | ⏳ | ✅ |
+| A-20 | ✅ **Conteo físico guiado con la cámara** (Android): el código de barras suma unidades, orden por categoría, avance, filtro de pendientes, ajuste con entrada/salida y nota «Conteo físico», acta para copiar; sin contar no es faltante y los códigos raros no crean productos | Contar el estante se hace en papel y el inventario queda descuadrado | `domain/count/ConteoFisico.kt`, `ui/count/`, `ConteoFisicoTest` | 🟠 | ⏳ | ✅ |
 | D-13 | ✅ **Guía de una página «Qué hacer si…»** (A4 imprimible): 14 urgencias de la caja con síntoma, pasos y salida esperada; tres marcadas en rojo; misma versión en texto | Cuando algo falla, nadie sabe a quién llamar ni qué tocar | `docs/QUE_HACER_SI.html`/`.md`, `tools/test_que_hacer_si.py` | 🟠 | ⏳ | ✅ |
 | G-03 | ✅ **Carrusel de 6 imágenes 1080×1350** para Instagram, Facebook y LinkedIn: portada, vender, cuadrar, reponer, móvil y cierre, con arte propio y capturas reales; PNG sueltos + ZIP con los textos de la publicación | Es el formato que más se ve en el muro y no había material listo | `docs/assets/redes/`, `tools/build_carrusel_redes.py`, `docs/REDES_SOCIALES.md` | 🟢 | ⏳ | ✅ |
 | A-19 | ✅ **Compartir el ticket por WhatsApp** (Android): imagen del ticket + texto con total, CUP, fiado y **saldo del cliente**; también solo texto o copiar | El cliente quiere su comprobante sin papel | `data/printer/ReceiptShare.kt`, `ui/movements/` | 🟠 | ⏱️ | ✅ |
@@ -123,8 +124,7 @@ escalón natural, no una lista de deseos. Ninguna está aprobada todavía.
 paralelo los rápidos ~~W-09~~, ~~D-12~~ y ~~A-08~~. Entregados: **W-15, A-17, A-14** (revisión XXIII),
 **W-16, A-15** (XXIV), **S-09, D-10** (XXV), **W-12, W-09, D-12, A-08** (XXVI), **S-11, S-10, S-05**
 (XXVII), **W-03** (XXVIII), **A-04, A-13** (XXXV), **W-08, S-12** (XXXVI), **S-13** (XXXVI),
-**W-20** (XXXVII), **A-18** (XXXVIII), **G-02** (XXXIX), **W-21** (XL), **S-14** (XLI), **W-22** (XLII), **A-19** (XLIII) y **W-23** (XLIV) y **G-03** (XLV) y **D-13** (XLVI). Siguiente: **A-20** (conteo con la cámara)
-→ **S-04** (instalador de Windows).
+**W-20** (XXXVII), **A-18** (XXXVIII), **G-02** (XXXIX), **W-21** (XL), **S-14** (XLI), **W-22** (XLII), **A-19** (XLIII) y **W-23** (XLIV) y **G-03** (XLV) y **D-13** (XLVI) y **A-20** (XLVII). Siguiente: **S-04** (instalador de Windows).
 
 ## Cómo se supervisa
 

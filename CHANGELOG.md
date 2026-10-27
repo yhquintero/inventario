@@ -1,4 +1,26 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-27 (XLVI) · Guía «Qué hacer si…» en una página (D-13)
+﻿## NovaGest v1.0.0 · revisión 2026-10-27 (XLVII) · Conteo físico guiado con la cámara (A-20)
+
+- **Nueva pantalla «Conteo físico»** en el Android (menú ☰): se cuenta el estante con la **cámara**
+  del teléfono y el inventario queda cuadrado sin libreta. Cada lectura del **código de barras**
+  suma una unidad al producto; los productos sin código se cuentan a mano.
+- **Guiado de verdad:** la lista va por **categoría y nombre** (como el estante), con búsqueda,
+  avance («12 de 40 contados, 30 %») y filtro **Solo pendientes**.
+- **Sin inventar:** un producto **sin contar** no es un faltante; un código que no está en el
+  catálogo se anota como **desconocido** y no crea productos.
+- **Ajuste con un botón:** al aplicar, se registra **un movimiento por diferencia** —entrada si se
+  contó de más (sobraba mercancía), salida si se contó de menos (faltaba)— con la nota «Conteo físico» y la fecha, así que
+  queda en el historial y en la auditoría con el usuario que lo hizo. Antes de aplicar pide
+  confirmación; **Reiniciar** no toca el stock.
+- **Acta y CSV:** **📋 Acta** copia el resumen para WhatsApp o el correo.
+- **Todo en el teléfono:** el código se decodifica en el equipo con **CameraX + ZXing**, sin subir
+  imágenes ni depender de servicios de terceros. El permiso de **cámara** es opcional: sin él, el
+  conteo funciona a mano.
+- **Pruebas:** `ConteoFisicoTest` con **28 comprobaciones** en la máquina de desarrollo (líneas por
+  producto activo, estados y ajustes, conteo cero, escaneos y códigos desconocidos, orden de
+  visita, avance, resumen, acta y CSV).
+- **Manual:** Android → **16.4 Inventario**, con el paso a paso, la tabla de estados y las reglas.
+
+## NovaGest v1.0.0 · revisión 2026-10-27 (XLVI) · Guía «Qué hacer si…» en una página (D-13)
 
 - **Nueva guía de urgencias, en una sola página A4:** `docs/QUE_HACER_SI.html` se abre en el
   navegador y se imprime con **Ctrl + P** (A4, una página) para pegarla junto a la caja.
