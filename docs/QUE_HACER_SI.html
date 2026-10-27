@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qué hacer si… · NovaGest</title>
+<meta name="description" content="Guía de una página para imprimir en A4 con las catorce urgencias del día a día en NovaGest y qué hacer en cada una, paso a paso.">
+<style>
+  :root {
+    --ink: #14213a; --muted: #4b5675; --line: #d7dce8; --soft: #f4f6fb;
+    --brand: #1d4ed8; --brand-ink: #0f2a6b; --warn: #b45309; --danger: #b91c1c; --ok: #0f766e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #eceff5; color: var(--ink); }
+  body { font: 8.4pt/1.3 "Segoe UI", system-ui, -apple-system, Arial, sans-serif; }
+  .sheet { width: 210mm; min-height: 297mm; margin: 8mm auto; padding: 9mm 9mm 7mm; background: #fff; box-shadow: 0 2px 18px #0002; }
+  header.guide { display: flex; align-items: center; gap: 8px; border-bottom: 2.5px solid var(--brand); padding-bottom: 4px; margin-bottom: 6px; }
+  header.guide .logo { width: 26px; height: 26px; flex: 0 0 auto; color: var(--brand); }
+  header.guide h1 { font-size: 13pt; margin: 0; letter-spacing: .2px; }
+  header.guide p { margin: 1px 0 0; font-size: 8pt; color: var(--muted); }
+  header.guide .tag { margin-left: auto; font-size: 7.4pt; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; color: var(--muted); white-space: nowrap; }
+  .grid { column-count: 3; column-gap: 5mm; }
+  .caso { break-inside: avoid; margin: 0 0 3.4mm; border: 1px solid var(--line); border-radius: 4px; padding: 2.4mm 2.6mm; }
+  .caso h2 { font-size: 8.6pt; margin: 0 0 2px; color: var(--brand-ink); display: flex; gap: 4px; align-items: baseline; }
+  .caso h2 .n { color: var(--brand); font-weight: 700; }
+  .caso .sintoma { font-size: 7.8pt; color: var(--muted); margin: 0 0 2px; font-style: italic; }
+  .caso ol { margin: 0; padding-left: 3.6mm; }
+  .caso ol li { margin: 0 0 1.2px; }
+  .caso .fin { display: block; margin-top: 1.4px; font-size: 7.8pt; color: var(--ok); }
+  .caso .fin::before { content: "✔ "; }
+  .caso.alto { border-color: #f3c2c2; background: #fff7f7; }
+  .caso.alto .fin { color: var(--danger); }
+  .caso.alto .fin::before { content: "⚠ "; }
+  b, strong { color: var(--ink); }
+  code, .kbd { font-family: "Cascadia Mono", ui-monospace, Consolas, monospace; font-size: 7.8pt; background: var(--soft); border: 1px solid var(--line); border-radius: 2px; padding: 0 2px; }
+  footer.guide { border-top: 1px solid var(--line); margin-top: 3mm; padding-top: 2.4px; font-size: 7.2pt; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
+  .howto { width: 210mm; margin: 8mm auto 0; font-size: 9pt; color: var(--muted); }
+  .howto b { color: var(--ink); }
+  @media print {
+    html, body { background: #fff; font-size: 8pt; }
+    .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+    .howto { display: none; }
+    a { color: inherit; text-decoration: none; }
+    .caso { break-inside: avoid; }
+  }
+  @page { size: A4; margin: 9mm 8mm; }
+</style>
+</head>
+<body>
+
+<p class="howto no-print">Guía de <b>una página</b> para imprimir y pegar junto a la caja: <span class="kbd">Ctrl</span> + <span class="kbd">P</span> → <b>A4</b>, márgenes <b>predeterminados</b>, <b>una página</b>. Esta franja no sale en el papel. Manual completo: <a href="MANUAL_USUARIO.html">MANUAL_USUARIO.html</a>.</p>
+
+<main>
+<article class="sheet">
+  <header class="guide">
+    <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+    </svg>
+    <div>
+      <h1>Qué hacer si…</h1>
+      <p>NovaGest · las catorce urgencias del día a día, en una página</p>
+    </div>
+    <span class="tag">A4 · una página</span>
+  </header>
+
+  <div class="grid">
+
+    <section class="caso alto" id="no-abre">
+      <h2><span class="n">1</span> No abre la página o dice «sin conexión»</h2>
+      <p class="sintoma">El navegador no carga la Web, o carga pero todo está en blanco.</p>
+      <ol>
+        <li>Mire la <b>pantalla del servidor</b>: tiene que estar encendida y mostrar el puerto (por defecto <span class="kbd">8000</span>).</li>
+        <li>Si está apagado, ábralo con el acceso directo del escritorio o <span class="kbd">python server/novagest_server.py</span>.</li>
+        <li>Compruebe que el móvil o el PC están en la <b>misma red</b> que el servidor.</li>
+        <li>Recargue con <span class="kbd">Ctrl</span> + <span class="kbd">F5</span> (fuerza la versión nueva).</li>
+      </ol>
+      <span class="fin">Si sigue igual, reinicie el equipo del servidor y avise al administrador.</span>
+    </section>
+
+    <section class="caso" id="no-sincroniza">
+      <h2><span class="n">2</span> Los cambios no suben (nube con número)</h2>
+      <p class="sintoma">La nube muestra una insignia con cambios pendientes y no baja.</p>
+      <ol>
+        <li>Compruebe la red: sin internet, los cambios se guardan igual en el equipo.</li>
+        <li>Pulse el botón <b>Sincronizar ahora</b> de la barra superior.</li>
+        <li>Espere 15 segundos: la app consulta la versión del estado sola.</li>
+        <li>Si dice «sesión expirada», vuelva a entrar; los cambios pendientes siguen guardados.</li>
+      </ol>
+      <span class="fin">La insignia desaparece cuando todo está al día. No borre nada para «arreglarlo».</span>
+    </section>
+
+    <section class="caso" id="no-cuadra">
+      <h2><span class="n">3</span> La caja no da cero</h2>
+      <p class="sintoma">El cuadre del día marca diferencia entre lo contado y lo esperado.</p>
+      <ol>
+        <li>Revise las <b>salidas</b> y los <b>gastos</b> del día: casi siempre falta anotar uno.</li>
+        <li>Confirme la <b>tasa del día</b> (CUP/USD): una tasa vieja cambia todos los totales.</li>
+        <li>Mire si hay <b>fiados</b> o <b>abonos</b> que se cobraron en efectivo y no se registraron.</li>
+        <li>Anote la diferencia y el motivo en el campo de <b>observaciones</b>: queda en el registro.</li>
+      </ol>
+      <span class="fin">Cierre el día con la explicación escrita; no «ajuste» la cifra para que dé cero.</span>
+    </section>
+
+    <section class="caso" id="no-imprime">
+      <h2><span class="n">4</span> No imprime el ticket</h2>
+      <p class="sintoma">Se pulsa Imprimir y no sale papel, o sale en blanco.</p>
+      <ol>
+        <li><b>Web:</b> en el diálogo de impresión elija la impresora térmica y el tamaño del rollo (58 u 80 mm).</li>
+        <li><b>Android:</b> impresora <b>encendida</b>, con papel, <b>emparejada</b> y con el permiso de <b>Bluetooth</b> concedido.</li>
+        <li>Si sale en blanco, revise la tapa del rollo: el papel térmico va con la cara brillante hacia la impresora.</li>
+        <li>Para una venta de antes: <b>Movimientos</b> → icono <b>🧾</b> de la fila.</li>
+      </ol>
+      <span class="fin">Sin impresora, comparta el ticket por WhatsApp (WhatsApp en Android: 📤 Compartir).</span>
+    </section>
+
+    <section class="caso" id="no-escaner">
+      <h2><span class="n">5</span> El lector o la cámara no lee el código</h2>
+      <p class="sintoma">Pasa el producto y no se añade nada al carrito.</p>
+      <ol>
+        <li>Haga clic en la <b>caja de código</b> antes de pasar el lector: tiene que estar enfocada.</li>
+        <li>Escriba el código a mano y pulse <b>Añadir</b>: si aparece, el problema es el lector.</li>
+        <li>Android: acepte el permiso de <b>cámara</b> la primera vez y limpie la lente.</li>
+        <li>Si el producto no existe, créelo con su código en <b>Inventario → Nuevo producto</b>.</li>
+      </ol>
+      <span class="fin">Sin lector siempre se puede vender: toque el producto en la lista.</span>
+    </section>
+
+    <section class="caso" id="sin-stock">
+      <h2><span class="n">6</span> «No hay stock suficiente»</h2>
+      <p class="sintoma">La venta no se registra y avisa de que solo hay N unidades.</p>
+      <ol>
+        <li>Mire la existencia real en el estante y en <b>Inventario</b> (columna <b>Stock actual</b>).</li>
+        <li>Si la mercancía llegó y no se anotó, registre la <b>Entrada</b> y vuelva a cobrar.</li>
+        <li>Si el stock está mal, hágalo con <b>Comprobación de inventario</b> (deja constancia de quién y cuándo).</li>
+        <li>No venda por fuera del sistema: el stock y la caja quedarían descuadrados.</li>
+      </ol>
+      <span class="fin">Con varios almacenes, mire el <b>almacén en uso</b> arriba: el stock es el de ese almacén.</span>
+    </section>
+
+    <section class="caso" id="sin-cliente">
+      <h2><span class="n">7</span> El fiado no se registra (límite de crédito)</h2>
+      <p class="sintoma">Dice cuánto debe el cliente y no deja fiar.</p>
+      <ol>
+        <li>Lea el aviso: es el <b>límite de crédito</b> del cliente, no un error.</li>
+        <li>Cobre una parte como <b>abono</b> y vuelva a intentar el fiado.</li>
+        <li>Fije o suba el límite en <b>Clientes y fiados → Editar</b> (solo administrador o jefe).</li>
+      </ol>
+      <span class="fin">El saldo del cliente, al día, se ve en Clientes y fiados y en el ticket que se comparte.</span>
+    </section>
+
+    <section class="caso" id="papelera">
+      <h2><span class="n">8</span> Se borró un producto o una venta</h2>
+      <p class="sintoma">Algo desapareció del inventario o de los movimientos.</p>
+      <ol>
+        <li>Vaya a <b>Papelera</b> (Sistema): lo eliminado se queda ahí.</li>
+        <li>Pulse <b>Restaurar</b>: vuelve con sus datos y el stock se recalcula.</li>
+        <li>Si alguien lo borró de la papelera, solo se recupera desde una <b>copia de seguridad</b>.</li>
+      </ol>
+      <span class="fin">Nada se borra para siempre sin un segundo paso de confirmación.</span>
+    </section>
+
+    <section class="caso alto" id="olvide-clave">
+      <h2><span class="n">9</span> Olvidé la contraseña o perdí el 2FA</h2>
+      <p class="sintoma">No se puede entrar y no hay forma de terminar la verificación.</p>
+      <ol>
+        <li>No cree una cuenta nueva: los datos quedan en el usuario equivocado.</li>
+        <li>Pida a un <b>administrador</b> que restablezca la contraseña en <b>Usuarios</b>.</li>
+        <li>Si se perdió el teléfono del <b>2FA</b>, el administrador puede quitarlo con <b>Quitar 2FA</b> y volver a activarlo.</li>
+        <li>Si el administrador es quien no puede entrar, restaure la copia más reciente (caso 10).</li>
+      </ol>
+      <span class="fin">Las contraseñas no se muestran ni se envían por chat: se restablecen.</span>
+    </section>
+
+    <section class="caso alto" id="copia">
+      <h2><span class="n">10</span> Hay que restaurar una copia</h2>
+      <p class="sintoma">Se borraron datos de varios días o hay que volver atrás.</p>
+      <ol>
+        <li>Entre como <b>administrador</b> → <b>Copias</b>.</li>
+        <li>Antes de restaurar, haga una <b>copia nueva</b>: así puede deshacer la restauración.</li>
+        <li>Elija la copia por fecha y pulse <b>Restaurar</b>. Afecta a <b>todos los usuarios</b>.</li>
+        <li>Avisar al equipo: lo registrado después de esa copia se pierde.</li>
+      </ol>
+      <span class="fin">Restaure con la caja cerrada, nunca a media venta.</span>
+    </section>
+
+    <section class="caso" id="licencia">
+      <h2><span class="n">11</span> La licencia no activa o dice «vencida»</h2>
+      <p class="sintoma">La app abre en modo limitado o pide activar otra vez.</p>
+      <ol>
+        <li>Compruebe la <b>fecha del equipo</b>: una fecha adelantada invalida la licencia.</li>
+        <li>Pegue la clave de nuevo en <b>🔐 Licencia</b>, sin espacios de más.</li>
+        <li>Si la clave era de otro equipo, pida una nueva al proveedor con el <b>código de equipo</b>.</li>
+        <li>Con varias cajas, cada equipo necesita su propia clave.</li>
+      </ol>
+      <span class="fin">La licencia no se copia de un equipo a otro.</span>
+    </section>
+
+    <section class="caso" id="ticket-falso">
+      <h2><span class="n">12</span> Duda de un ticket en papel</h2>
+      <p class="sintoma">Un cliente trae un ticket y no se sabe si es auténtico.</p>
+      <ol>
+        <li>Lea el <b>QR</b> o el <b>código</b> del pie del ticket (por ejemplo <span class="kbd">ABC-DEF</span>).</li>
+        <li>Menú → Sistema → <b>Verificar ticket</b> y pegue el código.</li>
+        <li>Si el sistema no lo reconoce, ese ticket no salió de esta caja.</li>
+      </ol>
+      <span class="fin">La verificación también dice quién lo imprimió y a qué hora.</span>
+    </section>
+
+    <section class="caso" id="whatsapp">
+      <h2><span class="n">13</span> El ticket por WhatsApp no se abre</h2>
+      <p class="sintoma">Se pulsa compartir y no pasa nada, o abre una página en blanco.</p>
+      <ol>
+        <li><b>Android:</b> si no hay WhatsApp instalado, use <b>📤 Imagen + texto</b> y elija otra app (correo, Telegram).</li>
+        <li>Use <b>Copiar texto</b> y péguelo en la conversación: siempre funciona.</li>
+        <li>Si la imagen no aparece, revise que la app tenga espacio libre en el teléfono.</li>
+      </ol>
+      <span class="fin">La imagen se crea en el propio teléfono: no necesita internet para generarse.</span>
+    </section>
+
+    <section class="caso" id="lento">
+      <h2><span class="n">14</span> Todo va lento o hay demasiados datos</h2>
+      <p class="sintoma">Las pantallas tardan en abrir, sobre todo el inventario.</p>
+      <ol>
+        <li>Cierre las demás pestañas del navegador y recargue con <span class="kbd">Ctrl</span> + <span class="kbd">F5</span>.</li>
+        <li>Use la <b>búsqueda</b> en vez de recorrer tablas largas; filtre por categoría o almacén.</li>
+        <li>Imprima o exporte <b>por períodos</b> en lugar de años completos.</li>
+        <li>Si el equipo es modesto, deje el servidor encendido y trabaje desde otro PC o el móvil.</li>
+      </ol>
+      <span class="fin">Antes de llamar: anote qué pantalla y qué botón, y la hora exacta.</span>
+    </section>
+
+  </div>
+
+  <footer class="guide">
+    <span>NovaGest · Qué hacer si… · Rev. 1.0 · Manual completo: docs/MANUAL_USUARIO.html</span>
+    <span>Si nada de esto lo resuelve: avise al administrador con la hora y lo que estaba haciendo.</span>
+  </footer>
+</article>
+</main>
+
+</body>
+</html>

@@ -37,14 +37,19 @@ def check(ok: bool, que: str, detalle: str = "") -> None:
 
 
 def sin_pillow() -> bool:
-    """Deja un módulo vacío si falta Pillow, para poder leer igual el guion."""
+    """Comprueba que Pillow sirve de verdad; si no, deja módulos vacíos para leer el guion.
+
+    No basta con que `import PIL` funcione: en algunos equipos (y en el CI) queda un Pillow a
+    medias que importa pero no dibuja. Se prueba a crear una imagen de 2 × 2 px.
+    """
     try:
-        import PIL  # noqa: F401
+        from PIL import Image  # noqa: F401
+
+        Image.new("RGB", (2, 2))
         return False
-    except ModuleNotFoundError:
+    except Exception:
         for nombre in ("PIL", "PIL.Image", "PIL.ImageDraw", "PIL.ImageFont", "PIL.ImageFilter"):
-            mod = types.ModuleType(nombre)
-            sys.modules.setdefault(nombre, mod)
+            sys.modules[nombre] = types.ModuleType(nombre)
         return True
 
 

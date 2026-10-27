@@ -1,4 +1,23 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-27 (XLV) · Carrusel de 6 imágenes para redes (G-03)
+﻿## NovaGest v1.0.0 · revisión 2026-10-27 (XLVI) · Guía «Qué hacer si…» en una página (D-13)
+
+- **Nueva guía de urgencias, en una sola página A4:** `docs/QUE_HACER_SI.html` se abre en el
+  navegador y se imprime con **Ctrl + P** (A4, una página) para pegarla junto a la caja.
+- **Catorce casos reales**, cada uno con el **síntoma**, los **pasos** y la **salida esperada**:
+  servidor apagado, cambios que no suben, caja que no da cero, ticket que no imprime, lector o
+  cámara que no lee, falta de stock, límite de crédito del fiado, algo borrado (papelera),
+  contraseña o 2FA perdidos, restaurar una copia, licencia que no activa, ticket sospechoso,
+  ticket por WhatsApp que no abre y lentitud.
+- **Tres casos marcados en rojo** (servidor caído, contraseña perdida y restauración): son los que
+  paran la caja y obligan a avisar al administrador.
+- **Regla de oro visible:** no borrar nada y no ajustar cifras; casi todo se recupera por la
+  papelera o por las copias.
+- **Mismo contenido en texto** (`docs/QUE_HACER_SI.md`) para leerlo en el móvil o traducirlo, y
+  enlace desde la portada del proyecto.
+- **Pruebas:** `tools/test_que_hacer_si.py` con **61 comprobaciones** (una sola hoja, A4, sin
+  scripts ni recursos externos, los catorce casos numerados y con síntomas, pasos y salidas, los
+  tres de riesgo, y que el HTML y el texto digan lo mismo).
+
+## NovaGest v1.0.0 · revisión 2026-10-27 (XLV) · Carrusel de 6 imágenes para redes (G-03)
 
 - **Material listo para publicar:** seis piezas de **1080 × 1350 px** (4:5, el formato vertical que
   Instagram, Facebook y LinkedIn muestran **sin recortar**), con arte propio de la marca y

@@ -47,6 +47,7 @@ jobs:
           bash tools/ci_paso.sh node tools/test_tema.mjs
           bash tools/ci_paso.sh node tools/test_busqueda.mjs
           bash tools/ci_paso.sh node tools/test_prevision_compra.mjs
+          bash tools/ci_paso.sh node tools/test_margenes.mjs
           node tools/test_xlsx_export.mjs
           bash tools/ci_paso.sh node tools/cobertura.mjs --min 80
           bash tools/ci_paso.sh node tools/test_accesibilidad.mjs
@@ -65,6 +66,8 @@ jobs:
           bash tools/ci_paso.sh python3 -m pip install -r requirements.txt
           bash tools/ci_paso.sh python3 tools/test_sitio.py
           bash tools/ci_paso.sh python3 tools/test_guia_mostrador.py
+          bash tools/ci_paso.sh python3 tools/test_que_hacer_si.py
+          bash tools/ci_paso.sh python3 tools/test_carrusel_redes.py
           bash tools/ci_paso.sh python3 tools/test_novedades.py
           bash tools/ci_paso.sh python3 tools/test_reel_corto.py
           bash tools/ci_paso.sh python3 tools/test_licencia.py
