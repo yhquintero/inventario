@@ -195,8 +195,10 @@ class SyncQueueRoomTest {
         val porId = resultado.records.associateBy { it.id }
 
         assertEquals(3, resultado.records.size)
-        assertEquals("Arroz", porId["srv-0"]?.payload, "el cambio local más reciente debe conservarse")
-        assertEquals("Frijol nuevo", porId["srv-1"]?.payload, "el servidor más reciente manda")
+        // El mensaje va PRIMERO: en JUnit, `assertEquals(a, b, c)` con dos textos lee `c` como
+        // el valor real y `a` como el mensaje.
+        assertEquals("el cambio local más reciente debe conservarse", "Arroz", porId["srv-0"]?.payload)
+        assertEquals("el servidor más reciente manda", "Frijol nuevo", porId["srv-1"]?.payload)
         assertEquals(1, resultado.appliedLocal)
         assertTrue(resultado.keptRemote >= 1)
     }
