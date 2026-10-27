@@ -1991,6 +1991,52 @@ producto. El verbo <strong>vender</strong> es lo que convierte la búsqueda en u
    de cobros.</li>
 <li><strong>Factura o comprobante:</strong> si el negocio lo requiere, imprima el PDF del movimiento.</li>
 </ol>
+<h2 id="611-modo-mostrador-para-la-tablet-de-la-caja">6.11 Modo mostrador para la tablet de la caja</h2>
+<p>Cuando la Web se usa en una <strong>tablet fija en el mostrador</strong>, lo último que se quiere es que
+alguien se ponga a navegar por el menú, abra otra página o cierre la app sin querer. El
+<strong>modo mostrador</strong> deja la pantalla limpia, con tres accesos grandes y nada más.</p>
+<p><strong>Cómo se entra</strong></p>
+<ol>
+<li>Entre en la Web con el usuario de la caja (por ejemplo <code>cajero</code> o <code>jefe</code>).</li>
+<li>En la barra superior, pulse el botón <strong>⛶</strong> (Modo mostrador). Está junto a los iconos de la
+   derecha.</li>
+<li>La pantalla cambia: desaparecen el <strong>menú lateral</strong>, la <strong>barra superior</strong> y el pie legal, y
+   arriba queda una <strong>franja</strong> con el reloj —por ejemplo <em>«14:07 · domingo 25 de octubre»</em>—, el
+   botón <strong>Pantalla completa</strong> y el botón <strong>Salir</strong>.</li>
+<li>Pulse <strong>Pantalla completa</strong> para que el navegador oculte también su barra de direcciones. Si
+   el navegador no lo permite (algunos navegadores de Android lo piden como gesto), el modo
+   mostrador funciona igual; solo se queda la barra del navegador.</li>
+</ol>
+<p><strong>Qué se ve en modo mostrador</strong></p>
+<ul>
+<li>Tres accesos grandes, pensados para el dedo y para la prisa:</li>
+<li><strong>🛒 Vender</strong> — cobrar y fiar (Venta rápida).</li>
+<li><strong>📦 Inventario</strong> — existencias y precios.</li>
+<li><strong>🧮 Cuadre</strong> — cerrar la caja del día.</li>
+<li>Solo aparecen los accesos que <strong>permite el rol</strong> del usuario que entró: si el cajero no tiene
+  permiso de cuadre, ese botón no sale.</li>
+<li>El reloj se actualiza solo, para no tener que salir a mirar la hora del sistema.</li>
+</ul>
+<p><strong>Cómo se sale</strong></p>
+<ol>
+<li>Pulse <strong>Salir</strong> en la franja superior, o</li>
+<li>pulse la tecla <strong>Esc</strong> (en la tablet, el botón de retroceder del teclado si lo tiene). Si
+   estaba en pantalla completa, <strong>Esc</strong> primero la quita.</li>
+</ol>
+<p>Al salir vuelven el menú y la barra superior tal como estaban.</p>
+<div class="callout note">
+<p class="callout-t">ℹ Nota</p>
+<p>El modo mostrador se recuerda <strong>por equipo</strong> (se guarda en el navegador de esa tablet, no en
+el servidor). Si apaga la tablet estando en modo mostrador, al volver a abrir la Web seguirá
+en él; por eso conviene <strong>salir antes de dejársela a otra persona</strong> con otro rol.</p>
+</div>
+<div class="callout important">
+<p class="callout-t">❗ Importante</p>
+<p>El modo mostrador <strong>no cierra la sesión ni cambia los permisos</strong>: es solo una forma de
+pantalla. Si la tablet se queda sola, bloquee el dispositivo. Y si quiere que la app se abra
+directamente sin barra del navegador, instálela como <strong>PWA</strong> (apartado 2.4) y entre desde el
+icono de la pantalla de inicio.</p>
+</div>
 <hr />
 <h1 id="7-movimientos">7. Movimientos</h1>
 <p><strong>Movimientos</strong> es el libro donde queda todo lo que entra, sale o se vende. Venta rápida
@@ -3301,6 +3347,77 @@ la tienen no se vuelven a calcular. No hay que hacer nada especial, pero convien
 primera comprobación de la cadena se haga <strong>después</strong> de actualizar y con el servidor recién
 arrancado: ese es el punto de partida de confianza.</p>
 </div>
+<h2 id="145-anclar-el-sello-del-registro-s-12">14.5 Anclar el sello del registro (S-12)</h2>
+<p>La cadena del apartado anterior detecta que alguien cambie o borre una línea <strong>en medio</strong>. Pero
+hay un caso que se le escapa: <strong>borrar las últimas líneas</strong>. Si se quita la cola del registro,
+lo que queda sigue siendo una cadena perfectamente válida, solo que más corta.</p>
+<p>Para cubrir ese hueco está el <strong>anclaje del sello</strong>: una línea aparte, <strong>firmada</strong> con una clave
+que solo tiene este servidor, que recuerda <strong>cuántas líneas</strong> había, <strong>cuál era la última
+huella</strong> y <strong>cuándo</strong> se firmó. Si después desaparecen líneas, el anclaje ya no cuadra.</p>
+<p><strong>Cómo anclar el sello, paso a paso</strong></p>
+<ol>
+<li><strong>🧭 Menú → Sistema → Auditoría</strong> y elija la pestaña <strong>Seguridad (servidor)</strong>.</li>
+<li>Baje hasta la tarjeta <strong>🔏 Sello anclado</strong>. Ahí están los anclajes que ya existen (si es la
+   primera vez, la tabla estará vacía).</li>
+<li>Pulse <strong>🔏 Anclar ahora</strong>.</li>
+<li>Escriba una <strong>nota</strong> que le sirva después —por ejemplo <em>«cierre de octubre»</em>, <em>«antes de
+   cambiar el disco»</em> o <em>«entrega al contador»</em>— y acepte. La nota es opcional, pero es lo que
+   le dirá dentro de seis meses por qué firmó ese día.</li>
+<li>Espere el aviso <strong>«Sello anclado: N línea(s) firmadas»</strong>. La tabla se actualiza sola y el
+   anclaje nuevo aparece el primero.</li>
+</ol>
+<p><strong>Qué se guarda de cada anclaje</strong></p>
+<ul>
+<li><strong>Fecha y hora</strong> del anclaje.</li>
+<li><strong>Quién</strong> lo firmó (el usuario que tenía la sesión abierta).</li>
+<li><strong>Número de anclaje</strong> (#1, #2…), útil para citarlo en un correo.</li>
+<li><strong>Líneas selladas</strong>: cuántas líneas tenía el registro en ese momento.</li>
+<li><strong>Sello</strong>: los primeros 12 caracteres de la última huella. Es lo que se anota en el papel.</li>
+<li><strong>Nota</strong> y <strong>estado</strong> (<em>Correcto</em> o <em>Roto</em>).</li>
+</ul>
+<p><strong>Cómo se comprueba</strong></p>
+<p>No hay que pulsar nada: cada vez que se abre la pestaña, el servidor revisa <strong>todos</strong> los
+anclajes y muestra un aviso:</p>
+<ul>
+<li><strong>✔ N anclaje(s) correctos.</strong> La firma, el número de líneas y la cadena de cada sello
+  coinciden. Es la respuesta normal.</li>
+<li><strong>⚠ N anclaje(s) no cuadran.</strong> Sale en rojo y explica el motivo en la columna <strong>Estado</strong>:</li>
+<li><em>la firma no corresponde a estos datos</em> — alguien tocó la tabla de anclajes (cambió la
+    fecha, el número de líneas o el sello).</li>
+<li><em>faltan líneas del registro</em> — se borraron líneas del final, después del anclaje.</li>
+<li><em>la cadena cambió después del anclaje</em> — se editó una línea anterior al anclaje.</li>
+</ul>
+<p><strong>Qué hacer si un anclaje sale roto</strong></p>
+<ol>
+<li><strong>No borre el anclaje roto.</strong> Es la prueba. Bórrelo solo cuando haya terminado la revisión.</li>
+<li>Descargue una <strong>copia de seguridad</strong> (<strong>Ajustes → Copias</strong>) y guárdela fuera del equipo.</li>
+<li>Anote el <strong>número de anclaje</strong>, la fecha y el motivo que muestra la pantalla.</li>
+<li>Pulse también <strong>🔗 Comprobar cadena</strong> para ver si el problema es de una línea concreta.</li>
+<li>Avise al administrador. Un anclaje roto <strong>no se arregla</strong>: se documenta y se decide si se
+   restaura la copia anterior.</li>
+</ol>
+<p><strong>Cuándo anclar</strong></p>
+<ul>
+<li>Al <strong>cerrar el día</strong> o al menos al cerrar la <strong>semana</strong>.</li>
+<li>Al <strong>cerrar el mes</strong>, antes de mandar nada al contador.</li>
+<li><strong>Antes de una copia de seguridad</strong> importante, de una actualización o de cambiar de equipo.</li>
+<li>Siempre que se vaya a <strong>discutir un descuadre</strong>: se ancla, se guarda el número y el sello, y
+  desde ahí todo lo que pase queda acotado.</li>
+</ul>
+<div class="callout note">
+<p class="callout-t">ℹ Nota</p>
+<p>Un registro roto <strong>no se puede anclar</strong>. Si la cadena ya no cuadra, el servidor responde con un
+aviso («no se ancló: el registro no cuadra») y no firma nada: primero se revisa, después se
+sella. Borrar un anclaje queda registrado en la auditoría como <code>AUDIT_ANCHOR_DELETE</code>.</p>
+</div>
+<div class="callout important">
+<p class="callout-t">❗ Importante</p>
+<p>La clave del anclaje vive en el servidor. Si se define la variable de entorno
+<code>NOVAGEST_ANCHOR_KEY</code>, se usa esa; si no, NovaGest deriva una del secreto de licencia de la
+instalación. <strong>Conserve ese secreto</strong>: sin él no se pueden verificar los anclajes antiguos.
+Guarde aparte, en papel, el <strong>número de líneas</strong> y el <strong>sello corto</strong> de cada anclaje
+importante; eso es lo que un auditor puede verificar sin entrar al sistema.</p>
+</div>
 <hr />
 <h1 id="15-licencia-de-uso">15. Licencia de uso</h1>
 <p>NovaGest es <strong>software propietario</strong>. Sin licencia válida, el sistema <strong>bloquea el acceso</strong>.</p>
@@ -3730,6 +3847,42 @@ versión de datos y los días cerrados, con el botón <strong>Sincronizar ahora<
 </tr>
 </tbody>
 </table>
+<h2 id="1611-el-widget-de-inicio">16.11 El widget de inicio</h2>
+<p>El <strong>widget</strong> pone lo esencial del negocio en la <strong>pantalla de inicio del teléfono</strong>, sin abrir
+la app: cuánto se vendió hoy y qué se está quedando sin existencia.</p>
+<p><strong>Cómo se añade</strong></p>
+<ol>
+<li>Mantenga pulsado un hueco vacío de la pantalla de inicio del teléfono.</li>
+<li>Elija <strong>Widgets</strong> (o «Widgets y fondos», según el fabricante).</li>
+<li>Busque <strong>NovaGest</strong> en la lista y arrastre el widget <strong>NovaGest · Hoy</strong> a la pantalla.</li>
+<li>Ábralo una vez desde la app: el widget se rellena en cuanto la app calcula los datos.</li>
+</ol>
+<p><strong>Qué muestra</strong></p>
+<ul>
+<li><strong>Venta de hoy</strong> en la moneda del negocio, con el número de ventas y de unidades.</li>
+<li><strong>Existencias en riesgo</strong>: cuántos productos están por debajo del mínimo.</li>
+<li>Una <strong>franja</strong> que cambia de color cuando hay algo que mirar.</li>
+<li>El <strong>pie</strong> con la hora del último cálculo, para saber si el dato es de ahora mismo.</li>
+</ul>
+<p><strong>Cuándo se actualiza</strong></p>
+<ul>
+<li>Solo, cada <strong>30 minutos</strong> como máximo (lo fija Android; no se puede forzar más).</li>
+<li>Al <strong>abrir la app</strong>.</li>
+<li>Al <strong>cobrar</strong> una venta, que es el momento en que el número cambia de verdad.</li>
+</ul>
+<p><strong>Si el widget se queda con datos viejos</strong></p>
+<ol>
+<li>Toque el widget: abre la app y recalcula.</li>
+<li>Si sigue igual, abra la app y cobre o abra <strong>Inicio</strong>: el refresco se dispara al entrar.</li>
+<li>Si el teléfono tiene ahorro de batería agresivo, el sistema puede retrasar las actualizaciones
+   periódicas. Añada NovaGest a la lista de apps <strong>sin restricciones</strong> en los ajustes de batería.</li>
+</ol>
+<div class="callout note">
+<p class="callout-t">ℹ Nota</p>
+<p>El widget enseña datos <strong>de este teléfono</strong>, los últimos que se calcularon en la app. No
+sustituye al Panel: si hay varias personas trabajando, el número bueno es el del servidor, y
+ese se ve al abrir la app con conexión.</p>
+</div>
 <hr />
 <h1 id="17-trabajo-en-equipo-web--android">17. Trabajo en equipo: Web + Android</h1>
 <h2 id="171-el-servidor-es-la-fuente-de-verdad">17.1 El servidor es la fuente de verdad</h2>

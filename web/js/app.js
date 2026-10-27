@@ -1888,6 +1888,109 @@ function verificarCadenaAuditoria() {
     });
 }
 
+/**
+ * Pide la lista de anclajes del sello (S-12).
+ *
+ * Un anclaje es una línea firmada e independiente que recuerda cuántas líneas tenía el
+ * registro y cuál era su último hash. La cadena sola no ve un borrado del final; el anclaje sí.
+ */
+function loadAnclajes() {
+  if (!ui.anclajes) ui.anclajes = { rows: [], total: 0, ok: true, cargando: true };
+  ui.anclajes.cargando = true;
+  api("/security-log/anchors")
+    .then((r) => {
+      ui.anclajes = { rows: r.anchors || [], total: r.total ?? (r.anchors || []).length, ok: r.ok !== false, cargando: false };
+      render();
+    })
+    .catch(() => {
+      ui.anclajes = { rows: [], total: 0, ok: true, cargando: false, error: true };
+      render();
+    });
+}
+
+/**
+ * Ancla ahora el sello del registro (S-12).
+ *
+ * El servidor comprueba primero la cadena entera: si no cuadra se niega (409) para no firmar
+ * un estado ya corrupto. La nota es opcional y queda guardada con el anclaje.
+ */
+function anclarSello() {
+  if (ui.anclajes) ui.anclajes.firmando = true;
+  render();
+  const nota = prompt("Nota del anclaje (opcional, por ejemplo «cierre de octubre»):", "") || "";
+  api("/security-log/anchor", { method: "POST", body: { note: nota } })
+    .then((r) => {
+      if (ui.anclajes) ui.anclajes.firmando = false;
+      if (r.status === 409) {
+        toast("No se ancló: el registro no cuadra. Compruébalo antes de firmar.", "err");
+        announce("Atención: no se pudo anclar el sello porque el registro no cuadra.");
+      } else {
+        result(r, `Sello anclado: ${r.lineas ?? "?"} línea(s) firmadas`);
+        announce("Sello del registro anclado y firmado correctamente.");
+      }
+      loadAnclajes();
+    })
+    .catch(() => {
+      if (ui.anclajes) ui.anclajes.firmando = false;
+      toast("No se pudo anclar el sello del registro.", "err");
+      render();
+    });
+}
+
+/**
+ * Borra un anclaje (solo Administrador/Jefe). Queda registrado en la auditoría (S-12).
+ */
+function borrarAnclaje(id) {
+  if (!confirm("¿Borrar este anclaje? El sello seguirá siendo válido, pero se perderá esta referencia firmada. El borrado queda auditado.")) return;
+  api(`/security-log/anchor/${encodeURIComponent(id)}`, { method: "DELETE" })
+    .then((r) => {
+      result(r, "Anclaje borrado");
+      loadAnclajes();
+    })
+    .catch(() => toast("No se pudo borrar el anclaje.", "err"));
+}
+
+/** Tarjeta con los anclajes del sello: estado, quién firmó, cuándo y qué selló (S-12). */
+function anclajesCard() {
+  if (!ui.anclajes) loadAnclajes();
+  const a = ui.anclajes || { rows: [], total: 0, ok: true, cargando: true };
+  const puedeBorrar = ["ADMINISTRADOR", "JEFE"].includes(role());
+  const fecha = (t) => (t ? new Date(t * 1000).toLocaleString("es-CU") : "—");
+  const roto = a.rows.filter((x) => !x.ok);
+  const aviso = roto.length
+    ? `<div class="banner err mt12"><b>⚠ ${roto.length} anclaje(s) no cuadran.</b> El registro cambió después de haberlo sellado (${esc(roto[0].motivo || "sin detalle")}). No siga trabajando sin revisar la copia de seguridad y avise al administrador.</div>`
+    : a.rows.length
+      ? `<div class="banner ok mt12"><b>✔ ${a.rows.length} anclaje(s) correctos.</b> La firma, el número de líneas y la cadena de cada sello coinciden.</div>`
+      : "";
+  const filas = a.rows
+    .slice()
+    .reverse()
+    .map(
+      (x) => `<tr>
+        <td class="hint">${fecha(x.ts)}</td>
+        <td>${esc(x.user || "—")}</td>
+        <td class="mono">#${x.id}</td>
+        <td>${x.lineas} línea(s)</td>
+        <td class="mono hint" data-tip="Último hash del registro cuando se ancló">${esc(x.headShort || "—")}</td>
+        <td class="hint">${esc(x.nota || "—")}</td>
+        <td>${x.ok ? "<span class='tag entrada'>Correcto</span>" : `<span class='tag salida' title='${esc(x.motivo || "")}'>Roto</span><div class="hint">${esc(x.motivo || "")}</div>`}</td>
+        ${puedeBorrar ? `<td><button class="btn ghost small" data-act="sec-anchor-del" data-id="${x.id}">Borrar</button></td>` : ""}
+      </tr>`
+    )
+    .join("");
+  return `<div class="card mb12"><div class="card-h"><span class="k">🔏 Sello anclado</span>
+      <span class="hint">${a.total} anclaje(s)</span></div>
+    <p class="hint">Un anclaje fija el registro tal como estaba: cuántas líneas tenía y cuál era su último hash, firmado con una clave que solo tiene este servidor. Sirve para detectar un borrado de las últimas líneas, que la cadena por sí sola no notaría.</p>
+    <p class="hint">Ancle al cerrar el día o el mes, y también antes de una copia de seguridad importante. Guarde aparte el número de líneas y el sello corto: son su prueba.</p>
+    <div class="row mt12"><button class="btn small" data-act="sec-anchor" ${a.firmando ? "disabled" : ""}>${a.firmando ? "Anclando…" : "🔏 Anclar ahora"}</button>
+    ${!puedeBorrar ? `<span class="hint">Solo Administrador y Jefe pueden borrar un anclaje.</span>` : ""}</div>
+    ${a.cargando && !a.rows.length ? '<p class="hint">Cargando los anclajes…</p>' : ""}
+    ${a.error ? '<p class="hint">No se pudo leer la lista de anclajes.</p>' : ""}
+    ${aviso}
+    ${filas ? `<div class="table-wrap mt12"><table><thead><tr><th>Fecha</th><th>Quién</th><th>N.º</th><th>Selló</th><th>Sello</th><th>Nota</th><th>Estado</th>${puedeBorrar ? "<th></th>" : ""}</tr></thead><tbody>${filas}</tbody></table></div>` : ""}
+  </div>`;
+}
+
 function auditView() {
   const canSec = ["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role());
   const tab = ui.auditTab || "app";
@@ -1926,7 +2029,7 @@ function auditView() {
       <div class="row mt12"><button class="btn ghost small" data-act="sec-verify" ${ui.secLog.verificando ? "disabled" : ""}>${ui.secLog.verificando ? "Comprobando…" : "🔗 Comprobar cadena"}</button>
       ${ui.secLog.hasMore ? `<button class="btn ghost small" data-act="sec-more">Ver más eventos</button>` : ""}</div>
       ${veredicto}</div>`;
-    return tabs + pie + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Detalle</th><th>Huella</th><th>IP</th></tr></thead>
+    return tabs + pie + anclajesCard() + `<div class="card table-wrap flush"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Evento</th><th>Detalle</th><th>Huella</th><th>IP</th></tr></thead>
       <tbody>${rows.map((a) => `<tr><td class="hint">${new Date(a.ts * 1000).toLocaleString("es-CU")}</td><td>${esc(a.user)}</td><td><span class="tag ${bad(a.action) ? "salida" : a.action.startsWith("LOGIN") ? "entrada" : "mov"}">${esc(a.action)}</span></td><td>${hl(a.details || "")}</td><td class="mono hint" data-tip="Hash SHA-256 de esta línea encadenado con la anterior">${esc(a.hashShort || "—")}</td><td class="mono hint">${esc(a.ip || "")}</td></tr>`).join("") || "<tr><td colspan=6 class=hint>Sin eventos.</td></tr>"}</tbody></table></div>`;
   }
   const logs = store.state.audit.filter((a) => !ui.q || has(a.action, ui.q) || has(a.userName || "", ui.q) || has(a.details || "", ui.q) || has(a.entity || "", ui.q));
@@ -4423,6 +4526,8 @@ function onClick(e) {
   else if (act === "iv-template") ivTemplate();
   else if (act === "sec-verify") { verificarCadenaAuditoria(); }
   else if (act === "export-xlsx") { exportXlsx(d.xlsx || "inventory", d.xlsx === "analytics" ? ui.lastAnalytics || {} : {}); }
+  else if (act === "sec-anchor") anclarSello();
+  else if (act === "sec-anchor-del") borrarAnclaje(d.id);
   else if (act === "sec-more") { loadSecLog((ui.secLog?.page || 1) + 1); toast("Cargando más eventos…", "ok"); }
   else if (act === "health-refresh") { ui.health = null; render(); toast("Revisando el estado del servidor…", "ok"); }
   else if (act === "license-refresh") {

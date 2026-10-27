@@ -1148,6 +1148,25 @@ test("S-01 · el registro de seguridad se puede comprobar encadenado desde la pa
   assert.match(server, /def _hash_auditoria\(/, "el servidor calcula la huella encadenada");
 });
 
+test("S-12 · el sello del registro se puede anclar, listar y comprobar", () => {
+  const source = readFileSync(join(root, "web/js/app.js"), "utf8");
+  const server = readFileSync(join(root, "server/novagest_server.py"), "utf8");
+  assert.match(source, /function loadAnclajes\(/, "la pantalla pide la lista de anclajes");
+  assert.match(source, /api\("\/security-log\/anchors"\)/, "consulta la ruta de anclajes");
+  assert.match(source, /function anclarSello\(/, "existe la acción de anclar");
+  assert.match(source, /api\("\/security-log\/anchor", \{ method: "POST"/, "firma contra el servidor");
+  assert.match(source, /data-act="sec-anchor"/, "hay botón «Anclar ahora»");
+  assert.match(source, /data-act="sec-anchor-del"/, "cada anclaje se puede borrar");
+  assert.match(source, /function anclajesCard\(/, "la tarjeta del sello existe");
+  assert.match(source, /no cuadran/, "avisa en rojo si un anclaje está roto");
+  assert.match(source, /Solo Administrador y Jefe pueden borrar un anclaje/, "explica quién puede borrar");
+  assert.match(server, /@route\("GET", "\/api\/security-log\/anchors"/, "el servidor lista los anclajes");
+  assert.match(server, /@route\("POST", "\/api\/security-log\/anchor"/, "el servidor firma el anclaje");
+  assert.match(server, /CREATE TABLE IF NOT EXISTS audit_anchors/, "hay tabla propia para los anclajes");
+  assert.match(server, /def _firmar_anclaje\(/, "la firma es HMAC del sello, las líneas y la fecha");
+  assert.match(server, /AUDIT_ANCHOR_DELETE/, "borrar un anclaje queda auditado");
+});
+
 test("W-03 · las alertas de reposición dicen cuándo se agota y se pueden silenciar", () => {
   const original = store.state;
   try {

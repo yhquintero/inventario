@@ -1,4 +1,47 @@
-﻿## NovaGest v1.0.0 · revisión 2026-10-25 (XXXV) · Corte vertical de 30 s (G-01 / D-11)
+﻿## NovaGest v1.0.0 · revisión 2026-10-26 (XXXVI) · Sello anclado de la auditoría (S-12)
+
+- **S-12 · Anclaje firmado del sello.** Un anclaje guarda, en una línea **independiente del
+  registro**, **cuántas líneas** tenía la auditoría, **cuál era su último hash** y **cuándo** se
+  firmó, con una **firma HMAC-SHA256** que solo puede calcular este servidor. La cadena sola no
+  ve un borrado de las **últimas** líneas (quitar la cola deja una cadena corta pero válida); el
+  anclaje lo delata.
+- **Pantalla Auditoría → Seguridad (servidor) → 🔏 Sello anclado:** botón **«Anclar ahora»**, nota
+  opcional (por ejemplo «cierre de octubre») y tabla con fecha, quién firmó, líneas selladas,
+  sello corto y estado. Si algún anclaje no cuadra, sale un **aviso rojo** con el motivo.
+- **Tres motivos claros** cuando un anclaje falla: *la firma no corresponde a estos datos* (alguien
+  tocó la tabla de anclajes), *faltan líneas del registro* (se borró el final) o *la cadena cambió
+  después del anclaje* (se editó una línea anterior).
+- **No se firma un registro roto:** si la cadena ya no cuadra, el servidor responde **409** y
+  explica en qué línea se rompe; primero se revisa, después se ancla.
+- **Rutas nuevas:** `GET /api/security-log/anchors` y `POST /api/security-log/anchor`
+  (Administrador, Jefe y Económico) y `DELETE /api/security-log/anchor/:id` (solo Administrador y
+  Jefe). **Borrar un anclaje queda auditado** (`AUDIT_ANCHOR_DELETE`).
+- **Clave:** `NOVAGEST_ANCHOR_KEY` si está definida; si no, se deriva del secreto de licencia con
+  la etiqueta `novagest-audit-anchor`, así una instalación normal no configura nada.
+- **Pruebas:** `tools/test_anclaje_auditoria.py`, **36 comprobaciones** contra el servidor real:
+  firma recalculada por fuera, truncado del registro por SQLite, cambio de una línea anterior,
+  negativa a anclar con la cadena rota y permisos de los cuatro roles.
+- **Manual:** nuevo apartado **14.5 Anclar el sello del registro**, con el paso a paso y qué hacer
+  ante cada aviso.
+
+## NovaGest v1.0.0 · revisión 2026-10-26 (XXXV) · Modo mostrador (W-08), widget (A-04) y pruebas de la cola (A-13)
+
+- **W-08 · Modo mostrador para la tablet.** Un botón **⛶** en la barra superior entra en el modo
+  mostrador: **pantalla completa**, sin menú lateral ni barra de arriba, una franja con el **reloj**
+  («14:07 · domingo 25 de octubre») y **tres accesos grandes**: **Vender**, **Inventario** y
+  **Cuadre** (solo los que permita el rol). Se recuerda **por equipo** (`localStorage`), se activa
+  con un toque y `Esc` sale.
+- **A-04 · Widget de inicio en Android** (180 × 110 dp): **venta del día** con su detalle, número de
+  productos en riesgo y pie con la hora del último cálculo. Se actualiza **cada 30 minutos**, al
+  abrir la app y **al cobrar**; importes guardados en céntimos para no arrastrar redondeos.
+- **A-13 · Pruebas de instrumentación de la cola contra Room** (9 casos): alta pendiente sin
+  `remoteId`, marcado tras subir, venta y movimiento juntos, persistencia al reabrir la base,
+  conflicto resuelto por `updatedAt` real, borrado contra edición, reintentos con espera creciente y
+  aislamiento entre negocios. Se ejecutan en el CI de Android.
+- **Pruebas:** `tools/test_kiosco.mjs` (10 comprobaciones, `kiosk.js` al 100 % de cobertura) y
+  `tools/smoke_web.mjs` hasta **71** comprobaciones.
+
+## NovaGest v1.0.0 · revisión 2026-10-25 (XXXV) · Corte vertical de 30 s (G-01 / D-11)
 
 - **Vídeo vertical de 30 segundos** para **estados de WhatsApp, Reels y TikTok**:
   `docs/assets/video/novagest-reel-vertical-30s.mp4`, formato **1080 × 1920 (9:16)**, 30 fps,
