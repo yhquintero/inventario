@@ -23,7 +23,7 @@ object ReceiptShare {
 
     private val dayFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
     private val timeFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-    private val fileFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmm")
+    private val isoDayFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
     /** Encabezado del mensaje cuando el negocio no tiene nombre configurado. */
     const val DEFAULT_BUSINESS = "NovaGest"
@@ -90,9 +90,10 @@ object ReceiptShare {
 
     /** Nombre del archivo de la imagen: `ticket-2026-10-26-1530.png`. */
     fun fileName(ticket: TicketData, at: LocalDate? = null, zone: ZoneId = ZoneId.systemDefault()): String {
+        // No se puede formatear un LocalDate con un patrón que pide horas: se arma por partes.
         val dia = at ?: runCatching { LocalDate.parse(ticket.date, dayFmt) }.getOrNull() ?: LocalDate.now(zone)
         val hora = ticket.time.filter { it.isDigit() }.padEnd(4, '0').take(4)
-        return "ticket-${dia.format(fileFmt)}-$hora.png"
+        return "ticket-${dia.format(isoDayFmt)}-$hora.png"
     }
 
     /**
