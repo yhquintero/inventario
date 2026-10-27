@@ -704,6 +704,7 @@ tbody tr:hover { background: color-mix(in srgb, var(--primary) 6%, transparent);
 .toast { animation: toastin .28s cubic-bezier(.2,1.2,.3,1) both; background: linear-gradient(135deg, #1e1b4b, #312e81); border-left: 4px solid var(--primary-2); }
 .toast.ok { background: linear-gradient(135deg, #065f46, #059669); border-left-color: #6ee7b7; }
 .toast.err { background: linear-gradient(135deg, #7f1d1d, #dc2626); border-left-color: #fca5a5; }
+.toast.warn { background: linear-gradient(135deg, #78350f, #d97706); border-left-color: #fcd34d; }
 @keyframes toastin { from { opacity: 0; transform: translate(-50%, 16px); } }
 
 /* Skeleton de carga con brillo */

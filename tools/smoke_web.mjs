@@ -1148,5 +1148,49 @@ test("S-01 · el registro de seguridad se puede comprobar encadenado desde la pa
   assert.match(server, /def _hash_auditoria\(/, "el servidor calcula la huella encadenada");
 });
 
+test("W-03 · las alertas de reposición dicen cuándo se agota y se pueden silenciar", () => {
+  const original = store.state;
+  try {
+    // Un producto que se vende 2 al día y solo tiene 3: debe salir como urgente.
+    const hoy = new Date();
+    const z = (n) => String(n).padStart(2, "0");
+    const iso = (d) => `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+    const fechas = Array.from({ length: 10 }, (_, i) => {
+      const d = new Date(hoy);
+      d.setDate(d.getDate() - i);
+      return iso(d);
+    });
+    store.state = {
+      ...original,
+      products: [{ id: "p1", name: "ARROZ", category: "General", stockInicial: 60, stockActual: 3,
+        stocks: { w1: 3 }, stocksInicial: { w1: 60 }, precioVentaUsd: 10, precioVenta2Usd: 0,
+        precioCostoUsd: 6, comisionCup: 0, minStock: 1, observaciones: "", barcode: "", createdAt: 1, updatedAt: 1 }],
+      movements: fechas.map((f, i) => ({ id: `m${i}`, date: f, type: "VENTA", productId: "p1", productName: "ARROZ",
+        quantity: 6, unitPriceUsd: 10, importeUsd: 60, costoUsd: 36, center: "TIENDA", warehouseId: "w1",
+        createdAt: 1, updatedAt: 1 })),
+      settings: { ...original.settings, lowStockAlerts: true, restockCover: 14 },
+    };
+    const html = go("home");
+    assert.match(html, /Reposición: se agota pronto/, "el Panel enseña la tarjeta de reposición");
+    assert.match(html, /data-act="alerts-open"/, "hay acceso a la lista completa");
+    assert.match(html, /Urgente/, "marca la prioridad");
+    assert.match(html, /Reponer/, "dice cuánto reponer");
+
+    clickMatching("act", { act: "alerts-open" });
+    assert.match(app.innerHTML, /Reposición sugerida/, "se abre el detalle");
+    assert.match(app.innerHTML, /No avisar más hoy/, "se puede silenciar el aviso del día");
+    clickMatching("act", { act: "alerts-silence" });
+    assert.ok(localStorage.getItem("novagest.alerts.visto"), "la marca del día queda guardada");
+
+    // Con el aviso desactivado, ni tarjeta ni campana.
+    store.state.settings = { ...store.state.settings, lowStockAlerts: false };
+    assert.doesNotMatch(go("home"), /Reposición: se agota pronto/);
+  } finally {
+    store.state = original;
+    localStorage.removeItem("novagest.alerts.visto");
+    go("home");
+  }
+});
+
 console.log(`\n${ok} comprobaciones correctas, ${fail} fallidas\n`);
 process.exit(fail ? 1 : 0);

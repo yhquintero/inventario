@@ -17,6 +17,7 @@ import { consentBanner, setConsent, resetConsent } from "./consent.js";
 import { findSaleByCode, saleTicket, ticketCode, ticketTotals, verifyTicket } from "./ticket.js";
 import { quickSalePlan, quickSaleLabel, quickSaleSummary } from "./quick-sale.js";
 import { buildSheet, sheetFileName } from "./xlsx-export.js";
+import { alertsSummary, alertSignature, severityLabel, shouldNotify, sortAlerts, stockAlerts } from "./alerts.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
@@ -215,6 +216,11 @@ function shell(body) {
           ${whPicker()}
           <span class="sync-dot ${store.sync}" id="syncDot" role="status" aria-live="polite" aria-atomic="true" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
           <button class="btn ghost small lic-btn ${ui.route === "license" ? "on" : ""}" data-act="license-manage" title="Gestionar la licencia de uso" aria-label="Licencia de uso" data-tip="Gestionar la licencia de uso · Licencia ${ui.license.status?.valid ? `${ui.license.status.type} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}` : "no válida"}${pendingReq ? ` · ${pendingReq} solicitud(es) pendiente(s)` : ""}">🔐${pendingReq ? `<span class="pill">${pendingReq}</span>` : ""}</button>
+          ${(() => {
+            if (!store.state.settings.lowStockAlerts) return "";
+            const n = alertasReposicion().filter((a) => a.severity === "alta").length;
+            return `<button class="btn ghost small" data-act="alerts-open" aria-label="Alertas de reposición${n ? `: ${n} urgente(s)` : ""}" data-tip="${n ? `${n} producto(s) urgente(s) por reponer` : "Sin urgencias de reposición"}">🔔${n ? `<span class="pill">${n}</span>` : ""}</button>`;
+          })()}
           <button class="btn ghost small kbd-btn" data-act="palette" aria-label="Búsqueda rápida (Ctrl+K)">⌘K</button>
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema" aria-label="Cambiar tema: claro, oscuro o automático">${{ light: "☀", dark: "☾", system: "◐" }[store.state.settings.theme] || "◐"}</button>
@@ -935,6 +941,89 @@ function sameWeekdayComparison(today, previous, previousISO) {
   return `${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}% vs ${fecha}`;
 }
 
+/** Días de cobertura para la reposición (ajustable en Ajustes). */
+function diasDeCobertura() {
+  const n = Number(store.state.settings.restockCover);
+  return Number.isFinite(n) && n >= 1 && n <= 365 ? Math.round(n) : 14;
+}
+
+/**
+ * Alertas de reposición predictivas (W-03).
+ *
+ * Usa las ventas de los últimos 30 días y la existencia del almacén en uso para decir
+ * **cuándo** se agota cada producto, no solo que está bajo.
+ */
+function alertasReposicion() {
+  const lista = stockAlerts(store.activeProducts(), store.activeMovements(), {
+    today: todayISO(),
+    days: 30,
+    cover: diasDeCobertura(),
+    warehouseId: store.activeWarehouseId(),
+  });
+  return sortAlerts(lista);
+}
+
+/** Aviso de reposición del Panel: lo urgente con su fecha y cuánto reponer. */
+function alertsCardMarkup(lista = alertasReposicion()) {
+  if (!lista.length || !store.state.settings.lowStockAlerts) return "";
+  const resumen = alertsSummary(lista);
+  const tono = { alta: "salida", media: "gestor", baja: "entrada" };
+  return `<section class="card mt16" id="alertsCard" aria-labelledby="alertsTitle">
+      <div class="card-h"><span class="k" id="alertsTitle">🔔 Reposición: se agota pronto</span>
+        <span class="row"><span class="hint">${esc(resumen.text)}</span><button class="btn ghost small" data-act="alerts-open">Ver todos</button></span></div>
+      <p class="hint">Calculado con las ventas de los últimos 30 días y la existencia del almacén en uso. «Se agota» es el día en que se acaba al ritmo actual; la sugerencia cubre ${diasDeCobertura()} días. Se ajusta en <a href="#settings" data-nav="settings">Ajustes</a>.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Producto</th><th class="r">Por día</th><th class="r">Quedan</th><th>Se agota</th><th class="r">Reponer</th><th>Prioridad</th></tr></thead>
+        <tbody>${lista.slice(0, 6).map((a) => `<tr>
+          <td>${esc(a.product.name)}</td><td class="mono r">${a.perDay}</td><td class="mono r">${qty(a.stock)}</td>
+          <td>${esc(a.when)}</td><td class="mono r"><b>${qty(a.suggested)}</b></td>
+          <td><span class="tag ${tono[a.severity] || "mov"}">${severityLabel(a.severity)}</span></td></tr>`).join("")}</tbody>
+      </table></div>
+    </section>`;
+}
+
+/** Modal con la lista completa de alertas y el botón para ir a reponer. */
+function alertsModalMarkup(lista) {
+  const resumen = alertsSummary(lista);
+  return `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="alertsModalTitle">
+    <div class="modal-card">
+      <div class="card-h"><span class="k" id="alertsModalTitle">🔔 Reposición sugerida</span><button class="btn ghost small" data-act="close-modal" aria-label="Cerrar">✕</button></div>
+      <p class="hint">${esc(resumen.text)} Con el almacén en uso y las ventas de los últimos 30 días.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Producto</th><th class="r">Vendidos</th><th class="r">Por día</th><th class="r">Quedan</th><th>Se agota</th><th class="r">Reponer</th><th>Prioridad</th></tr></thead>
+        <tbody>${lista.map((a) => `<tr><td>${esc(a.product.name)}</td><td class="mono r">${qty(a.sold)}</td><td class="mono r">${a.perDay}</td>
+          <td class="mono r">${qty(a.stock)}</td><td>${esc(a.when)}</td><td class="mono r"><b>${qty(a.suggested)}</b></td>
+          <td><span class="tag ${{ alta: "salida", media: "gestor", baja: "entrada" }[a.severity] || "mov"}">${severityLabel(a.severity)}</span></td></tr>`).join("")}</tbody>
+      </table></div>
+      <div class="row mt12"><button class="btn" data-act="alerts-go">Ir al inventario</button>
+        <button class="btn ghost" data-act="alerts-silence">No avisar más hoy</button>
+        <button class="btn ghost" data-act="close-modal">Cerrar</button></div>
+    </div>
+  </div>`;
+}
+
+/**
+ * Avisa al entrar (una vez al día y solo si hay algo urgente).
+ *
+ * La marca se guarda en el navegador con la huella de la lista: si mañana cambia lo que
+ * hay que reponer, vuelve a avisar; si es lo mismo, no molesta.
+ */
+function maybeNotifyAlerts() {
+  if (!store.state.session || ui._alertsNotified) return;
+  ui._alertsNotified = true;
+  const lista = alertasReposicion();
+  if (!shouldNotify(lista, { enabled: store.state.settings.lowStockAlerts !== false })) return;
+  const firma = `${todayISO()}|${alertSignature(lista.filter((a) => a.severity === "alta"))}`;
+  let visto = "";
+  try { visto = localStorage.getItem("novagest.alerts.visto") || ""; } catch {}
+  if (visto === firma) return;
+  const urgentes = lista.filter((a) => a.severity === "alta").length;
+  setTimeout(() => {
+    toast(`🔔 ${urgentes} producto(s) se agotan: revisa la reposición`, "warn");
+    announce(`Aviso de reposición: ${urgentes} producto(s) urgente(s). ${alertsSummary(lista).text}`);
+  }, 700);
+}
+
 function homeView() {
   const prods = store.activeProducts();
   const movs = store.activeMovements();
@@ -1035,6 +1124,7 @@ function homeView() {
         <div class="hline dashboard-total"><span>Total general</span><b class="mono">${qty(warehouseUnits)} uds · ${usd(warehouseValue)}</b></div>
       </div>` : ""}
     </div>
+    ${alertsCardMarkup()}
     <div class="grid-2 mt16">
       <div class="card">
         <div class="card-h"><span class="k">Últimos movimientos</span><button class="btn ghost small" data-nav="movements">Ver todos</button></div>
@@ -2021,6 +2111,7 @@ function settingsView() {
       <label class="span-2">Nombre del negocio <input name="businessName" ${dis} value="${esc(s.businessName)}"></label>
       <label>CUP/USD por defecto <input name="defaultCupUsd" ${dis} type="number" step="any" value="${s.defaultCupUsd}"></label>
       <label>Tema<select name="theme">${["light", "dark", "system"].map((t) => `<option ${s.theme === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      <label>Cobertura de reposición <small>días</small><input name="restockCover" ${dis} type="number" min="1" max="365" value="${diasDeCobertura()}"></label>
       <label>Alertas stock bajo<select name="lowStockAlerts" ${dis}><option value="true" ${s.lowStockAlerts ? "selected" : ""}>Sí</option><option value="false" ${!s.lowStockAlerts ? "selected" : ""}>No</option></select></label>
       <label>Comisión<select name="comisionSoloGestor" ${dis}><option value="false" ${!s.comisionSoloGestor ? "selected" : ""}>En todas las ventas (como el Excel)</option><option value="true" ${s.comisionSoloGestor ? "selected" : ""}>Solo ventas GESTOR</option></select></label>
       <label>Meta diaria <small>USD</small><input name="goalDaily" ${dis} type="number" step="any" value="${s.goalDaily}"></label>
@@ -3555,6 +3646,7 @@ function render() {
     }
   }
   if (!tourSeen() && !ui.modal && !document.querySelector(".tour") && innerWidth > 860) setTimeout(startTour, 400);
+  maybeNotifyAlerts();
 }
 
 /**
@@ -3906,7 +3998,7 @@ function bindApp() {
     if (!["ADMINISTRADOR", "JEFE"].includes(role())) { store.saveSettings({ theme: fd.get("theme") }); return toast("Tema guardado", "ok"); }
     const soloG = fd.get("comisionSoloGestor") === "true";
     const changed = soloG !== !!store.state.settings.comisionSoloGestor;
-    store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", comisionSoloGestor: soloG, goalDaily: Number(fd.get("goalDaily")) || 0, goalWeekly: Number(fd.get("goalWeekly")) || 0, sessionMinutes: Math.max(1, Number(fd.get("sessionMinutes")) || 20) });
+    store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", restockCover: Math.min(365, Math.max(1, Number(fd.get("restockCover")) || 14)), comisionSoloGestor: soloG, goalDaily: Number(fd.get("goalDaily")) || 0, goalWeekly: Number(fd.get("goalWeekly")) || 0, sessionMinutes: Math.max(1, Number(fd.get("sessionMinutes")) || 20) });
     if (changed) { store.state.products.forEach((p) => store.recalcProduct(p.id)); store.emit(); }
     toast("Ajustes guardados", "ok");
   });
@@ -4222,6 +4314,15 @@ function onClick(e) {
   else if (act === "reopen-day") { const reason = prompt("Motivo de la reapertura (queda en la auditoría):"); if (reason) store.reopenDay(d.date, reason).then((r) => result(r, "Día reabierto")); }
   else if (act === "confirm-yes") { const fn = ui.confirm; ui.confirm = null; ui.modal = null; fn?.(); render(); }
   else if (act === "logout") { ui.sec = null; ui.usersLoaded = false; ui.backups = null; ui.license.infoTried = false; ui.license.infoLoaded = false; store.logout(); }
+  else if (act === "alerts-open") { ui.modal = alertsModalMarkup(alertasReposicion()); render(); }
+  else if (act === "alerts-go") { ui.modal = null; navTo("inventory"); }
+  else if (act === "alerts-silence") {
+    const lista = alertasReposicion().filter((a) => a.severity === "alta");
+    try { localStorage.setItem("novagest.alerts.visto", `${todayISO()}|${alertSignature(lista)}`); } catch {}
+    ui.modal = null;
+    toast("Sin avisos de reposición durante hoy.", "ok");
+    render();
+  }
   else if (act === "palette") openPalette(paletteCtx());
   else if (act === "cart-clear") { ui.cart = []; render(); }
   else if (act === "checkout") {

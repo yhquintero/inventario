@@ -51,6 +51,7 @@ function emptyState() {
       goalWeekly: 6000,
       sessionMinutes: 20,
       lowStockAlerts: true,
+      restockCover: 14,
       autoBackup: true,
     },
     session: null,
