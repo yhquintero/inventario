@@ -139,7 +139,7 @@ jobs:
           script: bash tools/ci_androidtest.sh
       - name: Guardar informes de las pruebas de interfaz
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: informes-androidtest
           path: |
