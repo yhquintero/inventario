@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Pago · NovaGest</title>
+    <link rel="icon" href="./public/icon-app.png" />
+    <link rel="stylesheet" href="./css/financiero.css" />
+    <style>
+      body { display: grid; place-items: center; min-height: 100vh; margin: 0; font-family: system-ui, sans-serif; background: var(--fin-bg); color: var(--fin-ink); }
+      .pago { max-width: 420px; width: 92%; background: var(--fin-card); border: 1px solid var(--fin-line); border-radius: 18px; padding: 1.5rem; box-shadow: 0 12px 40px rgba(20,16,60,.18); display: grid; gap: .6rem; }
+      .pago h1 { font-size: 1.1rem; margin: 0 0 .4rem; background: var(--fin-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .pago .fila { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--fin-line); padding: .35rem 0; font-size: .92rem; }
+      .pago .fila b { text-align: right; }
+      .pago .monto { font-size: 1.6rem; font-weight: 800; text-align: center; margin: .4rem 0; }
+    </style>
+  </head>
+  <body>
+    <div class="pago" id="pago">
+      <h1>Datos para el pago</h1>
+      <div class="monto" id="pMonto"></div>
+      <div class="fila"><span>Titular</span><b id="pTit"></b></div>
+      <div class="fila"><span>Banco</span><b id="pBan"></b></div>
+      <div class="fila"><span>Cuenta</span><b id="pCta"></b></div>
+      <div class="fila"><span>Referencia</span><b id="pRef"></b></div>
+    </div>
+    <script>
+      // Pantalla pública que se abre al escanear el QR: lee los datos de la URL.
+      const p = new URLSearchParams(location.search);
+      const set = (id, v) => (document.getElementById(id).textContent = v || "—");
+      set("pTit", p.get("titular")); set("pBan", p.get("banco")); set("pCta", p.get("cuenta")); set("pRef", p.get("ref"));
+      document.getElementById("pMonto").textContent = p.get("monto") ? Number(p.get("monto")).toLocaleString("es", { minimumFractionDigits: 2 }) + " " + (p.get("moneda") || "") : "Monto libre";
+      if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.classList.add("dark");
+    </script>
+  </body>
+</html>

@@ -23,7 +23,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # funcione igual arrancando desde la raíz que desde `server/`.
 if os.path.join(ROOT, "server") not in sys.path:
     sys.path.insert(0, os.path.join(ROOT, "server"))
-import copias_externas  # noqa: E402  · carpeta de red y WebDAV
+import copias_externas
+import financiero  # noqa: E402  · módulo económico-financiero (contabilidad)
 WEB = os.path.join(ROOT, "web")
 DATA = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
 BACKUPS = os.path.join(DATA, "backups")
@@ -611,6 +612,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS rate_hits(k TEXT PRIMARY KEY, hits TEXT);
     """)
     CON.commit()
+    financiero.init_db(CON)  # tablas fin_* del módulo económico-financiero
     migrar_auditoria()
     encadenar_auditoria()
     migrar_anclajes()
@@ -2616,6 +2618,10 @@ def verificar_anclajes():
             "ok": all(x["ok"] for x in resultado) if resultado else True,
             "tsa": {"configurada": bool(os.environ.get("NOVAGEST_TSA_URL", "").strip()),
                     "url": os.environ.get("NOVAGEST_TSA_URL", "").strip(), "sellados": sellados}}
+
+
+# Módulo económico-financiero: endpoints /api/fin/* (mismo enrutador y roles)
+financiero.registrar(route, q, audit, now, ADMINS | {"ECONOMICO"})
 
 
 def main():
