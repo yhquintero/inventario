@@ -32,6 +32,10 @@ jobs:
         # funciones del panel.
       # tools/ci_paso.sh ejecuta cada prueba y, si falla, publica el final de su
       # salida como anotación (::error::): la causa se ve en el resumen del CI.
+      - name: Escáner de seguridad SAST (tools/escanear_seguridad.py)
+        run: |
+          python3 tools/test_escanear_seguridad.py
+          python3 tools/escanear_seguridad.py --sin-deps --md docs/ESCANER_SEGURIDAD.md
       - name: Auditoría de dependencias Python (H12, auditoría 2026)
         run: |
           python3 -m pip install --quiet pip-audit

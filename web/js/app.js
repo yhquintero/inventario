@@ -4539,7 +4539,7 @@ function bindLogin() {
         return;
       }
       const pwErr = validatePassword(fd.get("newpass"));
-      if (pwErr) { err.innerHTML = `<div class="error">${pwErr}</div>`; return; }
+      if (pwErr) { err.innerHTML = `<div class="error">${esc(pwErr)}</div>`; return; }
       const r = await store.resetPassword(username, fd.get("answer"), fd.get("newpass"), fd.get("code") || undefined);
       if (r.need2fa && !ui.recNeed2fa) { ui.recNeed2fa = true; render(); return; }
       if (r.error) err.innerHTML = `<div class="error">${esc(r.error)}</div>`;
@@ -4682,14 +4682,14 @@ function bindApp() {
     const key = normName(e.target.value);
     const id = $("#productForm").dataset.id;
     const dup = key && store.state.products.find((p) => normName(p.name) === key && p.id !== id);
-    $("#nameHint").innerHTML = dup ? `<div class="error">${dup.deletedAt ? `Está en la Papelera. <a href="#" data-restore-product="${dup.id}">Restaurar</a>` : "Ya existe un producto con ese nombre."}</div>` : "";
+    $("#nameHint").innerHTML = dup ? `<div class="error">${dup.deletedAt ? `Está en la Papelera. <a href="#" data-restore-product="${esc(String(dup.id))}">Restaurar</a>` : "Ya existe un producto con ese nombre."}</div>` : "";
   });
   $("#prodImg")?.addEventListener("change", async (e) => {
     const f = e.target.files[0];
     if (!f) return;
     ui.pendingImage = await resizeImage(f, 240);
     const img = $(".img-pick .thumb");
-    if (img) img.outerHTML = `<img class="thumb th72" src="${ui.pendingImage}" alt="Foto del producto seleccionada">`;
+    if (img) img.outerHTML = `<img class="thumb th72" src="${esc(ui.pendingImage)}" alt="Foto del producto seleccionada">`;
   });
   $("#movProdSearch")?.addEventListener("input", (e) => {
     const q = e.target.value;

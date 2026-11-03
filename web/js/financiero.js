@@ -14,6 +14,7 @@ import { qrcode } from "../vendor/qrcode.mjs";
 let R = document; // raíz activa: document en la página propia o el contenedor al montarse en la app
 const $ = (s, r = R) => (r || R).querySelector(s);
 const $$ = (s, r = R) => [...(r || R).querySelectorAll(s)];
+const esc = (t) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const fmt = (n) => (n === null || n === undefined || Number.isNaN(n) ? "—" : Number(n).toLocaleString("es", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const toast = (m) => { const t = $("#finToast"); if (!t) return; t.textContent = m; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2600); };
 setUnauthorizedHandler(() => { location.href = "./index.html"; });
@@ -206,8 +207,8 @@ async function loadPanel() {
 async function loadAsientos() {
   const el = $("#tab-asientos");
   const [a, c, ce] = await Promise.all([api("/fin/asientos" + qs()), api("/fin/cuentas"), api("/fin/centros")]);
-  const optsC = c.cuentas.map((x) => `<option value="${x.id}">${x.codigo} · ${x.nombre}</option>`).join("");
-  const optsCe = ce.centros.map((x) => `<option value="${x.id}">${x.nombre}</option>`).join("");
+  const optsC = c.cuentas.map((x) => `<option value="${x.id}">${esc(x.codigo)} · ${esc(x.nombre)}</option>`).join("");
+  const optsCe = ce.centros.map((x) => `<option value="${x.id}">${esc(x.nombre)}</option>`).join("");
   el.innerHTML = `
     <div class="card fin-form">
       <h2>Nuevo asiento</h2>
@@ -220,14 +221,16 @@ async function loadAsientos() {
     <div id="naTabla"></div>`;
   const cont = $("#naLineas");
   const linea = () => { const d = document.createElement("div"); d.className = "fin-linea";
-    d.innerHTML = `<select class="l-cuenta">${optsC}</select><select class="l-centro"><option value="">Sin centro</option>${optsCe}</select>
+    d.innerHTML = `<select class="l-cuenta">${optsC}</select> <!-- nosec: optsC/optsCe ya se construyen con esc() --><select class="l-centro"><option value="">Sin centro</option>${optsCe}</select>
       <input class="l-debe num" type="number" step="0.01" min="0" placeholder="Debe" /><input class="l-haber num" type="number" step="0.01" min="0" placeholder="Haber" />
       <button class="fin-btn danger l-del">✕</button>`;
     d.querySelector(".l-del").onclick = () => d.remove(); cont.appendChild(d); };
   linea(); linea();
   $("#naAdd").onclick = linea;
+  // nosec: el cuadre usa fmt() (numérico) y clases estáticas
   const cuadre = () => { let d = 0, h = 0; $$(".fin-linea", cont).forEach((l) => { d += +l.querySelector(".l-debe").value || 0; h += +l.querySelector(".l-haber").value || 0; });
-    $("#naCuadre").innerHTML = `Debe <b>${fmt(d)}</b> · Haber <b>${fmt(h)}</b> · <span class="${Math.abs(d - h) < 0.005 ? "ok" : "bad"}">${Math.abs(d - h) < 0.005 ? "CUADRA" : "NO CUADRA"}</span>`; };
+    const msg = `Debe <b>${fmt(d)}</b> · Haber <b>${fmt(h)}</b> · <span class="${Math.abs(d - h) < 0.005 ? "ok" : "bad"}">${Math.abs(d - h) < 0.005 ? "CUADRA" : "NO CUADRA"}</span>`;
+    $("#naCuadre").innerHTML = msg; }; // nosec: fmt() es numérico y la clase es estática
   cont.addEventListener("input", cuadre); cuadre();
   $("#naGuardar").onclick = async () => {
     const lineas = $$(".fin-linea", cont).map((l) => ({ cuenta_id: +l.querySelector(".l-cuenta").value, centro_id: +l.querySelector(".l-centro").value || null, debe: +l.querySelector(".l-debe").value || 0, haber: +l.querySelector(".l-haber").value || 0 }));
@@ -252,7 +255,7 @@ async function loadCuentas() {
     + `<div class="card"><h2>Nueva cuenta</h2><div class="fin-form">
         <div class="fila"><label>Código <input id="ncCod" /></label><label>Nombre <input id="ncNom" /></label></div>
         <div class="fila"><label>Naturaleza <select id="ncNat"><option>ACTIVO</option><option>PASIVO</option><option>PATRIMONIO</option><option>INGRESO</option><option>GASTO</option><option>COSTO</option></select></label>
-        <label>Cuenta padre <select id="ncPadre"><option value="">—</option>${c.cuentas.map((x) => `<option value="${x.codigo}">${x.codigo} · ${x.nombre}</option>`).join("")}</select></label></div>
+        <label>Cuenta padre <select id="ncPadre"><option value="">—</option>${c.cuentas.map((x) => `<option value="${x.codigo}">${esc(x.codigo)} · ${esc(x.nombre)}</option>`).join("")}</select></label></div>
         <button class="fin-btn primary" id="ncGuardar">Crear cuenta</button></div></div>
       <div class="card"><h2>Centros de costo</h2><div class="fin-form">
         <div class="fila"><label>Código <input id="nceCod" /></label><label>Nombre <input id="nceNom" /></label></div>
@@ -299,7 +302,7 @@ async function loadInformes() {
 async function loadCuentasT() {
   const el = $("#tab-cuentasT");
   const [t, c] = await Promise.all([api("/fin/cuentas-t" + qs()), api("/fin/cuentas")]);
-  el.innerHTML = `<div class="card"><label>Libro mayor de: <select id="lmCuenta">${c.cuentas.map((x) => `<option value="${x.id}">${x.codigo} · ${x.nombre}</option>`).join("")}</select></label><div id="lmTabla"></div></div>
+  el.innerHTML = `<div class="card"><label>Libro mayor de: <select id="lmCuenta">${c.cuentas.map((x) => `<option value="${x.id}">${esc(x.codigo)} · ${esc(x.nombre)}</option>`).join("")}</select></label><div id="lmTabla"></div></div>
     <h2 class="card">Cuentas T <span class="${t.cuadre.cuadra ? "ok" : "bad"}">(${t.cuadre.cuadra ? "cuadra ✓" : "NO cuadra ✗"})</span></h2>` +
     tabla([{ key: "codigo", label: "Código" }, { key: "nombre", label: "Cuenta" }, { key: "naturaleza", label: "Naturaleza" },
       { key: "debe", label: "Debe", num: 1 }, { key: "haber", label: "Haber", num: 1 }, { key: "saldo", label: "Saldo", num: 1, render: (f) => `${fmt(f.saldo)} ${f.saldo_normal === "DEUDOR" ? "Dr" : "Cr"}` }],
@@ -404,8 +407,8 @@ function qs(extra = {}) { const p = new URLSearchParams({ ...filtros(), ...extra
 
 async function cargarFiltros() {
   const c = await api("/fin/cuentas"), ce = await api("/fin/centros");
-  $("#fCuenta").innerHTML = '<option value="">Todas</option>' + c.cuentas.map((x) => `<option value="${x.id}">${x.codigo} · ${x.nombre}</option>`).join("");
-  $("#fCentro").innerHTML = '<option value="">Todos</option>' + ce.centros.map((x) => `<option value="${x.id}">${x.nombre}</option>`).join("");
+  $("#fCuenta").innerHTML = '<option value="">Todas</option>' + c.cuentas.map((x) => `<option value="${x.id}">${esc(x.codigo)} · ${esc(x.nombre)}</option>`).join("");
+  $("#fCentro").innerHTML = '<option value="">Todos</option>' + ce.centros.map((x) => `<option value="${x.id}">${esc(x.nombre)}</option>`).join("");
 }
 
 /** Monta el módulo completo dentro de `root`: vista #finanzas de la app o página propia. */

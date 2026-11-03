@@ -61,7 +61,7 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     /** Aviso de cierre de las 20:00 (A-08): se guarda en las preferencias del teléfono. */
-    private val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE) // nosec: preferencias de UI (impresora/recordatorios/widget), sin datos personales
     var dayCloseEnabled by mutableStateOf(prefs.getBoolean("dayClose", true))
         private set
 

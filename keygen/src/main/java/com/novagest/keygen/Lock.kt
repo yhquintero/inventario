@@ -56,7 +56,7 @@ class BiometricGate(private val context: Context) {
 
 /** Preferencia del bloqueo (un booleano, sin datos sensibles). */
 class LockPrefs(context: Context) {
-    private val prefs = context.getSharedPreferences("keygen_lock", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("keygen_lock", Context.MODE_PRIVATE) // nosec: solo un booleano de bloqueo, sin datos sensibles
 
     var enabled: Boolean
         get() = prefs.getBoolean("enabled", false)

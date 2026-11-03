@@ -29,7 +29,7 @@ data class PrinterDevice(val name: String, val address: String)
 @Singleton
 class BluetoothPrinter @Inject constructor(@ApplicationContext private val context: Context) {
 
-    private val prefs = context.getSharedPreferences("printer", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("printer", Context.MODE_PRIVATE) // nosec: preferencias de UI (impresora/recordatorios/widget), sin datos personales
 
     private val adapter: BluetoothAdapter?
         get() = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
