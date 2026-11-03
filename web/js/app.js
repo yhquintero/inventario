@@ -59,6 +59,7 @@ const routes = {
   margins: { title: "Costos y márgenes", icon: "📊", perm: "REPORTS_VIEW", group: "Análisis", search: true },
   history: { title: "Historial precios", icon: "↻", perm: "HISTORY_VIEW", group: "Análisis", search: true },
   finance: { title: "Monedas", icon: "$", perm: "REPORTS_FINANCIAL", group: "Análisis" },
+  finanzas: { title: "Económico y financiero", icon: "💰", perm: "REPORTS_FINANCIAL", group: "Análisis" },
   fichas: { title: "Fichas de costo · IPV", icon: "▤", perm: "IPV_VIEW", group: "Análisis", search: true },
   legal: { title: "Información legal", icon: "§", perm: null, group: "Sistema", hidden: true },
   verificar: { title: "Verificar ticket", icon: "✅", perm: "MOVEMENT_VIEW", group: "Sistema" },
@@ -1920,6 +1921,14 @@ function ratesTable() {
 }
 
 /* ============================ MONEDAS (CRUD) ============================ */
+/** Vista «Económico y financiero»: integra el módulo completo (financiero.html)
+ *  dentro de la app como una vista más del menú (iframe same-origin; comparte la sesión). */
+function finanzasView() {
+  return `<div class="card" data-h="100" style="padding:0;overflow:hidden;height:calc(100vh - 170px);min-height:480px">
+    <iframe src="./financiero.html" title="Gestión económica y financiera" style="width:100%;height:100%;border:0;display:block"></iframe>
+  </div>`;
+}
+
 function financeView() {
   const canEdit = allowed("EXCHANGE_EDIT");
   const rates = [...store.state.rates].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
@@ -4161,7 +4170,7 @@ function readFichaEditor() {
 
 /* ============================ RENDER ============================ */
 function page() {
-  const views = { margins: marginsView, forecast: forecastView, monthly: monthlyView, verificar: verifyView, license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, fichas: fichasView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
+  const views = { finanzas: finanzasView, margins: marginsView, forecast: forecastView, monthly: monthlyView, verificar: verifyView, license: licenseManageView, pos: posView, customers: customersView, analytics: analyticsView, fichas: fichasView, inventory: inventoryView, warehouses: warehousesView, importValues: importValuesView, movements: movementsView, cuadre: cuadreView, weekly: weeklyView, reports: reportsView, history: historyView, finance: financeView, trash: trashView, users: usersView, audit: auditView, backup: backupView, settings: settingsView };
   return (views[ui.route] || homeView)();
 }
 
