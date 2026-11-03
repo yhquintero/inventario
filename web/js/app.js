@@ -1924,8 +1924,9 @@ function ratesTable() {
 /** Vista «Económico y financiero»: integra el módulo completo (financiero.html)
  *  dentro de la app como una vista más del menú (iframe same-origin; comparte la sesión). */
 function finanzasView() {
-  return `<div class="card" data-h="100" style="padding:0;overflow:hidden;height:calc(100vh - 170px);min-height:480px">
-    <iframe src="./financiero.html" title="Gestión económica y financiera" style="width:100%;height:100%;border:0;display:block"></iframe>
+  // Sin estilos en línea: el CSP del servidor es style-src 'self'; las medidas van en .fin-view/.fin-iframe (app.css).
+  return `<div class="card fin-view">
+    <iframe class="fin-iframe" src="./financiero.html" title="Gestión económica y financiera"></iframe>
   </div>`;
 }
 

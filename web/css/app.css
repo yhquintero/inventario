@@ -932,3 +932,8 @@ html[data-kiosk="1"] .content { padding: 18px 22px 28px; }
 html { --texto-zoom: 1; }
 html[data-texto="grande"] body, html[data-texto="muy-grande"] body { zoom: var(--texto-zoom); }
 @media print { html[data-texto] body { zoom: 1 !important; } }
+
+/* Módulo «Económico y financiero» embebido como vista (CSP sin unsafe-inline: nada de style="...") */
+.fin-view { padding: 0; overflow: hidden; height: calc(100vh - 170px); min-height: 480px; }
+.fin-iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+@media print { .fin-view { height: auto; min-height: 0; } }
