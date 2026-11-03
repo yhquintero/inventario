@@ -1,3 +1,28 @@
+## NovaGest v1.0.0 · revisión 2026-11-03 (XLVIII) · Módulo de gestión económica y financiera
+
+- **Contabilidad de partida doble integrada** en la Web, el servidor y la API que consume la app Android:
+  plan de cuentas jerárquico sembrado por defecto, centros de costo y **asientos con validación de cuadre**
+  (el debe debe igualar al haber; el servidor rechaza con error 422 el asiento que no cuadra).
+- **Estados financieros en tabla**, con filtros por período, cuenta y centro de costo y totales con cuadre:
+  balance de comprobación por saldos, estado de resultados, balance general, estado del fondo de inversión
+  estatal y punto de equilibrio con gráfico. Todo se recalcula al aplicar filtros, sin recargar la página.
+- **Cuentas T y libro mayor** para activos, pasivos, patrimonio, ingresos, gastos, costos, utilidad y flujo,
+  con saldos deudor/acreedor y saldo acumulado por movimiento.
+- **Márgenes y ratios**: margen bruto, operativo, antes de impuestos y neto (con fórmula y evolución por período);
+  liquidez, eficiencia operativa y rentabilidad con fórmula, resultado e interpretación para la toma de decisiones.
+- **Indicadores del negocio digital**: CAC, tasa de conversión, ARPU/MRR, costo de infraestructura por usuario,
+  margen de contribución y ROI del período, cada uno con la decisión que permite tomar.
+- **Gráficos futuristas e interactivos** (modo claro/oscuro, degradados y animaciones): barras, líneas, áreas,
+  circular, radar, cascada, dispersión, velocímetro y mapa de calor, editables por el usuario (tipo, color y series).
+- **Exportación a PDF, XLSX y DOCX** de tablas e informes, y **código QR de cobro** exportable que al escanearse
+  abre una pantalla pública con titular, banco, cuenta, monto y referencia (URL `https://` cuando el servidor
+  corre con TLS).
+- **Vista dentro de la app**: «💰 Económico y financiero» en el menú lateral de la Web (iframe same-origin),
+  con precache en el service worker para funcionar sin conexión.
+- **Servidor**: 24 endpoints nuevos `/api/fin/*` con los mismos roles, sesión y auditoría de NovaGest
+  (Administrador, Jefe y Económico). Pruebas: cuadre, utilidad, márgenes, ratios, libro mayor, punto de
+  equilibrio e indicadores verificados de extremo a extremo; `smoke_web.mjs` 78/78.
+
 ﻿## NovaGest v1.0.0 · revisión 2026-10-27 (XLVII) · Conteo físico guiado con la cámara (A-20)
 
 - **Nueva pantalla «Conteo físico»** en el Android (menú ☰): se cuenta el estante con la **cámara**

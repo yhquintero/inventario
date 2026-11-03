@@ -6,7 +6,7 @@
 
 ### Gestiona. Crece. Avanza.
 
-**Inventario multialmacén, punto de venta, caja diaria e informes para tu negocio.**
+**Inventario multialmacén, punto de venta, caja diaria, informes y gestión económica y financiera para tu negocio.**
 **Web instalable, aplicación Android y servidor propio — también sin conexión.**
 
 🌐 **[Sitio del proyecto](https://yhquintero.github.io/inventario/) · [Manual de usuario](docs/MANUAL_USUARIO.html) · [Guía del mostrador (2 páginas)](docs/GUIA_MOSTRADOR.html) · [Novedades](docs/NOVEDADES.html) · [Vídeo (3 min)](docs/assets/video/novagest-promo-720p.mp4)**
@@ -116,6 +116,7 @@ interna para quien administra las licencias.
 - 📈 **Análisis y metas** — ventas por período, utilidad bruta y neta, valor del inventario a precio de venta y a costo, margen por categoría, productos sin movimiento y progreso frente a metas diarias y semanales.
 - 🧾 **Fichas de Costo e IPV** — ficha versionada por producto o servicio (componentes del propio inventario, costo total, rendimiento y costo por ración) con flujo **Borrador → Aprobada** y **Control IPV** por período (`IPV-AAAA-NNNN`) validado contra la ficha. Android: consulta sincronizada. Adaptado de [IPV · Fichas y Costos](https://github.com/yhquintero/IPV_Fichas-Costos).
 - 🕵️ **Historial y auditoría** — precios, costos, comisiones y tasas por día; registro de **quién hizo qué y cuándo**, según el rol de cada usuario.
+- 💰 **Gestión económica y financiera** — contabilidad de **partida doble** (los asientos que no cuadran no entran: debe = haber) con plan de cuentas y centros de costo; **balance de comprobación, estado de resultados, balance general, fondo de inversión estatal y punto de equilibrio**, cuentas T y libro mayor, **márgenes y ratios** con interpretación, e **indicadores del negocio digital** (CAC, conversión, MRR, costo de infraestructura por usuario, ROI). Gráficos editables en modo claro/oscuro, exportación a **PDF/XLSX/DOCX** y **QR de cobro** que abre una página de pago al escanearse. En la Web como vista «💰 Económico y financiero» del menú y por la misma API en el servidor y la app Android (`/api/fin/*`, vista `/financiero.html`, HTTPS con `SSL_CERT`/`SSL_KEY`).
 
 ### Administración y seguridad
 

@@ -212,6 +212,7 @@
     </a>
     <nav aria-label="Secciones">
       <a href="#funciones">Funciones</a>
+      <a href="#financiero" class="oculto">Financiero</a>
       <a href="#capturas" class="oculto">Capturas</a>
       <a href="#video" class="oculto">Vídeo</a>
       <a href="#empezar">Cómo empezar</a>
@@ -226,10 +227,11 @@
   <section class="hero" id="inicio">
     <div class="wrap grid">
       <div>
-        <p class="etiqueta">Inventario · Ventas · Cuadre diario</p>
+        <p class="etiqueta">Inventario · Ventas · Cuadre diario · Contabilidad</p>
         <h1>Todo tu almacén bajo control, en la Web y en el teléfono</h1>
         <p class="lead">
-          NovaGest reúne inventario multialmacén, venta rápida, fiados, cuadre diario e indicadores IPV
+          NovaGest reúne inventario multialmacén, venta rápida, fiados, cuadre diario, indicadores IPV y
+          <strong>contabilidad de partida doble con estados financieros</strong>
           en una <strong>Web instalable</strong> y una <strong>app Android</strong> que comparten el mismo
           estado. Funciona sin conexión y sin depender de la nube: tus datos viven en tu servidor.
         </p>
@@ -249,6 +251,7 @@
       <ul>
         <li><strong>2 apps</strong><span>Web instalable + Android</span></li>
         <li><strong>4 roles</strong><span>Permisos por función</span></li>
+        <li><strong>Partida doble</strong><span>Contabilidad e informes</span></li>
         <li><strong>Sin conexión</strong><span>Sigue trabajando y sincroniza</span></li>
         <li><strong>8 idiomas</strong><span>Documentación del proyecto</span></li>
       </ul>
@@ -284,8 +287,57 @@
           <p>Índice de productividad de ventas, comparación de períodos, mapa de calor por día de la semana y exportación a CSV para revisarlo en Excel.</p>
         </article>
         <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">💰</span> Gestión económica y financiera</h3>
+          <p>Asientos contables que no cuadran no entran: el debe siempre iguala al haber. Balance de comprobación,
+             estado de resultados, balance general, cuentas T, libro mayor, márgenes, ratios e indicadores del
+             negocio, con gráficos editables y exportación a PDF, XLSX y DOCX.</p>
+        </article>
+        <article class="tarjeta">
           <h3><span class="icono" aria-hidden="true">🔐</span> Licencia y respaldos</h3>
           <p>Licencia firmada que se verifica sin conexión, auditoría de acciones por usuario, copias diarias cifradas y panel de control en Windows.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="financiero">
+    <div class="wrap">
+      <h2>Contabilidad y finanzas, dentro de la misma app</h2>
+      <p class="introduccion">
+        El módulo «💰 Económico y financiero» vive en el menú de la Web (y por la misma API en el servidor y
+        la app Android). Todos los informes se calculan en tiempo real desde los asientos registrados, con
+        filtros por período, cuenta y centro de costo, y validación de cuadre: el debe siempre iguala al haber.
+      </p>
+      <div class="rejilla">
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">🧾</span> Estados financieros en tabla</h3>
+          <p>Balance de comprobación por saldos, estado de resultados, balance general, estado del fondo de
+             inversión estatal y punto de equilibrio con su gráfico, con totales, subtotales y cuadre visible.</p>
+        </article>
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">🅣</span> Cuentas T y libro mayor</h3>
+          <p>Todas las cuentas de activos, pasivos, patrimonio, ingresos, gastos, costos, utilidad y flujo de
+             caja, con saldos deudor y acreedor y saldo acumulado movimiento a movimiento.</p>
+        </article>
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">📉</span> Márgenes y ratios</h3>
+          <p>Margen bruto, operativo, antes de impuestos y neto con fórmula explícita y evolución por período;
+             liquidez, eficiencia operativa y rentabilidad con interpretación para decidir.</p>
+        </article>
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">🌐</span> Indicadores del negocio digital</h3>
+          <p>CAC, tasa de conversión, ARPU/MRR, costo de infraestructura por usuario, margen de contribución y
+             ROI: las métricas que dicen si la web, el servidor y la app rinden.</p>
+        </article>
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">📊</span> Gráficos editables</h3>
+          <p>Modo claro y oscuro, degradados y animaciones suaves. Barras, líneas, áreas, circular, radar,
+             cascada, dispersión, velocímetro y mapa de calor; el usuario elige tipo, colores, rangos y series.</p>
+        </article>
+        <article class="tarjeta">
+          <h3><span class="icono" aria-hidden="true">📤</span> Exportación y QR de cobro</h3>
+          <p>Todo se exporta a PDF, XLSX y DOCX con la calidad visual de la pantalla. El QR exportable abre al
+             escanearse una página de pago con titular, banco, cuenta, monto y referencia.</p>
         </article>
       </div>
     </div>
@@ -454,6 +506,10 @@ python3 server/novagest_server.py</code></pre>
               <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo ver</td>
             </tr>
             <tr>
+              <th scope="row">Gestión económica y financiera</th>
+              <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td>
+            </tr>
+            <tr>
               <th scope="row">Informes y exportaciones</th>
               <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td>
             </tr>
@@ -493,7 +549,7 @@ python3 server/novagest_server.py</code></pre>
       <li><a href="https://github.com/yhquintero/inventario/blob/main/LICENSE">Licencia</a></li>
       <li><a href="https://github.com/yhquintero/inventario">Repositorio</a></li>
     </ul>
-    <p>NovaGest · Inventario, ventas y cuadre diario. Documentación y capturas con datos de demostración.</p>
+    <p>NovaGest · Inventario, ventas, cuadre diario y gestión económica y financiera. Documentación y capturas con datos de demostración.</p>
   </div>
 </footer>
 </body>
