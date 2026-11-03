@@ -110,6 +110,8 @@ dependencies {
     ksp(libs.androidx.hilt.compiler)
 
     implementation(libs.room.runtime)
+    implementation(libs.sqlcipher)          // H4: BD local cifrada (SQLCipher)
+    implementation(libs.sqlite.framework)   // SupportFactory de SQLCipher
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 

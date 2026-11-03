@@ -1,0 +1,2 @@
+# Pins SHA-256 de la clave pública del servidor público, uno por línea (formato sha256/... base64).
+# Vacío o ausente = sin pinning (modo LAN con mkcert).

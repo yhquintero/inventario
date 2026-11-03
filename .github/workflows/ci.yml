@@ -32,6 +32,10 @@ jobs:
         # funciones del panel.
       # tools/ci_paso.sh ejecuta cada prueba y, si falla, publica el final de su
       # salida como anotación (::error::): la causa se ve en el resumen del CI.
+      - name: Auditoría de dependencias Python (H12, auditoría 2026)
+        run: |
+          python3 -m pip install --quiet pip-audit
+          pip-audit -r requirements.txt || pip-audit -r requirements.txt --skip-editable
       - name: Pruebas Web e IPV
         run: |
           set -e
