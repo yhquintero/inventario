@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="./css/financiero.css" />
   </head>
   <body class="fin-body">
+    <!-- Cabecera solo de la página independiente: dentro de la app (#finanzas) no se usa. -->
     <header class="fin-top">
       <div class="fin-brand">
         <img src="./public/icon-app.png" alt="" width="28" height="28" />
@@ -24,44 +25,9 @@
         <a class="fin-btn ghost" href="./index.html">← Volver a NovaGest</a>
       </div>
     </header>
-
-    <nav class="fin-tabs" id="tabs">
-      <button data-tab="panel" class="active">Panel</button>
-      <button data-tab="asientos">Asientos</button>
-      <button data-tab="cuentas">Plan de cuentas</button>
-      <button data-tab="informes">Estados financieros</button>
-      <button data-tab="cuentasT">Cuentas T y libro mayor</button>
-      <button data-tab="margenes">Márgenes y ratios</button>
-      <button data-tab="indicadores">Indicadores web/app</button>
-      <button data-tab="qr">QR de cobro</button>
-    </nav>
-
-    <main class="fin-main">
-      <!-- Filtros globales -->
-      <section class="fin-filtros card">
-        <label>Desde <input type="date" id="fDesde" /></label>
-        <label>Hasta <input type="date" id="fHasta" /></label>
-        <label>Cuenta <select id="fCuenta"><option value="">Todas</option></select></label>
-        <label>Centro de costo <select id="fCentro"><option value="">Todos</option></select></label>
-        <button id="btnAplicar" class="fin-btn primary">Aplicar filtros</button>
-        <div class="fin-export">
-          <button class="fin-btn ghost" data-exp="pdf">PDF</button>
-          <button class="fin-btn ghost" data-exp="xlsx">XLSX</button>
-          <button class="fin-btn ghost" data-exp="docx">DOCX</button>
-        </div>
-      </section>
-
-      <section id="tab-panel" class="fin-tab active"></section>
-      <section id="tab-asientos" class="fin-tab"></section>
-      <section id="tab-cuentas" class="fin-tab"></section>
-      <section id="tab-informes" class="fin-tab"></section>
-      <section id="tab-cuentasT" class="fin-tab"></section>
-      <section id="tab-margenes" class="fin-tab"></section>
-      <section id="tab-indicadores" class="fin-tab"></section>
-      <section id="tab-qr" class="fin-tab"></section>
-    </main>
-
-    <div id="finToast" class="fin-toast" role="status" aria-live="polite"></div>
+    <div id="fin-pagina">
+      <div id="fin-root"></div>
+    </div>
     <script type="module" src="./js/financiero.js"></script>
   </body>
 </html>

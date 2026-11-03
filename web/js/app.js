@@ -11,6 +11,7 @@ import {
   normalizeBarcode, creditPending, creditStatus, reorderSuggestions, reorderSummary,
 } from "./calc.js";
 import { moneyIn } from "./ipv.js";
+import { montarFinanzas } from "./financiero.js";
 import { categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, heatmapSummary, niceTicks } from "./charts.js";
 import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
@@ -1924,10 +1925,8 @@ function ratesTable() {
 /** Vista «Económico y financiero»: integra el módulo completo (financiero.html)
  *  dentro de la app como una vista más del menú (iframe same-origin; comparte la sesión). */
 function finanzasView() {
-  // Sin estilos en línea: el CSP del servidor es style-src 'self'; las medidas van en .fin-view/.fin-iframe (app.css).
-  return `<div class="card fin-view">
-    <iframe class="fin-iframe" src="./financiero.html" title="Gestión económica y financiera"></iframe>
-  </div>`;
+  // Apartado real dentro de la app (sin iframe ni cabecera propia): el módulo se monta aquí.
+  return `<div class="fin-view" id="fin-root"></div>`;
 }
 
 function financeView() {
@@ -4234,6 +4233,7 @@ function render() {
   document.querySelectorAll(".modal input, .modal select").forEach((el) => { if (el.name && el.type !== "file") formVals[el.name] = el.value; });
   const hadModal = !!$(".modal");
   app.innerHTML = shell(page());
+  if (ui.route === "finanzas") montarFinanzas($("#fin-root")); // apartado «Económico y financiero» dentro de la app
   restoreSidebarScroll($(".rail nav"));
   hydrateStyles(app);
   if (hadModal && ui.modal) document.querySelectorAll(".modal input, .modal select").forEach((el) => { if (el.name in formVals) el.value = formVals[el.name]; });
