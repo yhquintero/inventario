@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.db.SupportFactory
+import net.sqlcipher.database.SQLiteFactory
 import com.novagest.inventario.data.local.AppDatabase
 import com.novagest.inventario.data.local.DatabaseSeeder
 import dagger.Module
@@ -26,6 +28,9 @@ object AppModule {
     fun database(@ApplicationContext context: Context): AppDatabase {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         return Room.databaseBuilder(context, AppDatabase::class.java, "novagest.db")
+            // H4 (auditoría 2026): base de datos local cifrada con SQLCipher; la clave vive
+            // en el Android Keystore (ver security/DatabaseKey.kt) y nunca sale del dispositivo.
+            .openHelperFactory(SupportFactory(SQLiteFactory.getInstance(com.novagest.inventario.security.DatabaseKey.passphrase())))
             .addMigrations(com.novagest.inventario.data.local.MIGRATION_3_4, com.novagest.inventario.data.local.MIGRATION_4_5)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {

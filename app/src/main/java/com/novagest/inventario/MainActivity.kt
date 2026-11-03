@@ -39,6 +39,10 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // H5 (auditoría 2026): aviso si el dispositivo está rooteado (datos locales en riesgo).
+        if (com.novagest.inventario.security.RootDetection.esDispositivoComprometido(packageManager)) {
+            android.util.Log.w("SEGURIDAD", "Dispositivo rooteado detectado: los datos locales pueden ser legibles por terceros.")
+        }
         // A-04: el widget no puede consultar la base de datos al dibujarse; la app le deja
         // el resumen listo en segundo plano (no bloquea la pantalla de entrada).
         lifecycleScope.launch { widgetUpdater.actualizar() }

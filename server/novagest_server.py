@@ -469,10 +469,23 @@ def register_license_request(b, ip="", user_agent=""):
 
 
 # ------------------------------------------------------------------ contraseñas
-def hash_pw(pw, iters=210_000):
+# H2 (auditoría 2026): OWASP recomienda >= 600 000 iteraciones de PBKDF2-SHA256.
+PW_ITERS = int(os.environ.get("PW_ITERS", "600000"))
+
+
+def hash_pw(pw, iters=None):
+    iters = iters or PW_ITERS
     salt = secrets.token_hex(16)
     h = hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), iters).hex()
     return f"pbkdf2${iters}${salt}${h}"
+
+
+def pw_needs_rehash(stored):
+    """True si el hash guardado usa menos iteraciones que las vigentes (rehash en login)."""
+    try:
+        return int(str(stored).split("$")[1]) < PW_ITERS
+    except Exception:
+        return False
 
 
 def check_pw(pw, stored):
@@ -742,6 +755,27 @@ def public_user(r):
 
 
 # ------------------------------------------------------------------ copias cifradas
+def _backup_aead_key():
+    """Clave AES-256 para copias nuevas (H6): derivada de BACKUP_KEY/LICENSE_SECRET con SHA-256."""
+    secret = get_license_secret()
+    return hashlib.sha256(b"novagest-backup-gcm" + secret).digest()
+
+
+def cifrar_copia(datos: bytes) -> bytes:
+    """Copia nueva: b'NGGCM1' + nonce(12) + AES-256-GCM. Cifrado autenticado (AEAD)."""
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    nonce = os.urandom(12)
+    return b"NGGCM1" + nonce + AESGCM(_backup_aead_key()).encrypt(nonce, datos, None)
+
+
+def descifrar_copia(blob: bytes) -> bytes:
+    """Acepta el formato nuevo (NGGCM1/AES-GCM) y el legado (Fernet/AES-CBC+HMAC)."""
+    if blob[:6] == b"NGGCM1":
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        return AESGCM(_backup_aead_key()).decrypt(blob[6:18], blob[18:], None)
+    return fernet().decrypt(blob)
+
+
 def fernet():
     from cryptography.fernet import Fernet
     key = os.environ.get("BACKUP_KEY")
@@ -763,7 +797,7 @@ def make_backup(kind="auto", user="sistema"):
         "licenses": [dict(r) for r in q("SELECT * FROM licenses")],
         "licenseActivations": [dict(r) for r in q("SELECT * FROM license_activations")],
     }
-    blob = fernet().encrypt(gzip.compress(json.dumps(payload, ensure_ascii=False).encode()))
+    blob = cifrar_copia(gzip.compress(json.dumps(payload, ensure_ascii=False).encode()))
     name = dt.datetime.now().strftime(f"novagest_%Y-%m-%d_%H%M%S_{kind}.bak")
     ruta = os.path.join(BACKUPS, name)
     with open(ruta, "wb") as f: f.write(blob)
@@ -803,7 +837,7 @@ def replicar_copia(blob, name, user="sistema"):
 
 def abrir_copia(blob):
     """Descifra y descomprime una copia. Es lo que usa la verificación de S-14."""
-    return json.loads(gzip.decompress(fernet().decrypt(blob)))
+    return json.loads(gzip.decompress(descifrar_copia(blob)))
 
 
 def read_backup(name):
@@ -813,9 +847,35 @@ def read_backup(name):
         return abrir_copia(f.read())
 
 
+def aplicar_retencion():
+    """H11 (auditoría 2026): política de retención configurable con RETENTION_DAYS.
+
+    0 (por defecto) = no se borra nada. Con N > 0 se purgan los registros operativos
+    (impresiones y límites de peticiones) con más de N días; los datos de negocio y la
+    auditoría encadenada NO se tocan (la cadena de auditoría no admite huecos).
+    """
+    dias = int(os.environ.get("RETENTION_DAYS", "0"))
+    if dias <= 0:
+        return
+    corte = now() - dias * 86400
+    q("DELETE FROM print_log WHERE ts < ?", (corte,))
+    # rate_hits guarda una lista JSON de marcas de tiempo: se purga si la más reciente es antigua.
+    for r in q("SELECT k, hits FROM rate_hits"):
+        try:
+            marcas = [x for x in json.loads(r["hits"]) if now() - x < dias * 86400]
+        except Exception:
+            marcas = []
+        if not marcas:
+            q("DELETE FROM rate_hits WHERE k=?", (r["k"],))
+        elif len(marcas) != len(json.loads(r["hits"])):
+            q("UPDATE rate_hits SET hits=? WHERE k=?", (json.dumps(marcas), r["k"]))
+    audit("sistema", "RETENCION", f"purga de registros operativos > {dias} días")
+
+
 def backup_loop():
     while True:
         try:
+            aplicar_retencion()
             today = dt.date.today().strftime("%Y-%m-%d")
             has_today = any(f.startswith(f"novagest_{today}") and f.endswith("_auto.bak") for f in os.listdir(BACKUPS))
             if not has_today and dt.datetime.now().hour >= BACKUP_HOUR:
@@ -1070,8 +1130,9 @@ class Api(BaseHTTPRequestHandler):
         # CSRF: toda petición que modifica exige la cabecera X-CP (un formulario de otro sitio no puede ponerla)
         if method != "GET" and self.headers.get("X-CP") != "1":
             return self.err(403, "Falta cabecera anti-CSRF")
-        # Límite de peticiones por IP en rutas sensibles (login, recuperación, licencias)
-        limit = RATE_LIMITS.get((method, path))
+        # Límite de peticiones por IP: rutas sensibles tienen su propio tope (RATE_LIMITS)
+        # y el resto de mutaciones (POST/PUT/DELETE) lleva un tope por defecto (H8, auditoría 2026).
+        limit = RATE_LIMITS.get((method, path)) or ((int(os.environ.get("RATE_MUT_MAX", "120")), 60) if method != "GET" else None)
         if limit:
             max_hits, window = limit
             k = f"{method} {path}|{self.ip()}"
@@ -1660,10 +1721,14 @@ def login(h, _, __):
         return h.err(429, f"Demasiados intentos. Espera {max(1, (f['until'] - now()) // 60)} min.")
     user = q("SELECT * FROM users WHERE username=?", (username,), one=True)
     if not user or not user["active"] or not check_pw(str(b.get("password", "")), user["pw_hash"]):
+        # (el flujo de fallo sigue abajo)
         n = (f["n"] if f else 0) + 1
         q("INSERT OR REPLACE INTO fails(k,n,until) VALUES(?,?,?)", (k, 0 if n >= 5 else n, now() + 300 if n >= 5 else 0))
         audit(username, "LOGIN_FAIL", f"intento {n}/5", h.ip())
         return h.err(401, "Demasiados intentos. Cuenta bloqueada 5 minutos." if n >= 5 else f"Usuario o contraseña incorrectos. Intentos restantes: {5 - n}.")
+    # H2: si la contraseña es correcta pero el hash es antiguo, se rehasea con las iteraciones vigentes.
+    if pw_needs_rehash(user["pw_hash"]):
+        q("UPDATE users SET pw_hash=? WHERE id=?", (hash_pw(str(b.get("password", ""))), user["id"]))
     if user["totp_enabled"]:
         code = b.get("code")
         if not code: return h.send_json(200, {"need2fa": True})
@@ -2636,6 +2701,16 @@ def main():
         ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         ctx.load_cert_chain(CERT, KEY)
         httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
+    if not HTTPS:
+        print("=" * 78, flush=True)
+        print("AVISO DE SEGURIDAD (H1, auditoría 2026): el servidor arranca en HTTP PLANO.", flush=True)
+        print("Las sesiones y contraseñas viajan sin cifrar en la red. Configure SSL_CERT/SSL_KEY", flush=True)
+        print("(mkcert para LAN o Let's Encrypt tras Caddy/Nginx) o use REQUIRE_HTTPS=1 para", flush=True)
+        print("rechazar arrancar sin TLS.", flush=True)
+        print("=" * 78, flush=True)
+        if os.environ.get("REQUIRE_HTTPS", "0") == "1":
+            print("REQUIRE_HTTPS=1: no se arranca sin certificado TLS.", flush=True)
+            raise SystemExit(2)
     print(f"NovaGest en {'https' if HTTPS else 'http'}://0.0.0.0:{port} · datos en {DATA}", flush=True)
     httpd.serve_forever()
 

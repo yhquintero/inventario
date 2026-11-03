@@ -132,6 +132,10 @@ class SyncManager @Inject constructor(
         withContext(Dispatchers.IO) {
             try {
                 val conn = URL(base.trimEnd('/') + "/api" + path).openConnection() as HttpURLConnection
+                // H3 (auditoría 2026): pinning opcional si hay pins en assets/pins.txt (solo dominios públicos).
+                if (conn is javax.net.ssl.HttpsURLConnection) {
+                    com.novagest.inventario.security.CertificatePinning.aplicar(context, conn)
+                }
                 conn.requestMethod = method
                 conn.connectTimeout = 10_000
                 conn.readTimeout = 30_000

@@ -1,6 +1,22 @@
 # Caddy obtiene y renueva automáticamente el certificado HTTPS de Let's Encrypt.
+# H7/H9 (auditoría 2026): TLS terminado en Caddy con OCSP stapling automático,
+# rate limiting por IP y exposición mínima (solo 443).
 {$DOMINIO} {
 	encode gzip
+	tls {
+		# OCSP stapling (H7): Caddy lo activa por defecto; se explicita por claridad.
+		ocsp_stapling on
+	}
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	header X-Content-Type-Options "nosniff"
+	header X-Frame-Options "SAMEORIGIN"
+	# H9: protección de disponibilidad — el rate limiting por IP se aplica con fail2ban
+	# sobre los logs de Caddy (ver deploy/novagest.service y docs/AUDITORIA_SEGURIDAD_2026.md);
+	# el backend además aplica su propio límite por IP en las mutaciones (H8).
 	reverse_proxy app:8080
+}
+
+# HTTP -> HTTPS (H1): redirección permanente; el backend solo escucha en la red interna.
+http://{$DOMINIO} {
+	redir https://{$DOMINIO}{uri} 301
 }

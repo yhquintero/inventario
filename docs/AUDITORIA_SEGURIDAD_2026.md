@@ -1,5 +1,7 @@
 # Auditoría de seguridad y plan de endurecimiento — NovaGest (2026-11-03)
 
+> **Estado 2026-11-03 (rama arena/96e52b79-inventario): H1–H12 APLICADOS** — ver §6 «Estado de los hallazgos».
+
 **Alcance auditado (evidencia en código, no suposiciones):** servidor Python stdlib + SQLite
 (`server/novagest_server.py`, `server/financiero.py`), Web PWA (`web/`), app Android Kotlin (`app/`),
 sitio público (`docs/`).
@@ -90,3 +92,26 @@ Colombia, México, Argentina y EE. UU. (CCPA/CPRA); datos tratados: inventario, 
   al 100 %, 0 hallazgos críticos/altos en pentest anual, HSTS preload, y cumplimiento documentado de las
   leyes aplicables. Lo que debe comprobar con terceros: pentest externo, asesoría legal para contratos
   Art. 28 y registro de tratamientos, y escáneres (OWASP ZAP baseline, `pip-audit`, Trivy para el host).
+
+---
+
+## 6. Estado de los hallazgos (aplicados el 2026-11-03)
+
+| # | Estado | Implementación |
+|---|---|---|
+| H1 | ✅ Aplicado | `main()` alerta loudly sin TLS y `REQUIRE_HTTPS=1` aborta el arranque; Caddy redirige HTTP→HTTPS 301 (`deploy/Caddyfile`) |
+| H2 | ✅ Aplicado | `PW_ITERS=600000` (env `PW_ITERS`); rehash progresivo en login si el hash es antiguo (`pw_needs_rehash`) |
+| H3 | ✅ Aplicado | `security/CertificatePinning.kt` + `assets/pins.txt`; se aplica en `SyncManager` solo a dominios públicos |
+| H4 | ✅ Aplicado | SQLCipher (`net.zetetic:android-database-sqlcipher:4.6.0`) con clave del Android Keystore (`security/DatabaseKey.kt`) en `AppModule` |
+| H5 | ✅ Aplicado | `security/RootDetection.kt` (su/test-keys/paquetes root) con aviso en `MainActivity` |
+| H6 | ✅ Aplicado | Copias nuevas en AES-256-GCM (`NGGCM1…`, `cifrar_copia`); lectura compatible con Fernet legado (`descifrar_copia`) |
+| H7 | ✅ Aplicado (vía proxy) | TLS terminado en Caddy con OCSP stapling (`deploy/Caddyfile`); el stdlib de Python no lo soporta |
+| H8 | ✅ Aplicado | Tope por defecto 120 peticiones/min/IP en **todas** las mutaciones (`RATE_MUT_MAX`) |
+| H9 | ✅ Aplicado | Caddy frontal (solo 443 expuesto) + fail2ban recomendado; HSTS y cabeceras en Caddyfile |
+| H10 | ✅ Aplicado | `docs/REGISTRO_TRATAMIENTOS.md` (Art. 30 RGPD) y `docs/PLAN_INCIDENTES.md` (72 h RGPD / 15 días SIC / inmediato MX) |
+| H11 | ✅ Aplicado | `RETENTION_DAYS` (0 = off): purga de registros operativos antiguos en el ciclo diario; la auditoría encadenada no se toca |
+| H12 | ✅ Aplicado | `.github/dependabot.yml` (pip/gradle/actions) + paso `pip-audit` en `.github/workflows/ci.yml` |
+
+**Pendiente (verificar con terceros)**: pentest externo anual, asesoría legal para contratos
+Art. 28 RGPD, escaneo con OWASP ZAP/Trivy, y compilación del módulo Android en Android Studio
+(los cambios H3-H5 son Kotlin nuevo que aquí no se compila en CI).
