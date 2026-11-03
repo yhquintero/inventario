@@ -2,42 +2,70 @@
  * Módulo de gestión económica y financiera (NovaGest).
  * Consume la API REST /api/fin/* del servidor. Gráficos en canvas (sin librerías),
  * editables por el usuario (tipo, color, series), exportación a PDF/XLSX/DOCX y QR de cobro.
+ *
+ * Se monta con `montarFinanzas(root)`:
+ *  - dentro de la app como la vista #finanzas (sin cabecera propia: el tema y la navegación
+ *    los pone la app), y
+ *  - en la página independiente financiero.html (con su cabecera propia).
  */
 import { api, setUnauthorizedHandler } from "./api.js";
 import { qrcode } from "../vendor/qrcode.mjs";
 
-const $ = (s, r = document) => r.querySelector(s);
-const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+let R = document; // raíz activa: document en la página propia o el contenedor al montarse en la app
+const $ = (s, r = R) => (r || R).querySelector(s);
+const $$ = (s, r = R) => [...(r || R).querySelectorAll(s)];
 const fmt = (n) => (n === null || n === undefined || Number.isNaN(n) ? "—" : Number(n).toLocaleString("es", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-const toast = (m) => { const t = $("#finToast"); t.textContent = m; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2600); };
+const toast = (m) => { const t = $("#finToast"); if (!t) return; t.textContent = m; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2600); };
 setUnauthorizedHandler(() => { location.href = "./index.html"; });
 
-/* ---------------- tema claro / oscuro ---------------- */
+/* Botón de tema: solo existe en la cabecera de la página independiente. */
 (() => {
-  const b = $("#btnTema");
-  const apply = () => { const d = document.documentElement.classList.toggle("dark"); b.textContent = d ? "☀ Claro" : "☾ Oscuro"; localStorage.setItem("fin-tema", d ? "dark" : "light"); };
-  if (localStorage.getItem("fin-tema") === "dark" || (!localStorage.getItem("fin-tema") && matchMedia("(prefers-color-scheme: dark)").matches)) document.documentElement.classList.add("dark");
-  b.textContent = document.documentElement.classList.contains("dark") ? "☀ Claro" : "☾ Oscuro";
+  const b = document.getElementById?.("btnTema");
+  const cl = document.documentElement?.classList;
+  if (!b || !cl) return; // montado dentro de la app (o DOM de prueba): el tema lo gestiona app.js
+  const apply = () => { const d = cl.toggle("dark"); b.textContent = d ? "☀ Claro" : "☾ Oscuro"; try { localStorage.setItem("fin-tema", d ? "dark" : "light"); } catch {} };
+  try {
+    if (localStorage.getItem("fin-tema") === "dark" || (!localStorage.getItem("fin-tema") && matchMedia("(prefers-color-scheme: dark)").matches)) cl.add("dark");
+  } catch {}
+  b.textContent = cl.contains("dark") ? "☀ Claro" : "☾ Oscuro";
   b.onclick = apply;
 })();
 
-/* ---------------- navegación por pestañas ---------------- */
-$$("#tabs button").forEach((b) => (b.onclick = () => {
-  $$("#tabs button").forEach((x) => x.classList.toggle("active", x === b));
-  $$(".fin-tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + b.dataset.tab));
-  loadTab(b.dataset.tab);
-}));
-
-/* ---------------- filtros globales ---------------- */
-const filtros = () => ({ desde: $("#fDesde").value, hasta: $("#fHasta").value, cuenta: $("#fCuenta").value, centro: $("#fCentro").value });
-const qs = (extra = {}) => { const p = new URLSearchParams({ ...filtros(), ...extra }); return "?" + p.toString().replace(/%5B%5D/g, ""); };
-$("#btnAplicar").onclick = () => loadTab($("#tabs button.active").dataset.tab);
-
-async function cargarFiltros() {
-  const c = await api("/fin/cuentas"), ce = await api("/fin/centros");
-  $("#fCuenta").innerHTML = '<option value="">Todas</option>' + c.cuentas.map((x) => `<option value="${x.id}">${x.codigo} · ${x.nombre}</option>`).join("");
-  $("#fCentro").innerHTML = '<option value="">Todos</option>' + ce.centros.map((x) => `<option value="${x.id}">${x.nombre}</option>`).join("");
-}
+/* Esqueleto de la UI (sin cabecera: al vivir dentro de la app, la cabecera es la de la app). */
+const ESQUELETO = `
+    <nav class="fin-tabs" id="tabs">
+      <button data-tab="panel" class="active">Panel</button>
+      <button data-tab="asientos">Asientos</button>
+      <button data-tab="cuentas">Plan de cuentas</button>
+      <button data-tab="informes">Estados financieros</button>
+      <button data-tab="cuentasT">Cuentas T y libro mayor</button>
+      <button data-tab="margenes">Márgenes y ratios</button>
+      <button data-tab="indicadores">Indicadores web/app</button>
+      <button data-tab="qr">QR de cobro</button>
+    </nav>
+    <main class="fin-main">
+      <section class="fin-filtros card">
+        <label>Desde <input type="date" id="fDesde" /></label>
+        <label>Hasta <input type="date" id="fHasta" /></label>
+        <label>Cuenta <select id="fCuenta"><option value="">Todas</option></select></label>
+        <label>Centro de costo <select id="fCentro"><option value="">Todos</option></select></label>
+        <button id="btnAplicar" class="fin-btn primary">Aplicar filtros</button>
+        <div class="fin-export">
+          <button class="fin-btn ghost" data-exp="pdf">PDF</button>
+          <button class="fin-btn ghost" data-exp="xlsx">XLSX</button>
+          <button class="fin-btn ghost" data-exp="docx">DOCX</button>
+        </div>
+      </section>
+      <section id="tab-panel" class="fin-tab active"></section>
+      <section id="tab-asientos" class="fin-tab"></section>
+      <section id="tab-cuentas" class="fin-tab"></section>
+      <section id="tab-informes" class="fin-tab"></section>
+      <section id="tab-cuentasT" class="fin-tab"></section>
+      <section id="tab-margenes" class="fin-tab"></section>
+      <section id="tab-indicadores" class="fin-tab"></section>
+      <section id="tab-qr" class="fin-tab"></section>
+    </main>
+    <div id="finToast" class="fin-toast" role="status" aria-live="polite"></div>`;
 
 /* ---------------- tablas ---------------- */
 function tabla(cols, filas, total) {
@@ -97,7 +125,7 @@ function pie(ctx, w, h, s, color, ink, dona) {
   const cx = w / 2, cy = h / 2, r = Math.min(w, h) * 0.38, tot = s.valores.reduce((a, b) => a + b, 0) || 1;
   let a = -Math.PI / 2;
   s.valores.forEach((v, i) => { const a2 = a + (v / tot) * Math.PI * 2; ctx.fillStyle = COLORES[i % COLORES.length]; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, a, a2); ctx.fill(); a = a2; });
-  if (dona) { ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--fin-card"); ctx.beginPath(); ctx.arc(cx, cy, r * 0.6, 0, 7); ctx.fill(); }
+  if (dona) { ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--fin-card") || "#fff"; ctx.beginPath(); ctx.arc(cx, cy, r * 0.6, 0, 7); ctx.fill(); }
   ctx.fillStyle = ink; ctx.font = "11px system-ui"; ctx.textAlign = "left";
   s.etiquetas.forEach((e, i) => ctx.fillText(`${e}: ${fmt(s.valores[i])}`, 10, h - 12 - (s.etiquetas.length - 1 - i) * 14));
 }
@@ -137,10 +165,10 @@ function chartCard(titulo, datos, opts = {}) {
 
 /* ---------------- exportación ---------------- */
 async function exportar(formato) {
-  const tab = $("#tabs button.active").dataset.tab;
+  const tab = $("#tabs button.active")?.dataset.tab || "panel";
   if (formato === "pdf") { window.print(); return; }
   const cont = $("#tab-" + tab);
-  const filas = $$("#tab-" + tab + " table.fin-tabla tr").map((tr) => $$("td,th", tr).map((c) => c.textContent.trim()));
+  const filas = $$("#tab-" + tab + " table.fin-tabla tr", R).map((tr) => $$("td,th", tr).map((c) => c.textContent.trim()));
   if (formato === "docx") { // Word abre HTML con extensión .doc
     const html = `<html><head><meta charset="utf-8"></head><body><h1>NovaGest · ${tab}</h1>${cont.innerHTML}</body></html>`;
     const a = document.createElement("a");
@@ -152,9 +180,8 @@ async function exportar(formato) {
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, tab);
   XLSX.writeFile(wb, `novagest-${tab}.xlsx`);
 }
-$$(".fin-export button").forEach((b) => (b.onclick = () => exportar(b.dataset.exp)));
 
-/* ---------------- PANEL ---------------- */
+/* ---------------- vistas (pestañas) ---------------- */
 async function loadPanel() {
   const el = $("#tab-panel"); el.innerHTML = "<p class='card'>Cargando…</p>";
   const [er, bg, pe] = await Promise.all([api("/fin/estado-resultados" + qs()), api("/fin/balance-general" + qs()), api("/fin/punto-equilibrio" + qs({ precio: 100, cvu: 60 }))]);
@@ -176,7 +203,6 @@ async function loadPanel() {
   }, { tipos: ["pie", "dona", "bar"], tipo: "dona" }));
 }
 
-/* ---------------- ASIENTOS ---------------- */
 async function loadAsientos() {
   const el = $("#tab-asientos");
   const [a, c, ce] = await Promise.all([api("/fin/asientos" + qs()), api("/fin/cuentas"), api("/fin/centros")]);
@@ -217,7 +243,6 @@ async function loadAsientos() {
   $$("#naTabla [data-del]").forEach((b) => (b.onclick = async () => { await api("/fin/asientos/" + b.dataset.del, { method: "DELETE" }); loadAsientos(); }));
 }
 
-/* ---------------- PLAN DE CUENTAS ---------------- */
 async function loadCuentas() {
   const el = $("#tab-cuentas");
   const [c, ce] = await Promise.all([api("/fin/cuentas"), api("/fin/centros")]);
@@ -237,7 +262,6 @@ async function loadCuentas() {
   $("#nceGuardar").onclick = async () => { const r = await api("/fin/centros", { method: "POST", body: { codigo: $("#nceCod").value, nombre: $("#nceNom").value } }); r.error ? toast(r.error) : (toast("Centro creado"), loadCuentas()); };
 }
 
-/* ---------------- INFORMES ---------------- */
 async function loadInformes() {
   const el = $("#tab-informes");
   const q = qs();
@@ -272,7 +296,6 @@ async function loadInformes() {
   }));
 }
 
-/* ---------------- CUENTAS T Y LIBRO MAYOR ---------------- */
 async function loadCuentasT() {
   const el = $("#tab-cuentasT");
   const [t, c] = await Promise.all([api("/fin/cuentas-t" + qs()), api("/fin/cuentas")]);
@@ -288,7 +311,6 @@ async function loadCuentasT() {
   $("#lmCuenta").onchange = lm; lm();
 }
 
-/* ---------------- MÁRGENES Y RATIOS ---------------- */
 async function loadMargenes() {
   const el = $("#tab-margenes");
   const [m, r] = await Promise.all([api("/fin/margenes" + qs()), api("/fin/ratios" + qs())]);
@@ -304,12 +326,11 @@ async function loadMargenes() {
     series: [{ nombre: "Bruto", valores: (m.evolucion || []).map((e) => e.margen_bruto) }, { nombre: "Operativo", valores: (m.evolucion || []).map((e) => e.margen_operativo) }, { nombre: "Neto", valores: (m.evolucion || []).map((e) => e.margen_neto) }],
   }, { tipos: ["line", "area", "bar", "radar"] }));
   el.appendChild(chartCard("Radar de ratios", {
-    etiquetas: r.ratios.map((x) => x.nombre.split(" ")[0]),
+    etiquetas: r.ratios.map((x) => x.nombre),
     series: [{ nombre: "Ratios", valores: r.ratios.map((x) => x.valor ?? 0), etiquetas: r.ratios.map((x) => x.nombre) }],
   }, { tipos: ["radar", "line"] }));
 }
 
-/* ---------------- INDICADORES WEB/APP ---------------- */
 const IND_INFO = {
   cac: ["CAC — Costo de adquisición de cliente", "Gasto en marketing / clientes nuevos. Decide si un canal de adquisición es rentable: CAC debe ser < LTV/3."],
   tasa_conversion: ["Tasa de conversión", "Compras / visitantes × 100. Decide si invertir en mejorar la web o en atraer más tráfico."],
@@ -347,7 +368,6 @@ async function loadIndicadores() {
   }, { tipos: ["heatmap", "bar"] }));
 }
 
-/* ---------------- QR DE COBRO ---------------- */
 async function loadQr() {
   const el = $("#tab-qr");
   const cfg = await api("/fin/qr");
@@ -375,8 +395,35 @@ async function loadQr() {
   };
 }
 
-/* ---------------- carga por pestaña ---------------- */
+/* ---------------- montaje ---------------- */
 const LOADERS = { panel: loadPanel, asientos: loadAsientos, cuentas: loadCuentas, informes: loadInformes, cuentasT: loadCuentasT, margenes: loadMargenes, indicadores: loadIndicadores, qr: loadQr };
 function loadTab(t) { (LOADERS[t] || loadPanel)(); }
 
-cargarFiltros().then(() => loadTab("panel"));
+function filtros() { return { desde: $("#fDesde").value, hasta: $("#fHasta").value, cuenta: $("#fCuenta").value, centro: $("#fCentro").value }; }
+function qs(extra = {}) { const p = new URLSearchParams({ ...filtros(), ...extra }); return "?" + p.toString(); }
+
+async function cargarFiltros() {
+  const c = await api("/fin/cuentas"), ce = await api("/fin/centros");
+  $("#fCuenta").innerHTML = '<option value="">Todas</option>' + c.cuentas.map((x) => `<option value="${x.id}">${x.codigo} · ${x.nombre}</option>`).join("");
+  $("#fCentro").innerHTML = '<option value="">Todos</option>' + ce.centros.map((x) => `<option value="${x.id}">${x.nombre}</option>`).join("");
+}
+
+/** Monta el módulo completo dentro de `root`: vista #finanzas de la app o página propia. */
+export function montarFinanzas(root) {
+  R = root;
+  root.innerHTML = ESQUELETO;
+  $$("#tabs button").forEach((b) => (b.onclick = () => {
+    $$("#tabs button").forEach((x) => x.classList.toggle("active", x === b));
+    $$(".fin-tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + b.dataset.tab));
+    loadTab(b.dataset.tab);
+  }));
+  $("#btnAplicar").onclick = () => loadTab($("#tabs button.active").dataset.tab);
+  $$(".fin-export button").forEach((b) => (b.onclick = () => exportar(b.dataset.exp)));
+  cargarFiltros().then(() => loadTab("panel"));
+}
+
+// Página independiente (financiero.html): solo se monta ahí si existe su contenedor.
+// Página independiente (financiero.html, body.fin-body): solo ahí se auto-monta.
+// Dentro de la app (#finanzas) lo monta app.js con montarFinanzas(#fin-root).
+const esPaginaPropia = typeof document !== "undefined" && !!document.body && String(document.body.className || "").includes("fin-body");
+if (esPaginaPropia) montarFinanzas(document.getElementById("fin-root"));
