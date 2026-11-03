@@ -14,7 +14,9 @@ html.dark {
 .fin-brand h1 { font-size: 1.05rem; margin: 0; }
 .fin-brand p { margin: 0; color: var(--fin-mut); font-size: .8rem; }
 .fin-top-actions { display: flex; gap: .5rem; }
-.fin-tabs { display: flex; gap: .35rem; padding: .6rem 1.25rem; overflow-x: auto; background: var(--fin-card); border-bottom: 1px solid var(--fin-line); position: sticky; top: 64px; z-index: 4; }
+.fin-tabs { display: flex; gap: .35rem; padding: .6rem 1.25rem; overflow-x: auto; background: var(--fin-card); border-bottom: 1px solid var(--fin-line); position: sticky; top: 0; z-index: 6; margin-bottom: 1.25rem; box-shadow: 0 10px 24px rgba(20, 16, 60, .10); scrollbar-width: thin; }
+.fin-tabs::-webkit-scrollbar { height: 6px; }
+.fin-body .fin-tabs { top: 65px; }
 .fin-tabs button { border: 1px solid var(--fin-line); background: transparent; color: var(--fin-mut); padding: .45rem .9rem; border-radius: 999px; cursor: pointer; white-space: nowrap; transition: all .2s; }
 .fin-tabs button.active { background: var(--fin-grad); color: #fff; border-color: transparent; box-shadow: 0 4px 14px rgba(109, 92, 255, .35); }
 .fin-main { padding: 1.25rem; max-width: 1200px; margin: 0 auto; display: grid; gap: 1rem; }
