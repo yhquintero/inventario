@@ -1921,7 +1921,7 @@ DELTA_KEEP = int(os.environ.get("DELTA_KEEP_VERSIONS", "400"))
 
 def _record_hash(rec):
     """Huella estable de un registro (claves ordenadas) para saber si cambió."""
-    return hashlib.sha1(json.dumps(rec, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:20]
+    return hashlib.sha256(json.dumps(rec, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:20]  # SHA-256 (antes SHA-1, escáner 2026)
 
 
 def index_state_changes(state, ver):
@@ -2596,7 +2596,7 @@ def migrar_anclajes():
     with _lock:
         for nombre, tipo in nuevas.items():
             if nombre not in columnas:
-                CON.execute(f"ALTER TABLE audit_anchors ADD COLUMN {nombre} {tipo}")
+                CON.execute(f"ALTER TABLE audit_anchors ADD COLUMN {nombre} {tipo}")  # nosec: columnas de migración internas, no entrada de usuario
         CON.commit()
 
 

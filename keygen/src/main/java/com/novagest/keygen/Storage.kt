@@ -46,7 +46,15 @@ data class HistoryItem(
 }
 
 class HistoryStore(context: Context) {
-    private val prefs = context.getSharedPreferences("keygen_history", Context.MODE_PRIVATE)
+    // Escáner 2026 (AND-003): el historial guarda CLAVES DE LICENCIA -> cifrado con
+    // EncryptedSharedPreferences (AES256-SIV/GCM, clave en el Android Keystore).
+    private val prefs = EncryptedSharedPreferences.create(
+        context,
+        "keygen_history",
+        MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
 
     fun all(): List<HistoryItem> = runCatching {
         val arr = JSONArray(prefs.getString("items", "[]") ?: "[]")

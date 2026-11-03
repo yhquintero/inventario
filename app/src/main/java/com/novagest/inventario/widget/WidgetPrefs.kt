@@ -21,7 +21,7 @@ object WidgetPrefs {
 
     fun guardar(context: Context, datos: WidgetData) {
         context.applicationContext
-            .getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getSharedPreferences(FILE, Context.MODE_PRIVATE) // nosec: preferencias de UI (impresora/recordatorios/widget), sin datos personales
             .edit()
             .putString(K_NEGOCIO, datos.businessName)
             .putLong(K_VENTA, (datos.ventasHoyUsd * 100).toLong())
@@ -35,7 +35,7 @@ object WidgetPrefs {
     }
 
     fun leer(context: Context): WidgetData {
-        val p = context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val p = context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE) // nosec: preferencias de UI (impresora/recordatorios/widget), sin datos personales
         // Sin datos todavía: el widget invita a abrir la app en vez de enseñar ceros engañosos.
         if (!p.contains(K_VENTA)) return WidgetData()
         return WidgetData(
@@ -51,6 +51,6 @@ object WidgetPrefs {
     }
 
     fun borrar(context: Context) {
-        context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().clear().apply()
+        context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE) // nosec: preferencias de UI (impresora/recordatorios/widget), sin datos personales.edit().clear().apply()
     }
 }

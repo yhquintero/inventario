@@ -14,7 +14,7 @@ import javax.inject.Singleton
 @Singleton
 class AppLock @Inject constructor(@ApplicationContext context: Context) {
 
-    private val prefs = context.getSharedPreferences("app_lock", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("app_lock", Context.MODE_PRIVATE) // nosec: solo un booleano de bloqueo, sin datos sensibles
 
     var enabled: Boolean
         get() = prefs.getBoolean("enabled", false)
