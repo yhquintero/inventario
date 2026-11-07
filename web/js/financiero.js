@@ -411,10 +411,44 @@ async function cargarFiltros() {
   $("#fCentro").innerHTML = '<option value="">Todos</option>' + ce.centros.map((x) => `<option value="${x.id}">${esc(x.nombre)}</option>`).join("");
 }
 
+/** Fija la barra de pestañas debajo de la topbar fija mientras se hace scroll en .content.
+ *  El sticky de CSS es la primera opción, pero cualquier ancestro con overflow (o una
+ *  caché vieja del CSS) lo rompe; este ajuste a `position: fixed` garantiza que siempre
+ *  quede pegada justo debajo de la barra superior dentro de la app. */
+function fijarTabsEnApp(root) {
+  const scroller = root.closest?.(".content");
+  if (!scroller) return; // página propia (financiero.html): allí el sticky CSS ya funciona
+  const tabs = root.querySelector(".fin-tabs");
+  const topbar = document.querySelector(".topbar");
+  if (!tabs || !topbar) return;
+  let alto = 0;
+  const barra = () => topbar.getBoundingClientRect().bottom;
+  const actualizar = () => {
+    const limite = barra();
+    const r = tabs.getBoundingClientRect();
+    if (!tabs.classList.contains("stuck") && r.top <= limite + 1) {
+      alto = tabs.offsetHeight;
+      tabs.classList.add("stuck");
+      tabs.style.top = limite + "px";
+      tabs.style.left = r.left + "px";
+      tabs.style.width = r.width + "px";
+      root.style.paddingTop = alto + "px";
+    } else if (tabs.classList.contains("stuck") && root.getBoundingClientRect().top >= limite - 1) {
+      tabs.classList.remove("stuck");
+      tabs.style.top = tabs.style.left = tabs.style.width = "";
+      root.style.paddingTop = "";
+    }
+  };
+  scroller.addEventListener("scroll", actualizar, { passive: true });
+  window.addEventListener("resize", actualizar);
+  actualizar();
+}
+
 /** Monta el módulo completo dentro de `root`: vista #finanzas de la app o página propia. */
 export function montarFinanzas(root) {
   R = root;
   root.innerHTML = ESQUELETO;
+  fijarTabsEnApp(root);
   $$("#tabs button").forEach((b) => (b.onclick = () => {
     $$("#tabs button").forEach((x) => x.classList.toggle("active", x === b));
     $$(".fin-tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + b.dataset.tab));
