@@ -15,6 +15,10 @@ html.dark {
 .fin-brand p { margin: 0; color: var(--fin-mut); font-size: .8rem; }
 .fin-top-actions { display: flex; gap: .5rem; }
 .fin-tabs { display: flex; gap: .35rem; padding: .6rem 1.25rem; overflow-x: auto; background: var(--fin-card); border-bottom: 1px solid var(--fin-line); position: sticky; top: 0; z-index: 6; margin-bottom: 1.25rem; box-shadow: 0 10px 24px rgba(20, 16, 60, .10); scrollbar-width: thin; }
+/* Dentro de la app (#finanzas): el scroller es .content y la topbar queda fuera de él,
+   así que top: 0 la fija exactamente debajo de la barra superior; los datos pasan por debajo. */
+.content .fin-tabs { top: 0; }
+.fin-view, #fin-root { overflow: visible; }
 .fin-tabs::-webkit-scrollbar { height: 6px; }
 .fin-body .fin-tabs { top: 65px; }
 .fin-tabs button { border: 1px solid var(--fin-line); background: transparent; color: var(--fin-mut); padding: .45rem .9rem; border-radius: 999px; cursor: pointer; white-space: nowrap; transition: all .2s; }
