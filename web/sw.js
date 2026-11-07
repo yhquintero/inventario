@@ -23,8 +23,10 @@
    v12: Dashboard interactivo y nuevos recursos de categorías (renueva el caché del cliente).
    v13: solicitud de licencia con consentimiento visible y accesible en el flujo de WhatsApp.
    v14: aviso de activación explícita; ya no se ofrece una prueba automática.
-   v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos. */
-const CACHE = "novagest-v40";
+   v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos.
+   v41: la barra de pestañas de #finanzas queda fija debajo de la topbar también con JS
+        (position: fixed dinámico), por si el sticky de CSS falla con cachés viejas. */
+const CACHE = "novagest-v41";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js",

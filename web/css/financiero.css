@@ -19,6 +19,9 @@ html.dark {
    así que top: 0 la fija exactamente debajo de la barra superior; los datos pasan por debajo. */
 .content .fin-tabs { top: 0; }
 .fin-view, #fin-root { overflow: visible; }
+/* Estado "pegado" aplicado por JS (fijarTabsEnApp) cuando el sticky falla: la barra
+   queda fija exactamente debajo de la topbar de la app. */
+.fin-tabs.stuck { position: fixed; z-index: 30; margin-bottom: 0; border-bottom: 1px solid var(--fin-line); }
 .fin-tabs::-webkit-scrollbar { height: 6px; }
 .fin-body .fin-tabs { top: 65px; }
 .fin-tabs button { border: 1px solid var(--fin-line); background: transparent; color: var(--fin-mut); padding: .45rem .9rem; border-radius: 999px; cursor: pointer; white-space: nowrap; transition: all .2s; }
