@@ -118,7 +118,7 @@ export const CATEGORIES = {
   "General": { img: null, color: "#2dd4bf", icon: "box" },
 };
 
-export const CURRENCIES = ["USD", "EUR", "MXN", "MLC", "CAD"];
+export const CURRENCIES = ["USD", "EUR", "MLC", "CAD", "MXN", "ZELLE", "CLA"];
 
 export function weekRange(iso = todayISO()) {
   const d = new Date(iso + "T12:00:00");

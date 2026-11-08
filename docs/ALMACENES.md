@@ -36,6 +36,19 @@ contener saldos incorrectos de versiones previas: conviene revisarlos, pues no s
 corrigen automáticamente. Haga una copia antes de actualizar. Para llenar los nuevos
 almacenes, importe los valores reales por municipio.
 
+### Datos de demostración
+
+En **Almacenes → Llenar con datos de prueba** se puede confirmar una carga de
+cantidades ficticias para el catálogo compartido en todos los almacenes salvo el
+principal. Usa el stock principal como referencia cuando existe y genera cantidades
+para el resto; no crea productos nuevos ni cambia precios. Omite productos con saldo,
+saldo inicial o movimientos en el destino. No representa mercancía física y modifica
+los totales y la disponibilidad de venta: úsela solo en una base de pruebas. Haga una
+copia antes de aplicarla. Cada almacén recibe una entrada «DEMOSTRACIÓN»; puede
+revertirse en Entradas mientras ninguna de sus existencias haya cambiado ni tenga
+movimientos posteriores. De lo contrario, revise los movimientos y ajuste el
+inventario manualmente.
+
 ## 1. Crear un almacén por su nombre
 
 1. Menú **Almacenes** → **＋ Nuevo almacén**.

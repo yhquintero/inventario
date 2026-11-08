@@ -1026,6 +1026,18 @@ class Store {
     return list.length ? list[list.length - 1].rate : (currency === "USD" ? this.state.settings.defaultCupUsd : 0);
   }
 
+  importEltoqueRates(data) {
+    if (!can(this.state.session?.role, "EXCHANGE_EDIT")) return { error: "Tu rol no puede modificar tasas." };
+    const currencies = ["USD", "EUR", "MLC", "CAD", "MXN", "ZELLE", "CLA"];
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data?.date || "") || !data.publishedAt ||
+        currencies.some((c) => !Number.isFinite(data.rates?.[c]) || data.rates[c] <= 0)) {
+      return { error: "La fuente no devolvió tasas completas y válidas." };
+    }
+    const note = `elTOQUE · mercado informal · publicado ${data.publishedAt} · ${data.source}`;
+    for (const currency of currencies) this.saveRate({ currency, rate: data.rates[currency], date: data.date, note });
+    return { ok: true, count: currencies.length, date: data.date };
+  }
+
   saveRate({ id, currency, rate, date, note }) {
     rate = Number(rate);
     if (!(rate > 0)) return { error: "La tasa debe ser mayor que cero." };
@@ -1540,6 +1552,34 @@ class Store {
     return { ok: true, from: from.name, to: to.name, qty: q };
   }
 
+  /** Datos ficticios: reutiliza el catálogo, nunca modifica el principal ni existencias previas. */
+  populateDemoWarehouses() {
+    if (!can(this.state.session?.role, "VALUES_IMPORT")) return { error: "Tu rol no puede importar valores." };
+    const source = this.defaultWarehouse();
+    if (!source) return { error: "No hay almacén principal." };
+    const products = this.activeProducts();
+    const used = new Set(this.state.movements.filter((m) => m.productId && m.warehouseId)
+      .map((m) => `${m.warehouseId}\u0000${m.productId}`));
+    let changed = 0, warehouses = 0;
+    for (const w of this.warehousesActive()) {
+      if (w.id === source.id) continue;
+      const rows = products.filter((p) => !used.has(`${w.id}\u0000${p.id}`) &&
+        !Number(p.stocks?.[w.id] || 0) && !Number(p.stocksInicial?.[w.id] || 0))
+        .map((p, i) => {
+          const base = this.stockIn(p, source.id);
+          // Cantidades simuladas, no representan mercancía física.
+          return { name: p.name, stock: base > 0 ? Math.max(1, Math.min(25, Math.ceil(base / 2))) : 1 + (i % 8) };
+        });
+      if (!rows.length) continue;
+      const rep = this.applyWarehouseImport({ warehouseId: w.id, rows, mode: "completar",
+        source: "DEMOSTRACIÓN", note: "Existencias ficticias; no usar como inventario real" });
+      if (rep.error) return rep;
+      changed += rep.existencias || 0;
+      if (rep.entryId) warehouses++;
+    }
+    return { ok: true, changed, warehouses };
+  }
+
   /**
    * Importa valores al almacén elegido.
    * mode = "sobrescribir" (por defecto) | "completar" (solo rellena lo vacío).
@@ -1642,6 +1682,13 @@ class Store {
     const e = (this.state.warehouseEntries || []).find((x) => x.id === id);
     if (!e) return { error: "Entrada no encontrada." };
     if (e.undoneAt) return { error: "Esa entrada ya se había deshecho." };
+    if (e.source === "DEMOSTRACIÓN" && (e.items || []).some((it) => {
+      if (it.field !== "stock") return false;
+      const p = this.state.products.find((x) => x.id === it.productId);
+      const wid = it.warehouseId || e.warehouseId;
+      return !p || this.state.movements.some((m) => m.productId === it.productId && m.warehouseId === wid) ||
+        Math.abs(this.stockIn(p, wid) - Number(it.new)) > 1e-9;
+    })) return { error: "No se puede deshacer la demostración: alguna existencia cambió o tiene movimientos posteriores. Revisa los movimientos y corrige el inventario manualmente." };
     const who = this.state.session?.displayName || "sistema";
     const errs = [];
     for (const it of [...(e.items || [])].reverse()) {

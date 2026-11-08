@@ -1934,8 +1934,9 @@ function financeView() {
   const rates = [...store.state.rates].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
   const curs = [...new Set([...CURRENCIES, ...rates.map((r) => r.currency)])];
   return `
-    <div class="kpis">${curs.slice(0, 4).map((c) => kpi(`1 ${c} =`, `${store.rateOn(c) || "—"} CUP`, "vigente hoy", "teal")).join("")}</div>
-    <div class="row mv14">${canEdit ? `<button class="btn" data-act="new-rate">＋ Registrar tasa</button>` : ""}<button class="btn ghost" data-htab-go="monedas">Ver tabla por día</button></div>
+    <div class="kpis">${curs.map((c) => kpi(`1 ${esc(c)} =`, `${store.rateOn(c) || "—"} CUP`, "última registrada", "teal")).join("")}</div>
+    <div class="row mv14">${canEdit ? `<button class="btn" data-act="new-rate">＋ Registrar tasa</button><button class="btn gold" data-act="eltoque-update" ${ui.loadingEltoque ? "disabled" : ""}>${ui.loadingEltoque ? "Consultando…" : "↻ Actualizar desde elTOQUE"}</button>` : ""}<button class="btn ghost" data-htab-go="monedas">Ver tabla por día</button></div>
+    <p class="hint">Referencia del mercado informal, no tasa oficial. La consulta requiere conexión del servidor; elTOQUE puede bloquearla. Se guardan las siete tasas en la fecha publicada y se reemplazan las de esa misma fecha.</p>
     <div class="card table-wrap flush">
       <table><thead><tr><th>Fecha</th><th>Moneda</th><th class="r">Valor en CUP</th><th>Nota</th><th>Usuario</th>${canEdit ? "<th></th>" : ""}</tr></thead>
       <tbody>${rates.map((r) => `<tr><td>${formatDate(r.date)}</td><td><span class="tag mov">${esc(r.currency)}</span></td><td class="mono r">${r.rate}</td><td>${esc(r.note || "")}</td><td class="hint">${esc(r.userName || "")}</td>${canEdit ? `<td class="actions"><button class="icon-btn" data-edit-rate="${r.id}">✎</button><button class="icon-btn danger" data-del-rate="${r.id}">🗑</button></td>` : ""}</tr>`).join("")}</tbody></table>
@@ -3533,9 +3534,10 @@ function warehousesView() {
       <div class="row">
         ${canEdit ? `<button class="btn" data-act="wh-new">＋ Nuevo almacén</button>` : ""}
         ${canEdit && whs.length > 1 && active ? `<button class="btn ghost" data-wh-tr="${active.id}">⇄ Traspaso</button>` : ""}
-        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button>` : ""}
+        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button><button class="btn ghost" data-act="wh-demo">Llenar con datos de prueba</button>` : ""}
       </div>
     </div>
+    ${(store.state.warehouseEntries || []).some((e) => e.source === "DEMOSTRACIÓN" && !e.undoneAt) ? `<div class="banner info">Hay existencias de demostración ficticias en uno o más almacenes. No representan mercancía real. Revise Entradas antes de operar.</div>` : ""}
     <div class="kpis">
       ${kpi("Almacenes", whs.length, canEdit ? "Crea tantos como necesites" : "Solo lectura", "teal")}
       ${kpi("Ítems con existencia", tot.items, `De ${store.activeProducts().length} productos`, "blue")}
@@ -5156,6 +5158,15 @@ function onClick(e) {
   else if (act === "pinar-select-all") { if (ui.pinarImport) ui.pinarImport.records.forEach((record) => { record.selected = true; }); pinarImportModal(); render(); }
   else if (act === "pinar-select-none") { if (ui.pinarImport) ui.pinarImport.records.forEach((record) => { record.selected = false; }); pinarImportModal(); render(); }
   else if (act === "pinar-import-selected") importPinarSelected();
+  else if (act === "wh-demo") {
+    if (!allowed("VALUES_IMPORT")) return toast("Tu rol no puede importar valores.", "err");
+    confirmModal("<b>Datos de demostración, no mercancía real.</b> Se generarán cantidades ficticias del catálogo compartido en todos los almacenes salvo el principal. Se omitirán existencias y movimientos ya registrados; las cifras afectarán los totales y permitirán ventas. Haz una copia antes de continuar. ¿Deseas aplicarlo?", () => {
+      const r = store.populateDemoWarehouses();
+      if (r.error) return toast(r.error, "err");
+      toast(`Demostración: ${r.changed} existencias en ${r.warehouses} almacenes. Revisa Entradas.`, "ok");
+      render();
+    });
+  }
   else if (act === "wh-new") { warehouseModal(); render(); }
   else if (act === "iv-go") { const st = ivState(); st.warehouseId = store.activeWarehouseId(); navTo("importValues"); }
   else if (act === "iv-analyze") {
@@ -5380,6 +5391,17 @@ function onClick(e) {
   else if (act === "back-login") { ui.recover = false; ui.question = null; ui.recNeed2fa = false; ui.pending2fa = null; ui.loginErr = null; render(); }
   else if (act === "new-product") { productModal(null); render(); }
   else if (act === "new-movement") { movementModal(); render(); }
+  else if (act === "eltoque-update") {
+    if (!allowed("EXCHANGE_EDIT") || ui.loadingEltoque) return;
+    ui.loadingEltoque = true;
+    render();
+    api("/exchange/eltoque", { timeout: 20000 }).then((data) => {
+      if (data.error || !data.ok) return toast(data.error || "No se pudo consultar elTOQUE.", "err");
+      const result = store.importEltoqueRates(data);
+      if (result.error) return toast(result.error, "err");
+      toast(`${result.count} tasas de elTOQUE registradas para ${result.date}.`, "ok");
+    }).catch(() => toast("No se pudo consultar elTOQUE.", "err")).finally(() => { ui.loadingEltoque = false; render(); });
+  }
   else if (act === "new-rate") { rateModal(); render(); }
   else if (act === "new-user") { userModal(); render(); }
   else if (act === "rm-img") { ui.pendingImage = null; const img = $(".img-pick .thumb"); if (img) img.outerHTML = `<span class="thumb ph th72">∅</span>`; }
