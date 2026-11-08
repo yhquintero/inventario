@@ -5,7 +5,7 @@ export const RATE_RANGES = { "30d": 30, "90d": 90, "180d": 180, "365d": 365, all
 export function rateSource(rate) {
   const note = String(rate?.note || "").trim();
   if (/^eltoque\s*·/i.test(note)) return "elTOQUE";
-  if (/^diviza\s*·/i.test(note)) return "Diviza";
+  if (/^divi[sz]a\s*·/i.test(note)) return "Divisa";
   return "Otras";
 }
 

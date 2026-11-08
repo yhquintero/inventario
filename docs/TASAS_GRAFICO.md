@@ -7,8 +7,9 @@ también pueden aparecer: verifique la nota antes de interpretarlas como reales.
 
 Se pueden seleccionar USD, EUR, MLC, CAD, MXN, ZELLE y CLA; períodos de 30, 90,
 180 o 365 días, o todo el historial disponible; y la fuente indicada en la nota.
-El filtro de fuente clasifica los prefijos `elTOQUE ·` y `Diviza ·`; lo demás se
-incluye en «Manuales y Excel». Esta clasificación refleja la nota guardada, no
+El filtro de fuente clasifica los prefijos `elTOQUE ·` y `Divisa ·`; también
+reconoce los registros antiguos con el nombre `Diviza ·` como Divisa, sin
+modificar sus notas. Lo demás se incluye en «Manuales y Excel». Esta clasificación refleja la nota guardada, no
 una verificación independiente de procedencia. La tabla desplegable muestra las
 observaciones y las notas. Los puntos indican valores registrados y las líneas
 unen observaciones consecutivas de la misma fuente, sin asegurar valores entre

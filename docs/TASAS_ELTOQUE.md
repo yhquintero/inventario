@@ -19,22 +19,29 @@ Las tasas escritas en ejemplos y pruebas no son valores actuales. Pruebas locale
 La visualización del historial local y sus límites se describen en
 [TASAS_GRAFICO.md](TASAS_GRAFICO.md); no se descarga el histórico de elTOQUE.
 
-## Alternativa gratuita: Diviza
+## Alternativa gratuita: Divisa
 
-El botón **Consultar Diviza gratis** lee desde el servidor la página pública
-[Diviza](https://cubadivisas.com/) y muestra las tasas informales disponibles, la
+El botón **Consultar Divisa gratis** lee desde el servidor la página pública
+[Divisa](https://cubadivisas.com/) y muestra las tasas informales disponibles, la
 fecha y hora declaradas por la fuente y los valores del mismo día que se van a
-reemplazar. Solo se guardan tras confirmar. Diviza es una fuente independiente;
-los registros se identifican como Diviza, no como elTOQUE. No es una tasa oficial.
+reemplazar. Solo se guardan tras confirmar. Divisa es una fuente independiente;
+los registros se identifican como Divisa, no como elTOQUE. No es una tasa oficial.
 
 Se aceptan USD, EUR, MLC, CAD, MXN, ZELLE y CLA únicamente si la propia sección
-informal los publica y son válidos. Por ejemplo, si Diviza no publica MXN informal,
+informal los publica y son válidos. Por ejemplo, si Divisa no publica MXN informal,
 no se usa el MXN oficial: se conserva la tasa anterior y se muestra como no
 actualizado. Si falta USD, no se puede verificar la fecha o esta supera 48 horas,
-no se importan valores. Diviza puede modificar su formato o bloquear solicitudes;
+no se importan valores. Divisa puede modificar su formato o bloquear solicitudes;
 en ese caso se informa el error y no se cambian los datos. El servidor necesita
-acceso HTTPS a `cubadivisas.com`; la biblioteca `tzdata` de `requirements.txt`
-permite interpretar la fecha de Cuba en sistemas sin zona horaria instalada.
+acceso HTTPS a `cubadivisas.com`. Para interpretar la hora cubana se usa la base
+horaria del sistema o el paquete `tzdata` instalado en el Python del servidor.
+Si ninguno está disponible, se usa la copia `server/tzdata/Havana.tzif` incluida
+con NovaGest, que contempla horario de verano. Mantenga NovaGest y los datos de
+zona horaria actualizados, pues las normas de Cuba pueden cambiar. Si aparece un
+error al cargar la zona, compruebe que ese archivo se copió junto al servidor o
+instale `tzdata` en el mismo entorno Python (`python -m pip install tzdata`) y
+reinicie el servidor. Las horas ambiguas o inexistentes por cambios de horario se
+rechazan, al igual que las tasas antiguas o futuras.
 
 Otras fuentes para comparar manualmente: [Directorio Cubano](https://www.directoriocubano.info/cadeca/)
 y el [Banco Central de Cuba](https://www.bc.gob.cu/tasas-de-cambio), cuyas tasas

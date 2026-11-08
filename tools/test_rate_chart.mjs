@@ -12,8 +12,8 @@ const { buildRateSeries, rateSource } = await import(pathToFileURL(join(tmp, "ra
 const rows = [
   {currency:"USD",date:"2026-10-01",rate:700,note:"Excel",createdAt:1},
   {currency:"USD",date:"2026-11-01",rate:900,note:"elTOQUE · mercado informal",createdAt:1},
-  {currency:"USD",date:"2026-11-01",rate:920,note:"Diviza · mercado informal",createdAt:2},
-  {currency:"EUR",date:"2026-11-02",rate:990,note:"Diviza · mercado informal",createdAt:3},
+  {currency:"USD",date:"2026-11-01",rate:920,note:"Divisa · mercado informal",createdAt:2},
+  {currency:"EUR",date:"2026-11-02",rate:990,note:"Divisa · mercado informal",createdAt:3},
   {currency:"MLC",date:"2026-11-08",rate:726.72,note:"manual",createdAt:4},
   {currency:"USD",date:"2026-11-09",rate:999,note:"futuro"},
   {currency:"USD",date:"2026-02-30",rate:800},
@@ -25,13 +25,16 @@ const chart = buildRateSeries(rows, { endDate:"2026-11-08", range:"all", currenc
 assert.equal(chart.points.length, 4);
 assert.deepEqual(chart.byCurrency.USD.map((p) => p.rate), [700, 920]);
 assert.equal(chart.from, "2026-10-01"); assert.equal(chart.to, "2026-11-08");
-assert.equal(chart.byCurrency.USD[1].source, "Diviza");
+assert.equal(chart.byCurrency.USD[1].source, "Divisa");
 assert.equal(buildRateSeries(rows, { endDate:"2026-11-08",range:"30d",currencies:["USD"] }).points.length, 1);
 assert.equal(buildRateSeries(rows, { endDate:"2026-11-08",source:"elTOQUE",currencies:["USD"] }).points[0].rate, 900);
-assert.equal(buildRateSeries(rows, { endDate:"2026-11-08",source:"Diviza",currencies:["MLC"] }).points.length, 0);
+assert.equal(buildRateSeries(rows, { endDate:"2026-11-08",source:"Divisa",currencies:["MLC"] }).points.length, 0);
 assert.equal(buildRateSeries(rows, { endDate:"2026-11-08",currencies:[] }).points.length, 0);
 assert.equal(buildRateSeries(rows, { endDate:"2026-02-30" }).points.length, 0);
-assert.equal(rateSource({note:"Diviza · mercado informal"}), "Diviza");
+assert.equal(rateSource({note:"Divisa · mercado informal"}), "Divisa");
+assert.equal(rateSource({note:"Diviza · mercado informal"}), "Divisa");
+assert.equal(buildRateSeries([{currency:"USD", date:"2026-11-08", rate:100, note:"Diviza · antiguo"}],
+  {endDate:"2026-11-08", source:"Divisa"}).points.length, 1);
 assert.equal(rateSource({note:"nota de elTOQUE"}), "Otras");
 assert.equal(JSON.stringify(rows), before);
 console.log("✔ Gráfico de tasas: períodos, fuentes, duplicados y datos sin inventar");

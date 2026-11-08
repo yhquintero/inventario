@@ -1938,7 +1938,7 @@ function ratesChart() {
   const data = buildRateSeries(store.state.rates, { endDate: todayISO(), range, source, currencies: selected });
   const ranges = [["30d", "30 días"], ["90d", "90 días"], ["180d", "180 días"], ["365d", "1 año"], ["all", "Todo"]];
   const controls = `<div class="rate-chart-controls"><div class="chips" role="group" aria-label="Período de tasas">${ranges.map(([key, label]) => `<button type="button" class="chip ${range === key ? "on" : ""}" data-rate-range="${key}" aria-pressed="${range === key}">${label}</button>`).join("")}</div>
-    <label class="dashboard-control"><span>Fuente según el registro</span><select id="rateChartSource" aria-label="Fuente de las tasas"><option value="all" ${source === "all" ? "selected" : ""}>Todas</option><option value="elTOQUE" ${source === "elTOQUE" ? "selected" : ""}>elTOQUE</option><option value="Diviza" ${source === "Diviza" ? "selected" : ""}>Diviza</option><option value="Otras" ${source === "Otras" ? "selected" : ""}>Manuales y Excel</option></select></label></div>
+    <label class="dashboard-control"><span>Fuente según el registro</span><select id="rateChartSource" aria-label="Fuente de las tasas"><option value="all" ${source === "all" ? "selected" : ""}>Todas</option><option value="elTOQUE" ${source === "elTOQUE" ? "selected" : ""}>elTOQUE</option><option value="Divisa" ${source === "Divisa" ? "selected" : ""}>Divisa</option><option value="Otras" ${source === "Otras" ? "selected" : ""}>Manuales y Excel</option></select></label></div>
     <div class="rate-legend" role="group" aria-label="Monedas visibles">${RATE_CHART_CURRENCIES.map((c) => `<button type="button" class="rate-legend-button rate-${c.toLowerCase()} ${selected.includes(c) ? "on" : ""}" data-rate-currency="${c}" aria-pressed="${selected.includes(c)}"><span aria-hidden="true" class="rate-swatch"></span>${esc(c)}</button>`).join("")}</div>`;
   let chart = `<div class="empty rate-empty">No hay tasas guardadas para esta selección. Prueba otro período o registra tasas.</div>`;
   if (data.points.length) {
@@ -1985,9 +1985,9 @@ function financeView() {
   const curs = [...new Set([...CURRENCIES, ...rates.map((r) => r.currency)])];
   return `
     <div class="kpis">${curs.map((c) => kpi(`1 ${esc(c)} =`, `${store.rateOn(c) || "—"} CUP`, "última registrada", "teal")).join("")}</div>
-    <div class="row mv14">${canEdit ? `<button class="btn" data-act="new-rate">＋ Registrar tasa</button><button class="btn gold" data-act="eltoque-update" ${ui.loadingEltoque ? "disabled" : ""}>${ui.loadingEltoque ? "Consultando…" : "↻ Actualizar desde elTOQUE"}</button><button class="btn ghost" data-act="diviza-update" ${ui.loadingDiviza ? "disabled" : ""}>${ui.loadingDiviza ? "Consultando Diviza…" : "↻ Consultar Diviza gratis"}</button>` : ""}<button class="btn ghost" data-htab-go="monedas">Ver tabla por día</button></div>
-    <p class="hint">Referencias del mercado informal, no tasas oficiales. Diviza es una fuente gratuita independiente: revisa sus valores antes de aplicarlos. Si una moneda no aparece, se conserva la tasa anterior. La consulta necesita conexión a Internet desde el servidor.</p>
-    <p class="hint">Otras fuentes gratuitas para comparar: <a href="https://cubadivisas.com/" target="_blank" rel="noopener noreferrer">Diviza</a> · <a href="https://www.directoriocubano.info/cadeca/" target="_blank" rel="noopener noreferrer">Directorio Cubano</a> · <a href="https://www.bc.gob.cu/tasas-de-cambio" target="_blank" rel="noopener noreferrer">Banco Central de Cuba (tasas oficiales)</a>.</p>
+    <div class="row mv14">${canEdit ? `<button class="btn" data-act="new-rate">＋ Registrar tasa</button><button class="btn gold" data-act="eltoque-update" ${ui.loadingEltoque ? "disabled" : ""}>${ui.loadingEltoque ? "Consultando…" : "↻ Actualizar desde elTOQUE"}</button><button class="btn ghost" data-act="diviza-update" ${ui.loadingDiviza ? "disabled" : ""}>${ui.loadingDiviza ? "Consultando Divisa…" : "↻ Consultar Divisa gratis"}</button>` : ""}<button class="btn ghost" data-htab-go="monedas">Ver tabla por día</button></div>
+    <p class="hint">Referencias del mercado informal, no tasas oficiales. Divisa es una fuente gratuita independiente: revisa sus valores antes de aplicarlos. Si una moneda no aparece, se conserva la tasa anterior. La consulta necesita conexión a Internet desde el servidor.</p>
+    <p class="hint">Otras fuentes gratuitas para comparar: <a href="https://cubadivisas.com/" target="_blank" rel="noopener noreferrer">Divisa</a> · <a href="https://www.directoriocubano.info/cadeca/" target="_blank" rel="noopener noreferrer">Directorio Cubano</a> · <a href="https://www.bc.gob.cu/tasas-de-cambio" target="_blank" rel="noopener noreferrer">Banco Central de Cuba (tasas oficiales)</a>.</p>
     ${ui.divizaNotice ? `<div class="banner info">${esc(ui.divizaNotice)}</div>` : ""}
     ${ratesChart()}
     <div class="card table-wrap flush mt16">
@@ -5456,20 +5456,20 @@ function onClick(e) {
     ui.divizaNotice = null;
     render();
     api("/exchange/diviza", { timeout: 20000 }).then((data) => {
-      if (data.error || !data.ok) return toast(data.error || "No se pudo consultar Diviza.", "err");
+      if (data.error || !data.ok) return toast(data.error || "No se pudo consultar Divisa.", "err");
       const rates = data.rates || {};
       const missing = CURRENCIES.filter((c) => !Object.hasOwn(rates, c));
       const rows = CURRENCIES.filter((c) => Object.hasOwn(rates, c)).map((c) => {
         const prior = store.state.rates.find((r) => r.currency === c && r.date === data.date);
         return `${esc(c)}: ${esc(String(rates[c]))} CUP${prior ? ` (guardada ese día: ${esc(String(prior.rate))})` : ""}`;
       }).join("<br>");
-      confirmModal(`<b>Diviza · mercado informal</b><br>Publicado: ${esc(data.publishedAt)}<br>Se reemplazarán las tasas registradas para la misma fecha.<br>${rows}<br>${missing.length ? `No publicadas por Diviza: <b>${esc(missing.join(", "))}</b>. No se modificarán.` : ""}<br>¿Aplicar estas referencias?`, () => {
+      confirmModal(`<b>Divisa · mercado informal</b><br>Publicado: ${esc(data.publishedAt)}<br>Se reemplazarán las tasas registradas para la misma fecha.<br>${rows}<br>${missing.length ? `No publicadas por Divisa: <b>${esc(missing.join(", "))}</b>. No se modificarán.` : ""}<br>¿Aplicar estas referencias?`, () => {
         const result = store.importDivizaRates(data);
         if (result.error) return toast(result.error, "err");
-        ui.divizaNotice = `Diviza: ${result.count} tasas registradas para ${result.date}.${result.missing.length ? ` Sin actualizar: ${result.missing.join(", ")}.` : ""}`;
+        ui.divizaNotice = `Divisa: ${result.count} tasas registradas para ${result.date}.${result.missing.length ? ` Sin actualizar: ${result.missing.join(", ")}.` : ""}`;
         toast(ui.divizaNotice, "ok");
       });
-    }).catch(() => toast("No se pudo consultar Diviza.", "err")).finally(() => { ui.loadingDiviza = false; render(); });
+    }).catch(() => toast("No se pudo consultar Divisa.", "err")).finally(() => { ui.loadingDiviza = false; render(); });
   }
   else if (act === "eltoque-update") {
     if (!allowed("EXCHANGE_EDIT") || ui.loadingEltoque) return;
