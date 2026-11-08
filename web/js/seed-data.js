@@ -13,32 +13,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "SACO DE CEMENTO GRIS P350",
@@ -50,32 +25,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 25,
-      "stocksInicial": {
-        "PRI": 193,
-        "SJM": 193,
-        "SLU": 193,
-        "CON": 193,
-        "VIN": 193,
-        "GUA": 193,
-        "MAN": 193,
-        "LAP": 193,
-        "LOS": 193,
-        "BAH": 193,
-        "SAN": 193
-      },
-      "stocks": {
-        "PRI": 193,
-        "SJM": 193,
-        "SLU": 193,
-        "CON": 193,
-        "VIN": 193,
-        "GUA": 193,
-        "MAN": 193,
-        "LAP": 193,
-        "LOS": 193,
-        "BAH": 193,
-        "SAN": 193
-      }
+      "stockInicial": 193
     },
     {
       "name": "BATERIA 5K MUST",
@@ -87,32 +37,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "BATERIA HUMSIENK 24V 200AMP",
@@ -124,32 +49,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "BATERIA DE 12V 100A JMD",
@@ -161,32 +61,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 4,
-      "stocksInicial": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      },
-      "stocks": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      }
+      "stockInicial": 4
     },
     {
       "name": "BATERIA DE 12V 150A SACO",
@@ -198,32 +73,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "BATERIA EXTRA 16K SACO",
@@ -235,32 +85,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "BASE PARA PANELES GRANDES",
@@ -272,32 +97,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 8,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "BASE PARA PANELES",
@@ -309,32 +109,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "BASE FIJA PARA TV 32'' - 86''",
@@ -346,32 +121,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "BASE GIRATORIA",
@@ -383,32 +133,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "BASE PARA SPLIT",
@@ -420,32 +145,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "BATERIA 15K MUST",
@@ -457,32 +157,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "BREKE 63A SENCILLO",
@@ -494,32 +169,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "BATERIA MUST 10.25 KW",
@@ -531,32 +181,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "BREKE 63A DOBLE TIR",
@@ -568,32 +193,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "BREKE 32A DOBLE",
@@ -605,32 +205,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "BOCINA BOOM 8 PULGADAS",
@@ -642,32 +217,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "BOCINA MILEXUS 8 PULGADAS",
@@ -679,32 +229,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "BOCINA MILEXUS 6 DUAL",
@@ -716,32 +241,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "BOMBA DE AGUA SILVER POINT 1 HP",
@@ -753,32 +253,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": -1,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "BOMBA DE AGUA SILVER POINT 1X1/2",
@@ -790,32 +265,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": -1,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "BICICLETA INFANTIL",
@@ -827,32 +277,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "BICICLETA INFANTIL 20",
@@ -864,32 +289,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 6,
-      "stocksInicial": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      },
-      "stocks": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      }
+      "stockInicial": 4
     },
     {
       "name": "BICICLETA 26 WH008-5",
@@ -901,32 +301,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 5,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "BICICLETA 26 BC012",
@@ -938,32 +313,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 5,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "BICICLETA 26 WH003-4",
@@ -975,32 +325,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "BICICLETA 16 023",
@@ -1012,32 +337,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 4,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "BICICLETA 26 CD021",
@@ -1049,32 +349,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "BICICLETA ELECTRICA",
@@ -1086,32 +361,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "CONECTORES MC4",
@@ -1123,32 +373,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "CAJITA DECODIFICADORA ATEC",
@@ -1160,32 +385,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 5,
-      "stocksInicial": {
-        "PRI": 10,
-        "SJM": 10,
-        "SLU": 10,
-        "CON": 10,
-        "VIN": 10,
-        "GUA": 10,
-        "MAN": 10,
-        "LAP": 10,
-        "LOS": 10,
-        "BAH": 10,
-        "SAN": 10
-      },
-      "stocks": {
-        "PRI": 10,
-        "SJM": 10,
-        "SLU": 10,
-        "CON": 10,
-        "VIN": 10,
-        "GUA": 10,
-        "MAN": 10,
-        "LAP": 10,
-        "LOS": 10,
-        "BAH": 10,
-        "SAN": 10
-      }
+      "stockInicial": 10
     },
     {
       "name": "CAJA DE DISTRIBUCION DE 8 VIAS",
@@ -1197,32 +397,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "CAJA DE DISTRIBUCION DE 12 VIAS",
@@ -1234,32 +409,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "CAJA DE HERRAMIENTAS 13PCS",
@@ -1271,32 +421,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 10,
-      "stocksInicial": {
-        "PRI": 12,
-        "SJM": 12,
-        "SLU": 12,
-        "CON": 12,
-        "VIN": 12,
-        "GUA": 12,
-        "MAN": 12,
-        "LAP": 12,
-        "LOS": 12,
-        "BAH": 12,
-        "SAN": 12
-      },
-      "stocks": {
-        "PRI": 12,
-        "SJM": 12,
-        "SLU": 12,
-        "CON": 12,
-        "VIN": 12,
-        "GUA": 12,
-        "MAN": 12,
-        "LAP": 12,
-        "LOS": 12,
-        "BAH": 12,
-        "SAN": 12
-      }
+      "stockInicial": 12
     },
     {
       "name": "COLCHON PERSONAL",
@@ -1308,32 +433,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "COLCHON EKO",
@@ -1345,32 +445,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "CAJAS DE AZULEJOS 44X44 2.5 M",
@@ -1382,32 +457,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "CAFETERA 3 TASAS",
@@ -1419,32 +469,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "CAFETERA ELECTRICA ESPRESO 800W",
@@ -1456,32 +481,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 4,
-      "stocksInicial": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      },
-      "stocks": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      }
+      "stockInicial": 5
     },
     {
       "name": "CAFETERA ELECTRICA RUDENKOV",
@@ -1493,32 +493,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": -1,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 7,
-        "SJM": 7,
-        "SLU": 7,
-        "CON": 7,
-        "VIN": 7,
-        "GUA": 7,
-        "MAN": 7,
-        "LAP": 7,
-        "LOS": 7,
-        "BAH": 7,
-        "SAN": 7
-      },
-      "stocks": {
-        "PRI": 7,
-        "SJM": 7,
-        "SLU": 7,
-        "CON": 7,
-        "VIN": 7,
-        "GUA": 7,
-        "MAN": 7,
-        "LAP": 7,
-        "LOS": 7,
-        "BAH": 7,
-        "SAN": 7
-      }
+      "stockInicial": 7
     },
     {
       "name": "CALENTADOR 80 L",
@@ -1530,32 +505,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 4,
-      "stocksInicial": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      },
-      "stocks": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      }
+      "stockInicial": 5
     },
     {
       "name": "CALENTADOR 50 L",
@@ -1567,32 +517,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "DISPENSSDOR DE AGUA ROYAL",
@@ -1604,32 +529,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "ESTACION ENERGIA 6000 W",
@@ -1641,32 +541,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "ESTACION ENERGIA PECRON 2400W",
@@ -1678,32 +553,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "ESTACION ENERGIA ECOFLOW DELTA 2",
@@ -1715,32 +565,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "ESTACION ENERGIA ECOFLOW DELTA 3",
@@ -1752,32 +577,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "ESTACION MUST 6000 W",
@@ -1789,32 +589,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "ESTACION MUST 2K CON 2.7K",
@@ -1826,32 +601,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "ESCRITORIO",
@@ -1863,32 +613,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "ESTACION ECOFLOW DELTA 2 1800W",
@@ -1900,32 +625,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "KIT DE INSTALACION",
@@ -1937,32 +637,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "EXHIBIDOR HORIZONTAL 7P EKO",
@@ -1974,32 +649,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "EXHIBIDOR VERTICAL SANKEY 8P",
@@ -2011,32 +661,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "EXHIBIDOR MILEXUS 390 L 14PIES",
@@ -2048,32 +673,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "EXHIBIDOR DOBLE MILEXUS 560 LITROS",
@@ -2085,32 +685,7 @@ export const SEED = {
       "observaciones": "BAJA",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "ENFRIADOR DE AIRE ALL NOVU",
@@ -2122,32 +697,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "ENFRIADOR DE AIRE ALL NOVU DOBLE",
@@ -2159,32 +709,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "EQUIPO DE MUSICA LG",
@@ -2196,32 +721,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "EQUIPO DE MUSICA LG GRANDE",
@@ -2233,32 +733,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": -1,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "ESCALERA DE 6 ESCALONES",
@@ -2270,32 +745,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "ESCALERA DE 4 ESCALONES",
@@ -2307,32 +757,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "ESTANTES",
@@ -2344,32 +769,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 4,
-      "stocksInicial": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      },
-      "stocks": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      }
+      "stockInicial": 4
     },
     {
       "name": "FOGON DE PETROLEO",
@@ -2381,32 +781,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": -1,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "FOGON DE GAS DE CRISTAL",
@@ -2418,32 +793,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "FOGON DE GAS SENCILLO",
@@ -2455,32 +805,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "FOGON DE GAS 2 QUEMADORES CRISTAL",
@@ -2492,32 +817,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "FOGON DE GAS 3 QUEMADORES",
@@ -2529,32 +829,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "FOGON INDUCCION MILEXUS 1200 W",
@@ -2566,32 +841,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "FOGON INFRARROJO MAF 2000 W",
@@ -2603,32 +853,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "FOGON INFRARROJO ROYAL 1500 W",
@@ -2640,32 +865,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "FOGON INFRARROJO EKO 1500 W",
@@ -2677,32 +877,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "FILTRO DE AGUA",
@@ -2714,32 +889,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": -1,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "FREIDORA DE AIRE JMD 4 L",
@@ -2751,32 +901,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "FREIDORA DE AIRE MILEXUS NEGRA 4.2L",
@@ -2788,32 +913,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "INVERSOR 4K ENERGIA FUTURA",
@@ -2825,32 +925,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "INVERSOR 4K SUMRY",
@@ -2862,32 +937,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "INVERSOR POWER MR 6.2K 220V",
@@ -2899,32 +949,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "INVERSOR POWER MR 6.5K",
@@ -2936,32 +961,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "INVERSOR 12K MUST",
@@ -2973,32 +973,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "INVERSOR MUST 3000 W",
@@ -3010,32 +985,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "INVERSOR 6K MUST",
@@ -3047,32 +997,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "LAMPARA RECARGABLE DE 50 CM",
@@ -3084,32 +1009,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 10,
-      "stocksInicial": {
-        "PRI": 10,
-        "SJM": 10,
-        "SLU": 10,
-        "CON": 10,
-        "VIN": 10,
-        "GUA": 10,
-        "MAN": 10,
-        "LAP": 10,
-        "LOS": 10,
-        "BAH": 10,
-        "SAN": 10
-      },
-      "stocks": {
-        "PRI": 10,
-        "SJM": 10,
-        "SLU": 10,
-        "CON": 10,
-        "VIN": 10,
-        "GUA": 10,
-        "MAN": 10,
-        "LAP": 10,
-        "LOS": 10,
-        "BAH": 10,
-        "SAN": 10
-      }
+      "stockInicial": 10
     },
     {
       "name": "LAMPARA SOLAR 800W",
@@ -3121,32 +1021,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "LAMPARA SOLAR 1000W",
@@ -3158,32 +1033,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "LAMPARA DE 100W CON PANEL",
@@ -3195,32 +1045,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 4,
-      "stocksInicial": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      },
-      "stocks": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      }
+      "stockInicial": 4
     },
     {
       "name": "LAMPARA DE 360 W CON PANEL INTEGRADO",
@@ -3232,32 +1057,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "LAMPARA DE 300 W CON PANEL INTEGRADO",
@@ -3269,32 +1069,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "LAMPARA DE 200 W CON PANEL INDEPENDIENTE",
@@ -3306,32 +1081,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "LAMPARA DE 300 W CON PANEL INDEPENDIENTE",
@@ -3343,32 +1093,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "LAVADORA SECADORA AUTOMÁTICA MILEXUS 10 KG",
@@ -3380,32 +1105,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "LAVADORA PREMIER AUTOMÁTICA 11 KG",
@@ -3417,32 +1117,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "LAVADORA EKO 7 KG SEMI",
@@ -3454,32 +1129,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "LAVADORA 7 KG MILEXUS SEMI.",
@@ -3491,32 +1141,7 @@ export const SEED = {
       "observaciones": "ROTAS",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "LAVADORA 10 KG AUTOMATICA SANKEY",
@@ -3528,32 +1153,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "LAVADORA 7.5 AUTOMA MILEXUS",
@@ -3565,32 +1165,7 @@ export const SEED = {
       "observaciones": "1 ROTA",
       "diferencia": 0,
       "stockFinal": 4,
-      "stocksInicial": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      },
-      "stocks": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      }
+      "stockInicial": 4
     },
     {
       "name": "LAVADORA 7 KG EKO SEMI",
@@ -3602,32 +1177,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "LAVADORA 9 KG MILEXUS SEMI",
@@ -3639,32 +1189,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 6,
-      "stocksInicial": {
-        "PRI": 7,
-        "SJM": 7,
-        "SLU": 7,
-        "CON": 7,
-        "VIN": 7,
-        "GUA": 7,
-        "MAN": 7,
-        "LAP": 7,
-        "LOS": 7,
-        "BAH": 7,
-        "SAN": 7
-      },
-      "stocks": {
-        "PRI": 7,
-        "SJM": 7,
-        "SLU": 7,
-        "CON": 7,
-        "VIN": 7,
-        "GUA": 7,
-        "MAN": 7,
-        "LAP": 7,
-        "LOS": 7,
-        "BAH": 7,
-        "SAN": 7
-      }
+      "stockInicial": 7
     },
     {
       "name": "LAVADORA 8 KG CHALLENGER SEMI",
@@ -3676,32 +1201,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 9,
-      "stocksInicial": {
-        "PRI": 9,
-        "SJM": 9,
-        "SLU": 9,
-        "CON": 9,
-        "VIN": 9,
-        "GUA": 9,
-        "MAN": 9,
-        "LAP": 9,
-        "LOS": 9,
-        "BAH": 9,
-        "SAN": 9
-      },
-      "stocks": {
-        "PRI": 9,
-        "SJM": 9,
-        "SLU": 9,
-        "CON": 9,
-        "VIN": 9,
-        "GUA": 9,
-        "MAN": 9,
-        "LAP": 9,
-        "LOS": 9,
-        "BAH": 9,
-        "SAN": 9
-      }
+      "stockInicial": 9
     },
     {
       "name": "LAVADORA 9 KG SAMSUNG AUTOMATICA",
@@ -3713,32 +1213,7 @@ export const SEED = {
       "observaciones": "1 ROTA",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "LICUADORA MILEXUS 300W PLASTICA 2 EN 1",
@@ -3750,32 +1225,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "LICUADORA ROYAL PLASTICA 2 EN 1",
@@ -3787,32 +1237,7 @@ export const SEED = {
       "observaciones": "ROTA",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "LICUADORA MILEXUS 400 W CRISTAL",
@@ -3824,32 +1249,7 @@ export const SEED = {
       "observaciones": "ROTAS",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "LICUADORA MILEXUS 550W CRISTAL",
@@ -3861,32 +1261,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 5,
-      "stocksInicial": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      },
-      "stocks": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      }
+      "stockInicial": 5
     },
     {
       "name": "LUZ LED EXTERIORES 100 W",
@@ -3898,32 +1273,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 8,
-      "stocksInicial": {
-        "PRI": 8,
-        "SJM": 8,
-        "SLU": 8,
-        "CON": 8,
-        "VIN": 8,
-        "GUA": 8,
-        "MAN": 8,
-        "LAP": 8,
-        "LOS": 8,
-        "BAH": 8,
-        "SAN": 8
-      },
-      "stocks": {
-        "PRI": 8,
-        "SJM": 8,
-        "SLU": 8,
-        "CON": 8,
-        "VIN": 8,
-        "GUA": 8,
-        "MAN": 8,
-        "LAP": 8,
-        "LOS": 8,
-        "BAH": 8,
-        "SAN": 8
-      }
+      "stockInicial": 8
     },
     {
       "name": "LUZ LED EXTERIORES 200 W",
@@ -3935,32 +1285,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "LUCES SOLARES PEQUEÑAS",
@@ -3972,32 +1297,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "MICROONDAS 20 L MILEXUS",
@@ -4009,32 +1309,7 @@ export const SEED = {
       "observaciones": "1 ROTO",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      },
-      "stocks": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      }
+      "stockInicial": 4
     },
     {
       "name": "MICROONDAS 20 L EKO",
@@ -4046,32 +1321,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "MICROONDAS 20 L PREMIER",
@@ -4083,32 +1333,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "MINIBAR MILEXUS",
@@ -4120,32 +1345,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "HORNO ELECTRICO EKO 22L",
@@ -4157,32 +1357,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "MAQUINA DE CONTAR DINERO SAKO",
@@ -4194,32 +1369,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "MAQUINA DE CONTAR DINERO KRISHNA",
@@ -4231,32 +1381,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "MESCLADORA AMASADORA",
@@ -4268,32 +1393,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "MALETA DE CUBO 24PCS",
@@ -4305,32 +1405,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 5,
-      "stocksInicial": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      },
-      "stocks": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      }
+      "stockInicial": 5
     },
     {
       "name": "MALETA DE CUBO 172PCS",
@@ -4342,32 +1417,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      },
-      "stocks": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      }
+      "stockInicial": 4
     },
     {
       "name": "NEVERA ROYAL 3.5",
@@ -4379,32 +1429,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA ENERLIFE 5.5",
@@ -4416,32 +1441,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA ROYAL 7.8 220L",
@@ -4453,32 +1453,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "NEVERA ROYAL 5.5 P",
@@ -4490,32 +1465,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA 6 PIES MILEXUS 170L",
@@ -4527,32 +1477,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA 7 PIES MILEXUS 200L",
@@ -4564,32 +1489,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA MILEXUS 3.5 PIES 100L",
@@ -4601,32 +1501,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA SANKEY 9 P",
@@ -4638,32 +1513,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA MILEXUS 4.2",
@@ -4675,32 +1525,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 26,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA 7 PIES HISENSE 200L",
@@ -4712,32 +1537,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA MILEXUS 11.2 PIES",
@@ -4749,32 +1549,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA 10 PIES ROYAL",
@@ -4786,32 +1561,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA 20 PIES MILEXUS",
@@ -4823,32 +1573,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "NEVERA 8.8 PIES MILEXUS 250 L",
@@ -4860,32 +1585,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "HIDROLAVADORA ROYAL",
@@ -4897,32 +1597,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "HERRAJES PARA BAÑO",
@@ -4934,32 +1609,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 49,
-      "stocksInicial": {
-        "PRI": 49,
-        "SJM": 49,
-        "SLU": 49,
-        "CON": 49,
-        "VIN": 49,
-        "GUA": 49,
-        "MAN": 49,
-        "LAP": 49,
-        "LOS": 49,
-        "BAH": 49,
-        "SAN": 49
-      },
-      "stocks": {
-        "PRI": 49,
-        "SJM": 49,
-        "SLU": 49,
-        "CON": 49,
-        "VIN": 49,
-        "GUA": 49,
-        "MAN": 49,
-        "LAP": 49,
-        "LOS": 49,
-        "BAH": 49,
-        "SAN": 49
-      }
+      "stockInicial": 49
     },
     {
       "name": "OLLA ARROCERA 2.2 L MILEXUS",
@@ -4971,32 +1621,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      },
-      "stocks": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      }
+      "stockInicial": 5
     },
     {
       "name": "OLLA ARROCERA 1.8 L EKO",
@@ -5008,32 +1633,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 5,
-      "stocksInicial": {
-        "PRI": 8,
-        "SJM": 8,
-        "SLU": 8,
-        "CON": 8,
-        "VIN": 8,
-        "GUA": 8,
-        "MAN": 8,
-        "LAP": 8,
-        "LOS": 8,
-        "BAH": 8,
-        "SAN": 8
-      },
-      "stocks": {
-        "PRI": 8,
-        "SJM": 8,
-        "SLU": 8,
-        "CON": 8,
-        "VIN": 8,
-        "GUA": 8,
-        "MAN": 8,
-        "LAP": 8,
-        "LOS": 8,
-        "BAH": 8,
-        "SAN": 8
-      }
+      "stockInicial": 8
     },
     {
       "name": "OLLA ARROCERA 1.8 L WYNWOOD",
@@ -5045,32 +1645,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "OLLA ARROCERA 1.8 L ELECSTAR",
@@ -5082,32 +1657,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "OLLA ARROCERA 0.6 L MILEXUS",
@@ -5119,32 +1669,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "OLLA DE PRESION 5 L INDUCCION BRYDERK",
@@ -5156,32 +1681,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "OLLA DE PRESION 7 L ELECSTAR",
@@ -5193,32 +1693,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "OLLA REINA 7 L ESTELECTRIC",
@@ -5230,32 +1705,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "OLLA REINA CHALLENGER 7L",
@@ -5267,32 +1717,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "OLLA REINA 6 L NIZATO",
@@ -5304,32 +1729,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 6,
-        "SJM": 6,
-        "SLU": 6,
-        "CON": 6,
-        "VIN": 6,
-        "GUA": 6,
-        "MAN": 6,
-        "LAP": 6,
-        "LOS": 6,
-        "BAH": 6,
-        "SAN": 6
-      },
-      "stocks": {
-        "PRI": 6,
-        "SJM": 6,
-        "SLU": 6,
-        "CON": 6,
-        "VIN": 6,
-        "GUA": 6,
-        "MAN": 6,
-        "LAP": 6,
-        "LOS": 6,
-        "BAH": 6,
-        "SAN": 6
-      }
+      "stockInicial": 6
     },
     {
       "name": "OLLA REINA WYNWOOD",
@@ -5341,32 +1741,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "OLLA REINA EON 6L",
@@ -5378,32 +1753,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "JUEGO CALDERO EON",
@@ -5415,32 +1765,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "JUEGO DE MESA Y SILLAS",
@@ -5452,32 +1777,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "JUEGO DE VAJILLAS",
@@ -5489,32 +1789,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 16,
-      "stocksInicial": {
-        "PRI": 16,
-        "SJM": 16,
-        "SLU": 16,
-        "CON": 16,
-        "VIN": 16,
-        "GUA": 16,
-        "MAN": 16,
-        "LAP": 16,
-        "LOS": 16,
-        "BAH": 16,
-        "SAN": 16
-      },
-      "stocks": {
-        "PRI": 16,
-        "SJM": 16,
-        "SLU": 16,
-        "CON": 16,
-        "VIN": 16,
-        "GUA": 16,
-        "MAN": 16,
-        "LAP": 16,
-        "LOS": 16,
-        "BAH": 16,
-        "SAN": 16
-      }
+      "stockInicial": 16
     },
     {
       "name": "JUEGO DE BAÑO",
@@ -5526,32 +1801,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "JUEGO DE LLAVE/CUBO 37PCS",
@@ -5563,32 +1813,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 4,
-      "stocksInicial": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      },
-      "stocks": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      }
+      "stockInicial": 5
     },
     {
       "name": "JUEGO DE LLAVES 12PCS",
@@ -5600,32 +1825,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 10,
-      "stocksInicial": {
-        "PRI": 10,
-        "SJM": 10,
-        "SLU": 10,
-        "CON": 10,
-        "VIN": 10,
-        "GUA": 10,
-        "MAN": 10,
-        "LAP": 10,
-        "LOS": 10,
-        "BAH": 10,
-        "SAN": 10
-      },
-      "stocks": {
-        "PRI": 10,
-        "SJM": 10,
-        "SLU": 10,
-        "CON": 10,
-        "VIN": 10,
-        "GUA": 10,
-        "MAN": 10,
-        "LAP": 10,
-        "LOS": 10,
-        "BAH": 10,
-        "SAN": 10
-      }
+      "stockInicial": 10
     },
     {
       "name": "JUEGO DE CUBOS 12PCS",
@@ -5637,32 +1837,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 10,
-      "stocksInicial": {
-        "PRI": 10,
-        "SJM": 10,
-        "SLU": 10,
-        "CON": 10,
-        "VIN": 10,
-        "GUA": 10,
-        "MAN": 10,
-        "LAP": 10,
-        "LOS": 10,
-        "BAH": 10,
-        "SAN": 10
-      },
-      "stocks": {
-        "PRI": 10,
-        "SJM": 10,
-        "SLU": 10,
-        "CON": 10,
-        "VIN": 10,
-        "GUA": 10,
-        "MAN": 10,
-        "LAP": 10,
-        "LOS": 10,
-        "BAH": 10,
-        "SAN": 10
-      }
+      "stockInicial": 10
     },
     {
       "name": "JUEGO DE PINZA/DESTORNILLADOR",
@@ -5674,32 +1849,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 12,
-      "stocksInicial": {
-        "PRI": 12,
-        "SJM": 12,
-        "SLU": 12,
-        "CON": 12,
-        "VIN": 12,
-        "GUA": 12,
-        "MAN": 12,
-        "LAP": 12,
-        "LOS": 12,
-        "BAH": 12,
-        "SAN": 12
-      },
-      "stocks": {
-        "PRI": 12,
-        "SJM": 12,
-        "SLU": 12,
-        "CON": 12,
-        "VIN": 12,
-        "GUA": 12,
-        "MAN": 12,
-        "LAP": 12,
-        "LOS": 12,
-        "BAH": 12,
-        "SAN": 12
-      }
+      "stockInicial": 12
     },
     {
       "name": "PUERTA PLEGABLE",
@@ -5711,32 +1861,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "PRESURIZADOR 6 L DAWANG",
@@ -5748,32 +1873,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "PROTECTOR DE LINEA 110V",
@@ -5785,32 +1885,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 5,
-      "stocksInicial": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      },
-      "stocks": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      }
+      "stockInicial": 4
     },
     {
       "name": "PROTECTOR DE LINEA 220V",
@@ -5822,32 +1897,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 5,
-      "stocksInicial": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      },
-      "stocks": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      }
+      "stockInicial": 4
     },
     {
       "name": "PROTECTOR DE VOLTAJE 120V/15A",
@@ -5859,32 +1909,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 5,
-      "stocksInicial": {
-        "PRI": 6,
-        "SJM": 6,
-        "SLU": 6,
-        "CON": 6,
-        "VIN": 6,
-        "GUA": 6,
-        "MAN": 6,
-        "LAP": 6,
-        "LOS": 6,
-        "BAH": 6,
-        "SAN": 6
-      },
-      "stocks": {
-        "PRI": 6,
-        "SJM": 6,
-        "SLU": 6,
-        "CON": 6,
-        "VIN": 6,
-        "GUA": 6,
-        "MAN": 6,
-        "LAP": 6,
-        "LOS": 6,
-        "BAH": 6,
-        "SAN": 6
-      }
+      "stockInicial": 6
     },
     {
       "name": "PANELES 490 W",
@@ -5896,32 +1921,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "PANELES 535 W",
@@ -5933,32 +1933,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 27,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "PANELES 615 W",
@@ -5970,32 +1945,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 12,
-      "stocksInicial": {
-        "PRI": 14,
-        "SJM": 14,
-        "SLU": 14,
-        "CON": 14,
-        "VIN": 14,
-        "GUA": 14,
-        "MAN": 14,
-        "LAP": 14,
-        "LOS": 14,
-        "BAH": 14,
-        "SAN": 14
-      },
-      "stocks": {
-        "PRI": 14,
-        "SJM": 14,
-        "SLU": 14,
-        "CON": 14,
-        "VIN": 14,
-        "GUA": 14,
-        "MAN": 14,
-        "LAP": 14,
-        "LOS": 14,
-        "BAH": 14,
-        "SAN": 14
-      }
+      "stockInicial": 14
     },
     {
       "name": "PANELES 575 W",
@@ -6007,32 +1957,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 22,
-      "stocksInicial": {
-        "PRI": 23,
-        "SJM": 23,
-        "SLU": 23,
-        "CON": 23,
-        "VIN": 23,
-        "GUA": 23,
-        "MAN": 23,
-        "LAP": 23,
-        "LOS": 23,
-        "BAH": 23,
-        "SAN": 23
-      },
-      "stocks": {
-        "PRI": 23,
-        "SJM": 23,
-        "SLU": 23,
-        "CON": 23,
-        "VIN": 23,
-        "GUA": 23,
-        "MAN": 23,
-        "LAP": 23,
-        "LOS": 23,
-        "BAH": 23,
-        "SAN": 23
-      }
+      "stockInicial": 23
     },
     {
       "name": "PANELES 550 W",
@@ -6044,32 +1969,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 88,
-      "stocksInicial": {
-        "PRI": 91,
-        "SJM": 91,
-        "SLU": 91,
-        "CON": 91,
-        "VIN": 91,
-        "GUA": 91,
-        "MAN": 91,
-        "LAP": 91,
-        "LOS": 91,
-        "BAH": 91,
-        "SAN": 91
-      },
-      "stocks": {
-        "PRI": 91,
-        "SJM": 91,
-        "SLU": 91,
-        "CON": 91,
-        "VIN": 91,
-        "GUA": 91,
-        "MAN": 91,
-        "LAP": 91,
-        "LOS": 91,
-        "BAH": 91,
-        "SAN": 91
-      }
+      "stockInicial": 91
     },
     {
       "name": "PESA DIGITAL DAWANG",
@@ -6081,32 +1981,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "ROLLO DE CABLE",
@@ -6118,32 +1993,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "ROLLO DE CABLE ROYAL CORD",
@@ -6155,32 +2005,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "REFRIGERADOR 7 PIES HISENSE",
@@ -6192,32 +2017,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "REFRIGERADOR 7.23 PIES ROYAL",
@@ -6229,32 +2029,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "REFRIGERADOR 20 PIES ROYAL",
@@ -6266,32 +2041,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "REFRIGERADOR 14 PIES HISENSE",
@@ -6303,32 +2053,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "REFRIGERADOR 15.2 PIES MILEXUS",
@@ -6340,32 +2065,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "REFRIGERADOR 11 PIES EKO",
@@ -6377,32 +2077,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "REFRIGERADOR MILEXUS 9 PIES",
@@ -6414,32 +2089,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "REFRIGERADOR 16 PIES EKO",
@@ -6451,32 +2101,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "SET DE INSTALACION",
@@ -6488,32 +2113,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "SISTEMA FELICITY SOLAR 6 K CON 15K",
@@ -6525,32 +2125,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "SANDWICHERA",
@@ -6562,32 +2137,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "SECADORA A VAPOR EKO",
@@ -6599,32 +2149,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 4,
-      "stocksInicial": {
-        "PRI": 6,
-        "SJM": 6,
-        "SLU": 6,
-        "CON": 6,
-        "VIN": 6,
-        "GUA": 6,
-        "MAN": 6,
-        "LAP": 6,
-        "LOS": 6,
-        "BAH": 6,
-        "SAN": 6
-      },
-      "stocks": {
-        "PRI": 6,
-        "SJM": 6,
-        "SLU": 6,
-        "CON": 6,
-        "VIN": 6,
-        "GUA": 6,
-        "MAN": 6,
-        "LAP": 6,
-        "LOS": 6,
-        "BAH": 6,
-        "SAN": 6
-      }
+      "stockInicial": 6
     },
     {
       "name": "SPLIT 2 T 220V MILEXUS",
@@ -6636,32 +2161,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "SUPRESOR AC",
@@ -6673,32 +2173,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "SUPRESOR DC",
@@ -6710,32 +2185,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "SPLIT PANASONIC 1 T INVERTER 220 VOLT",
@@ -6747,32 +2197,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "SPLIT MILEXUS 1 T 110 VOLT",
@@ -6784,32 +2209,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "SPLIT MILEXUS 1 T 220 VOLT",
@@ -6821,32 +2221,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 8,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "SPLIT 1.5 T MILEXUS INVERTER 220V",
@@ -6858,32 +2233,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "SILLA GIRATORIA",
@@ -6895,32 +2245,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "SPLIT 1 T MILEXUS 220 V INVERTER",
@@ -6932,32 +2257,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "TV ROYAL 65",
@@ -6969,32 +2269,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "TV HISENSE 55",
@@ -7006,32 +2281,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "TRANSFER 220V",
@@ -7043,32 +2293,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "TV 43\" NIZATO",
@@ -7080,32 +2305,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "TV 43\" KODAK",
@@ -7117,32 +2317,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "TV 50 SANKEY",
@@ -7154,32 +2329,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "MAQUINA DE FRIO",
@@ -7191,32 +2341,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "TV 32\" MILEXUS",
@@ -7228,32 +2353,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "TV SANKEY 40",
@@ -7265,32 +2365,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "TV 32\" ROYAL",
@@ -7302,32 +2377,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      },
-      "stocks": {
-        "PRI": 4,
-        "SJM": 4,
-        "SLU": 4,
-        "CON": 4,
-        "VIN": 4,
-        "GUA": 4,
-        "MAN": 4,
-        "LAP": 4,
-        "LOS": 4,
-        "BAH": 4,
-        "SAN": 4
-      }
+      "stockInicial": 4
     },
     {
       "name": "TUBO DE LUZ LED INTEGRAL T8 SACO",
@@ -7339,32 +2389,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 9,
-      "stocksInicial": {
-        "PRI": 9,
-        "SJM": 9,
-        "SLU": 9,
-        "CON": 9,
-        "VIN": 9,
-        "GUA": 9,
-        "MAN": 9,
-        "LAP": 9,
-        "LOS": 9,
-        "BAH": 9,
-        "SAN": 9
-      },
-      "stocks": {
-        "PRI": 9,
-        "SJM": 9,
-        "SLU": 9,
-        "CON": 9,
-        "VIN": 9,
-        "GUA": 9,
-        "MAN": 9,
-        "LAP": 9,
-        "LOS": 9,
-        "BAH": 9,
-        "SAN": 9
-      }
+      "stockInicial": 9
     },
     {
       "name": "TOLDO 4X2.5",
@@ -7376,32 +2401,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "TOLDO 3X2",
@@ -7413,32 +2413,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "TOLDO 2X1",
@@ -7450,32 +2425,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "TANQUE GASOLINA 20L",
@@ -7487,32 +2437,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 8,
-      "stocksInicial": {
-        "PRI": 8,
-        "SJM": 8,
-        "SLU": 8,
-        "CON": 8,
-        "VIN": 8,
-        "GUA": 8,
-        "MAN": 8,
-        "LAP": 8,
-        "LOS": 8,
-        "BAH": 8,
-        "SAN": 8
-      },
-      "stocks": {
-        "PRI": 8,
-        "SJM": 8,
-        "SLU": 8,
-        "CON": 8,
-        "VIN": 8,
-        "GUA": 8,
-        "MAN": 8,
-        "LAP": 8,
-        "LOS": 8,
-        "BAH": 8,
-        "SAN": 8
-      }
+      "stockInicial": 8
     },
     {
       "name": "TUBO DE SILICONA",
@@ -7524,32 +2449,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 24,
-      "stocksInicial": {
-        "PRI": 24,
-        "SJM": 24,
-        "SLU": 24,
-        "CON": 24,
-        "VIN": 24,
-        "GUA": 24,
-        "MAN": 24,
-        "LAP": 24,
-        "LOS": 24,
-        "BAH": 24,
-        "SAN": 24
-      },
-      "stocks": {
-        "PRI": 24,
-        "SJM": 24,
-        "SLU": 24,
-        "CON": 24,
-        "VIN": 24,
-        "GUA": 24,
-        "MAN": 24,
-        "LAP": 24,
-        "LOS": 24,
-        "BAH": 24,
-        "SAN": 24
-      }
+      "stockInicial": 24
     },
     {
       "name": "VENTILADOR DE PEDESTAL SAKO",
@@ -7561,32 +2461,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "VENTILADOR DE PARED SILVERAIR",
@@ -7598,32 +2473,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "VENTILADOR DE PARED RECARGABLE",
@@ -7635,32 +2485,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "VENTILADOR DE PARED DAWANG 18",
@@ -7672,32 +2497,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 12,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "VENTILADOR INDUSTRIAL 30 ROYAL",
@@ -7709,32 +2509,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "VENTILADOR RECARGABLE P60",
@@ -7746,32 +2521,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 10,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "VENTILADOR RECARGABLE CHIQUITO DE 40000 MAH F22",
@@ -7783,32 +2533,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 20,
-      "stocksInicial": {
-        "PRI": 20,
-        "SJM": 20,
-        "SLU": 20,
-        "CON": 20,
-        "VIN": 20,
-        "GUA": 20,
-        "MAN": 20,
-        "LAP": 20,
-        "LOS": 20,
-        "BAH": 20,
-        "SAN": 20
-      },
-      "stocks": {
-        "PRI": 20,
-        "SJM": 20,
-        "SLU": 20,
-        "CON": 20,
-        "VIN": 20,
-        "GUA": 20,
-        "MAN": 20,
-        "LAP": 20,
-        "LOS": 20,
-        "BAH": 20,
-        "SAN": 20
-      }
+      "stockInicial": 20
     },
     {
       "name": "VENTILADOR DE TECHO NIZATO",
@@ -7820,32 +2545,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 10,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "VENTILADOR RECARGABLE CON PANEL DAWANG 16",
@@ -7857,32 +2557,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "VENTILADOR RECARGABLE CON PANEL Y LAMPARA",
@@ -7894,32 +2569,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "VENTILADOR DE PEDESTAL DAWANG 18",
@@ -7931,32 +2581,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 15,
-      "stocksInicial": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      },
-      "stocks": {
-        "PRI": 5,
-        "SJM": 5,
-        "SLU": 5,
-        "CON": 5,
-        "VIN": 5,
-        "GUA": 5,
-        "MAN": 5,
-        "LAP": 5,
-        "LOS": 5,
-        "BAH": 5,
-        "SAN": 5
-      }
+      "stockInicial": 5
     },
     {
       "name": "VENTILADOR DE PEDESTAL EKO 16",
@@ -7968,32 +2593,7 @@ export const SEED = {
       "observaciones": "ROTO",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "VENTILADOR DE TECHO ROYAL 56",
@@ -8005,32 +2605,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "VITRINA SANKEY 8P",
@@ -8042,32 +2617,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "RIEL",
@@ -8079,32 +2629,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 7,
-      "stocksInicial": {
-        "PRI": 7,
-        "SJM": 7,
-        "SLU": 7,
-        "CON": 7,
-        "VIN": 7,
-        "GUA": 7,
-        "MAN": 7,
-        "LAP": 7,
-        "LOS": 7,
-        "BAH": 7,
-        "SAN": 7
-      },
-      "stocks": {
-        "PRI": 7,
-        "SJM": 7,
-        "SLU": 7,
-        "CON": 7,
-        "VIN": 7,
-        "GUA": 7,
-        "MAN": 7,
-        "LAP": 7,
-        "LOS": 7,
-        "BAH": 7,
-        "SAN": 7
-      }
+      "stockInicial": 7
     },
     {
       "name": "CONECTOR DE RIEL",
@@ -8116,32 +2641,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "EXPANCIONADORES",
@@ -8153,32 +2653,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 102,
-      "stocksInicial": {
-        "PRI": 102,
-        "SJM": 102,
-        "SLU": 102,
-        "CON": 102,
-        "VIN": 102,
-        "GUA": 102,
-        "MAN": 102,
-        "LAP": 102,
-        "LOS": 102,
-        "BAH": 102,
-        "SAN": 102
-      },
-      "stocks": {
-        "PRI": 102,
-        "SJM": 102,
-        "SLU": 102,
-        "CON": 102,
-        "VIN": 102,
-        "GUA": 102,
-        "MAN": 102,
-        "LAP": 102,
-        "LOS": 102,
-        "BAH": 102,
-        "SAN": 102
-      }
+      "stockInicial": 102
     },
     {
       "name": "PLATINAS",
@@ -8190,32 +2665,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "SUJETADOR EXTERIOR",
@@ -8227,32 +2677,7 @@ export const SEED = {
       "observaciones": "C SUR",
       "diferencia": 0,
       "stockFinal": 34,
-      "stocksInicial": {
-        "PRI": 52,
-        "SJM": 52,
-        "SLU": 52,
-        "CON": 52,
-        "VIN": 52,
-        "GUA": 52,
-        "MAN": 52,
-        "LAP": 52,
-        "LOS": 52,
-        "BAH": 52,
-        "SAN": 52
-      },
-      "stocks": {
-        "PRI": 52,
-        "SJM": 52,
-        "SLU": 52,
-        "CON": 52,
-        "VIN": 52,
-        "GUA": 52,
-        "MAN": 52,
-        "LAP": 52,
-        "LOS": 52,
-        "BAH": 52,
-        "SAN": 52
-      }
+      "stockInicial": 52
     },
     {
       "name": "GANCHO TIERRA",
@@ -8264,32 +2689,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 7,
-      "stocksInicial": {
-        "PRI": 7,
-        "SJM": 7,
-        "SLU": 7,
-        "CON": 7,
-        "VIN": 7,
-        "GUA": 7,
-        "MAN": 7,
-        "LAP": 7,
-        "LOS": 7,
-        "BAH": 7,
-        "SAN": 7
-      },
-      "stocks": {
-        "PRI": 7,
-        "SJM": 7,
-        "SLU": 7,
-        "CON": 7,
-        "VIN": 7,
-        "GUA": 7,
-        "MAN": 7,
-        "LAP": 7,
-        "LOS": 7,
-        "BAH": 7,
-        "SAN": 7
-      }
+      "stockInicial": 7
     },
     {
       "name": "PATAS TRASERAS AJUSTABLES",
@@ -8301,32 +2701,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 38,
-      "stocksInicial": {
-        "PRI": 38,
-        "SJM": 38,
-        "SLU": 38,
-        "CON": 38,
-        "VIN": 38,
-        "GUA": 38,
-        "MAN": 38,
-        "LAP": 38,
-        "LOS": 38,
-        "BAH": 38,
-        "SAN": 38
-      },
-      "stocks": {
-        "PRI": 38,
-        "SJM": 38,
-        "SLU": 38,
-        "CON": 38,
-        "VIN": 38,
-        "GUA": 38,
-        "MAN": 38,
-        "LAP": 38,
-        "LOS": 38,
-        "BAH": 38,
-        "SAN": 38
-      }
+      "stockInicial": 38
     },
     {
       "name": "PATAS DELANTERA AJUSTABLE",
@@ -8338,32 +2713,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 38,
-      "stocksInicial": {
-        "PRI": 38,
-        "SJM": 38,
-        "SLU": 38,
-        "CON": 38,
-        "VIN": 38,
-        "GUA": 38,
-        "MAN": 38,
-        "LAP": 38,
-        "LOS": 38,
-        "BAH": 38,
-        "SAN": 38
-      },
-      "stocks": {
-        "PRI": 38,
-        "SJM": 38,
-        "SLU": 38,
-        "CON": 38,
-        "VIN": 38,
-        "GUA": 38,
-        "MAN": 38,
-        "LAP": 38,
-        "LOS": 38,
-        "BAH": 38,
-        "SAN": 38
-      }
+      "stockInicial": 38
     },
     {
       "name": "SUJETADOR INTERMEDIO",
@@ -8375,32 +2725,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "BICICLETA 26 008-5",
@@ -8412,32 +2737,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "BICICLETA 26 012",
@@ -8449,32 +2749,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "BICICLETA 26 003-4",
@@ -8486,32 +2761,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 1,
-      "stocksInicial": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      },
-      "stocks": {
-        "PRI": 1,
-        "SJM": 1,
-        "SLU": 1,
-        "CON": 1,
-        "VIN": 1,
-        "GUA": 1,
-        "MAN": 1,
-        "LAP": 1,
-        "LOS": 1,
-        "BAH": 1,
-        "SAN": 1
-      }
+      "stockInicial": 1
     },
     {
       "name": "ESTACION ENERGIA PECRON",
@@ -8523,32 +2773,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "EXHIBIDOR HORIZONTAL 13P",
@@ -8560,32 +2785,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "INVERSOR 4K",
@@ -8597,32 +2797,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 3,
-      "stocksInicial": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      },
-      "stocks": {
-        "PRI": 3,
-        "SJM": 3,
-        "SLU": 3,
-        "CON": 3,
-        "VIN": 3,
-        "GUA": 3,
-        "MAN": 3,
-        "LAP": 3,
-        "LOS": 3,
-        "BAH": 3,
-        "SAN": 3
-      }
+      "stockInicial": 3
     },
     {
       "name": "INVERSOR DE 10 K SUNPAL",
@@ -8634,32 +2809,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "INVERSOR 12K SACO",
@@ -8671,32 +2821,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "LAVADORA ENERLIFE 7 KG SEMI",
@@ -8708,32 +2833,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "MICROONDAS 40 L",
@@ -8745,32 +2845,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "PANELES 620 W",
@@ -8782,32 +2857,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "REFRIGERADOR 10 PIES SANKEY",
@@ -8819,32 +2869,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "REFRIGERADOR 11 PIES ROYAL DISPENSADOR",
@@ -8856,32 +2881,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "REFRIGERADOR 16 PIES MILEXUS",
@@ -8893,32 +2893,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "SPLIT 1 T MILEXUS INVERTER",
@@ -8930,32 +2905,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "VENTILADOR RECARGABLE CHIQUITO DE 20000 MAH F6",
@@ -8967,32 +2917,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "VENTILADOR RECARGABLE SANKEY 16",
@@ -9004,32 +2929,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 0,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     },
     {
       "name": "REFRIGERADOR 16 PIES ROYAL",
@@ -9041,32 +2941,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      },
-      "stocks": {
-        "PRI": 2,
-        "SJM": 2,
-        "SLU": 2,
-        "CON": 2,
-        "VIN": 2,
-        "GUA": 2,
-        "MAN": 2,
-        "LAP": 2,
-        "LOS": 2,
-        "BAH": 2,
-        "SAN": 2
-      }
+      "stockInicial": 2
     },
     {
       "name": "INVERSOR POWER MR 6.2K",
@@ -9078,32 +2953,7 @@ export const SEED = {
       "observaciones": "",
       "diferencia": 0,
       "stockFinal": 2,
-      "stocksInicial": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      },
-      "stocks": {
-        "PRI": 0,
-        "SJM": 0,
-        "SLU": 0,
-        "CON": 0,
-        "VIN": 0,
-        "GUA": 0,
-        "MAN": 0,
-        "LAP": 0,
-        "LOS": 0,
-        "BAH": 0,
-        "SAN": 0
-      }
+      "stockInicial": 0
     }
   ],
   "movements": [

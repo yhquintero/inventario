@@ -4,6 +4,23 @@ Módulo nuevo de la Web (v5). Cada almacén guarda **su propia existencia** de c
 producto; el stock total es la suma de todos. Todo lo que entra a un almacén queda
 registrado en **Entradas**, con quién, cuándo y qué valores cambió.
 
+## Almacenes iniciales de Pinar del Río
+
+En una base Web nueva, la primera entrada de un administrador crea un almacén por
+cada municipio de la provincia: Pinar del Río, Consolación del Sur, San Luis,
+San Juan y Martínez, Guane, Mantua, Minas de Matahambre, Viñales, La Palma,
+Los Palacios y Sandino. Pinar del Río es el principal: recibe el catálogo, la
+apertura y los movimientos históricos de `NovaGest SEPT.xlsx`. Sus existencias
+son históricas, no necesariamente actuales.
+
+Los demás almacenes empiezan sin existencias: no se dispone de un inventario completo
+confirmado para cada municipio. El catálogo es compartido, pero el stock es independiente. Use
+**Importar valores** para cargar los ítems y las existencias reales de cada almacén;
+por ejemplo, `PCH.xlsx` permite seleccionar una ubicación y revisar su destino antes
+de aplicarla. Herradura es una ubicación de Consolación del Sur, no otro municipio;
+no se fusiona automáticamente con la sección de Consolación. Las bases ya existentes
+no se modifican ni reciben almacenes o existencias automáticamente.
+
 ## 1. Crear un almacén por su nombre
 
 1. Menú **Almacenes** → **＋ Nuevo almacén**.
