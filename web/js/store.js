@@ -8,6 +8,14 @@ import {
 } from "./calc.js";
 
 const PRICE_FIELDS = ["precioVentaUsd", "precioVenta2Usd", "precioCostoUsd", "comisionCup"];
+// Solo se utiliza al inicializar una base nueva; no modifica almacenes existentes.
+const PINAR_MUNICIPALITIES = [
+  ["PINAR DEL RÍO", "PRI"], ["CONSOLACIÓN DEL SUR", "CON"],
+  ["SAN LUIS", "SLU"], ["SAN JUAN Y MARTÍNEZ", "SJM"],
+  ["GUANE", "GUA"], ["MANTUA", "MAN"], ["MINAS DE MATAHAMBRE", "MIN"],
+  ["VIÑALES", "VIN"], ["LA PALMA", "LAP"], ["LOS PALACIOS", "LOS"],
+  ["SANDINO", "SAN"],
+];
 export const WAREHOUSE_KINDS = { CREACION: "Almacén creado", VALORES: "Valores importados", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Almacén eliminado", DESHACER: "Deshacer" };
 const THEME = "novagest.theme";
 const WAREHOUSE = "novagest.warehouse";
@@ -359,10 +367,12 @@ class Store {
     const admin = { id: s.session?.id, username: s.session?.username || "admin", displayName: s.session?.displayName || "Administrador" };
     const now = Date.now();
     const byName = {};
-    s.warehouses = [{
-      id: WAREHOUSE_DEFAULT_ID, name: "ALMACÉN PRINCIPAL", code: "PRI", location: "", notes: "Se creó al cargar los datos del Excel.",
-      active: true, isDefault: true, createdAt: now, createdBy: admin.displayName, deletedAt: null,
-    }];
+    s.warehouses = PINAR_MUNICIPALITIES.map(([name, code], index) => ({
+      id: index === 0 ? WAREHOUSE_DEFAULT_ID : uid("w"), name, code,
+      location: `${name}, Pinar del Río`,
+      notes: index === 0 ? `Inventario histórico de ${SEED.source}.` : "Sin inventario inicial; importe los valores de este municipio.",
+      active: true, isDefault: index === 0, createdAt: now, createdBy: admin.displayName, deletedAt: null,
+    }));
     s.products = SEED.products.map((p) => {
       const prod = {
         id: uid("p"), name: p.name, category: p.category || categorize(p.name),
@@ -417,12 +427,14 @@ class Store {
       timestamp: now,
     });
     s.settings.theme = this.state.settings.theme;
-    s.warehouseEntries = [{
-      id: uid("e"), ts: now, date: todayISO(), warehouseId: WAREHOUSE_DEFAULT_ID, warehouseName: "ALMACÉN PRINCIPAL",
-      kind: "CREACION", source: "excel", userName: admin.displayName,
-      summary: `Almacén «ALMACÉN PRINCIPAL» creado con los datos del Excel (${s.products.length} productos)`,
-      items: [], counts: { productos: s.products.length }, undoneAt: null,
-    }];
+    s.warehouseEntries = s.warehouses.map((w) => ({
+      id: uid("e"), ts: now, date: todayISO(), warehouseId: w.id, warehouseName: w.name,
+      kind: "CREACION", source: w.isDefault ? "excel" : "sistema", userName: admin.displayName,
+      summary: w.isDefault
+        ? `Almacén «${w.name}» creado con los datos históricos de ${SEED.source} (${s.products.length} productos)`
+        : `Almacén «${w.name}» creado sin existencias; pendiente de importar valores`,
+      items: [], counts: { productos: w.isDefault ? s.products.length : 0 }, undoneAt: null,
+    }));
     this.state = s;
     for (const p of s.products) this.recalcProduct(p.id);
   }
