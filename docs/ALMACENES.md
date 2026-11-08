@@ -18,8 +18,23 @@ confirmado para cada municipio. El catálogo es compartido, pero el stock es ind
 **Importar valores** para cargar los ítems y las existencias reales de cada almacén;
 por ejemplo, `PCH.xlsx` permite seleccionar una ubicación y revisar su destino antes
 de aplicarla. Herradura es una ubicación de Consolación del Sur, no otro municipio;
-no se fusiona automáticamente con la sección de Consolación. Las bases ya existentes
-no se modifican ni reciben almacenes o existencias automáticamente.
+no se fusiona automáticamente con la sección de Consolación.
+
+### Bases existentes
+
+Al actualizar y reiniciar el servidor, se realiza una migración única en SQLite: se
+crean los municipios que faltan con existencia cero y queda registrada su creación en
+Entradas y en la auditoría. Se reconocen los nombres municipales existentes, incluso
+con el prefijo «Almacén»; «Consolación» se reconoce como Consolación del Sur. El
+almacén principal anterior no se identifica automáticamente con ningún municipio ni
+se mueve su mercancía. Si ya existen otros almacenes, se conservan, por lo que puede
+haber más de once en total. Revise las ubicaciones y, si corresponde, use traspasos.
+
+La migración no cambia precios, movimientos ni existencias existentes y no se repite
+al reiniciar, incluso si luego se elimina un almacén. Las bases anteriores pueden
+contener saldos incorrectos de versiones previas: conviene revisarlos, pues no se
+corrigen automáticamente. Haga una copia antes de actualizar. Para llenar los nuevos
+almacenes, importe los valores reales por municipio.
 
 ## 1. Crear un almacén por su nombre
 
