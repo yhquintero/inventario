@@ -325,15 +325,7 @@ function shell(body) {
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema: ${esc(themeLabel(store.state.settings.theme))}" aria-label="Cambiar tema (ahora: ${esc(themeLabel(store.state.settings.theme))})">${themeIcon(store.state.settings.theme)}</button>
         </div>
-        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${ui.route === "finanzas" ? `<div class="topbar-sub-nav">${[
-      "PanelAsientos",
-      "Plan de cuentas",
-      "Estados financieros",
-      "Cuentas T y libro mayor",
-      "Márgenes y ratios",
-      "Indicadores web/app",
-      "QR de cobro"
-    ].map(label => `<a href="#" class="topbar-sub-item">${label}</a>`).join("")}</div>` : ""}${body}${legalFooter(ui.legalData || {})}</div>
+        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</div>
       </section>
     </div>
     ${consentBanner()}
