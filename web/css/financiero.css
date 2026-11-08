@@ -41,6 +41,7 @@ html.dark {
 @keyframes finFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
 table.fin-tabla { width: 100%; border-collapse: collapse; font-size: .86rem; }
 .fin-tabla th { text-align: left; color: var(--fin-mut); font-weight: 600; padding: .5rem .6rem; border-bottom: 2px solid var(--fin-line); position: sticky; top: 0; background: var(--fin-card); }
+.fin-tabla-header th { position: sticky; top: 0; background: var(--fin-card); z-index: 7; }
 .fin-tabla td { padding: .45rem .6rem; border-bottom: 1px solid var(--fin-line); }
 .fin-tabla tr.total td { font-weight: 700; border-top: 2px solid var(--fin-acc); background: rgba(109, 92, 255, .06); }
 .fin-tabla .num { text-align: right; font-variant-numeric: tabular-nums; }

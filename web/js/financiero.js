@@ -73,7 +73,7 @@ function tabla(cols, filas, total) {
   const head = cols.map((c) => `<th class="${c.num ? "num" : ""}">${c.label}</th>`).join("");
   const body = filas.map((f) => `<tr>${cols.map((c) => `<td class="${c.num ? "num" : ""}">${c.render ? c.render(f) : (f[c.key] ?? "")}</td>`).join("")}</tr>`).join("");
   const foot = total ? `<tr class="total">${cols.map((c) => `<td class="${c.num ? "num" : ""}">${c.num ? fmt(total[c.key]) : (c.key === cols[0].key ? "TOTAL" : "")}</td>`).join("")}</tr>` : "";
-  return `<div class="card" style="overflow:auto"><table class="fin-tabla"><thead><tr>${head}</tr></thead><tbody>${body}${foot}</tbody></table></div>`;
+  return `<div class="card" style="overflow:auto"><table class="fin-tabla"><thead><tr class="fin-tabla-header">${head}</tr></thead><tbody>${body}${foot}</tbody></table></div>`;
 }
 
 /* ---------------- gráficos canvas editables ---------------- */
