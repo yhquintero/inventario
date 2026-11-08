@@ -25,6 +25,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if os.path.join(ROOT, "server") not in sys.path:
     sys.path.insert(0, os.path.join(ROOT, "server"))
 import copias_externas
+import eltoque  # noqa: E402
 import financiero  # noqa: E402  · módulo económico-financiero (contabilidad)
 WEB = os.path.join(ROOT, "web")
 DATA = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
@@ -2088,6 +2089,16 @@ def state_get(h, u, _):
         delta = delta_since(estado, r["version"], since)
         return h.send_json(200, {**base, "since": since, "full": False, "unchanged": False, "delta": True, **delta})
     h.send_json(200, {**base, "full": True, "unchanged": False, "state": estado, "deleted": {}, "changed": None, "removed": 0})
+
+
+@route("GET", "/api/exchange/eltoque", roles=ADMINS | {"ECONOMICO"})
+def exchange_eltoque(h, u, _):
+    """Devuelve una referencia validada; no escribe en la base de datos."""
+    try:
+        result = eltoque.fetch_rates()
+    except eltoque.RateError as exc:
+        return h.err(502, str(exc))
+    h.send_json(200, {"ok": True, **result})
 
 
 @route("GET", "/api/state/version")
