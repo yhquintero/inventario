@@ -16,3 +16,27 @@ desde el servidor a `eltoque.com`; no desde el navegador.
 
 Las tasas escritas en ejemplos y pruebas no son valores actuales. Pruebas locales:
 `python3 tools/test_eltoque.py` y `node tools/test_demo_eltoque.mjs`.
+La visualización del historial local y sus límites se describen en
+[TASAS_GRAFICO.md](TASAS_GRAFICO.md); no se descarga el histórico de elTOQUE.
+
+## Alternativa gratuita: Diviza
+
+El botón **Consultar Diviza gratis** lee desde el servidor la página pública
+[Diviza](https://cubadivisas.com/) y muestra las tasas informales disponibles, la
+fecha y hora declaradas por la fuente y los valores del mismo día que se van a
+reemplazar. Solo se guardan tras confirmar. Diviza es una fuente independiente;
+los registros se identifican como Diviza, no como elTOQUE. No es una tasa oficial.
+
+Se aceptan USD, EUR, MLC, CAD, MXN, ZELLE y CLA únicamente si la propia sección
+informal los publica y son válidos. Por ejemplo, si Diviza no publica MXN informal,
+no se usa el MXN oficial: se conserva la tasa anterior y se muestra como no
+actualizado. Si falta USD, no se puede verificar la fecha o esta supera 48 horas,
+no se importan valores. Diviza puede modificar su formato o bloquear solicitudes;
+en ese caso se informa el error y no se cambian los datos. El servidor necesita
+acceso HTTPS a `cubadivisas.com`; la biblioteca `tzdata` de `requirements.txt`
+permite interpretar la fecha de Cuba en sistemas sin zona horaria instalada.
+
+Otras fuentes para comparar manualmente: [Directorio Cubano](https://www.directoriocubano.info/cadeca/)
+y el [Banco Central de Cuba](https://www.bc.gob.cu/tasas-de-cambio), cuyas tasas
+son oficiales y no equivalen a las informales. La disponibilidad, actualización y
+condiciones de uso de servicios externos pueden cambiar.

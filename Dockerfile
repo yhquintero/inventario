@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 WORKDIR /app
-RUN pip install --no-cache-dir cryptography
+RUN pip install --no-cache-dir cryptography tzdata
 COPY server/ server/
 COPY web/ web/
 ENV PORT=8080 DATA_DIR=/data TRUST_PROXY=1
