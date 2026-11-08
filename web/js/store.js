@@ -1038,6 +1038,22 @@ class Store {
     return { ok: true, count: currencies.length, date: data.date };
   }
 
+  importDivizaRates(data) {
+    if (!can(this.state.session?.role, "EXCHANGE_EDIT")) return { error: "Tu rol no puede modificar tasas." };
+    const currencies = ["USD", "EUR", "MLC", "CAD", "MXN", "ZELLE", "CLA"];
+    const rates = data?.rates;
+    if (data?.source !== "https://cubadivisas.com/" || !/^\d{4}-\d{2}-\d{2}$/.test(data?.date || "") ||
+        !data.publishedAt || !rates || typeof rates !== "object" || Array.isArray(rates) ||
+        !Object.hasOwn(rates, "USD") || Object.entries(rates).some(([c, value]) =>
+          !currencies.includes(c) || !Number.isFinite(value) || value <= 0 || value >= 1000000)) {
+      return { error: "Diviza no devolvió tasas válidas." };
+    }
+    const note = `Diviza · mercado informal · publicado ${data.publishedAt} · ${data.source}`;
+    const found = currencies.filter((c) => Object.hasOwn(rates, c));
+    for (const currency of found) this.saveRate({ currency, rate: rates[currency], date: data.date, note });
+    return { ok: true, count: found.length, date: data.date, missing: currencies.filter((c) => !found.includes(c)) };
+  }
+
   saveRate({ id, currency, rate, date, note }) {
     rate = Number(rate);
     if (!(rate > 0)) return { error: "La tasa debe ser mayor que cero." };

@@ -935,3 +935,28 @@ html[data-texto="grande"] body, html[data-texto="muy-grande"] body { zoom: var(-
 
 /* Apartado «Económico y financiero» (#finanzas): el módulo se monta dentro de este contenedor */
 .fin-view { min-height: 60vh; }
+
+/* Evolución de tasas: los colores identifican monedas, no fuentes. */
+.rate-chart-controls { display:flex; flex-wrap:wrap; align-items:end; justify-content:space-between; gap:12px; }
+.rate-legend { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 4px; }
+.rate-legend-button { min-height:40px; display:inline-flex; align-items:center; gap:7px; padding:6px 11px; border:1px solid var(--line); border-radius:8px; color:var(--muted); background:var(--surface); cursor:pointer; font:inherit; }
+.rate-legend-button.on { color:var(--ink); border-color:currentColor; font-weight:700; }
+.rate-swatch { width:11px; height:11px; border-radius:50%; background:var(--rate-color); }
+.rate-usd { --rate-color:#15803d; }
+.rate-eur { --rate-color:#2563eb; }
+.rate-mlc { --rate-color:#c2410c; }
+.rate-cad { --rate-color:#be185d; }
+.rate-mxn { --rate-color:#0e7490; }
+.rate-zelle { --rate-color:#7e22ce; }
+.rate-cla { --rate-color:#9a6700; }
+[data-theme="dark"] .rate-usd { --rate-color:#4ade80; }
+[data-theme="dark"] .rate-eur { --rate-color:#60a5fa; }
+[data-theme="dark"] .rate-mlc { --rate-color:#fb923c; }
+[data-theme="dark"] .rate-cad { --rate-color:#f472b6; }
+[data-theme="dark"] .rate-mxn { --rate-color:#22d3ee; }
+[data-theme="dark"] .rate-zelle { --rate-color:#c084fc; }
+[data-theme="dark"] .rate-cla { --rate-color:#facc15; }
+.rate-line { fill:none; stroke:var(--rate-color); stroke-width:3; stroke-linejoin:round; stroke-linecap:round; }
+.rate-dot { fill:var(--rate-color); stroke:var(--surface); stroke-width:1.5; }
+.rate-empty { min-height:150px; display:flex; align-items:center; justify-content:center; }
+@media (max-width: 600px) { .rate-chart-controls { align-items:stretch; flex-direction:column; } .rate-chart-controls .dashboard-control { width:100%; } }

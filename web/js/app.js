@@ -13,6 +13,7 @@ import {
 import { moneyIn } from "./ipv.js";
 import { montarFinanzas } from "./financiero.js";
 import { categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, heatmapSummary, niceTicks } from "./charts.js";
+import { buildRateSeries, RATE_CHART_CURRENCIES } from "./rate-chart.js";
 import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
 import { findSaleByCode, saleTicket, ticketCode, ticketTotals, verifyTicket } from "./ticket.js";
@@ -96,7 +97,7 @@ let ui = {
   dashboardRange: "7d", dashboardMetric: "sales", dashboardType: "line",
   dashboardCompare: (() => { try { return localStorage.getItem("novagest.dashboardCompare") === "1"; } catch { return false; } })(),
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
-  histTab: "precios",
+  histTab: "precios", rateChartRange: "all", rateChartSource: "all", rateChartCurrencies: ["USD", "EUR", "MLC"],
   whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, pdfWarehouseId: null, iv: null,
   license: {
     status: null, loading: true, error: null, key: "", activating: false, info: null, infoLoaded: false,
@@ -1929,15 +1930,67 @@ function finanzasView() {
   return `<div class="fin-view" id="fin-root"></div>`;
 }
 
+/** Evolución de tasas registradas: solo observaciones disponibles, no es histórico remoto. */
+function ratesChart() {
+  const range = ui.rateChartRange;
+  const source = ui.rateChartSource;
+  const selected = ui.rateChartCurrencies;
+  const data = buildRateSeries(store.state.rates, { endDate: todayISO(), range, source, currencies: selected });
+  const ranges = [["30d", "30 días"], ["90d", "90 días"], ["180d", "180 días"], ["365d", "1 año"], ["all", "Todo"]];
+  const controls = `<div class="rate-chart-controls"><div class="chips" role="group" aria-label="Período de tasas">${ranges.map(([key, label]) => `<button type="button" class="chip ${range === key ? "on" : ""}" data-rate-range="${key}" aria-pressed="${range === key}">${label}</button>`).join("")}</div>
+    <label class="dashboard-control"><span>Fuente según el registro</span><select id="rateChartSource" aria-label="Fuente de las tasas"><option value="all" ${source === "all" ? "selected" : ""}>Todas</option><option value="elTOQUE" ${source === "elTOQUE" ? "selected" : ""}>elTOQUE</option><option value="Diviza" ${source === "Diviza" ? "selected" : ""}>Diviza</option><option value="Otras" ${source === "Otras" ? "selected" : ""}>Manuales y Excel</option></select></label></div>
+    <div class="rate-legend" role="group" aria-label="Monedas visibles">${RATE_CHART_CURRENCIES.map((c) => `<button type="button" class="rate-legend-button rate-${c.toLowerCase()} ${selected.includes(c) ? "on" : ""}" data-rate-currency="${c}" aria-pressed="${selected.includes(c)}"><span aria-hidden="true" class="rate-swatch"></span>${esc(c)}</button>`).join("")}</div>`;
+  let chart = `<div class="empty rate-empty">No hay tasas guardadas para esta selección. Prueba otro período o registra tasas.</div>`;
+  if (data.points.length) {
+    const W = 900, H = 300, L = 74, R = 24, T = 24, B = 42;
+    const first = data.points[0].time, last = data.points[data.points.length - 1].time;
+    let min = data.points.reduce((v, p) => Math.min(v, p.rate), Infinity);
+    let max = data.points.reduce((v, p) => Math.max(v, p.rate), -Infinity);
+    const pad = max === min ? Math.max(1, max * 0.1) : (max - min) * 0.12;
+    min = Math.max(0, min - pad); max += pad;
+    const x = (time) => first === last ? L + (W - L - R) / 2 : L + (time - first) / (last - first) * (W - L - R);
+    const y = (value) => T + (max - value) / (max - min) * (H - T - B);
+    const grid = Array.from({ length: 5 }, (_, i) => {
+      const v = max - (max - min) * i / 4, gy = y(v);
+      return `<g><line x1="${L}" x2="${W-R}" y1="${gy}" y2="${gy}" class="dashboard-grid-line"/><text x="${L-10}" y="${gy+4}" text-anchor="end" class="dashboard-axis-label">${esc(qty(v))}</text></g>`;
+    }).join("");
+    const lines = selected.map((c) => {
+      const points = data.byCurrency[c] || [];
+      const chunks = [];
+      for (const p of points) {
+        const lastChunk = chunks[chunks.length - 1];
+        if (!lastChunk || lastChunk[0].source !== p.source) chunks.push([p]);
+        else lastChunk.push(p);
+      }
+      const paths = chunks.filter((run) => run.length > 1).map((run) => `<polyline class="rate-line rate-${c.toLowerCase()}" points="${run.map((p) => `${x(p.time)},${y(p.rate)}`).join(" ")}"/>`).join("");
+      const dotPoints = points.length <= 150 ? points : chunks.filter((run) => run.length === 1).map((run) => run[0]);
+      const dots = dotPoints.map((p) => `<circle class="rate-dot rate-${c.toLowerCase()}" cx="${x(p.time)}" cy="${y(p.rate)}" r="4"><title>${esc(c)} · ${esc(formatDate(p.date))}: ${esc(qty(p.rate))} CUP · ${esc(p.source)}</title></circle>`).join("");
+      return paths + dots;
+    }).join("");
+    const startLabel = formatDate(data.from), endLabel = formatDate(data.to);
+    const dateLabels = first === last ? `<text x="${L+(W-L-R)/2}" y="${H-12}" text-anchor="middle" class="dashboard-axis-label">${esc(startLabel)}</text>` : `<text x="${L}" y="${H-12}" class="dashboard-axis-label">${esc(startLabel)}</text><text x="${W-R}" y="${H-12}" text-anchor="end" class="dashboard-axis-label">${esc(endLabel)}</text>`;
+    const summary = `Evolución de tasas en CUP. ${data.points.length} observaciones registradas, desde ${startLabel} hasta ${endLabel}.`;
+    chart = `<svg viewBox="0 0 ${W} ${H}" class="dashboard-chart-svg rate-chart-svg" role="img" aria-label="${esc(summary)}"><title>${esc(summary)}</title>${grid}${lines}${dateLabels}</svg>`;
+  }
+  const tableRows = [...data.points].reverse().map((p) => `<tr><td>${esc(formatDate(p.date))}</td><td>${esc(p.currency)}</td><td class="mono r">${esc(qty(p.rate))}</td><td>${esc(p.source)}</td><td>${esc(p.note || "—")}</td></tr>`).join("");
+  return `<section class="card dashboard-chart-card mt16" aria-labelledby="ratesChartTitle"><div class="card-h"><span class="k" id="ratesChartTitle">Evolución de las monedas</span><span class="tag mov">CUP por unidad</span></div>
+    <p class="hint">Gráfico de las tasas guardadas en NovaGest, no del histórico completo de elTOQUE. Las fuentes y las fechas sin datos no se inventan.</p>${controls}${chart}
+    <p class="dashboard-chart-note">Una observación por moneda y fecha. Las líneas unen observaciones de la misma fuente; no representan valores medidos entre ellas. El registro diario puede sobrescribirse al actualizar.</p>
+    <details class="chart-data"><summary>Ver datos del gráfico en tabla</summary><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Moneda</th><th class="r">CUP</th><th>Fuente según nota</th><th>Detalle</th></tr></thead><tbody>${tableRows || `<tr><td colspan="5" class="empty">Sin observaciones.</td></tr>`}</tbody></table></div></details></section>`;
+}
+
 function financeView() {
   const canEdit = allowed("EXCHANGE_EDIT");
   const rates = [...store.state.rates].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
   const curs = [...new Set([...CURRENCIES, ...rates.map((r) => r.currency)])];
   return `
     <div class="kpis">${curs.map((c) => kpi(`1 ${esc(c)} =`, `${store.rateOn(c) || "—"} CUP`, "última registrada", "teal")).join("")}</div>
-    <div class="row mv14">${canEdit ? `<button class="btn" data-act="new-rate">＋ Registrar tasa</button><button class="btn gold" data-act="eltoque-update" ${ui.loadingEltoque ? "disabled" : ""}>${ui.loadingEltoque ? "Consultando…" : "↻ Actualizar desde elTOQUE"}</button>` : ""}<button class="btn ghost" data-htab-go="monedas">Ver tabla por día</button></div>
-    <p class="hint">Referencia del mercado informal, no tasa oficial. La consulta requiere conexión del servidor; elTOQUE puede bloquearla. Se guardan las siete tasas en la fecha publicada y se reemplazan las de esa misma fecha.</p>
-    <div class="card table-wrap flush">
+    <div class="row mv14">${canEdit ? `<button class="btn" data-act="new-rate">＋ Registrar tasa</button><button class="btn gold" data-act="eltoque-update" ${ui.loadingEltoque ? "disabled" : ""}>${ui.loadingEltoque ? "Consultando…" : "↻ Actualizar desde elTOQUE"}</button><button class="btn ghost" data-act="diviza-update" ${ui.loadingDiviza ? "disabled" : ""}>${ui.loadingDiviza ? "Consultando Diviza…" : "↻ Consultar Diviza gratis"}</button>` : ""}<button class="btn ghost" data-htab-go="monedas">Ver tabla por día</button></div>
+    <p class="hint">Referencias del mercado informal, no tasas oficiales. Diviza es una fuente gratuita independiente: revisa sus valores antes de aplicarlos. Si una moneda no aparece, se conserva la tasa anterior. La consulta necesita conexión a Internet desde el servidor.</p>
+    <p class="hint">Otras fuentes gratuitas para comparar: <a href="https://cubadivisas.com/" target="_blank" rel="noopener noreferrer">Diviza</a> · <a href="https://www.directoriocubano.info/cadeca/" target="_blank" rel="noopener noreferrer">Directorio Cubano</a> · <a href="https://www.bc.gob.cu/tasas-de-cambio" target="_blank" rel="noopener noreferrer">Banco Central de Cuba (tasas oficiales)</a>.</p>
+    ${ui.divizaNotice ? `<div class="banner info">${esc(ui.divizaNotice)}</div>` : ""}
+    ${ratesChart()}
+    <div class="card table-wrap flush mt16">
       <table><thead><tr><th>Fecha</th><th>Moneda</th><th class="r">Valor en CUP</th><th>Nota</th><th>Usuario</th>${canEdit ? "<th></th>" : ""}</tr></thead>
       <tbody>${rates.map((r) => `<tr><td>${formatDate(r.date)}</td><td><span class="tag mov">${esc(r.currency)}</span></td><td class="mono r">${r.rate}</td><td>${esc(r.note || "")}</td><td class="hint">${esc(r.userName || "")}</td>${canEdit ? `<td class="actions"><button class="icon-btn" data-edit-rate="${r.id}">✎</button><button class="icon-btn danger" data-del-rate="${r.id}">🗑</button></td>` : ""}</tr>`).join("")}</tbody></table>
     </div>`;
@@ -4561,6 +4614,7 @@ function bindLogin() {
 
 function bindApp() {
   ensureClicks();
+  $("#rateChartSource")?.addEventListener("change", (e) => { ui.rateChartSource = e.target.value; render(); });
   $("#dashboardRange")?.addEventListener("change", (e) => { ui.dashboardRange = e.target.value; render(); });
   $("#dashboardMetric")?.addEventListener("change", (e) => { ui.dashboardMetric = e.target.value; render(); });
   $("#dashboardType")?.addEventListener("change", (e) => { ui.dashboardType = e.target.value; render(); });
@@ -4937,11 +4991,16 @@ function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"
 
 function onClick(e) {
   const openerBefore = document.activeElement;
-  const t = e.target.closest("[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last],[data-fc-order],[data-mg-hist]");
+  const t = e.target.closest("[data-rate-range],[data-rate-currency],[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last],[data-fc-order],[data-mg-hist]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
   if (t.tagName === "A" && !d.nav) e.preventDefault();
+  if (d.rateRange) { ui.rateChartRange = d.rateRange; return render(); }
+  if (d.rateCurrency && RATE_CHART_CURRENCIES.includes(d.rateCurrency)) {
+    ui.rateChartCurrencies = ui.rateChartCurrencies.includes(d.rateCurrency) ? ui.rateChartCurrencies.filter((c) => c !== d.rateCurrency) : [...ui.rateChartCurrencies, d.rateCurrency];
+    return render();
+  }
   if (d.addCart) return addToCart(d.addCart);
   if (d.poscat) { ui.posCat = d.poscat; return render(); }
   if (d.cartInc) { const it = ui.cart[+d.cartInc]; const p = store.state.products.find((x) => x.id === it.productId); const have = store.stockIn(p, store.activeWarehouseId()); if (it.qty + 1 > have) return toast(`Solo hay ${qty(have)} en «${store.warehouseName(store.activeWarehouseId())}».`, "err"); it.qty++; return render(); }
@@ -5391,6 +5450,27 @@ function onClick(e) {
   else if (act === "back-login") { ui.recover = false; ui.question = null; ui.recNeed2fa = false; ui.pending2fa = null; ui.loginErr = null; render(); }
   else if (act === "new-product") { productModal(null); render(); }
   else if (act === "new-movement") { movementModal(); render(); }
+  else if (act === "diviza-update") {
+    if (!allowed("EXCHANGE_EDIT") || ui.loadingDiviza) return;
+    ui.loadingDiviza = true;
+    ui.divizaNotice = null;
+    render();
+    api("/exchange/diviza", { timeout: 20000 }).then((data) => {
+      if (data.error || !data.ok) return toast(data.error || "No se pudo consultar Diviza.", "err");
+      const rates = data.rates || {};
+      const missing = CURRENCIES.filter((c) => !Object.hasOwn(rates, c));
+      const rows = CURRENCIES.filter((c) => Object.hasOwn(rates, c)).map((c) => {
+        const prior = store.state.rates.find((r) => r.currency === c && r.date === data.date);
+        return `${esc(c)}: ${esc(String(rates[c]))} CUP${prior ? ` (guardada ese día: ${esc(String(prior.rate))})` : ""}`;
+      }).join("<br>");
+      confirmModal(`<b>Diviza · mercado informal</b><br>Publicado: ${esc(data.publishedAt)}<br>Se reemplazarán las tasas registradas para la misma fecha.<br>${rows}<br>${missing.length ? `No publicadas por Diviza: <b>${esc(missing.join(", "))}</b>. No se modificarán.` : ""}<br>¿Aplicar estas referencias?`, () => {
+        const result = store.importDivizaRates(data);
+        if (result.error) return toast(result.error, "err");
+        ui.divizaNotice = `Diviza: ${result.count} tasas registradas para ${result.date}.${result.missing.length ? ` Sin actualizar: ${result.missing.join(", ")}.` : ""}`;
+        toast(ui.divizaNotice, "ok");
+      });
+    }).catch(() => toast("No se pudo consultar Diviza.", "err")).finally(() => { ui.loadingDiviza = false; render(); });
+  }
   else if (act === "eltoque-update") {
     if (!allowed("EXCHANGE_EDIT") || ui.loadingEltoque) return;
     ui.loadingEltoque = true;

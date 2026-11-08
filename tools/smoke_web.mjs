@@ -80,6 +80,8 @@ globalThis.history = { replaceState() {} };
 globalThis.sessionStorage = { store: new Map(), getItem(k) { return this.store.get(k) ?? null; }, setItem(k, v) { this.store.set(k, String(v)); }, removeItem(k) { this.store.delete(k); } };
 const mem = new Map();
 globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
+// No abrir el tour visual en este DOM simulado (no crea hijos reales).
+localStorage.setItem("novagest.tour", "1");
 const fetchCalls = [];
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
@@ -87,7 +89,10 @@ globalThis.fetch = async (url, opts = {}) => {
   try { if (opts.body) sent = JSON.parse(opts.body); } catch { sent = opts.body; }
   fetchCalls.push({ url: u, method: (opts.method || "GET").toUpperCase(), body: sent });
   let data = {};
-  if (u.includes("/api/license/status")) {
+  if (u.includes("/api/exchange/diviza")) {
+    data = { ok: true, source: "https://cubadivisas.com/", date: "2026-11-08", publishedAt: "2026-11-08T18:00:00-05:00",
+      rates: { USD: 930, EUR: 1020, MLC: 726.72, CAD: 598.81, ZELLE: 898.77, CLA: 828.91 }, missing: ["MXN"] };
+  } else if (u.includes("/api/license/status")) {
     data = { valid: true, hasLicense: true, clientName: "Prueba", product: "NovaGest", type: "FULL", daysLeft: -1, whatsapp: "5355551234", terms: [{ id: "MES", label: "1 mes", days: 30, type: "FULL" }, { id: "ANIO", label: "1 año", days: 365, type: "FULL" }, { id: "PERMANENTE", label: "Permanente", days: 0, type: "LIFETIME" }] };
   } else if (u.includes("/api/license/info")) {
     data = {
@@ -215,6 +220,74 @@ const clickMatching = (attribute, dataset, tagName = "BUTTON") => app.dispatch("
 
 console.log("\nWeb · Almacenes e Importar valores (DOM simulado)\n");
 
+await atest("consultar Diviza muestra revisión y no altera MXN antes o después de confirmar", async () => {
+  const original = structuredClone(store.state.rates);
+  try {
+    store.state.rates.push({ id: "test-mxn", currency: "MXN", rate: 51, date: "2026-11-08", note: "manual" });
+    const html = go("finance");
+    assert.match(html, /data-act="diviza-update"/);
+    assert.match(html, /Banco Central de Cuba \(tasas oficiales\)/);
+    clickMatching("act", { act: "diviza-update" });
+    await flush();
+    assert.ok(fetchCalls.some((x) => x.url === "/api/exchange/diviza"));
+    assert.match(app.innerHTML, /No publicadas por Diviza: <b>MXN<\/b>/);
+    assert.equal(store.state.rates.length, original.length + 1, "consultar no guarda automáticamente");
+    clickMatching("act", { act: "confirm-yes" });
+    assert.equal(store.state.rates.find((r) => r.id === "test-mxn").rate, 51);
+    assert.equal(store.state.rates.find((r) => r.currency === "USD" && r.date === "2026-11-08").rate, 930);
+    assert.match(app.innerHTML, /Sin actualizar: MXN/);
+  } finally {
+    store.state.rates = original;
+    go("home");
+  }
+});
+
+
+test("Monedas grafica observaciones por fecha y permite filtrar período, moneda y fuente", () => {
+  const original = structuredClone(store.state.rates);
+  try {
+    const today = new Date();
+    const date = (offset) => {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset, 12);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+    store.state.rates = [
+      { id: "chart-a", currency: "USD", rate: 800, date: date(-80), note: "Diviza · mercado informal" },
+      { id: "chart-b", currency: "USD", rate: 900, date: date(-1), note: "Diviza · mercado informal" },
+      { id: "chart-c", currency: "EUR", rate: 1000, date: date(0), note: "elTOQUE · mercado informal" },
+    ];
+    let html = go("finance");
+    assert.match(html, /Evolución de las monedas/);
+    assert.match(html, /class="rate-line rate-usd"/);
+    assert.match(html, /rate-dot rate-eur/);
+    assert.match(html, /no del histórico completo de elTOQUE/);
+    assert.match(html, /Ver datos del gráfico en tabla/);
+    clickMatching("rate-currency", { rateCurrency: "EUR" });
+    assert.doesNotMatch(app.innerHTML, /rate-dot rate-eur/);
+    clickMatching("rate-range", { rateRange: "30d" });
+    assert.doesNotMatch(app.innerHTML, /class="rate-line rate-usd"/);
+    assert.match(app.innerHTML, /rate-dot rate-usd/);
+    const source = getEl("rateChartSource");
+    source.value = "elTOQUE";
+    source.dispatch("change", { target: source });
+    assert.match(app.innerHTML, /No hay tasas guardadas para esta selección/);
+    // Restaurar también los filtros antes del resto de las pruebas.
+    source.value = "all";
+    source.dispatch("change", { target: source });
+    clickMatching("rate-range", { rateRange: "all" });
+    clickMatching("rate-currency", { rateCurrency: "EUR" });
+    store.state.rates = Array.from({ length: 151 }, (_, i) => ({
+      id: `large-${i}`, currency: "USD", rate: 800 + i, date: date(i - 151), note: "Diviza · mercado informal",
+    }));
+    store.state.rates.push({ id: "large-last", currency: "USD", rate: 1000, date: date(0), note: "elTOQUE · mercado informal" });
+    html = go("finance");
+    assert.match(html, /class="rate-line rate-usd"/);
+    assert.match(html, /rate-dot rate-usd[^>]*><title>USD · [^<]*elTOQUE<\/title>/);
+  } finally {
+    store.state.rates = original;
+    go("home");
+  }
+});
 
 test("Aceptar/Rechazar guarda la elección, cierra el aviso y permite configurar cookies", () => {
   const key = "novagest.consent";
