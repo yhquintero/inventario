@@ -220,17 +220,19 @@ const clickMatching = (attribute, dataset, tagName = "BUTTON") => app.dispatch("
 
 console.log("\nWeb · Almacenes e Importar valores (DOM simulado)\n");
 
-await atest("consultar Diviza muestra revisión y no altera MXN antes o después de confirmar", async () => {
+await atest("consultar Divisa muestra revisión y no altera MXN antes o después de confirmar", async () => {
   const original = structuredClone(store.state.rates);
   try {
     store.state.rates.push({ id: "test-mxn", currency: "MXN", rate: 51, date: "2026-11-08", note: "manual" });
     const html = go("finance");
     assert.match(html, /data-act="diviza-update"/);
+    assert.match(html, /Consultar Divisa gratis/);
+    assert.doesNotMatch(html, />Consultar Diviza/);
     assert.match(html, /Banco Central de Cuba \(tasas oficiales\)/);
     clickMatching("act", { act: "diviza-update" });
     await flush();
     assert.ok(fetchCalls.some((x) => x.url === "/api/exchange/diviza"));
-    assert.match(app.innerHTML, /No publicadas por Diviza: <b>MXN<\/b>/);
+    assert.match(app.innerHTML, /No publicadas por Divisa: <b>MXN<\/b>/);
     assert.equal(store.state.rates.length, original.length + 1, "consultar no guarda automáticamente");
     clickMatching("act", { act: "confirm-yes" });
     assert.equal(store.state.rates.find((r) => r.id === "test-mxn").rate, 51);
@@ -252,8 +254,8 @@ test("Monedas grafica observaciones por fecha y permite filtrar período, moneda
       return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     };
     store.state.rates = [
-      { id: "chart-a", currency: "USD", rate: 800, date: date(-80), note: "Diviza · mercado informal" },
-      { id: "chart-b", currency: "USD", rate: 900, date: date(-1), note: "Diviza · mercado informal" },
+      { id: "chart-a", currency: "USD", rate: 800, date: date(-80), note: "Divisa · mercado informal" },
+      { id: "chart-b", currency: "USD", rate: 900, date: date(-1), note: "Divisa · mercado informal" },
       { id: "chart-c", currency: "EUR", rate: 1000, date: date(0), note: "elTOQUE · mercado informal" },
     ];
     let html = go("finance");
@@ -277,7 +279,7 @@ test("Monedas grafica observaciones por fecha y permite filtrar período, moneda
     clickMatching("rate-range", { rateRange: "all" });
     clickMatching("rate-currency", { rateCurrency: "EUR" });
     store.state.rates = Array.from({ length: 151 }, (_, i) => ({
-      id: `large-${i}`, currency: "USD", rate: 800 + i, date: date(i - 151), note: "Diviza · mercado informal",
+      id: `large-${i}`, currency: "USD", rate: 800 + i, date: date(i - 151), note: "Divisa · mercado informal",
     }));
     store.state.rates.push({ id: "large-last", currency: "USD", rate: 1000, date: date(0), note: "elTOQUE · mercado informal" });
     html = go("finance");

@@ -25,7 +25,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if os.path.join(ROOT, "server") not in sys.path:
     sys.path.insert(0, os.path.join(ROOT, "server"))
 import copias_externas
-import diviza  # noqa: E402
+import divisa  # noqa: E402
 import eltoque  # noqa: E402
 import financiero  # noqa: E402  · módulo económico-financiero (contabilidad)
 WEB = os.path.join(ROOT, "web")
@@ -2107,8 +2107,8 @@ def exchange_eltoque(h, u, _):
 def exchange_diviza(h, u, _):
     """Obtiene una referencia gratuita para revisión, sin escribir tasas."""
     try:
-        result = diviza.fetch_rates()
-    except diviza.RateError as exc:
+        result = divisa.fetch_rates()
+    except divisa.RateError as exc:
         return h.err(502, str(exc))
     h.send_json(200, {"ok": True, **result})
 

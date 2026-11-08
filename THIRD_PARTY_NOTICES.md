@@ -15,6 +15,12 @@ NovaGest es software propietario ([LICENSE](LICENSE)). Este repositorio incluye 
 
 *«QR Code» es una marca registrada de DENSO WAVE INCORPORATED.*
 
+### Datos horarios de reserva del servidor
+
+| Componente | Versión | Archivo | Licencia |
+|---|---|---|---|
+| [tzdata para Python](https://pypi.org/project/tzdata/2026.6/) (zona America/Havana; IANA tzdb 2026f) | 2026.6 | `server/tzdata/Havana.tzif` | Apache-2.0, véase `server/tzdata/LICENSE`; datos IANA de dominio público |
+
 ### Librerías de Python para Windows (`venv/`)
 
 Entorno virtual de Python 3.8.2 de 32 bits; más información en [venv/README.md](venv/README.md).
@@ -39,7 +45,7 @@ No están incluidas en el repositorio; se obtienen de sus registros oficiales.
 
 | Ámbito | Componentes | Licencia |
 |---|---|---|
-| Servidor (`requirements.txt`) | cryptography, openpyxl | Apache-2.0 OR BSD-3-Clause; MIT |
+| Servidor (`requirements.txt`) | cryptography, openpyxl, tzdata | Apache-2.0 OR BSD-3-Clause; MIT; Apache-2.0 |
 | Android (`app/build.gradle.kts`) | AndroidX (Core, Activity, Fragment, Lifecycle, Navigation, Room, DataStore, Security Crypto, Biometric, WorkManager, Hilt), Jetpack Compose, Material Components for Android, Dagger Hilt, kotlinx.coroutines, kotlinx.serialization | Apache-2.0 |
 | Pruebas de Android | JUnit 4 · Truth · kotlinx-coroutines-test | EPL-1.0 · Apache-2.0 · Apache-2.0 |
 | Pruebas Web (`tools/package.json`) | axe-core · jsdom | MPL-2.0 · MIT |

@@ -31,11 +31,11 @@ assert.equal(store.state.rates.find((r) => r.id === "usd").rate, 930);
 for (const [currency, value] of Object.entries(data.rates)) {
   const r = store.state.rates.find((r) => r.currency === currency && r.date === data.date);
   assert.equal(r.rate, value);
-  assert.ok(r.note.includes("Diviza") && !r.note.includes("elTOQUE"));
+  assert.ok(r.note.includes("Divisa") && !r.note.includes("elTOQUE"));
 }
 const count = store.state.rates.length;
 store.importDivizaRates(data);
 assert.equal(store.state.rates.length, count);
 store.state.session.role = "ALMACENERO";
 assert.ok(store.importDivizaRates(data).error);
-console.log("✔ Diviza: importación parcial, fuente, permisos y valores conservados");
+console.log("✔ Divisa: importación parcial, fuente, permisos y valores conservados");
