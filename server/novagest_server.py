@@ -889,6 +889,22 @@ def backup_loop():
 def by_id(items):
     return {x.get("id"): x for x in (items or []) if isinstance(x, dict)}
 
+# ------------------------------------------------------------------ ALMACENES DE PINAR DEL RÍO (11)
+# Municipios: Pinar del Río (Central), San Juan y Martínez, San Luis, Consolación del Sur, Viñales, Guane, Mantua, La Palma, Los Palacios, Bahía Honda, Sandino
+# IDs: PRI, SJM, SLU, CON, VIN, GUA, MAN, LAP, LOS, BAH, SAN
+WAREHOUSES_PINAR = [
+    {"id": "PRI", "name": "ALMACÉN PINAR DEL RÍO (CENTRAL)", "code": "PRI", "location": "Pinar del Río", "notes": "Sede Principal", "active": True, "isDefault": True, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
+    {"id": "SJM", "name": "ALMACÉN SAN JUAN Y MARTÍNEZ", "code": "SJM", "location": "San Juan y Martínez", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
+    {"id": "SLU", "name": "ALMACÉN SAN LUIS", "code": "SLU", "location": "San Luis", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
+    {"id": "CON", "name": "ALMACÉN CONSOLACIÓN DEL SUR", "code": "CON", "location": "Consolación del Sur", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
+    {"id": "VIN", "name": "ALMACÉN VIÑALES", "code": "VIN", "location": "Viñales", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
+    {"id": "GUA", "name": "ALMACÉN GUANE", "code": "GUA", "location": "Guane", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
+    {"id": "MAN", "name": "ALMACÉN MANTUA", "code": "MAN", "location": "Mantua", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
+    {"id": "LAP", "name": "ALMACÉN LA PALMA", "code": "LAP", "location": "La Palma", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
+    {"id": "LOS", "name": "ALMACÉN LOS PALACIOS", "code": "LOS", "location": "Los Palacios", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
+    {"id": "BAH", "name": "ALMACÉN BAHÍA HONDA", "code": "BAH", "location": "Bahía Honda", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
+    {"id": "SAN", "name": "ALMACÉN SANDINO", "code": "SAN", "location": "Sandino", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None}
+]
 
 def ensure_warehouses(st):
     """Convierte un estado que venía de antes del módulo de almacenes.
@@ -910,13 +926,19 @@ def ensure_warehouses(st):
         changed = True
     ws = st["warehouses"]
     active = [w for w in ws if isinstance(w, dict) and not w.get("deletedAt")]
+    # Si no hay almacenes activos, inicializamos los 11 de Pinar del Río
     if not active:
-        ws.append({
-            "id": WAREHOUSE_DEFAULT_ID, "name": "ALMACÉN PRINCIPAL", "code": "PRI", "location": "", "notes": "",
-            "active": True, "isDefault": True, "createdAt": now(), "createdBy": "servidor", "deletedAt": None,
-        })
+        ws.extend(WAREHOUSES_PINAR)
         changed = True
-    wid = (active[0]["id"] if active else WAREHOUSE_DEFAULT_ID)
+        wid_default = "PRI"
+    else:
+        # Si ya existen, buscamos el default o el primero
+        wid_default = (active[0]["id"] if active else "PRI")
+        # Opcional: Si solo existe el "ALMACÉN PRINCIPAL" antiguo, lo convertimos o añadimos los demás
+        # Para esta implementación, asumimos que si es el primer arranque (sin active), creamos los 11.
+        # Si ya hay datos, solo aseguramos que existan los IDs.
+        pass
+
     for p in st.get("products") or []:
         if not isinstance(p, dict):
             continue
@@ -926,16 +948,32 @@ def ensure_warehouses(st):
         if not isinstance(p.get("stocksInicial"), dict):
             p["stocksInicial"] = {}
             changed = True
-        if not p["stocksInicial"]:
-            p["stocksInicial"][wid] = p.get("stockInicial", 0) or 0
-            changed = True
-        for k in list(p["stocksInicial"].keys()):
-            if p["stocks"].get(k) is None:
-                p["stocks"][k] = 0
+        # Si es un estado nuevo (sin stocks previos), distribuimos el stock inicial
+        # entre los 11 almacenes (ej. dividiendo el stockInicial original entre 11 o asignando el total al PRI y el resto 0)
+        # Para emulación, asignamos el stockInicial total al PRI y 0 a los demás, o distribuimos.
+        # Aquí distribuimos el stockInicial original al PRI (Central) y copiamos a los demás para emulación de "campos llenos"
+        base_stock = p.get("stockInicial", 0) or 0
+        base_price = p.get("precioVentaUsd", 0) or 0
+        
+        # Aseguramos que cada almacén tenga una entrada
+        for w in WAREHOUSES_PINAR:
+            wid = w["id"]
+            if wid not in p["stocksInicial"]:
+                # Emulación: cada almacén tiene stock (ej. base_stock / 11 o base_stock)
+                # Para "campos llenos", asignamos el stock base a cada uno o una fracción.
+                # Usaremos el stock base para el Central (PRI) y una fracción (o el mismo para prueba) a los demás.
+                # Aquí asignamos base_stock a todos para que se vea "lleno" en la emulación.
+                p["stocksInicial"][wid] = base_stock
                 changed = True
+            
+            if p["stocks"].get(wid) is None:
+                # Stock actual inicializado al stock inicial
+                p["stocks"][wid] = p["stocksInicial"][wid]
+                changed = True
+
     for i, m in enumerate(st.get("movements") or []):
         if isinstance(m, dict) and not m.get("warehouseId"):
-            m["warehouseId"] = wid
+            m["warehouseId"] = wid_default
             changed = True
     return st, changed
 
