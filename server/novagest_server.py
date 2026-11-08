@@ -17,6 +17,7 @@ import base64, datetime as dt, gzip, hashlib, hmac, json, os, re, secrets, shuti
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, quote
 import urllib.request
+import unicodedata
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # S-14: el módulo de copia externa vive junto al servidor; se importa por ruta para que
@@ -587,6 +588,7 @@ def init_db():
       license_preview TEXT,
       created_at INTEGER);
     CREATE INDEX IF NOT EXISTS license_requests_status ON license_requests(status, created_at DESC);
+    CREATE TABLE IF NOT EXISTS schema_migrations(name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS state_records(
         section TEXT NOT NULL,
         rid TEXT NOT NULL,
@@ -889,56 +891,40 @@ def backup_loop():
 def by_id(items):
     return {x.get("id"): x for x in (items or []) if isinstance(x, dict)}
 
-# ------------------------------------------------------------------ ALMACENES DE PINAR DEL RÍO (11)
-# Municipios: Pinar del Río (Central), San Juan y Martínez, San Luis, Consolación del Sur, Viñales, Guane, Mantua, La Palma, Los Palacios, Bahía Honda, Sandino
-# IDs: PRI, SJM, SLU, CON, VIN, GUA, MAN, LAP, LOS, BAH, SAN
-WAREHOUSES_PINAR = [
-    {"id": "PRI", "name": "ALMACÉN PINAR DEL RÍO (CENTRAL)", "code": "PRI", "location": "Pinar del Río", "notes": "Sede Principal", "active": True, "isDefault": True, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
-    {"id": "SJM", "name": "ALMACÉN SAN JUAN Y MARTÍNEZ", "code": "SJM", "location": "San Juan y Martínez", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
-    {"id": "SLU", "name": "ALMACÉN SAN LUIS", "code": "SLU", "location": "San Luis", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
-    {"id": "CON", "name": "ALMACÉN CONSOLACIÓN DEL SUR", "code": "CON", "location": "Consolación del Sur", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
-    {"id": "VIN", "name": "ALMACÉN VIÑALES", "code": "VIN", "location": "Viñales", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
-    {"id": "GUA", "name": "ALMACÉN GUANE", "code": "GUA", "location": "Guane", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
-    {"id": "MAN", "name": "ALMACÉN MANTUA", "code": "MAN", "location": "Mantua", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
-    {"id": "LAP", "name": "ALMACÉN LA PALMA", "code": "LAP", "location": "La Palma", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
-    {"id": "LOS", "name": "ALMACÉN LOS PALACIOS", "code": "LOS", "location": "Los Palacios", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
-    {"id": "BAH", "name": "ALMACÉN BAHÍA HONDA", "code": "BAH", "location": "Bahía Honda", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None},
-    {"id": "SAN", "name": "ALMACÉN SANDINO", "code": "SAN", "location": "Sandino", "notes": "", "active": True, "isDefault": False, "createdAt": now(), "createdBy": "servidor", "deletedAt": None}
-]
+# Las mismas denominaciones que la semilla Web; Herradura no es un municipio.
+PINAR_MUNICIPALITIES = (
+    ("PINAR DEL RÍO", "PRI"), ("CONSOLACIÓN DEL SUR", "CON"),
+    ("SAN LUIS", "SLU"), ("SAN JUAN Y MARTÍNEZ", "SJM"),
+    ("GUANE", "GUA"), ("MANTUA", "MAN"), ("MINAS DE MATAHAMBRE", "MIN"),
+    ("VIÑALES", "VIN"), ("LA PALMA", "LAP"), ("LOS PALACIOS", "LOS"),
+    ("SANDINO", "SAN"),
+)
+PINAR_MIGRATION = "pinar_municipios_2026_1"
+
 
 def ensure_warehouses(st):
-    """Convierte un estado que venía de antes del módulo de almacenes.
-
-    Todo lo que había queda en el almacén principal, de modo que los totales
-    (stockInicial, stockActual) siguen siendo los mismos. Devuelve (estado, cambio).
-    """
+    """Convierte datos antiguos sin inventar ni redistribuir existencias."""
     if not isinstance(st, dict):
         return st, False
     changed = False
-    if not isinstance(st.get("warehouses"), list):
-        st["warehouses"] = []
-        changed = True
-    if not isinstance(st.get("warehouseEntries"), list):
-        st["warehouseEntries"] = []
-        changed = True
-    if not isinstance(st.get("excelDailyReports"), list):
-        st["excelDailyReports"] = []
-        changed = True
+    for key in ("warehouses", "warehouseEntries", "excelDailyReports"):
+        if not isinstance(st.get(key), list):
+            st[key] = []
+            changed = True
     ws = st["warehouses"]
     active = [w for w in ws if isinstance(w, dict) and not w.get("deletedAt")]
-    # Si no hay almacenes activos, inicializamos los 11 de Pinar del Río
     if not active:
-        ws.extend(WAREHOUSES_PINAR)
+        # Si ya existe un ID histórico borrado, no se debe reutilizar.
+        ids = {str(w.get("id")) for w in ws if isinstance(w, dict)}
+        wid = WAREHOUSE_DEFAULT_ID if WAREHOUSE_DEFAULT_ID not in ids else "w_" + secrets.token_hex(12)
+        default = {"id": wid, "name": "ALMACÉN PRINCIPAL", "code": "PRI", "location": "",
+                   "notes": "Creado al convertir datos anteriores.", "active": True, "isDefault": True,
+                   "createdAt": now() * 1000, "createdBy": "sistema", "deletedAt": None}
+        ws.append(default)
+        active.append(default)
         changed = True
-        wid_default = "PRI"
-    else:
-        # Si ya existen, buscamos el default o el primero
-        wid_default = (active[0]["id"] if active else "PRI")
-        # Opcional: Si solo existe el "ALMACÉN PRINCIPAL" antiguo, lo convertimos o añadimos los demás
-        # Para esta implementación, asumimos que si es el primer arranque (sin active), creamos los 11.
-        # Si ya hay datos, solo aseguramos que existan los IDs.
-        pass
-
+    default = next((w for w in active if w.get("isDefault")), active[0])
+    wid = default["id"]
     for p in st.get("products") or []:
         if not isinstance(p, dict):
             continue
@@ -948,48 +934,87 @@ def ensure_warehouses(st):
         if not isinstance(p.get("stocksInicial"), dict):
             p["stocksInicial"] = {}
             changed = True
-        # Si es un estado nuevo (sin stocks previos), distribuimos el stock inicial
-        # entre los 11 almacenes (ej. dividiendo el stockInicial original entre 11 o asignando el total al PRI y el resto 0)
-        # Para emulación, asignamos el stockInicial total al PRI y 0 a los demás, o distribuimos.
-        # Aquí distribuimos el stockInicial original al PRI (Central) y copiamos a los demás para emulación de "campos llenos"
-        base_stock = p.get("stockInicial", 0) or 0
-        base_price = p.get("precioVentaUsd", 0) or 0
-        
-        # Aseguramos que cada almacén tenga una entrada
-        for w in WAREHOUSES_PINAR:
-            wid = w["id"]
-            if wid not in p["stocksInicial"]:
-                # Emulación: cada almacén tiene stock (ej. base_stock / 11 o base_stock)
-                # Para "campos llenos", asignamos el stock base a cada uno o una fracción.
-                # Usaremos el stock base para el Central (PRI) y una fracción (o el mismo para prueba) a los demás.
-                # Aquí asignamos base_stock a todos para que se vea "lleno" en la emulación.
-                p["stocksInicial"][wid] = base_stock
-                changed = True
-            
-            if p["stocks"].get(wid) is None:
-                # Stock actual inicializado al stock inicial
-                p["stocks"][wid] = p["stocksInicial"][wid]
-                changed = True
-
-    for i, m in enumerate(st.get("movements") or []):
+        if not p["stocksInicial"]:
+            p["stocksInicial"][wid] = p.get("stockInicial") or 0
+            changed = True
+        if wid not in p["stocks"] and wid in p["stocksInicial"]:
+            p["stocks"][wid] = p.get("stockActual", p["stocksInicial"][wid]) or 0
+            changed = True
+    for m in st.get("movements") or []:
         if isinstance(m, dict) and not m.get("warehouseId"):
-            m["warehouseId"] = wid_default
+            m["warehouseId"] = wid
             changed = True
     return st, changed
 
 
+def _municipality_key(name):
+    text = unicodedata.normalize("NFKD", str(name or ""))
+    text = "".join(c for c in text if not unicodedata.combining(c)).upper()
+    text = re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"^ALMACEN\s+", "", text)
+    return re.sub(r"\s*\(CENTRAL\)$", "", text).strip()
+
+
+def add_pinar_municipalities(st):
+    """Añade solo municipios ausentes. Nunca asigna mercancía a los nuevos."""
+    active = [w for w in st["warehouses"] if isinstance(w, dict) and not w.get("deletedAt")]
+    names = {_municipality_key(w.get("name")) for w in active}
+    # «Consolación» es la abreviatura usada en PCH.xlsx.
+    if "CONSOLACION" in names:
+        names.add("CONSOLACION DEL SUR")
+    timestamp = now() * 1000
+    created = []
+    for name, code in PINAR_MUNICIPALITIES:
+        if _municipality_key(name) in names:
+            continue
+        wid = "w_" + secrets.token_hex(12)
+        w = {"id": wid, "name": name, "code": code, "location": f"{name}, Pinar del Río",
+             "notes": "Sin inventario inicial; importe los valores de este municipio.",
+             "active": True, "isDefault": False, "createdAt": timestamp,
+             "createdBy": "sistema", "deletedAt": None}
+        st["warehouses"].append(w)
+        st["warehouseEntries"].append({
+            "id": "e_" + secrets.token_hex(12), "ts": timestamp,
+            "date": dt.date.today().isoformat(), "warehouseId": wid, "warehouseName": name,
+            "kind": "CREACION", "source": "migración", "userName": "sistema",
+            "summary": f"Almacén «{name}» creado sin existencias; pendiente de importar valores",
+            "items": [], "counts": {"productos": 0}, "undoneAt": None,
+        })
+        for p in st.get("products") or []:
+            if isinstance(p, dict):
+                p["stocks"][wid] = 0
+                p["stocksInicial"][wid] = 0
+        created.append(name)
+    return created
+
+
 def migrate_state():
-    """Aplica la conversión al estado guardado (arranque del servidor)."""
+    """Migra una sola vez una BD existente, de forma atómica e idempotente."""
     with _lock:
         r = q("SELECT version,data FROM app_state WHERE id=1", one=True)
         if not r or not r["data"]:
             return
         st, changed = ensure_warehouses(json.loads(r["data"]))
+        if not isinstance(st, dict):
+            raise ValueError("El estado guardado no es un objeto; no se puede migrar.")
+        done = q("SELECT 1 FROM schema_migrations WHERE name=?", (PINAR_MIGRATION,), one=True)
+        created = add_pinar_municipalities(st) if not done else []
+        changed = changed or bool(created)
+        try:
+            CON.execute("BEGIN IMMEDIATE")
+            if changed:
+                version = r["version"] + 1
+                CON.execute("UPDATE app_state SET version=?,data=?,updated_at=?,updated_by=? WHERE id=1",
+                            (version, json.dumps(st, ensure_ascii=False, separators=(",", ":")), now(), "migración de almacenes"))
+                index_state_changes(st, version, transactional=True)
+            if not done:
+                CON.execute("INSERT INTO schema_migrations(name,applied_at) VALUES(?,?)", (PINAR_MIGRATION, now()))
+            CON.commit()
+        except Exception:
+            CON.rollback()
+            raise
         if changed:
-            q("UPDATE app_state SET version=?, data=?, updated_at=?, updated_by=? WHERE id=1",
-              (r["version"] + 1, json.dumps(st, ensure_ascii=False, separators=(",", ":")), now(), "conversión a almacenes"))
-            index_state_changes(st, r["version"] + 1)
-            audit("sistema", "MIGRATE", "Datos convertidos al módulo de almacenes (todo quedó en el ALMACÉN PRINCIPAL)")
+            audit("sistema", "MIGRATE", f"Almacenes municipales creados sin existencias: {', '.join(created) or 'conversión de datos antiguos'}")
 
 
 def core(m):
@@ -1962,7 +1987,7 @@ def _record_hash(rec):
     return hashlib.sha256(json.dumps(rec, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:20]  # SHA-256 (antes SHA-1, escáner 2026)
 
 
-def index_state_changes(state, ver):
+def index_state_changes(state, ver, transactional=False):
     """Apunta qué registros cambiaron en esta versión del estado (S-03).
 
     Compara el estado recién guardado con el índice y anota, por sección y registro,
@@ -1971,6 +1996,11 @@ def index_state_changes(state, ver):
     """
     if not isinstance(state, dict):
         return
+    def query(sql, args=()):
+        if transactional:
+            return CON.execute(sql, args).fetchall()
+        return q(sql, args)
+
     with _lock:
         for sec in DELTA_SECTIONS:
             filas = state.get(sec)
@@ -1979,18 +2009,18 @@ def index_state_changes(state, ver):
                 for rec in filas:
                     if isinstance(rec, dict) and rec.get("id") is not None:
                         actuales[str(rec["id"])] = _record_hash(rec)
-            previos = {str(r["rid"]): r for r in q("SELECT rid,hash,deleted,ver FROM state_records WHERE section=?", (sec,))}
+            previos = {str(r["rid"]): r for r in query("SELECT rid,hash,deleted,ver FROM state_records WHERE section=?", (sec,))}
             for rid, h in actuales.items():
                 viejo = previos.get(rid)
                 if viejo is None or viejo["deleted"] or viejo["hash"] != h:
-                    q("INSERT INTO state_records(section,rid,ver,deleted,hash) VALUES(?,?,?,0,?) "
+                    query("INSERT INTO state_records(section,rid,ver,deleted,hash) VALUES(?,?,?,0,?) "
                       "ON CONFLICT(section,rid) DO UPDATE SET ver=excluded.ver, deleted=0, hash=excluded.hash",
                       (sec, rid, ver, h))
             for rid, viejo in previos.items():
                 if rid not in actuales and not viejo["deleted"]:
-                    q("UPDATE state_records SET ver=?, deleted=1, hash=NULL WHERE section=? AND rid=?", (ver, sec, rid))
+                    query("UPDATE state_records SET ver=?, deleted=1, hash=NULL WHERE section=? AND rid=?", (ver, sec, rid))
         # Poda: lo muy antiguo ya solo se sirve como estado completo.
-        q("DELETE FROM state_records WHERE ver < ?", (max(0, ver - DELTA_KEEP),))
+        query("DELETE FROM state_records WHERE ver < ?", (max(0, ver - DELTA_KEEP),))
 
 
 def delta_since(state, ver, since):
@@ -2027,17 +2057,17 @@ def state_get(h, u, _):
     except ValueError:
         since = -1
     quiere_full = (qs.get("full") or ["0"])[0] in ("1", "true", "si", "sí")
-    r = q("SELECT * FROM app_state WHERE id=1", one=True)
-    if r["data"]:
-        st, changed = ensure_warehouses(json.loads(r["data"]))
-        if changed:
-            with _lock:
-                v = q("SELECT version FROM app_state WHERE id=1", one=True)["version"] + 1
+    with _lock:
+        r = q("SELECT * FROM app_state WHERE id=1", one=True)
+        if r["data"]:
+            st, changed = ensure_warehouses(json.loads(r["data"]))
+            if changed:
+                v = r["version"] + 1
                 q("UPDATE app_state SET version=?, data=?, updated_at=?, updated_by=? WHERE id=1",
                   (v, json.dumps(st, ensure_ascii=False, separators=(",", ":")), now(), "conversión a almacenes"))
                 index_state_changes(st, v)
-            r = q("SELECT * FROM app_state WHERE id=1", one=True)
-            audit(u["username"], "MIGRATE", "Datos convertidos al módulo de almacenes", h.ip())
+                r = q("SELECT * FROM app_state WHERE id=1", one=True)
+                audit(u["username"], "MIGRATE", "Datos convertidos al módulo de almacenes", h.ip())
     cerrados = [dict(x, snapshot=None) for x in q("SELECT date,closed_by,closed_at,note FROM closed_days ORDER BY date DESC")]
     estado = json.loads(r["data"]) if r["data"] else None
     base = {"version": r["version"], "updatedBy": r["updated_by"], "updatedAt": r["updated_at"], "closedDays": cerrados}
