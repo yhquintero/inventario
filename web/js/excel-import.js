@@ -247,11 +247,10 @@ export function parseWeeklySummaryGrid(grid, { year = new Date().getFullYear() }
 const PINAR_CUADRE_LABELS = {
   "VENTA": "venta", "FONDO CUP": "fondoCup", "FONDO USD": "fondoUsd", "AUMENTO DE FONDO CUP": "aumentoFondoCup",
   "AUMENTO DE FONDO USD \\ZELLE": "aumentoFondoUsd", "COMISIONES": "comisionesCup", "DOMICILIOS": "domiciliosCup",
-  "GASTOS": "gastosCup", "GASTOS COMBOS Y REBAJAS USD": "gastosCombosUsd", "SALIDA JESUS MN": "salidaJesusMn",
-  "SALIDA JESUS USD": "salidaJesusUsd", "SALIDA MLC": "salidaMlc", "USD EFECTIVO": "usdEfectivo", "ZELLE": "zelle",
+  "GASTOS": "gastosCup", "GASTOS COMBOS Y REBAJAS USD": "gastosCombosUsd", "SALIDA MLC": "salidaMlc", "USD EFECTIVO": "usdEfectivo", "ZELLE": "zelle",
   "MLC": "mlc", "MN EFECTIVO": "mnEfectivoCup", "MN TARJETA": "mnTarjetaCup", "X COBRAR": "xCobrar",
 };
-const PINAR_CUP_FIELDS = new Set(["fondoCup", "aumentoFondoCup", "comisionesCup", "domiciliosCup", "gastosCup", "salidaJesusMn", "mnEfectivoCup", "mnTarjetaCup"]);
+const PINAR_CUP_FIELDS = new Set(["fondoCup", "aumentoFondoCup", "comisionesCup", "domiciliosCup", "gastosCup", "mnEfectivoCup", "mnTarjetaCup"]);
 
 /**
  * Interpreta una hoja diaria del libro histórico NovaGest SEPT.xlsx.

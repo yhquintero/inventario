@@ -65,7 +65,7 @@ export function stockCalculado(inicial, ventas, entradas, salidas) {
 export const CUADRE_FIELDS = [
   "fondoCupEfectivo", "fondoCupTarjeta", "fondoUsd", "aumentoFondoCup", "aumentoFondoUsd",
   "comisionesCup", "domiciliosCup", "gastosCup", "gastosCombosUsd",
-  "salidaJesusMn", "salidaJesusUsd", "salidaMlc",
+  "salidaMlc",
   "usdEfectivo", "zelle", "mlc", "mnEfectivoCup", "mnTarjetaCup", "xCobrar",
 ];
 
@@ -83,7 +83,7 @@ export function cuadreCalc(c, dayMovs) {
   const gastos = n("gastosCup") / r;
   const totalGastos = comisiones + domicilios + gastos + n("gastosCombosUsd");
   const despues = total - totalGastos;
-  const salidas = n("salidaJesusMn") / r + n("salidaJesusUsd") + n("salidaMlc");
+  const salidas = n("salidaMlc");
   const capital = n("usdEfectivo") + n("zelle") + n("mlc") + n("mnEfectivoCup") / r + n("mnTarjetaCup") / r;
   const cuadre = despues - salidas - capital - n("xCobrar");
   return {

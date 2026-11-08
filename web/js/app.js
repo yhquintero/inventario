@@ -325,7 +325,7 @@ function shell(body) {
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema: ${esc(themeLabel(store.state.settings.theme))}" aria-label="Cambiar tema (ahora: ${esc(themeLabel(store.state.settings.theme))})">${themeIcon(store.state.settings.theme)}</button>
         </div>
-        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}<div class="topbar-sub-nav">${[
+        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${ui.route === "finanzas" ? `<div class="topbar-sub-nav">${[
       "PanelAsientos",
       "Plan de cuentas",
       "Estados financieros",
@@ -333,7 +333,7 @@ function shell(body) {
       "Márgenes y ratios",
       "Indicadores web/app",
       "QR de cobro"
-    ].map(label => `<a href="#" class="topbar-sub-item">${label}</a>`).join("")}</div>${body}${legalFooter(ui.legalData || {})}</div>
+    ].map(label => `<a href="#" class="topbar-sub-item">${label}</a>`).join("")}</div>` : ""}${body}${legalFooter(ui.legalData || {})}</div>
       </section>
     </div>
     ${consentBanner()}
@@ -1455,7 +1455,7 @@ function cuadreView() {
           ${f("comisionesCup", "Comisiones")}${f("domiciliosCup", "Domicilios")}
           ${f("gastosCup", "Gastos")}${f("gastosCombosUsd", "Gastos combos y rebajas", "USD")}
           <div class="fs span-2">Salidas</div>
-          ${f("salidaJesusMn", "Salida Jesús MN")}${f("salidaJesusUsd", "Salida Jesús USD", "USD")}${f("salidaMlc", "Salida MLC", "USD")}
+          ${f("salidaMlc", "Salida MLC", "USD")}
           <div class="fs span-2">Capital</div>
           ${f("usdEfectivo", "USD efectivo", "USD")}${f("zelle", "Zelle", "USD")}${f("mlc", "MLC", "USD")}
           ${f("mnEfectivoCup", "MN efectivo")}${f("mnTarjetaCup", "MN tarjeta")}${f("xCobrar", "Por cobrar", "USD")}
