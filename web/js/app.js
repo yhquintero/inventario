@@ -4364,7 +4364,10 @@ function render() {
   }
   if (!store.state.session) { app.innerHTML = loginView(); bindLogin(); return; }
   if (store.clearConflictPending) {
-    app.innerHTML = `<div class="login-wrap"><div class="login-card"><h1>Cambios pendientes de revisión</h1><p>Este navegador tiene cambios anteriores a una limpieza de almacén. No se han aplicado ni fusionado para evitar recuperar inventario borrado. Descárguelos y revíselos con el administrador antes de continuar.</p><p>El archivo contiene datos sensibles: guárdelo en un lugar seguro. Descartar borra la cola local, no cambia el servidor y no se puede deshacer.</p>${store.clearConflictSnapshot ? `<p class="banner">No se pudo guardar la cola en el navegador. Descárguela antes de cerrar o recargar esta página.</p>` : ""}<div class="row"><button class="btn" data-act="clear-conflict-download">Descargar cambios pendientes</button><button class="btn danger" data-act="clear-conflict-discard">Descartar y continuar</button></div></div></div>`;
+    const avisoCola = store.clearConflictSnapshot
+      ? '<p class="banner">No se pudo guardar la cola en el navegador. Descárguela antes de cerrar o recargar esta página.</p>'
+      : "";
+    app.innerHTML = '<div class="login-wrap"><div class="login-card"><h1>Cambios pendientes de revisión</h1><p>Este navegador tiene cambios anteriores a una limpieza de almacén. No se han aplicado ni fusionado para evitar recuperar inventario borrado. Descárguelos y revíselos con el administrador antes de continuar.</p><p>El archivo contiene datos sensibles: guárdelo en un lugar seguro. Descartar borra la cola local, no cambia el servidor y no se puede deshacer.</p>' + avisoCola + '<div class="row"><button class="btn" data-act="clear-conflict-download">Descargar cambios pendientes</button><button class="btn danger" data-act="clear-conflict-discard">Descartar y continuar</button></div></div></div>';
     ensureClicks();
     return;
   }
