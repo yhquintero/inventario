@@ -1,0 +1,68 @@
+#!/usr/bin/env node
+import { cpSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import assert from 'node:assert/strict';
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const tmp = mkdtempSync(join(tmpdir(), 'ng-clear-client-'));
+cpSync(join(root, 'web/js'), tmp, { recursive: true });
+writeFileSync(join(tmp, 'package.json'), '{"type":"module"}');
+const memory = new Map();
+globalThis.localStorage = { getItem: (k) => memory.get(k) ?? null, setItem: (k, v) => memory.set(k, String(v)), removeItem: (k) => memory.delete(k) };
+globalThis.sessionStorage = globalThis.localStorage;
+let calls = [], handler;
+globalThis.fetch = async (url, opts = {}) => { calls.push([url, opts]); return handler(url, opts); };
+const { store } = await import(pathToFileURL(join(tmp, 'store.js')).href);
+const response = (data, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => data });
+const p = { id: 'p', name: 'Arroz', stocks: { a: 3, b: 7 }, stocksInicial: { a: 3, b: 7 }, stockActual: 10, stockInicial: 10 };
+const initial = { warehouses: [{ id: 'a', name: 'A', isDefault: true }, { id: 'b', name: 'B' }], products: [p], movements: [], warehouseEntries: [] };
+store.state.session = { id: 1, role: 'ADMINISTRADOR' };
+store.applyServer({ version: 1, state: structuredClone(initial), closedDays: [] });
+store.ready = true;
+store.saving = true;
+assert.match((await store.clearWarehouse('b')).error, /Espere/);
+store.saving = false;
+store.state.session.role = 'JEFE';
+assert.match((await store.clearWarehouse('b')).error, /Solo un administrador/);
+assert.equal(calls.length, 0);
+store.state.session.role = 'ADMINISTRADOR';
+handler = async () => { throw new Error('offline'); };
+store.dirty = true;
+assert.match((await store.clearWarehouse('b')).error, /pendientes/);
+assert.equal(calls.filter(([url]) => url.includes('/warehouses/clear')).length, 0);
+assert.equal(store.state.products[0].stocks.b, 7);
+store.dirty = false; store.sync = 'ok'; calls = [];
+const updated = structuredClone(initial); updated.products[0].stocks.b = 0; updated.products[0].stocksInicial.b = 0;
+updated.products[0].stockActual = 3; updated.products[0].stockInicial = 3;
+handler = async (url, opts) => {
+  if (url.endsWith('/warehouses/clear')) {
+    assert.equal(store.state.products[0].stocks.b, 7, 'no hay modificación optimista');
+    assert.deepEqual(JSON.parse(opts.body), { warehouseId: 'b', version: 1, confirmation: 'LIMPIAR' });
+    return response({ ok: true, changed: true, backup: 'ejemplo.bak', version: 2 });
+  }
+  assert.equal(url, '/api/state');
+  return response({ version: 2, state: updated, closedDays: [] });
+};
+const r = await store.clearWarehouse('b');
+assert.equal(r.ok, true); assert.equal(store.version, 2);
+assert.equal(store.state.products[0].stocks.b, 0); assert.equal(store.state.products[0].stocks.a, 3);
+store.state.movements = [{ id: 'gone', warehouseCleared: true, deletedAt: 1 }];
+assert.equal(store.trashMovements().length, 0);
+store.emptyTrash(); assert.equal(store.state.movements.length, 1);
+store.state.warehouseEntries = [{ id: 'e', invalidatedAt: 1, items: [{}] }];
+assert.match(store.undoWarehouseEntry('e').error, /no se puede deshacer/);
+// Una venta offline que aún no existía en el servidor no debe reponer inventario.
+store.state.products[0].warehouseClearEpochs = undefined;
+store.state.movements.push({ id: 'offline', productId: 'p', warehouseId: 'b', type: 'ENTRADA', quantity: 5, date: '2026-11-01' });
+const server = structuredClone(updated); server.products[0].warehouseClearEpochs = { b: 'clear-1' };
+calls = []; handler = async () => response({ version: 3, state: server, closedDays: [] });
+await store.resolveConflict();
+assert.equal(store.clearConflictPending, true);
+assert.ok(JSON.parse(memory.get('novagest.pending')).state.movements.some((m) => m.id === 'offline'));
+assert.equal(store.state.movements.some((m) => m.id === 'offline'), false);
+store.dirty = true; assert.equal(await store.flush(), false);
+assert.equal(calls.length, 1);
+store.discardClearConflict();
+assert.equal(memory.has('novagest.pending'), false);
+console.log('Cliente: permisos, cola offline, confirmación, actualización y marcas de limpieza correctos.');

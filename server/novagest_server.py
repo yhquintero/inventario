@@ -28,6 +28,7 @@ import copias_externas
 import divisa  # noqa: E402
 import eltoque  # noqa: E402
 import financiero  # noqa: E402  · módulo económico-financiero (contabilidad)
+import warehouse_clear  # noqa: E402
 WEB = os.path.join(ROOT, "web")
 DATA = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
 BACKUPS = os.path.join(DATA, "backups")
@@ -1015,8 +1016,8 @@ def migrate_state():
         except Exception:
             CON.rollback()
             raise
-        if changed:
-            audit("sistema", "MIGRATE", f"Almacenes municipales creados sin existencias: {', '.join(created) or 'conversión de datos antiguos'}")
+    if changed:
+        audit("sistema", "MIGRATE", f"Almacenes municipales creados sin existencias: {', '.join(created) or 'conversión de datos antiguos'}")
 
 
 def core(m):
@@ -1036,6 +1037,20 @@ def core_changed(old, new):
 def validate_change(old, new, role, closed):
     """Devuelve (código HTTP, mensaje) si el cambio no está permitido, o None."""
     if not isinstance(new, dict): return 400, "Estado inválido."
+    # Evita que una copia offline o un cliente anterior resucite movimientos borrados
+    # o deshaga una entrada invalidada por una limpieza administrativa.
+    for section, marker in (("movements", "warehouseCleared"), ("warehouseEntries", "invalidatedAt")):
+        previous = by_id(old.get(section))
+        current = by_id(new.get(section))
+        for rid, record in previous.items():
+            if record.get(marker) and current.get(rid) != record:
+                return 409, "Esta versión intenta restaurar datos limpiados. Recargue la aplicación y revise los cambios pendientes."
+    old_products = by_id(old.get("products"))
+    for rid, product in by_id(new.get("products")).items():
+        prior = old_products.get(rid, {}).get("warehouseClearEpochs", {})
+        epochs = product.get("warehouseClearEpochs", {})
+        if prior and (not isinstance(epochs, dict) or not isinstance(prior, dict) or any(epochs.get(wid) != epoch for wid, epoch in prior.items())):
+            return 409, "Hay cambios pendientes anteriores a una limpieza. Recargue y revise antes de guardar."
     for k in new:
         if k not in WRITE and k not in ("backups",): return 400, f"Sección desconocida: {k}"
     for sec, roles in WRITE.items():
@@ -2063,6 +2078,7 @@ def state_get(h, u, _):
     except ValueError:
         since = -1
     quiere_full = (qs.get("full") or ["0"])[0] in ("1", "true", "si", "sí")
+    changed = False
     with _lock:
         r = q("SELECT * FROM app_state WHERE id=1", one=True)
         if r["data"]:
@@ -2073,7 +2089,8 @@ def state_get(h, u, _):
                   (v, json.dumps(st, ensure_ascii=False, separators=(",", ":")), now(), "conversión a almacenes"))
                 index_state_changes(st, v)
                 r = q("SELECT * FROM app_state WHERE id=1", one=True)
-                audit(u["username"], "MIGRATE", "Datos convertidos al módulo de almacenes", h.ip())
+    if changed:
+        audit(u["username"], "MIGRATE", "Datos convertidos al módulo de almacenes", h.ip())
     cerrados = [dict(x, snapshot=None) for x in q("SELECT date,closed_by,closed_at,note FROM closed_days ORDER BY date DESC")]
     estado = json.loads(r["data"]) if r["data"] else None
     base = {"version": r["version"], "updatedBy": r["updated_by"], "updatedAt": r["updated_at"], "closedDays": cerrados}
@@ -2148,6 +2165,69 @@ def state_put(h, u, _):
         index_state_changes(new, v)
     if r["data"] is None: audit(u["username"], "SEED", "Datos iniciales cargados desde el Excel", h.ip())
     h.send_json(200, {"ok": True, "version": v})
+
+
+@route("POST", "/api/warehouses/clear", roles={"ADMINISTRADOR"})
+def clear_warehouse(h, u, _):
+    """Limpieza por almacén con copia verificada, versión y auditoría atómica."""
+    b = h.body()
+    if not isinstance(b, dict) or b.get("confirmation") != "LIMPIAR" or not isinstance(b.get("warehouseId"), str) or type(b.get("version")) is not int:
+        return h.err(400, "Confirme la limpieza y proporcione el almacén y la versión.")
+    wid, expected = b["warehouseId"], b["version"]
+    timestamp = int(time.time() * 1000)
+    operation_id = secrets.token_hex(12)
+    with _lock:
+        row = q("SELECT version,data FROM app_state WHERE id=1", one=True)
+        if not row or not row["data"]:
+            return h.err(409, "No hay inventario guardado para limpiar.")
+        if row["version"] != expected:
+            return h.err(409, "El inventario cambió. Recargue y revise antes de limpiar.")
+        state = json.loads(row["data"])
+        closed = closed_set()
+        try:
+            prepared, details = warehouse_clear.prepare(state, wid, closed, timestamp, u["display_name"], operation_id)
+        except warehouse_clear.ClearError as exc:
+            return h.err(exc.status, str(exc))
+    if not details["changed"]:
+        return h.send_json(200, {"ok": True, "changed": False, "version": expected, **details})
+    # Sin mantener _lock: make_backup también registra auditoría (_CHAIN_LOCK → _lock).
+    try:
+        backup = make_backup("pre-clear-" + secrets.token_hex(4), u["username"])
+        verified = read_backup(backup)
+        backup_closed = {d["date"] for d in verified.get("closedDays", [])}
+        if verified.get("version") != expected or verified.get("state") != state or backup_closed != closed:
+            return h.err(409, "La base cambió durante la copia. Recargue y vuelva a revisar la limpieza.")
+    except Exception:
+        return h.err(503, "No se pudo crear y verificar la copia previa; no se limpió el inventario.")
+
+    # Misma jerarquía de bloqueos que audit(): _CHAIN_LOCK antes de _lock.
+    with _CHAIN_LOCK, _lock:
+        current = CON.execute("SELECT version FROM app_state WHERE id=1").fetchone()
+        current_closed = {r["date"] for r in CON.execute("SELECT date FROM closed_days").fetchall()}
+        if not current or current["version"] != expected or current_closed != closed:
+            return h.err(409, "La base o los días cerrados cambiaron. Recargue antes de limpiar.")
+        prepared["warehouseEntries"][0]["date"] = dt.datetime.fromtimestamp(timestamp / 1000, divisa._havana_zone()).date().isoformat()
+        prepared.setdefault("audit", []).insert(0, {"id": "a_clear_" + operation_id, "userId": u["id"],
+            "userName": u["username"], "action": "CLEAR", "entity": "warehouse", "entityId": wid,
+            "details": f"Limpieza · {details['warehouse']} · {details['products']} productos · {details['movements']} movimientos · copia {backup}", "timestamp": timestamp})
+        version = expected + 1
+        try:
+            CON.execute("BEGIN IMMEDIATE")
+            CON.execute("UPDATE app_state SET version=?,data=?,updated_at=?,updated_by=? WHERE id=1",
+                (version, json.dumps(prepared, ensure_ascii=False, separators=(",", ":")), now(), u["display_name"]))
+            index_state_changes(prepared, version, transactional=True)
+            last = CON.execute("SELECT hash FROM audit ORDER BY id DESC LIMIT 1").fetchone()
+            prev = (last["hash"] if last else "") or ""
+            ts, ip = now(), h.ip()
+            text = f"{wid} · {details['warehouse']} · {details['products']} productos · {details['movements']} movimientos · copia {backup}"
+            digest = _hash_auditoria(prev, ts, u["username"], "WAREHOUSE_CLEAR", text, ip)
+            CON.execute("INSERT INTO audit(ts,user,action,details,ip,prev,hash) VALUES(?,?,?,?,?,?,?)",
+                (ts, u["username"], "WAREHOUSE_CLEAR", text, ip, prev, digest))
+            CON.commit()
+        except Exception:
+            CON.rollback()
+            return h.err(500, "No se pudo completar la limpieza; no se guardaron cambios.")
+    h.send_json(200, {"ok": True, "version": version, "backup": backup, **details})
 
 
 # ------------------------------------------------------------------ cierre del día
