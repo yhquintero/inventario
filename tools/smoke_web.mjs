@@ -707,6 +707,67 @@ test("Limpieza: solo Administrador ve la acción y debe confirmar el alcance", (
   } finally { store.state.session = original; go("warehouses"); }
 });
 
+test("Limpieza: botón inactivo en cero y el inventario muestra solo el almacén seleccionado", () => {
+  const saved = structuredClone({ products: store.state.products, movements: store.state.movements, warehouses: store.state.warehouses });
+  const previousWarehouse = store.warehouseId;
+  try {
+    store.state.products = [{ id: "clean", name: "PRODUCTO LIMPIADO", category: "General", stocks: { w1: 4, w2: 0 }, stocksInicial: { w1: 4, w2: 0 }, stockActual: 4, stockInicial: 4, precioVentaUsd: 2, minStock: 1 }];
+    store.state.movements = [{ id: "tomb", warehouseId: "w2", warehouseCleared: true, deletedAt: 123 }];
+    store.setActiveWarehouse("w2");
+    go("warehouses"); click({ whTab: "almacenes" });
+    assert.match(app.innerHTML, /data-wh-clear="w2"\s+disabled/);
+    assert.doesNotMatch(app.innerHTML, /data-wh-clear="w1"\s+disabled/);
+    clickMatching("wh-clear", { whClear: "w2" });
+    assert.doesNotMatch(app.innerHTML, /id="whClearForm"/);
+    store.state.movements.push({ id: "only-movement", warehouseId: "w2", productId: "clean", date: "2026-11-01", type: "ENTRADA", quantity: 1 });
+    store.emit(false);
+    assert.doesNotMatch(app.innerHTML, /data-wh-clear="w2"\s+disabled/);
+    store.state.movements.pop();
+    click({ whUse: "w2" });
+    assert.doesNotMatch(app.innerHTML, /<strong>PRODUCTO LIMPIADO<\/strong>/);
+    assert.match(app.innerHTML, /Catálogo completo/);
+    click({ filter: "TODOS" });
+    assert.match(app.innerHTML, /<strong>PRODUCTO LIMPIADO<\/strong>/);
+    store.setActiveWarehouse("w1");
+    click({ filter: "AQUI" });
+    assert.match(app.innerHTML, /<strong>PRODUCTO LIMPIADO<\/strong>/);
+  } finally {
+    Object.assign(store.state, saved);
+    store.setActiveWarehouse(previousWarehouse);
+    go("warehouses");
+  }
+});
+
+test("Limpieza de 11 municipios exige Administrador, identifica los destinos y pide aprobación", () => {
+  const saved = structuredClone(store.state.warehouses);
+  const session = store.state.session;
+  try {
+    const names = ["PINAR DEL RÍO", "CONSOLACIÓN DEL SUR", "SAN LUIS", "SAN JUAN Y MARTÍNEZ", "GUANE", "MANTUA", "MINAS DE MATAHAMBRE", "VIÑALES", "LA PALMA", "LOS PALACIOS", "SANDINO"];
+    store.state.warehouses = names.map((name, i) => ({ id: `municipio${i}`, name, code: `M${i}`, active: true, isDefault: i === 0 }));
+    go("warehouses");
+    assert.match(app.innerHTML, /data-act="wh-municipal-clear"/);
+    click({ act: "wh-municipal-clear" });
+    assert.match(app.innerHTML, /id="whMunicipalClearForm"/);
+    assert.match(app.innerHTML, /LIMPIAR 11 MUNICIPIOS/);
+    assert.match(app.innerHTML, /SANDINO/);
+    assert.match(app.innerHTML, /no se limpiará ninguno/);
+    const oldFormData = globalThis.FormData;
+    const callsBefore = fetchCalls.filter((x) => x.url.includes("/api/warehouses/clear")).length;
+    try {
+      globalThis.FormData = class { get() { return "SI"; } };
+      getEl("whMunicipalClearForm").dispatch("submit", { preventDefault() {}, target: {} });
+      assert.equal(fetchCalls.filter((x) => x.url.includes("/api/warehouses/clear")).length, callsBefore);
+      assert.match(app.innerHTML, /Escriba LIMPIAR 11 MUNICIPIOS/);
+    } finally { globalThis.FormData = oldFormData; }
+    click({ act: "close-modal" });
+    store.state.session = { ...session, role: "JEFE" };
+    go("warehouses");
+    assert.doesNotMatch(app.innerHTML, /data-act="wh-municipal-clear"/);
+    click({ act: "wh-municipal-clear" });
+    assert.doesNotMatch(app.innerHTML, /id="whMunicipalClearForm"/);
+  } finally { store.state.warehouses = saved; store.state.session = session; go("warehouses"); }
+});
+
 test("Almacenes: eliminar un almacén con existencias pide mover todo", () => {
   app.dispatch("click", { target: { closest: () => ({ dataset: { whDel: "w2" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
   assert.match(app.innerHTML, /Mover y eliminar/);
