@@ -2,6 +2,7 @@
 
 package com.novagest.inventario.ui.navigation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -29,6 +30,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
@@ -50,6 +53,14 @@ import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.runtime.Composable
 import com.novagest.inventario.ui.components.SyncHint
+import com.novagest.inventario.ui.theme.CyanNeon
+import com.novagest.inventario.ui.theme.VioletDeep
+import com.novagest.inventario.ui.theme.nebulaBrandBrush
+import com.novagest.inventario.ui.theme.nebulaIsDark
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -116,6 +127,17 @@ fun AppShell(
     val back by nav.currentBackStackEntryAsState()
     val current = back?.destination?.route
 
+    // Barra inferior y encabezado aclopados al tema Nebula (claro/oscuro).
+    val dark = nebulaIsDark()
+    val barContainer = if (dark) Color(0xFF0D1230) else Color(0xFFFBFBFF)
+    val drawerAccent = if (dark) CyanNeon else VioletDeep
+    val itemIndicator = if (dark) Color(0x2E22D3EE) else Color(0xFFE7E6FF)
+    val itemMuted = if (dark) Color(0xFF8A93BC) else Color(0xFF5D6B8A)
+    val drawerHeader = if (dark)
+        Brush.linearGradient(listOf(Color(0xFF171038), Color(0xFF101E42)))
+    else
+        Brush.linearGradient(listOf(Color(0xFFEFEEFF), Color(0xFFE3F6FF)))
+
     fun allowed(d: Dest) = d.permission == null || RolePermissions.can(user.role, d.permission)
     val syncVm: SyncStatusViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     val sync by syncVm.sync.status.collectAsState()
@@ -130,28 +152,48 @@ fun AppShell(
             // El menú tiene 15 entradas: en un teléfono no caben en una sola pantalla.
             // Sin desplazamiento, Ajustes y «Cerrar sesión» quedaban fuera de alcance.
             ModalDrawerSheet(Modifier.verticalScroll(rememberScrollState())) {
-                Text(
-                    "NovaGest",
-                    modifier = Modifier.padding(24.dp),
-                    style = androidx.compose.material3.MaterialTheme.typography.titleLarge
-                )
-                Text(
-                    "Gestiona. Crece. Avanza.",
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.tertiary,
-                    style = androidx.compose.material3.MaterialTheme.typography.labelLarge
-                )
-                Text(
-                    "${user.displayName} · ${user.role.label}",
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                androidx.compose.foundation.layout.Spacer(Modifier.padding(8.dp))
+                // Cabecera Nebula: degradado índigo → cian, monograma y lema.
+                androidx.compose.foundation.layout.Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(drawerHeader)
+                        .padding(horizontal = 24.dp, vertical = 22.dp)
+                ) {
+                    androidx.compose.foundation.layout.Column {
+                        androidx.compose.material3.Text(
+                            "NovaGest",
+                            style = androidx.compose.material3.MaterialTheme.typography.titleLarge.copy(
+                                brush = nebulaBrandBrush(),
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 3.sp
+                            )
+                        )
+                        androidx.compose.material3.Text(
+                            "GESTIONA · CRECE · AVANZA",
+                            color = drawerAccent,
+                            style = androidx.compose.material3.MaterialTheme.typography.labelSmall
+                        )
+                        androidx.compose.foundation.layout.Spacer(Modifier.padding(6.dp))
+                        androidx.compose.material3.Text(
+                            "${user.displayName} · ${user.role.label}",
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = androidx.compose.material3.MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+                androidx.compose.foundation.layout.Spacer(Modifier.padding(4.dp))
                 (bottom + drawer).filter(::allowed).forEach { d ->
                     NavigationDrawerItem(
                         label = { Text(d.label) },
                         selected = current == d.route,
                         icon = { Icon(d.icon, d.label) },
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = itemIndicator,
+                            selectedIconColor = drawerAccent,
+                            selectedTextColor = drawerAccent,
+                            unselectedIconColor = itemMuted,
+                            unselectedTextColor = androidx.compose.material3.MaterialTheme.colorScheme.onSurface
+                        ),
                         onClick = {
                             nav.navigate(d.route) {
                                 popUpTo(nav.graph.findStartDestination().id) { saveState = true }
@@ -175,7 +217,17 @@ fun AppShell(
             snackbarHost = { androidx.compose.material3.SnackbarHost(snackbar) },
             topBar = {
                 TopAppBar(
-                    title = { Text("NovaGest") },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = barContainer),
+                    title = {
+                        Text(
+                            "NovaGest",
+                            style = androidx.compose.material3.MaterialTheme.typography.titleLarge.copy(
+                                brush = nebulaBrandBrush(),
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 2.6.sp
+                            )
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Outlined.Menu, "Menú")
@@ -209,10 +261,17 @@ fun AppShell(
                 )
             },
             bottomBar = {
-                NavigationBar {
+                NavigationBar(containerColor = barContainer, tonalElevation = 0.dp) {
                     bottom.filter(::allowed).forEach { d ->
                         NavigationBarItem(
                             selected = current == d.route,
+                            colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
+                                selectedIconColor = drawerAccent,
+                                selectedTextColor = drawerAccent,
+                                unselectedIconColor = itemMuted,
+                                unselectedTextColor = itemMuted,
+                                indicatorColor = itemIndicator
+                            ),
                             onClick = {
                                 nav.navigate(d.route) {
                                     popUpTo(nav.graph.findStartDestination().id) { saveState = true }

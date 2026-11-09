@@ -19,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -182,6 +183,8 @@ fun SettingsScreen(user: UserAccount, themeMode: String, vm: SettingsViewModel =
                 }
             }
         }
+        // Califica en Play Store (enlace directo a la ficha; sin dependencias nuevas).
+        RateCard()
         OutlinedTextField(e.businessName, { e = e.copy(businessName = it) }, label = { Text("Nombre del negocio") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(e.defaultCupUsd.toString(), { e = e.copy(defaultCupUsd = it.toDoubleOrNull() ?: e.defaultCupUsd) }, label = { Text("CUP/USD por defecto") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(e.defaultMxnUsd.toString(), { e = e.copy(defaultMxnUsd = it.toDoubleOrNull() ?: e.defaultMxnUsd) }, label = { Text("MXN/USD por defecto") }, modifier = Modifier.fillMaxWidth())
@@ -223,5 +226,30 @@ fun SettingsScreen(user: UserAccount, themeMode: String, vm: SettingsViewModel =
             onSelect = { e = e.copy(theme = it) }
         )
         Button(onClick = { vm.save(e) }, modifier = Modifier.fillMaxWidth()) { Text("Guardar ajustes") }
+    }
+}
+
+/** Pieza «Califica NovaGest»: versión real de la instalación + enlace a Google Play. */
+@Composable
+private fun RateCard() {
+    val ctx = LocalContext.current
+    val versionName = remember {
+        runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "1.1.0" }.getOrDefault("1.1.0")
+    }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("¿NovaGest trabaja para ti?", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Una reseña de 30 segundos ayuda a que otros negocios encuentren NovaGest en Google Play.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(onClick = {
+                val url = "https://play.google.com/store/apps/details?id=com.novagest.inventario"
+                runCatching { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))) }
+            }, modifier = Modifier.fillMaxWidth()) {
+                Text("⭐  Califica NovaGest $versionName")
+            }
+        }
     }
 }

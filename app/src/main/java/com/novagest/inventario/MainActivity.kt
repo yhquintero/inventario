@@ -37,6 +37,8 @@ class MainActivity : FragmentActivity() {
     lateinit var widgetUpdater: com.novagest.inventario.widget.WidgetUpdater
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Pantalla de arranque Nebula (Android 12+): fondo noche + monograma.
+        androidx.core.splashscreen.SplashScreen.installSplashScreen(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // H5 (auditoría 2026): aviso si el dispositivo está rooteado (datos locales en riesgo).
@@ -46,6 +48,7 @@ class MainActivity : FragmentActivity() {
         // A-04: el widget no puede consultar la base de datos al dibujarse; la app le deja
         // el resumen listo en segundo plano (no bloquea la pantalla de entrada).
         lifecycleScope.launch { widgetUpdater.actualizar() }
+        val onboardingPrefs = getSharedPreferences("novagest_onboarding", MODE_PRIVATE) // nosec: bandera de UI, sin datos
         setContent {
             AskNotificationPermissionOnce()
             val auth: AuthViewModel = hiltViewModel()
@@ -54,6 +57,7 @@ class MainActivity : FragmentActivity() {
             val licenseState by licenseVm.state.collectAsState()
             var theme by remember { mutableStateOf("system") }
             var licenseOk by remember { mutableStateOf(false) }
+            var onboardingDone by remember { mutableStateOf(onboardingPrefs.getBoolean("done", false)) }
             // Bloqueo al abrir: si está activo, la sesión restaurada pide huella antes de entrar.
             var unlocked by remember { mutableStateOf(!appLock.enabled) }
 
@@ -76,8 +80,13 @@ class MainActivity : FragmentActivity() {
             // Pero siempre se verifica contra servidor en el ViewModel
 
             NovaGestTheme(theme) {
-                // LICENCIA DE USO: verificación obligatoria siempre primero
-                if (!licenseOk && licenseState.status?.valid != true) {
+                if (!onboardingDone) {
+                    // Bienvenida Nebula: se muestra una sola vez por instalación.
+                    com.novagest.inventario.ui.onboarding.OnboardingScreen(onDone = {
+                        onboardingPrefs.edit().putBoolean("done", true).apply()
+                        onboardingDone = true
+                    })
+                } else if (!licenseOk && licenseState.status?.valid != true) {
                     LicenseScreen(licenseVm) {
                         licenseOk = true
                     }

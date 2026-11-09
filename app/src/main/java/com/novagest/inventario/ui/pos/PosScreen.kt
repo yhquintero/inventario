@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -57,6 +58,7 @@ import com.novagest.inventario.domain.model.Product
 import com.novagest.inventario.domain.model.SaleCenter
 import com.novagest.inventario.domain.model.UserAccount
 import com.novagest.inventario.ui.components.ChipRow
+import com.novagest.inventario.ui.components.Haptics
 import com.novagest.inventario.ui.components.SearchField
 import com.novagest.inventario.ui.inventory.CategoryThumb
 import com.novagest.inventario.util.Money
@@ -197,6 +199,13 @@ fun PosScreen(user: UserAccount, vm: PosViewModel = hiltViewModel()) {
     var payment by remember { mutableStateOf("CONTADO") }
     var customerId by remember { mutableStateOf("") }
     var dueDate by remember { mutableStateOf("") }
+    val view = androidx.compose.ui.platform.LocalView.current
+    // Hápticos: confirmación al cobrar / imprimir, error si algo falla.
+    LaunchedEffect(vm.message) {
+        vm.message?.let { msg ->
+            if (msg.startsWith("✔") || msg.startsWith("🖨")) Haptics.success(view) else Haptics.error(view)
+        }
+    }
     val customers = remember(products) { vm.customers() }
     val cats = remember(products) { listOf("TODAS") + products.map { it.category }.distinct().sorted() }
     val list = products.filter { it.stockActual > 0 && (cat == "TODAS" || it.category == cat) && (q.isBlank() || it.name.contains(q, true) || it.barcode.contains(q.trim(), true)) }

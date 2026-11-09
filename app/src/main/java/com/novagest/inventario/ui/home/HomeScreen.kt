@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,7 +38,9 @@ import com.novagest.inventario.data.repository.ProductRepository
 import com.novagest.inventario.domain.model.MovementType
 import com.novagest.inventario.domain.model.UserAccount
 import com.novagest.inventario.domain.usecase.CuadreCalculator
+import com.novagest.inventario.ui.components.GradientLinearProgress
 import com.novagest.inventario.ui.components.KpiCard
+import com.novagest.inventario.ui.components.SalesLineChart
 import com.novagest.inventario.ui.components.SectionTitle
 import com.novagest.inventario.util.Dates
 import com.novagest.inventario.util.Money
@@ -49,6 +50,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 @HiltViewModel
@@ -117,14 +119,14 @@ fun HomeScreen(user: UserAccount, vm: HomeViewModel = hiltViewModel()) {
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                KpiCard("Ventas de hoy", Money.usd(ventas), "${Money.qty(unidades)} uds.", Modifier.weight(1f), MaterialTheme.colorScheme.tertiary)
-                KpiCard("Inventario", Money.usd(valorInventario), "${products.size} productos", Modifier.weight(1f), MaterialTheme.colorScheme.primary)
+                KpiCard("Ventas de hoy", Money.usd(ventas), "${Money.qty(unidades)} uds.", Modifier.weight(1f), MaterialTheme.colorScheme.tertiary, icon = androidx.compose.material.icons.Icons.Outlined.PointOfSale)
+                KpiCard("Inventario", Money.usd(valorInventario), "${products.size} productos", Modifier.weight(1f), MaterialTheme.colorScheme.primary, icon = androidx.compose.material.icons.Icons.Outlined.Inventory2)
             }
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                KpiCard("Movimientos hoy", todayMovs.size.toString(), "VENTA / ENTRADA / SALIDA", Modifier.weight(1f), MaterialTheme.colorScheme.secondary)
-                KpiCard("Stock bajo", low.size.toString(), if (low.isEmpty()) "Todo cubierto" else "Requieren reposición", Modifier.weight(1f), if (low.isEmpty()) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error)
+                KpiCard("Movimientos hoy", todayMovs.size.toString(), "VENTA / ENTRADA / SALIDA", Modifier.weight(1f), MaterialTheme.colorScheme.secondary, icon = androidx.compose.material.icons.Icons.Outlined.SwapHoriz)
+                KpiCard("Stock bajo", low.size.toString(), if (low.isEmpty()) "Todo cubierto" else "Requieren reposición", Modifier.weight(1f), if (low.isEmpty()) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error, icon = if (low.isEmpty()) androidx.compose.material.icons.Icons.Outlined.CheckCircle else androidx.compose.material.icons.Icons.Outlined.WarningAmber)
             }
         }
         item {
@@ -146,6 +148,23 @@ fun HomeScreen(user: UserAccount, vm: HomeViewModel = hiltViewModel()) {
                 }
             }
         }
+        item {
+            SectionTitle("Ventas · últimos 30 días")
+            val hoy = LocalDate.now()
+            val days = remember(movs) { (29 downTo 0).map { hoy.minusDays(it.toLong()) } }
+            val series = remember(movs) {
+                val byDay = movs.filter { it.type == MovementType.VENTA }
+                    .groupBy { Dates.toLocalDate(it.dateEpoch) }
+                    .mapValues { (_, list) -> list.sumOf { m -> m.importeUsd } }
+                days.map { (byDay[it] ?: 0.0).toFloat() }
+            }
+            val labels = remember(movs) { days.map { it.format(DateTimeFormatter.ofPattern("dd/MM")) } }
+            if (series.all { it <= 0f }) {
+                Text("Aún no hay ventas en el último mes: la curva se dibujará sola con el primer cobro.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                SalesLineChart(series, labels, Modifier.fillMaxWidth())
+            }
+        }
         item { SectionTitle("Alertas de stock") }
         if (low.isEmpty()) item { Text("Todo el inventario está por encima del mínimo.") }
         items(low.take(12), key = { it.id }) { p ->
@@ -153,10 +172,11 @@ fun HomeScreen(user: UserAccount, vm: HomeViewModel = hiltViewModel()) {
                 Text(p.name, style = MaterialTheme.typography.titleMedium)
                 Text("Stock ${Money.qty(p.stockActual)} · mínimo ${Money.qty(p.minStock)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val frac = if (p.minStock <= 0) 1f else (p.stockActual / (p.minStock * 3)).toFloat().coerceIn(0f, 1f)
-                LinearProgressIndicator(
-                    progress = { frac },
+                GradientLinearProgress(
+                    progress = frac,
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                    color = if (p.stockActual <= 0) MaterialTheme.colorScheme.error else if (frac < 0.5f) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.tertiary
+                    start = if (p.stockActual <= 0) MaterialTheme.colorScheme.error else if (frac < 0.5f) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.tertiary,
+                    end = if (p.stockActual <= 0) MaterialTheme.colorScheme.error else if (frac < 0.5f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
                 )
             }
         }
