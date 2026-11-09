@@ -13,7 +13,7 @@ import {
 import { moneyIn } from "./ipv.js";
 import { montarFinanzas } from "./financiero.js";
 import { categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, heatmapSummary, niceTicks } from "./charts.js";
-import { buildRateSeries, buildRateChanges, RATE_CHART_CURRENCIES } from "./rate-chart.js";
+import { buildRateSeries, buildRateChanges, rateSource, RATE_CHART_CURRENCIES } from "./rate-chart.js";
 import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
 import { findSaleByCode, saleTicket, ticketCode, ticketTotals, verifyTicket } from "./ticket.js";
@@ -326,7 +326,7 @@ function shell(body) {
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema: ${esc(themeLabel(store.state.settings.theme))}" aria-label="Cambiar tema (ahora: ${esc(themeLabel(store.state.settings.theme))})">${themeIcon(store.state.settings.theme)}</button>
         </div>
-        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</div>
+        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${store.state.products.some((p) => p.demoMunicipios && !p.deletedAt) || store.state.movements.some((m) => m.demoMunicipios && !m.deletedAt) ? `<div class="banner info" role="status"><b>Datos SIMULADOS presentes.</b> Productos y movimientos marcados son ficticios, afectan existencias e informes y no representan mercancía real.</div>` : ""}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</div>
       </section>
     </div>
     ${consentBanner()}
@@ -2015,9 +2015,15 @@ function financeView() {
   const curs = [...new Set([...CURRENCIES, ...rates.map((r) => r.currency)])];
   const trackedChanges = rates.reduce((n, r) => n + (Array.isArray(r.revisionHistory) ? r.revisionHistory.length : 0), 0);
   return `
-    <div class="kpis">${curs.map((c) => kpi(`1 ${esc(c)} =`, `${store.rateOn(c) || "—"} CUP`, "última registrada", "teal")).join("")}</div>
+    <div class="kpis">${curs.map((c) => {
+      const eligible = store.state.rates.filter((r) => r.currency === c && r.date <= todayISO())
+        .sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0));
+      const latest = eligible[eligible.length - 1];
+      const label = latest ? `${formatDate(latest.date)} · ${rateSource(latest)}` : (c === "USD" ? "Sin tasa registrada · referencia de ajustes" : "Sin tasa registrada");
+      return kpi(`1 ${esc(c)} =`, `${esc(store.rateOn(c) || "—")} CUP`, esc(label), "teal");
+    }).join("")}</div>
     <div class="row mv14">${canEdit ? `<button class="btn" data-act="new-rate">＋ Registrar tasa</button><button class="btn gold" data-act="eltoque-update" ${ui.loadingEltoque ? "disabled" : ""}>${ui.loadingEltoque ? "Consultando…" : "↻ Actualizar desde elTOQUE"}</button><button class="btn ghost" data-act="divisa-update" ${ui.loadingDivisa ? "disabled" : ""}>${ui.loadingDivisa ? "Consultando Divisa…" : "↻ Consultar Divisa gratis"}</button>` : ""}<button class="btn ghost" data-htab-go="monedas">Ver tabla por día</button></div>
-    <p class="hint">Referencias del mercado informal, no tasas oficiales. Divisa es una fuente gratuita independiente: revisa sus valores antes de aplicarlos. Si una moneda no aparece, se conserva la tasa anterior. La consulta necesita conexión a Internet desde el servidor.</p>
+    <p class="hint">Las cifras mostradas son las últimas guardadas; <b>no se garantiza que sean actuales</b>. Para revisarlas, pulsa «Consultar Divisa gratis» y confirma solo tras comprobar fecha y fuente. Son referencias del mercado informal, no tasas oficiales. Si una moneda no aparece, se conserva la tasa anterior. La consulta necesita Internet desde el servidor.</p>
     <p class="hint">Otras fuentes gratuitas para comparar: <a href="https://cubadivisas.com/" target="_blank" rel="noopener noreferrer">Divisa</a> · <a href="https://www.directoriocubano.info/cadeca/" target="_blank" rel="noopener noreferrer">Directorio Cubano</a> · <a href="https://www.bc.gob.cu/tasas-de-cambio" target="_blank" rel="noopener noreferrer">Banco Central de Cuba (tasas oficiales)</a>.</p>
     ${ui.divisaNotice ? `<div class="banner info">${esc(ui.divisaNotice)}</div>` : ""}
     ${ratesChart()}
@@ -3623,7 +3629,7 @@ function warehousesView() {
       <div class="row">
         ${canEdit ? `<button class="btn" data-act="wh-new">＋ Nuevo almacén</button>` : ""}
         ${canEdit && whs.length > 1 && active ? `<button class="btn ghost" data-wh-tr="${active.id}">⇄ Traspaso</button>` : ""}
-        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button><button class="btn ghost" data-act="wh-demo">Llenar con datos de prueba</button>` : ""}
+        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button><button class="btn ghost" data-act="wh-demo">Llenar con datos de prueba</button><button class="btn ghost" data-act="wh-municipal-demo">Simular 11 municipios</button>` : ""}
       </div>
     </div>
     ${(store.state.warehouseEntries || []).some((e) => e.source === "DEMOSTRACIÓN" && !e.undoneAt) ? `<div class="banner info">Hay existencias de demostración ficticias en uno o más almacenes. No representan mercancía real. Revise Entradas antes de operar.</div>` : ""}
@@ -5260,6 +5266,15 @@ function onClick(e) {
       const r = store.populateDemoWarehouses();
       if (r.error) return toast(r.error, "err");
       toast(`Demostración: ${r.changed} existencias en ${r.warehouses} almacenes. Revisa Entradas.`, "ok");
+      render();
+    });
+  }
+  else if (act === "wh-municipal-demo") {
+    if (!allowed("VALUES_IMPORT") || !allowed("MOVEMENT_CREATE")) return toast("Tu rol no puede crear esta demostración.", "err");
+    confirmModal("<b>SIMULACIÓN: no es inventario real.</b> Se crearán hasta 16 productos separados con el prefijo [SIMULADO] y entradas y salidas ficticias en los 11 municipios, incluida Pinar del Río. No se reemplazan los productos ni movimientos existentes.<br><br><b>Atención:</b> se guardarán en esta base y afectarán existencias, informes y disponibilidad de venta. Úsalo solo en una base de pruebas y haz una copia antes. Los precios son referencias del catálogo, no precios actuales. Las divisas se consultan aparte en Monedas.<br><br>¿Deseas crear esta simulación?", () => {
+      const r = store.populateMunicipalDemo();
+      if (r.error) return toast(r.error, "err");
+      toast(`SIMULADO: ${r.products} productos y ${r.movements} movimientos en ${r.warehouses} municipios.`, "ok");
       render();
     });
   }

@@ -627,6 +627,40 @@ test("Informes compara el período con el anterior (W-06)", () => {
   assert.match(html, /Variación/);
 });
 
+test("Simulación municipal pide confirmación y no modifica la base si faltan municipios", () => {
+  const before = JSON.stringify(store.shared());
+  const html = go("warehouses");
+  assert.match(html, /Simular 11 municipios/);
+  clickMatching("act", { act: "wh-municipal-demo" });
+  assert.match(app.innerHTML, /SIMULACIÓN: no es inventario real/);
+  assert.match(app.innerHTML, /afectarán existencias, informes y disponibilidad de venta/);
+  assert.equal(JSON.stringify(store.shared()), before);
+  clickMatching("act", { act: "confirm-yes" });
+  assert.match(app.innerHTML, /Se necesita exactamente un almacén activo/);
+  assert.equal(JSON.stringify(store.shared()), before);
+  go("home");
+});
+
+test("Simulación confirmada se identifica en la aplicación y cubre los once municipios", () => {
+  const original = { products: store.state.products, movements: store.state.movements, warehouses: store.state.warehouses, audit: store.state.audit };
+  try {
+    store.state.products = structuredClone(original.products);
+    store.state.movements = structuredClone(original.movements);
+    store.state.audit = structuredClone(original.audit);
+    store.state.warehouses = ["Pinar del Río", "Consolación del Sur", "San Luis", "San Juan y Martínez", "Guane", "Mantua", "Minas de Matahambre", "Viñales", "La Palma", "Los Palacios", "Sandino"].map((name, i) => ({ id: `demo-wh-${i}`, name, code: `D${i}`, active: true, isDefault: i === 0 }));
+    go("warehouses");
+    clickMatching("act", { act: "wh-municipal-demo" });
+    clickMatching("act", { act: "confirm-yes" });
+    assert.equal(new Set(store.state.movements.filter((m) => m.demoMunicipios).map((m) => m.warehouseId)).size, 11);
+    assert.match(app.innerHTML, /Datos SIMULADOS presentes/);
+    const html = go("movements");
+    assert.match(html, /SIMULADO · Movimiento ficticio/);
+  } finally {
+    Object.assign(store.state, original);
+    go("home");
+  }
+});
+
 test("Almacenes: tarjetas, KPIs, entradas y sus filtros", () => {
   const html = go("warehouses");
   assert.match(html, /Nuevo almacén/);
