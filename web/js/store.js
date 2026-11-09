@@ -1576,6 +1576,79 @@ class Store {
     return { ok: true, from: from.name, to: to.name, qty: q };
   }
 
+  /** Crea un lote separado y claramente ficticio para los once municipios, sin editar datos existentes. */
+  populateMunicipalDemo() {
+    if (!can(this.state.session?.role, "VALUES_IMPORT") || !can(this.state.session?.role, "MOVEMENT_CREATE"))
+      return { error: "Tu rol no puede crear esta demostración." };
+    if (this.closedErr(todayISO())) return this.closedErr(todayISO());
+    if (this.state.products.some((p) => p.demoMunicipios) || this.state.movements.some((m) => m.demoMunicipios))
+      return { error: "Ya existe un lote de demostración municipal; no se duplicará." };
+    const key = (name) => normName(name).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
+    const all = this.warehousesActive().filter((w) => w.active !== false);
+    const warehouses = [];
+    for (const [name] of PINAR_MUNICIPALITIES) {
+      const expected = key(name);
+      const matches = all.filter((w) => key(w.name) === expected || (expected === "CONSOLACION DEL SUR" && key(w.name) === "CONSOLACION"));
+      if (matches.length !== 1) return { error: `Se necesita exactamente un almacén activo para ${name}; revisa los nombres antes de continuar.` };
+      warehouses.push(matches[0]);
+    }
+    const seenNames = new Set(), categories = new Map();
+    const catalog = this.activeProducts().filter((p) => p.name && !p.demoMunicipios && !/^\[SIMULADO\]/i.test(p.name))
+      .sort((a, b) => a.name.localeCompare(b.name, "es"));
+    for (const p of catalog) {
+      const name = normName(p.name);
+      if (seenNames.has(name)) continue;
+      seenNames.add(name);
+      const category = p.category || "General";
+      if (!categories.has(category)) categories.set(category, []);
+      categories.get(category).push(p);
+    }
+    const originals = [], groups = [...categories.values()];
+    for (let i = 0; originals.length < 16; i++) {
+      const prior = originals.length;
+      for (const group of groups) if (group[i] && originals.length < 16) originals.push(group[i]);
+      if (prior === originals.length) break;
+    }
+    if (!originals.length) return { error: "Se necesita al menos un producto en el catálogo." };
+    const now = Date.now(), date = todayISO(), who = this.state.session?.displayName || "sistema";
+    const batch = uid("demomun"), products = [], movements = [];
+    let sequence = 0;
+    for (const [i, original] of originals.entries()) {
+      const name = `[SIMULADO] ${original.name}`;
+      if (this.state.products.some((p) => normName(p.name) === normName(name)))
+        return { error: `Ya existe el producto ${name}; revisa la demostración anterior.` };
+      const p = { id: uid("p"), name, category: original.category || "General", stocks: {}, stocksInicial: {},
+        stockInicial: 0, stockActual: 0, precioVentaUsd: Number(original.precioVentaUsd) || 0,
+        precioVenta2Usd: Number(original.precioVenta2Usd) || 0, precioCostoUsd: Number(original.precioCostoUsd) || 0,
+        comisionCup: Number(original.comisionCup) || 0, minStock: 1,
+        observaciones: "SIMULADO · No representa mercancía real ni precios actuales.", image: null,
+        demoMunicipios: batch, createdAt: now, updatedAt: now, deletedAt: null };
+      for (const [j, w] of warehouses.entries()) {
+        const price = Number(p.precioVentaUsd) || 0;
+        const size = price >= 500 ? 3 : price >= 100 ? 7 : 15;
+        const incoming = size + ((i * 7 + j * 3) % (size + 4)) + j;
+        const outgoing = 1 + ((i * 3 + j * 5) % Math.max(1, Math.floor(incoming / 2)));
+        const remaining = incoming - outgoing;
+        p.stocksInicial[w.id] = 0;
+        p.stocks[w.id] = remaining;
+        p.stockActual += remaining;
+        const base = { date, productId: p.id, productName: p.name, warehouseId: w.id,
+          center: "TIENDA", unitPriceUsd: 0, unitCostUsd: 0, importeUsd: 0, costoUsd: 0, comisionCup: 0, domicilioCup: 0,
+          notes: "SIMULADO · Movimiento ficticio; no es mercancía ni operación real.", userName: who,
+          demoMunicipios: batch, deletedAt: null };
+        movements.push({ ...base, id: uid("m"), type: "ENTRADA", quantity: incoming, stockInicial: 0, stockFinal: incoming, createdAt: now + sequence++ });
+        movements.push({ ...base, id: uid("m"), type: "SALIDA", quantity: outgoing, stockInicial: incoming, stockFinal: remaining, createdAt: now + sequence++ });
+      }
+      products.push(p);
+    }
+    // Toda validación y la preparación se hacen antes de tocar el estado compartido.
+    this.state.products.push(...products);
+    this.state.movements.unshift(...movements);
+    this.audit("DEMO", "warehouse", `SIMULADO · ${warehouses.length} municipios, ${products.length} productos y ${movements.length} movimientos ficticios`, batch);
+    this.emit();
+    return { ok: true, warehouses: warehouses.length, products: products.length, movements: movements.length };
+  }
+
   /** Datos ficticios: reutiliza el catálogo, nunca modifica el principal ni existencias previas. */
   populateDemoWarehouses() {
     if (!can(this.state.session?.role, "VALUES_IMPORT")) return { error: "Tu rol no puede importar valores." };

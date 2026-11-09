@@ -36,7 +36,33 @@ contener saldos incorrectos de versiones previas: conviene revisarlos, pues no s
 corrigen automáticamente. Haga una copia antes de actualizar. Para llenar los nuevos
 almacenes, importe los valores reales por municipio.
 
-### Datos de demostración
+### Simulación diferenciada de los 11 municipios
+
+En **Almacenes → Simular 11 municipios** un administrador, jefe o almacenero puede
+confirmar la creación de un lote **ficticio**. Se generan hasta 16 productos
+separados con prefijo `[SIMULADO]`, basados en nombres y precios del catálogo
+existente, con entradas y salidas diferentes en cada uno de los 11 municipios,
+incluido Pinar del Río. No son ventas, mercancía real ni precios actuales. Los
+movimientos llevan una nota de simulación y se registran con la fecha de creación;
+no se inventan operaciones históricas.
+
+No se sobrescriben ni se modifican productos o movimientos preexistentes. Sin
+embargo, los nuevos registros se guardan **en la base abierta**, se incluyen en
+existencias e informes y permiten operar con esos productos. Úsela exclusivamente
+para pruebas, haga una copia antes y no la confunda con la operación real. Un aviso
+aparece en la aplicación mientras haya productos simulados activos. La simulación
+exige exactamente un almacén activo para cada municipio, un catálogo no vacío y
+que el día no esté cerrado; no se duplica un lote existente. Los productos y sus
+movimientos pueden eliminarse por las funciones habituales, sujetas a las
+restricciones de días cerrados; no hay reversión masiva automática.
+
+Los precios copiados del catálogo son solo referencias y las tasas de cambio no se
+modifican al simular. Para obtener referencias actuales, vaya a **Monedas → Consultar
+Divisa gratis**, revise la fecha, la fuente y las monedas disponibles antes de
+confirmar. Si el proveedor no publica una moneda o no responde, se conserva su tasa
+anterior y no se inventan valores.
+
+### Datos de demostración anteriores
 
 En **Almacenes → Llenar con datos de prueba** se puede confirmar una carga de
 cantidades ficticias para el catálogo compartido en todos los almacenes salvo el
@@ -160,6 +186,7 @@ cerrado**.
 
 ```bash
 node tools/test_almacenes.mjs
+node tools/test_demo_municipios.mjs
 ```
 
 14 pruebas: conversión de los datos anteriores, existencias por almacén, creación de
