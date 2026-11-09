@@ -112,7 +112,7 @@ dependencies {
 
     implementation(libs.room.runtime)
     implementation(libs.sqlcipher)          // H4: BD local cifrada (SQLCipher)
-    implementation(libs.sqlite.framework)   // SupportFactory de SQLCipher
+    implementation(libs.sqlite.framework)   // framework SQLite (Room/androidx.sqlite)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 

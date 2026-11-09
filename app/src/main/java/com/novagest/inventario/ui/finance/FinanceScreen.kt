@@ -42,6 +42,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.SouthWest
+import androidx.compose.material.icons.outlined.NorthEast
 
 @HiltViewModel
 class FinanceViewModel @Inject constructor(
@@ -73,16 +78,16 @@ fun FinanceScreen(user: UserAccount, vm: FinanceViewModel = hiltViewModel()) {
         item { Text("Finanzas", style = MaterialTheme.typography.headlineMedium) }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                KpiCard("Ventas USD", Money.usd(ventas.sumOf { it.importeUsd }), modifier = Modifier.weight(1f), tone = MaterialTheme.colorScheme.tertiary, icon = androidx.compose.material.icons.Icons.Outlined.PointOfSale)
-                KpiCard("Comisiones", Money.cup(comisiones), "GESTOR", Modifier.weight(1f), tone = MaterialTheme.colorScheme.secondary, icon = androidx.compose.material.icons.Icons.Outlined.AccountBalance)
+                KpiCard("Ventas USD", Money.usd(ventas.sumOf { it.importeUsd }), modifier = Modifier.weight(1f), tone = MaterialTheme.colorScheme.tertiary, icon = Icons.Outlined.PointOfSale)
+                KpiCard("Comisiones", Money.cup(comisiones), "GESTOR", Modifier.weight(1f), tone = MaterialTheme.colorScheme.secondary, icon = Icons.Outlined.AccountBalance)
             }
         }
         item {
             val tot = cuadres.fold(0.0) { acc, c -> acc + CuadreCalculator.totals(c, movs.filter { it.dateEpoch == c.dateEpoch }).extraccionTotalUsd }
             val ent = cuadres.fold(0.0) { acc, c -> acc + CuadreCalculator.totals(c, movs.filter { it.dateEpoch == c.dateEpoch }).entradaDineroUsd }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                KpiCard("Entradas dinero", Money.usd(ent), modifier = Modifier.weight(1f), tone = MaterialTheme.colorScheme.primary, icon = androidx.compose.material.icons.Icons.Outlined.SouthWest)
-                KpiCard("Extracciones", Money.usd(tot), modifier = Modifier.weight(1f), tone = MaterialTheme.colorScheme.primary, icon = androidx.compose.material.icons.Icons.Outlined.NorthEast)
+                KpiCard("Entradas dinero", Money.usd(ent), modifier = Modifier.weight(1f), tone = MaterialTheme.colorScheme.primary, icon = Icons.Outlined.SouthWest)
+                KpiCard("Extracciones", Money.usd(tot), modifier = Modifier.weight(1f), tone = MaterialTheme.colorScheme.primary, icon = Icons.Outlined.NorthEast)
             }
         }
         item {
