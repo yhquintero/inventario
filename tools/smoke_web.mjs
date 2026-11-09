@@ -684,6 +684,29 @@ test("Almacenes: crear y editar usan el modal correcto", () => {
   assert.match(app.innerHTML, /warehouseForm/);
 });
 
+test("Limpieza: solo Administrador ve la acción y debe confirmar el alcance", () => {
+  const original = store.state.session;
+  try {
+    go("warehouses");
+    click({ act: "close-modal" });
+    click({ whTab: "almacenes" });
+    assert.match(app.innerHTML, /data-wh-clear="w2"/);
+    clickMatching("wh-clear", { whClear: "w2" });
+    assert.match(app.innerHTML, /id="whClearForm"/);
+    assert.match(app.innerHTML, /TIENDA PINAR/);
+    assert.match(app.innerHTML, /movimientos, incluidos los de la papelera/);
+    assert.match(app.innerHTML, /Escriba LIMPIAR/);
+    click({ act: "close-modal" });
+    for (const role of ["JEFE", "ALMACENERO", "ECONOMICO"]) {
+      store.state.session = { ...original, role };
+      go("warehouses");
+      assert.doesNotMatch(app.innerHTML, /data-wh-clear=/);
+      clickMatching("wh-clear", { whClear: "w2" });
+      assert.doesNotMatch(app.innerHTML, /id="whClearForm"/);
+    }
+  } finally { store.state.session = original; go("warehouses"); }
+});
+
 test("Almacenes: eliminar un almacén con existencias pide mover todo", () => {
   app.dispatch("click", { target: { closest: () => ({ dataset: { whDel: "w2" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
   assert.match(app.innerHTML, /Mover y eliminar/);

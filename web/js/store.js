@@ -1,6 +1,6 @@
 import { SEED } from "./seed-data.js";
 import { api, setToken, getToken, setUnauthorizedHandler } from "./api.js";
-import { clearPending, describe as describeMerge, hasChanges, mergeState, readPending, writePending } from "./merge.js";
+import { clearPending, describe as describeMerge, hasChanges, hasWarehouseClearConflict, mergeState, readPending, writePending } from "./merge.js";
 import {
   categorize, importeUsd, round2, stockFinal, todayISO, normName, CUADRE_FIELDS, can,
   classifyValueRow, rowFieldKeys, warehouseValues, WAREHOUSE_DEFAULT_ID,
@@ -16,7 +16,7 @@ const PINAR_MUNICIPALITIES = [
   ["VIÑALES", "VIN"], ["LA PALMA", "LAP"], ["LOS PALACIOS", "LOS"],
   ["SANDINO", "SAN"],
 ];
-export const WAREHOUSE_KINDS = { CREACION: "Almacén creado", VALORES: "Valores importados", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Almacén eliminado", DESHACER: "Deshacer" };
+export const WAREHOUSE_KINDS = { CREACION: "Almacén creado", VALORES: "Valores importados", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Almacén eliminado", DESHACER: "Deshacer", LIMPIEZA: "Inventario limpiado" };
 const THEME = "novagest.theme";
 const WAREHOUSE = "novagest.warehouse";
 // Migra las preferencias heredadas de la marca anterior (tema y almacén en uso)
@@ -200,6 +200,10 @@ class Store {
   }
 
   async flush() {
+    if (this.clearConflictPending) {
+      this.onNotice("Hay cambios anteriores a una limpieza que requieren revisión. No se pueden guardar automáticamente; contacte al administrador antes de continuar.", "error");
+      return false;
+    }
     if (this.saving || !this.dirty) return;
     this.saving = true;
     this.dirty = false;
@@ -245,6 +249,18 @@ class Store {
       this.setSync("offline");
       return;
     }
+    if (hasWarehouseClearConflict(fresh.state || {}, this.shared())) {
+      const snapshot = JSON.stringify({ savedAt: Date.now(), state: this.shared() });
+      const saved = writePending(localStorage, this.shared());
+      this.clearConflictSnapshot = saved ? null : snapshot;
+      this.clearConflictPending = true;
+      this.dirty = false;
+      this.applyServer(fresh);
+      this.setSync("error");
+      this.onNotice("Hay cambios anteriores a una limpieza. Se conservan en este navegador sin fusionar; contacte al administrador para revisarlos antes de continuar.", "error");
+      this.emit(false);
+      return;
+    }
     const merged = mergeState(fresh.state || {}, this.shared(), SHARED);
     const keep = { session: this.state.session, users: this.state.users };
     this.state = { ...this.state, ...merged.state, ...keep };
@@ -277,6 +293,12 @@ class Store {
   restorePending() {
     const pending = readPending(localStorage);
     if (!pending?.state) return 0;
+    if (hasWarehouseClearConflict(this.shared(), pending.state)) {
+      this.clearConflictPending = true;
+      this.setSync("error");
+      this.onNotice("Hay cambios anteriores a una limpieza. Se conservan en este navegador sin fusionar; contacte al administrador para revisarlos antes de continuar.", "error");
+      return 0;
+    }
     const merged = mergeState(this.shared(), pending.state, SHARED);
     if (!hasChanges(merged)) { clearPending(localStorage); return 0; }
     this.state = { ...this.state, ...merged.state };
@@ -284,6 +306,16 @@ class Store {
     this.scheduleSave();
     this.onNotice(`Se recuperaron ${merged.applied} cambio(s) sin guardar de la sesión anterior.`, "info");
     return merged.applied;
+  }
+
+  discardClearConflict() {
+    if (!this.clearConflictPending) return;
+    clearPending(localStorage);
+    this.clearConflictPending = false;
+    this.clearConflictSnapshot = null;
+    this.dirty = false;
+    this.setSync("ok");
+    this.emit(false);
   }
 
   setSync(v) {
@@ -334,7 +366,10 @@ class Store {
     setInterval(() => this.poll(), 12000);
     window.addEventListener?.("online", () => this.dirty && this.flush());
     // Al cerrar la pestaña con cambios sin guardar, se quedan en este equipo.
-    window.addEventListener?.("beforeunload", () => { if (this.dirty) writePending(localStorage, this.shared()); });
+    window.addEventListener?.("beforeunload", (event) => {
+      if (this.clearConflictSnapshot) { event?.preventDefault?.(); if (event) event.returnValue = ""; return; }
+      if (this.dirty && !this.clearConflictPending) writePending(localStorage, this.shared());
+    });
   }
 
   async startSession(r) {
@@ -500,11 +535,37 @@ class Store {
     return r.ok ? { ok: true } : { error: r.error };
   }
 
+  async clearWarehouse(warehouseId) {
+    if (this.state.session?.role !== "ADMINISTRADOR") return { error: "Solo un administrador puede limpiar el inventario." };
+    if (this.clearConflictPending) return { error: "Hay cambios anteriores a una limpieza pendientes de revisión." };
+    if (this.saving) return { error: "Espere a que termine el guardado y vuelva a intentarlo." };
+    if (this.dirty && !(await this.flush())) return { error: "No se pudieron guardar todos los cambios pendientes. Revise la sincronización." };
+    if (this.saving || this.dirty || this.sync === "offline" || this.sync === "error") return { error: "Hay cambios pendientes o sin conexión. Sincronice antes de limpiar." };
+    this.saving = true; // también pausa la sincronización periódica durante la operación
+    try {
+      const r = await api("/warehouses/clear", { method: "POST", timeout: 120000, body: { warehouseId, version: this.version, confirmation: "LIMPIAR" } });
+      if (!r.ok) return { error: r.status === 0 ? "No se recibió respuesta. La limpieza podría haberse realizado; recargue y verifique antes de reintentar." : r.error };
+      if (this.dirty) {
+        writePending(localStorage, this.shared());
+        return { error: "La limpieza se completó, pero hay cambios locales pendientes. Recargue y revíselos antes de continuar." };
+      }
+      const fresh = await api("/state");
+      if (fresh.status !== 200 || this.dirty) {
+        if (this.dirty) writePending(localStorage, this.shared());
+        return { error: "La limpieza se completó, pero no se pudo actualizar la pantalla sin riesgo. Recargue y revise los cambios pendientes." };
+      }
+      this.applyServer(fresh);
+      this.setSync("ok");
+      this.emit(false);
+      return r;
+    } finally { this.saving = false; }
+  }
+
   /* ================= PRODUCTOS (CRUD + papelera) ================= */
   activeProducts() { return this.state.products.filter((p) => !p.deletedAt); }
   trashProducts() { return this.state.products.filter((p) => p.deletedAt); }
   activeMovements() { return this.state.movements.filter((m) => !m.deletedAt); }
-  trashMovements() { return this.state.movements.filter((m) => m.deletedAt && !m.deletedWith); }
+  trashMovements() { return this.state.movements.filter((m) => m.deletedAt && !m.deletedWith && !m.warehouseCleared); }
 
   /* ================= CÓDIGOS DE BARRAS ================= */
   findByBarcode(code) { return findByBarcode(this.activeProducts(), code); }
@@ -896,6 +957,7 @@ class Store {
   /* ================= MOVIMIENTOS (CRUD + papelera) ================= */
   saveMovement(data) {
     const old = data.id && this.state.movements.find((m) => m.id === data.id);
+    if (old?.warehouseCleared) return { error: "El movimiento fue eliminado al limpiar el almacén." };
     const ce = this.closedErr(data.date, old?.date);
     if (ce) return ce;
     const prod = this.state.products.find((p) => p.id === data.productId && !p.deletedAt);
@@ -970,7 +1032,7 @@ class Store {
   emptyTrash() {
     const ids = new Set(this.trashProducts().filter((p) => !this.productLocked(p.id)).map((p) => p.id));
     this.state.products = this.state.products.filter((p) => !ids.has(p.id));
-    this.state.movements = this.state.movements.filter((m) => this.isClosed(m.date) || (!m.deletedAt && !ids.has(m.productId)));
+    this.state.movements = this.state.movements.filter((m) => m.warehouseCleared || this.isClosed(m.date) || (!m.deletedAt && !ids.has(m.productId)));
     this.audit("PURGE", "trash", "Papelera vaciada");
     this.emit();
   }
@@ -1779,6 +1841,7 @@ class Store {
     const e = (this.state.warehouseEntries || []).find((x) => x.id === id);
     if (!e) return { error: "Entrada no encontrada." };
     if (e.undoneAt) return { error: "Esa entrada ya se había deshecho." };
+    if (e.invalidatedAt) return { error: e.invalidatedReason || "Esta entrada ya no se puede deshacer." };
     if (e.source === "DEMOSTRACIÓN" && (e.items || []).some((it) => {
       if (it.field !== "stock") return false;
       const p = this.state.products.find((x) => x.id === it.productId);

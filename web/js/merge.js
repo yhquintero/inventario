@@ -31,6 +31,8 @@ export const isDeleted = (record) => !!(record && record.deletedAt);
  */
 export function localWins(local, remote) {
   if (!remote) return true;
+  // Las marcas de limpieza e invalidación nunca deben desaparecer en una fusión offline.
+  if (remote.warehouseCleared || remote.invalidatedAt) return false;
   const lt = recordTime(local);
   const rt = recordTime(remote);
   if (lt !== rt) return lt > rt;
@@ -65,6 +67,16 @@ export function mergeCollection(serverList = [], localList = []) {
   const list = server.filter((r) => r && byId.has(r.id)).map((r) => byId.get(r.id));
   extras.forEach((id) => list.push(byId.get(id)));
   return { list, applied, kept };
+}
+
+/** Una copia anterior a una limpieza no puede mezclarse automáticamente: podría
+ * contener ventas o saldos pendientes que reintroducirían inventario eliminado. */
+export function hasWarehouseClearConflict(serverState = {}, localState = {}) {
+  const local = new Map((localState.products || []).filter(Boolean).map((p) => [p.id, p]));
+  return (serverState.products || []).some((p) => {
+    const prior = local.get(p?.id);
+    return Object.entries(p.warehouseClearEpochs || {}).some(([wid, epoch]) => prior?.warehouseClearEpochs?.[wid] !== epoch);
+  });
 }
 
 /**

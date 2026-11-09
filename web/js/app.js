@@ -3510,7 +3510,7 @@ function importModal() {
 }
 
 /* ============================ ALMACENES ============================ */
-const WH_KIND = { CREACION: "Creación", VALORES: "Valores", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Eliminación", DESHACER: "Deshacer" };
+const WH_KIND = { CREACION: "Creación", VALORES: "Valores", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Eliminación", DESHACER: "Deshacer", LIMPIEZA: "Limpieza" };
 const WH_KIND_TAG = { CREACION: "entrada", VALORES: "venta", TRASPASO: "gestor", AJUSTE: "mov", ELIMINACION: "salida", DESHACER: "tienda" };
 const fieldLabel = (k) => (k === "created" ? "producto nuevo" : VALUE_FIELDS.find((f) => f.key === k)?.short || k);
 const fmtVal = (v) => (v === null || v === undefined || v === "" ? "—" : esc(String(v)));
@@ -3552,6 +3552,7 @@ function warehouseCard(w, s, active) {
       <button class="btn ghost small" data-wh-export="${w.id}">CSV</button>
       <button class="btn gold small" data-wh-pdf="${w.id}">PDF</button>
       ${canEdit ? `<button class="btn ghost small danger-t" data-wh-del="${w.id}">Eliminar</button>` : ""}
+      ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost small danger-t" data-wh-clear="${esc(w.id)}">Limpiar inventario</button>` : ""}
     </div>
   </div>`;
 }
@@ -3579,12 +3580,12 @@ function warehouseEntriesPanel() {
           <td class="hint">${new Date(e.ts).toLocaleString("es-CU")}</td>
           <td><span class="tag ${WH_KIND_TAG[e.kind] || "mov"}">${WH_KIND[e.kind] || e.kind}</span></td>
           <td>${esc(e.warehouseName || "")}</td>
-          <td>${hl(e.summary)}${e.undoneAt ? ` <span class="tag salida">DESHECHA</span>` : ""}</td>
+          <td>${hl(e.summary)}${e.undoneAt ? ` <span class="tag salida">DESHECHA</span>` : ""}${e.invalidatedAt ? ` <span class="tag salida" title="${esc(e.invalidatedReason || "Limpieza de almacén")}">NO SE PUEDE DESHACER</span>` : ""}</td>
           <td>${esc(e.userName || "")}</td>
           <td class="mono r">${(e.items || []).length || ""}</td>
           <td class="actions">
             ${(e.items || []).length ? `<button class="icon-btn" data-wh-entry="${e.id}" title="Ver el detalle">👁</button>` : ""}
-            ${canUndo && (e.items || []).length && !e.undoneAt ? `<button class="btn ghost small danger-t" data-wh-undo="${e.id}">Deshacer</button>` : ""}
+            ${canUndo && (e.items || []).length && !e.undoneAt && !e.invalidatedAt ? `<button class="btn ghost small danger-t" data-wh-undo="${e.id}">Deshacer</button>` : ""}
           </td>
         </tr>
         ${ui.whDetail === e.id ? `<tr><td colspan="7"><div class="wh-detail">
@@ -3678,6 +3679,20 @@ function transferModal({ fromId = null, productId = null } = {}) {
       <label class="span-2">Nota <input name="note" placeholder="Ej.: pedido de la tienda"></label>
     </div>
     <div class="row mt14"><button class="btn">Traspasar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "transferForm", `data-from="${from.id}"`);
+}
+
+function whClearFlow(id) {
+  if (store.state.session?.role !== "ADMINISTRADOR") return;
+  const w = store.warehouseById(id);
+  if (!w) return;
+  const s = store.warehouseStats(w);
+  modal(`Limpiar inventario de ${esc(w.name)}`, `
+    <p>Se pondrán a cero los ítems, unidades y valor de <b>${esc(w.name)}</b> y se eliminarán sus movimientos, incluidos los de la papelera. Los informes calculados cambiarán; los cuadres y reportes importados guardados no se borran. Otros almacenes y el catálogo compartido se conservarán.</p>
+    <p>Ahora: <b>${s.items} ítems · ${qty(s.unidades)} unidades · ${usd(s.valor)} · ${s.movs} movimientos activos</b>. Las entradas y traspasos relacionados ya no podrán deshacerse. Días cerrados y fiados vinculados impiden la limpieza.</p>
+    <p>Se creará una copia cifrada verificable de toda la base antes de limpiar. Restaurarla reemplaza toda la base, no solo este almacén. Necesita conexión. Esta operación es irreversible desde la aplicación.</p>
+    <label>Escriba LIMPIAR para confirmar<input name="confirmation" required autocomplete="off"></label>
+    <div class="row mt14"><button class="btn danger">Limpiar inventario</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whClearForm", `data-id="${esc(id)}"`);
+  render();
 }
 
 function whDeleteFlow(id) {
@@ -4323,6 +4338,11 @@ function render() {
     return;
   }
   if (!store.state.session) { app.innerHTML = loginView(); bindLogin(); return; }
+  if (store.clearConflictPending) {
+    app.innerHTML = `<div class="login-wrap"><div class="login-card"><h1>Cambios pendientes de revisión</h1><p>Este navegador tiene cambios anteriores a una limpieza de almacén. No se han aplicado ni fusionado para evitar recuperar inventario borrado. Descárguelos y revíselos con el administrador antes de continuar.</p><p>El archivo contiene datos sensibles: guárdelo en un lugar seguro. Descartar borra la cola local, no cambia el servidor y no se puede deshacer.</p>${store.clearConflictSnapshot ? `<p class="banner">No se pudo guardar la cola en el navegador. Descárguela antes de cerrar o recargar esta página.</p>` : ""}<div class="row"><button class="btn" data-act="clear-conflict-download">Descargar cambios pendientes</button><button class="btn danger" data-act="clear-conflict-discard">Descartar y continuar</button></div></div></div>`;
+    ensureClicks();
+    return;
+  }
   if (!allowed(routes[ui.route]?.perm)) ui.route = "home";
   // Administradores: una consulta por sesión para avisar de las solicitudes pendientes en el botón 🔐
   if (!ui.license.infoTried && adminLicense()) { ui.license.infoTried = true; loadLicenseInfo(); }
@@ -4539,7 +4559,7 @@ function runAct(a) {
 }
 
 document.addEventListener("keydown", (e) => {
-  if (!store.state.session) return;
+  if (!store.state.session || store.clearConflictPending) return;
   const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName);
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openPalette(paletteCtx()); return; }
   if (e.key === "Escape" && ui.modal) { ui.modal = null; render(); return; }
@@ -4926,6 +4946,17 @@ function bindApp() {
     if (!r.ok) return toast(r.error, "err");
     store.state.session.totpEnabled = false; toast("2FA desactivada", "ok");
   });
+  $("#whClearForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (new FormData(e.target).get("confirmation") !== "LIMPIAR") return toast("Escriba LIMPIAR para confirmar.", "err");
+    const id = e.target.dataset.id;
+    ui.modal = `<div class="modal-back"><div class="modal small" role="dialog" aria-modal="true"><div class="h2">Limpiando inventario…</div><p>Verificando la copia y guardando los cambios. No cierre esta ventana.</p></div></div>`;
+    render();
+    const r = await store.clearWarehouse(id);
+    ui.modal = null;
+    if (r.error) return toast(r.error, "err");
+    toast(r.changed ? `Inventario limpiado · copia ${r.backup}` : "El almacén ya está vacío.", "ok");
+  });
   $("#warehouseForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -5034,10 +5065,22 @@ function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"
 
 function onClick(e) {
   const openerBefore = document.activeElement;
-  const t = e.target.closest("[data-rate-range],[data-rate-currency],[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last],[data-fc-order],[data-mg-hist]");
+  const t = e.target.closest("[data-rate-range],[data-rate-currency],[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-clear],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last],[data-fc-order],[data-mg-hist]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
+  if (store.clearConflictPending) {
+    if (act === "clear-conflict-download") {
+      let pending = store.clearConflictSnapshot;
+      try { pending ||= localStorage.getItem("novagest.pending"); } catch {}
+      if (pending) download("novagest-cambios-pendientes.json", pending, "application/json");
+      else toast("No se encontró la cola pendiente en este navegador.", "err");
+    } else if (act === "clear-conflict-discard" && window.prompt("Se borrarán definitivamente los cambios pendientes de este navegador. Escriba DESCARTAR para continuar:") === "DESCARTAR") {
+      store.discardClearConflict();
+      toast("Cola local descartada. Revise el inventario del servidor.", "ok");
+    }
+    return;
+  }
   if (t.tagName === "A" && !d.nav) e.preventDefault();
   if (d.rateRange) { ui.rateChartRange = d.rateRange; return render(); }
   if (d.rateCurrency && RATE_CHART_CURRENCIES.includes(d.rateCurrency)) {
@@ -5061,6 +5104,7 @@ function onClick(e) {
   else if (d.whUse) { store.setActiveWarehouse(d.whUse); ui.cat = "TODAS"; ui.filter = "TODOS"; navTo("inventory"); }
   else if (d.whEdit) { warehouseModal(store.warehouseById(d.whEdit)); render(); }
   else if (d.whDel) whDeleteFlow(d.whDel);
+  else if (d.whClear) whClearFlow(d.whClear);
   else if (d.whTr) { transferModal({ fromId: d.whTr }); render(); }
   else if (d.whImp) { const st = ivState(); st.warehouseId = d.whImp; st.last = null; navTo("importValues"); }
   else if (d.whEntry) { ui.whDetail = ui.whDetail === d.whEntry ? null : d.whEntry; ui.whTab = "entradas"; render(); }

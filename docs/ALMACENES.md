@@ -92,6 +92,34 @@ inventario manualmente.
   almacén moverlos antes de borrarlo. Nunca se pierde nada. No se puede borrar el
   único almacén.
 
+### Limpiar inventario de un almacén
+
+Solo **ADMINISTRADOR** ve «Limpiar inventario» después de «Eliminar» en cada tarjeta.
+Revise el nombre y escriba **LIMPIAR** para confirmar. Se ponen a cero las existencias
+actuales e iniciales del almacén elegido y se eliminan sus movimientos activos y de
+papelera; los ítems, unidades y valor de esa tarjeta quedan en cero. Los movimientos
+sin almacén se atribuyen al principal. Los informes calculados a partir de esos
+movimientos también cambian; los cuadres y reportes importados ya guardados no se
+eliminan ni se recalculan automáticamente.
+No se elimina el almacén ni el catálogo compartido, ni se cambian los saldos o
+movimientos de otros almacenes. Los historiales de entradas y traspasos relacionados
+se conservan, pero ya no pueden deshacerse. Se conservan marcas mínimas de los ID de
+movimientos eliminados para impedir que un dispositivo desconectado los restaure.
+
+Se requiere conexión y no debe haber cambios locales pendientes. El servidor exige
+la versión actual y crea y comprueba una copia cifrada antes de modificar la base;
+si falla la copia, no limpia. La copia requiere `cryptography` instalado y su clave de
+cifrado habitual. Restaurarla reemplaza **toda la base**, no solamente el almacén, y
+puede perder cambios posteriores. La operación queda en Entradas y auditoría. Si hay
+movimientos de días cerrados o fiados (incluso en papelera) vinculados a ellos, la
+limpieza se bloquea para evitar romper registros; resuelva el caso antes de volver a
+intentarlo. Si se pierde la respuesta, recargue y compruebe el resultado antes de
+repetir. Los equipos con cambios anteriores a la limpieza podrían necesitar revisión
+manual al sincronizar; no se deben sobrescribir los datos recientes a ciegas. Si se
+identifica ese conflicto, la aplicación bloquea la edición y ofrece descargar la cola
+local sensible para revisarla con el administrador, o descartarla explícitamente. No
+la importa ni la fusiona automáticamente. Proteja el archivo descargado.
+
 ## 2. Almacén en uso
 
 Arriba, a la derecha, hay un selector **🏬 ALMACÉN**. Todo apunta a ese almacén:
