@@ -116,6 +116,7 @@ try:
     inicial = {
         "products": [producto("p1", "ARROZ", 10), producto("p2", "FRIJOL", 12)],
         "movements": ["m1", "m2"],
+        "rates": [{"id": "r1", "currency": "USD", "date": "2026-10-20", "rate": 100, "createdAt": 1}],
         "settings": {"businessName": "Delta", "theme": "light"},
         "warehouses": [{"id": "w1", "name": "PRINCIPAL", "code": "PRI", "isDefault": True, "active": True, "createdAt": 1}],
     }
@@ -143,6 +144,8 @@ try:
     actualizado["products"][0]["precioVentaUsd"] = 11
     actualizado["products"][0]["updatedAt"] = 50
     actualizado["products"].append(producto("p3", "AZÚCAR", 9, 50))
+    actualizado["rates"][0].update({"rate": 120, "updatedAt": 50,
+        "revisionHistory": [{"currency": "USD", "date": "2026-10-20", "rate": 100, "recordedAt": 1}]})
     actualizado["movements"].append(
         {"id": "m3", "date": "2026-10-21", "productId": "p3", "productName": "AZÚCAR", "type": "VENTA",
          "quantity": 2, "unitPriceUsd": 9, "importeUsd": 18, "center": "TIENDA", "warehouseId": "w1",
@@ -164,7 +167,9 @@ try:
     movs = (r.get("state") or {}).get("movements") or []
     ok("llega solo el movimiento nuevo", [m["id"] for m in movs] == ["m3"], str([m["id"] for m in movs]))
     ok("no se reenvían las secciones sin cambios", "settings" not in (r.get("state") or {}), str(list((r.get("state") or {}))))
-    ok("se informa cuántos registros cambiaron", r.get("changed") == 3, str(r.get("changed")))
+    tasas = (r.get("state") or {}).get("rates") or []
+    ok("el historial de tasas viaja en la descarga incremental", len(tasas) == 1 and tasas[0].get("revisionHistory") == actualizado["rates"][0]["revisionHistory"])
+    ok("se informa cuántos registros cambiaron", r.get("changed") == 4, str(r.get("changed")))
     ok("no hay borrados que anunciar", r.get("removed") == 0, str(r.get("removed")))
     ok("el estado completo no se envía en modo incremental", "settings" not in (r.get("state") or {}))
 

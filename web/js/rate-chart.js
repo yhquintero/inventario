@@ -42,3 +42,34 @@ export function buildRateSeries(rates, { endDate, range = "all", source = "all",
   const byCurrency = Object.fromEntries([...allowed].map((c) => [c, points.filter((p) => p.currency === c)]));
   return { points, byCurrency, from: points[0]?.date || "", to: points.at(-1)?.date || "" };
 }
+
+/** Versiones con hora de registro conocida; el eje es el momento de registro, no la fecha efectiva. */
+export function buildRateChanges(rates, { endDate, range = "all", source = "all", currencies = RATE_CHART_CURRENCIES } = {}) {
+  const end = dayTime(endDate);
+  if (!Number.isFinite(end)) return { points: [], byCurrency: {}, from: "", to: "" };
+  const days = Object.hasOwn(RATE_RANGES, range) ? RATE_RANGES[range] : null;
+  const start = days ? end - (days - 1) * 86400000 : -Infinity;
+  const allowed = new Set(currencies.filter((c) => RATE_CHART_CURRENCIES.includes(c)));
+  const points = [];
+  for (const row of Array.isArray(rates) ? rates : []) {
+    if (!row || typeof row !== "object") continue;
+    const versions = [...(Array.isArray(row.revisionHistory) ? row.revisionHistory : []),
+      { ...row, recordedAt: row.updatedAt || row.createdAt }];
+    for (const version of versions) {
+      const time = Number(version?.recordedAt);
+      if (!Number.isFinite(time) || time <= 0 || !Number.isFinite(new Date(time).getTime())) continue;
+      const d = new Date(time);
+      const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const day = dayTime(localDate);
+      const origin = rateSource(version);
+      if (!allowed.has(version.currency) || !Number.isFinite(dayTime(version.date)) || day < start || day > end ||
+          typeof version.rate !== "number" || !Number.isFinite(version.rate) || version.rate <= 0 || version.rate >= 1_000_000 ||
+          (source !== "all" && source !== origin)) continue;
+      points.push({ date: version.date, time, currency: version.currency, rate: version.rate,
+        source: origin, note: String(version.note || ""), userName: String(version.userName || ""), recordedAt: time });
+    }
+  }
+  points.sort((a, b) => a.time - b.time || a.currency.localeCompare(b.currency));
+  const byCurrency = Object.fromEntries([...allowed].map((c) => [c, points.filter((p) => p.currency === c)]));
+  return { points, byCurrency, from: points[0]?.date || "", to: points.at(-1)?.date || "" };
+}

@@ -21,7 +21,7 @@ class RateError(ValueError):
     pass
 
 
-class DivizaPage(HTMLParser):
+class DivisaPage(HTMLParser):
     def __init__(self):
         super().__init__()
         self.collect = False
@@ -87,7 +87,7 @@ def _timestamp(text, now):
 
 
 def parse_rates(html, now=None):
-    page = DivizaPage()
+    page = DivisaPage()
     page.feed(html)
     if len(page.payloads) != 1:
         raise RateError("Divisa no devolvió datos de cotizaciones verificables.")

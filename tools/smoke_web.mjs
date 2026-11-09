@@ -89,7 +89,7 @@ globalThis.fetch = async (url, opts = {}) => {
   try { if (opts.body) sent = JSON.parse(opts.body); } catch { sent = opts.body; }
   fetchCalls.push({ url: u, method: (opts.method || "GET").toUpperCase(), body: sent });
   let data = {};
-  if (u.includes("/api/exchange/diviza")) {
+  if (u.includes("/api/exchange/divisa")) {
     data = { ok: true, source: "https://cubadivisas.com/", date: "2026-11-08", publishedAt: "2026-11-08T18:00:00-05:00",
       rates: { USD: 930, EUR: 1020, MLC: 726.72, CAD: 598.81, ZELLE: 898.77, CLA: 828.91 }, missing: ["MXN"] };
   } else if (u.includes("/api/license/status")) {
@@ -225,13 +225,13 @@ await atest("consultar Divisa muestra revisión y no altera MXN antes o después
   try {
     store.state.rates.push({ id: "test-mxn", currency: "MXN", rate: 51, date: "2026-11-08", note: "manual" });
     const html = go("finance");
-    assert.match(html, /data-act="diviza-update"/);
+    assert.match(html, /data-act="divisa-update"/);
     assert.match(html, /Consultar Divisa gratis/);
     assert.doesNotMatch(html, />Consultar Diviza/);
     assert.match(html, /Banco Central de Cuba \(tasas oficiales\)/);
-    clickMatching("act", { act: "diviza-update" });
+    clickMatching("act", { act: "divisa-update" });
     await flush();
-    assert.ok(fetchCalls.some((x) => x.url === "/api/exchange/diviza"));
+    assert.ok(fetchCalls.some((x) => x.url === "/api/exchange/divisa"));
     assert.match(app.innerHTML, /No publicadas por Divisa: <b>MXN<\/b>/);
     assert.equal(store.state.rates.length, original.length + 1, "consultar no guarda automáticamente");
     clickMatching("act", { act: "confirm-yes" });
@@ -285,6 +285,44 @@ test("Monedas grafica observaciones por fecha y permite filtrar período, moneda
     html = go("finance");
     assert.match(html, /class="rate-line rate-usd"/);
     assert.match(html, /rate-dot rate-usd[^>]*><title>USD · [^<]*elTOQUE<\/title>/);
+  } finally {
+    store.state.rates = original;
+    go("home");
+  }
+});
+
+test("Monedas muestra ID, revisiones y compara los cambios por hora real", () => {
+  const original = structuredClone(store.state.rates);
+  try {
+    const t = Date.now() - 5000;
+    const d = new Date(t);
+    const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    store.state.rates = [{ id: "rate-unique", currency:"USD", date, rate: 120, note:"Divisa · mercado informal", userName:"Luis", updatedAt:t + 1000,
+      revisionHistory:[{ currency:"USD", date, rate:100, note:"Divisa · mercado informal", userName:"Ana", recordedAt:t }] }];
+    let html = go("finance");
+    assert.match(html, /<th>Id<\/th><th>Fecha<\/th>/);
+    assert.match(html, /rate-unique/);
+    assert.match(html, /1 cambio guardado|1 cambios guardados/);
+    assert.match(html, /1 cambio<\/summary>/);
+    assert.match(html, /Registro: /);
+    assert.match(html, /100 CUP/);
+    const mode = getEl("rateChartMode");
+    mode.value = "changes";
+    mode.dispatch("change", { target: mode });
+    html = app.innerHTML;
+    assert.match(html, /HORA DE REGISTRO/);
+    assert.match(html, /\+20 CUP · \+20\.00% vs anterior/);
+    assert.match(html, /class="rate-line rate-usd"/);
+    store.state.rates[0].rate = 120.001;
+    html = go("finance");
+    assert.match(html, /120\.001/);
+    assert.match(html, /\+20\.001 CUP/);
+    store.state.rates[0].revisionHistory[0].note = "manual";
+    html = go("finance");
+    assert.match(html, /Fuente distinta; no se calcula variación/);
+    assert.doesNotMatch(html, /class="rate-line rate-usd"/);
+    mode.value = "daily";
+    mode.dispatch("change", { target: mode });
   } finally {
     store.state.rates = original;
     go("home");

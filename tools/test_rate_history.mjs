@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+import assert from "node:assert/strict";
+import { cpSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const tmp = mkdtempSync(join(tmpdir(), "ng-rate-history-"));
+cpSync(join(root, "web/js"), tmp, { recursive: true });
+writeFileSync(join(tmp, "package.json"), '{"type":"module"}');
+globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+const { store } = await import(pathToFileURL(join(tmp, "store.js")).href);
+const { buildRateChanges } = await import(pathToFileURL(join(tmp, "rate-chart.js")).href);
+store.state.session = { role:"ECONOMICO", displayName:"Ana" };
+store.state.rates = [{ id:"old", currency:"USD", rate:100, date:"2026-06-01", note:"manual" }];
+const originalNow = Date.now;
+const stamp = new Date(2026, 5, 2, 10, 30, 0).getTime();
+try {
+  Date.now = () => stamp;
+  assert.ok(store.saveRate({ currency:"USD", rate:110, date:"2026-06-01", note:"Divisa · publicado" }).ok);
+  const r = store.state.rates[0];
+  assert.equal(r.id, "old");
+  assert.equal(r.revisionHistory.length, 1);
+  assert.equal(r.revisionHistory[0].rate, 100);
+  assert.equal(r.revisionHistory[0].recordedAt, null, "sin hora anterior no se inventa");
+  assert.equal(r.updatedAt, stamp);
+  // La misma importación no aumenta el contador ni cambia la hora.
+  Date.now = () => stamp + 1000;
+  store.saveRate({ currency:"USD", rate:110, date:"2026-06-01", note:"Divisa · publicado" });
+  assert.equal(r.revisionHistory.length, 1);
+  assert.equal(r.updatedAt, stamp);
+  store.state.session.displayName = "Luis";
+  store.saveRate({ id:"old", currency:"USD", rate:120, date:"2026-06-01", note:"Divisa · publicado" });
+  assert.equal(r.revisionHistory.length, 2);
+  assert.deepEqual(r.revisionHistory.map((x) => x.rate), [100, 110]);
+  assert.equal(r.revisionHistory[1].recordedAt, stamp);
+  assert.equal(r.revisionHistory[1].userName, "Ana");
+  assert.equal(r.userName, "Luis");
+  assert.deepEqual(JSON.parse(JSON.stringify(store.shared())).rates[0].revisionHistory, r.revisionHistory);
+  const chart = buildRateChanges(store.state.rates, { endDate:"2026-06-02", currencies:["USD"] });
+  assert.deepEqual(chart.points.map((x) => x.rate), [110, 120]);
+  assert.deepEqual(chart.points.map((x) => x.time), [stamp, stamp + 1000]);
+  assert.ok(chart.points.every((x) => x.date === "2026-06-01"), "fecha efectiva distinta del registro");
+  assert.equal(buildRateChanges(store.state.rates, { endDate:"2026-06-01" }).points.length, 0);
+  assert.equal(buildRateChanges(store.state.rates, { endDate:"2026-06-02", source:"Otras" }).points.length, 0);
+  assert.equal(buildRateChanges(store.state.rates, { endDate:"2026-06-02", source:"Divisa" }).points.length, 2);
+  store.saveRate({ id:"old", currency:"EUR", rate:120, date:"2026-06-01", note:"manual" });
+  assert.equal(r.revisionHistory.length, 3);
+  assert.equal(r.revisionHistory[2].currency, "USD");
+  assert.equal(r.currency, "EUR");
+} finally { Date.now = originalNow; }
+console.log("✔ Cambios de tasas: historial, horas reales, idempotencia, filtros y persistencia");

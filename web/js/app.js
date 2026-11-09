@@ -13,7 +13,7 @@ import {
 import { moneyIn } from "./ipv.js";
 import { montarFinanzas } from "./financiero.js";
 import { categoryBreakdown, compactNumber, heatLevel, heatmapCsv, heatmapGrid, heatmapSummary, niceTicks } from "./charts.js";
-import { buildRateSeries, RATE_CHART_CURRENCIES } from "./rate-chart.js";
+import { buildRateSeries, buildRateChanges, RATE_CHART_CURRENCIES } from "./rate-chart.js";
 import { LEGAL_DOCS, LEGAL_KEYS, LEGAL_CAMPOS, LEGAL_CAMPOS_LARGOS, legalFooter, legalLinks, rellenarLegal } from "./legal.js";
 import { consentBanner, setConsent, resetConsent } from "./consent.js";
 import { findSaleByCode, saleTicket, ticketCode, ticketTotals, verifyTicket } from "./ticket.js";
@@ -97,7 +97,7 @@ let ui = {
   dashboardRange: "7d", dashboardMetric: "sales", dashboardType: "line",
   dashboardCompare: (() => { try { return localStorage.getItem("novagest.dashboardCompare") === "1"; } catch { return false; } })(),
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
-  histTab: "precios", rateChartRange: "all", rateChartSource: "all", rateChartCurrencies: ["USD", "EUR", "MLC"],
+  histTab: "precios", rateChartRange: "all", rateChartSource: "all", rateChartMode: "daily", rateChartCurrencies: ["USD", "EUR", "MLC"],
   whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, pdfWarehouseId: null, iv: null,
   license: {
     status: null, loading: true, error: null, key: "", activating: false, info: null, infoLoaded: false,
@@ -1930,15 +1930,30 @@ function finanzasView() {
   return `<div class="fin-view" id="fin-root"></div>`;
 }
 
+/** Evita redondear el valor de una tasa al mostrarlo en tablas y comparaciones. */
+function rateValue(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? String(n) : "—";
+}
+
+/** Hora del registro según el reloj del navegador; no es la hora publicada por la fuente. */
+function rateRecordedAt(timestamp) {
+  const n = Number(timestamp);
+  if (!Number.isFinite(n) || n <= 0 || !Number.isFinite(new Date(n).getTime())) return "Hora no disponible";
+  return new Date(n).toLocaleString("es-CU", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
 /** Evolución de tasas registradas: solo observaciones disponibles, no es histórico remoto. */
 function ratesChart() {
   const range = ui.rateChartRange;
   const source = ui.rateChartSource;
   const selected = ui.rateChartCurrencies;
-  const data = buildRateSeries(store.state.rates, { endDate: todayISO(), range, source, currencies: selected });
+  const changesMode = ui.rateChartMode === "changes";
+  const data = (changesMode ? buildRateChanges : buildRateSeries)(store.state.rates, { endDate: todayISO(), range, source, currencies: selected });
   const ranges = [["30d", "30 días"], ["90d", "90 días"], ["180d", "180 días"], ["365d", "1 año"], ["all", "Todo"]];
   const controls = `<div class="rate-chart-controls"><div class="chips" role="group" aria-label="Período de tasas">${ranges.map(([key, label]) => `<button type="button" class="chip ${range === key ? "on" : ""}" data-rate-range="${key}" aria-pressed="${range === key}">${label}</button>`).join("")}</div>
-    <label class="dashboard-control"><span>Fuente según el registro</span><select id="rateChartSource" aria-label="Fuente de las tasas"><option value="all" ${source === "all" ? "selected" : ""}>Todas</option><option value="elTOQUE" ${source === "elTOQUE" ? "selected" : ""}>elTOQUE</option><option value="Divisa" ${source === "Divisa" ? "selected" : ""}>Divisa</option><option value="Otras" ${source === "Otras" ? "selected" : ""}>Manuales y Excel</option></select></label></div>
+    <div class="rate-chart-selects"><label class="dashboard-control"><span>Vista</span><select id="rateChartMode"><option value="daily" ${!changesMode ? "selected" : ""}>Por fecha efectiva</option><option value="changes" ${changesMode ? "selected" : ""}>Por hora de registro</option></select></label>
+    <label class="dashboard-control"><span>Fuente según el registro</span><select id="rateChartSource" aria-label="Fuente de las tasas"><option value="all" ${source === "all" ? "selected" : ""}>Todas</option><option value="elTOQUE" ${source === "elTOQUE" ? "selected" : ""}>elTOQUE</option><option value="Divisa" ${source === "Divisa" ? "selected" : ""}>Divisa</option><option value="Otras" ${source === "Otras" ? "selected" : ""}>Manuales y Excel</option></select></label></div></div>
     <div class="rate-legend" role="group" aria-label="Monedas visibles">${RATE_CHART_CURRENCIES.map((c) => `<button type="button" class="rate-legend-button rate-${c.toLowerCase()} ${selected.includes(c) ? "on" : ""}" data-rate-currency="${c}" aria-pressed="${selected.includes(c)}"><span aria-hidden="true" class="rate-swatch"></span>${esc(c)}</button>`).join("")}</div>`;
   let chart = `<div class="empty rate-empty">No hay tasas guardadas para esta selección. Prueba otro período o registra tasas.</div>`;
   if (data.points.length) {
@@ -1964,35 +1979,56 @@ function ratesChart() {
       }
       const paths = chunks.filter((run) => run.length > 1).map((run) => `<polyline class="rate-line rate-${c.toLowerCase()}" points="${run.map((p) => `${x(p.time)},${y(p.rate)}`).join(" ")}"/>`).join("");
       const dotPoints = points.length <= 150 ? points : chunks.filter((run) => run.length === 1).map((run) => run[0]);
-      const dots = dotPoints.map((p) => `<circle class="rate-dot rate-${c.toLowerCase()}" cx="${x(p.time)}" cy="${y(p.rate)}" r="4"><title>${esc(c)} · ${esc(formatDate(p.date))}: ${esc(qty(p.rate))} CUP · ${esc(p.source)}</title></circle>`).join("");
+      const dots = dotPoints.map((p) => `<circle class="rate-dot rate-${c.toLowerCase()}" cx="${x(p.time)}" cy="${y(p.rate)}" r="4"><title>${esc(c)} · ${esc(formatDate(p.date))}: ${esc(rateValue(p.rate))} CUP · ${esc(p.source)}${changesMode ? ` · Registrada: ${esc(rateRecordedAt(p.time))}` : ""}</title></circle>`).join("");
       return paths + dots;
     }).join("");
-    const startLabel = formatDate(data.from), endLabel = formatDate(data.to);
+    const startLabel = changesMode ? rateRecordedAt(first) : formatDate(data.from), endLabel = changesMode ? rateRecordedAt(last) : formatDate(data.to);
     const dateLabels = first === last ? `<text x="${L+(W-L-R)/2}" y="${H-12}" text-anchor="middle" class="dashboard-axis-label">${esc(startLabel)}</text>` : `<text x="${L}" y="${H-12}" class="dashboard-axis-label">${esc(startLabel)}</text><text x="${W-R}" y="${H-12}" text-anchor="end" class="dashboard-axis-label">${esc(endLabel)}</text>`;
-    const summary = `Evolución de tasas en CUP. ${data.points.length} observaciones registradas, desde ${startLabel} hasta ${endLabel}.`;
-    chart = `<svg viewBox="0 0 ${W} ${H}" class="dashboard-chart-svg rate-chart-svg" role="img" aria-label="${esc(summary)}"><title>${esc(summary)}</title>${grid}${lines}${dateLabels}</svg>`;
+    const summary = `Evolución de tasas en CUP por ${changesMode ? "hora de registro" : "fecha efectiva"}. ${data.points.length} observaciones, desde ${startLabel} hasta ${endLabel}.`;
+    chart = `<div class="rate-chart-plot"><div class="rate-plot-heading"><span>CUP / UNIDAD</span><span>${changesMode ? "HORA DE REGISTRO" : "FECHA EFECTIVA"}</span></div><svg viewBox="0 0 ${W} ${H}" class="dashboard-chart-svg rate-chart-svg" role="img" aria-label="${esc(summary)}"><title>${esc(summary)}</title>${grid}${lines}${dateLabels}</svg></div>`;
   }
-  const tableRows = [...data.points].reverse().map((p) => `<tr><td>${esc(formatDate(p.date))}</td><td>${esc(p.currency)}</td><td class="mono r">${esc(qty(p.rate))}</td><td>${esc(p.source)}</td><td>${esc(p.note || "—")}</td></tr>`).join("");
-  return `<section class="card dashboard-chart-card mt16" aria-labelledby="ratesChartTitle"><div class="card-h"><span class="k" id="ratesChartTitle">Evolución de las monedas</span><span class="tag mov">CUP por unidad</span></div>
-    <p class="hint">Gráfico de las tasas guardadas en NovaGest, no del histórico completo de elTOQUE. Las fuentes y las fechas sin datos no se inventan.</p>${controls}${chart}
-    <p class="dashboard-chart-note">Una observación por moneda y fecha. Las líneas unen observaciones de la misma fuente; no representan valores medidos entre ellas. El registro diario puede sobrescribirse al actualizar.</p>
-    <details class="chart-data"><summary>Ver datos del gráfico en tabla</summary><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Moneda</th><th class="r">CUP</th><th>Fuente según nota</th><th>Detalle</th></tr></thead><tbody>${tableRows || `<tr><td colspan="5" class="empty">Sin observaciones.</td></tr>`}</tbody></table></div></details></section>`;
+  const comparisons = selected.map((c) => {
+    const points = data.byCurrency[c] || [];
+    if (!points.length) return "";
+    const current = points[points.length - 1], previous = points[points.length - 2];
+    let change = "Sin observación anterior en la selección";
+    let direction = "neutral";
+    if (previous && previous.source !== current.source) change = "Fuente distinta; no se calcula variación";
+    else if (previous) {
+      const diff = current.rate - previous.rate, pct = diff / previous.rate * 100;
+      direction = diff > 0 ? "up" : diff < 0 ? "down" : "neutral";
+      change = `${diff > 0 ? "+" : ""}${rateValue(Number(diff.toPrecision(12)))} CUP · ${pct > 0 ? "+" : ""}${pct.toFixed(2)}% vs anterior`;
+    }
+    return `<div class="rate-comparison rate-${c.toLowerCase()}"><span><i class="rate-swatch"></i>${esc(c)} <small>${esc(current.source)}</small></span><strong>${esc(rateValue(current.rate))} <small>CUP</small></strong><small class="rate-delta ${direction}">${esc(change)}</small></div>`;
+  }).join("");
+  const tableRows = [...data.points].reverse().map((p) => `<tr><td>${esc(formatDate(p.date))}</td><td>${esc(rateRecordedAt(p.recordedAt || p.stamp))}</td><td>${esc(p.currency)}</td><td class="mono r">${esc(rateValue(p.rate))}</td><td>${esc(p.source)}</td><td>${esc(p.note || "—")}</td></tr>`).join("");
+  return `<section class="card dashboard-chart-card rate-chart-card mt16" aria-labelledby="ratesChartTitle"><div class="rate-chart-heading"><div><span class="rate-eyebrow">MERCADO · ANÁLISIS</span><h2 id="ratesChartTitle">Evolución de las monedas</h2></div><span class="rate-unit">CUP por unidad</span></div>
+    <p class="hint">Gráfico de las tasas guardadas en NovaGest, no del histórico completo de elTOQUE. Las fuentes y las fechas sin datos no se inventan.</p>${controls}
+    ${comparisons ? `<div class="rate-comparisons" aria-label="Comparación con la observación anterior en la selección">${comparisons}</div>` : ""}${chart}
+    <p class="dashboard-chart-note">${changesMode ? "Eje por hora de registro local; fechas efectivas y hora publicada pueden ser distintas. Se omiten versiones sin hora conocida." : "Una observación por moneda y fecha efectiva."} Las líneas unen observaciones de la misma fuente, sin representar valores medidos entre ellas. Variaciones calculadas frente a la observación anterior de la selección.</p>
+    <details class="chart-data"><summary>Ver datos del gráfico en tabla</summary><div class="table-wrap"><table><thead><tr><th>Fecha efectiva</th><th>Registrada / actualizada (hora local)</th><th>Moneda</th><th class="r">CUP</th><th>Fuente según nota</th><th>Detalle</th></tr></thead><tbody>${tableRows || `<tr><td colspan="6" class="empty">Sin observaciones.</td></tr>`}</tbody></table></div></details></section>`;
 }
 
 function financeView() {
   const canEdit = allowed("EXCHANGE_EDIT");
   const rates = [...store.state.rates].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
   const curs = [...new Set([...CURRENCIES, ...rates.map((r) => r.currency)])];
+  const trackedChanges = rates.reduce((n, r) => n + (Array.isArray(r.revisionHistory) ? r.revisionHistory.length : 0), 0);
   return `
     <div class="kpis">${curs.map((c) => kpi(`1 ${esc(c)} =`, `${store.rateOn(c) || "—"} CUP`, "última registrada", "teal")).join("")}</div>
-    <div class="row mv14">${canEdit ? `<button class="btn" data-act="new-rate">＋ Registrar tasa</button><button class="btn gold" data-act="eltoque-update" ${ui.loadingEltoque ? "disabled" : ""}>${ui.loadingEltoque ? "Consultando…" : "↻ Actualizar desde elTOQUE"}</button><button class="btn ghost" data-act="diviza-update" ${ui.loadingDiviza ? "disabled" : ""}>${ui.loadingDiviza ? "Consultando Divisa…" : "↻ Consultar Divisa gratis"}</button>` : ""}<button class="btn ghost" data-htab-go="monedas">Ver tabla por día</button></div>
+    <div class="row mv14">${canEdit ? `<button class="btn" data-act="new-rate">＋ Registrar tasa</button><button class="btn gold" data-act="eltoque-update" ${ui.loadingEltoque ? "disabled" : ""}>${ui.loadingEltoque ? "Consultando…" : "↻ Actualizar desde elTOQUE"}</button><button class="btn ghost" data-act="divisa-update" ${ui.loadingDivisa ? "disabled" : ""}>${ui.loadingDivisa ? "Consultando Divisa…" : "↻ Consultar Divisa gratis"}</button>` : ""}<button class="btn ghost" data-htab-go="monedas">Ver tabla por día</button></div>
     <p class="hint">Referencias del mercado informal, no tasas oficiales. Divisa es una fuente gratuita independiente: revisa sus valores antes de aplicarlos. Si una moneda no aparece, se conserva la tasa anterior. La consulta necesita conexión a Internet desde el servidor.</p>
     <p class="hint">Otras fuentes gratuitas para comparar: <a href="https://cubadivisas.com/" target="_blank" rel="noopener noreferrer">Divisa</a> · <a href="https://www.directoriocubano.info/cadeca/" target="_blank" rel="noopener noreferrer">Directorio Cubano</a> · <a href="https://www.bc.gob.cu/tasas-de-cambio" target="_blank" rel="noopener noreferrer">Banco Central de Cuba (tasas oficiales)</a>.</p>
-    ${ui.divizaNotice ? `<div class="banner info">${esc(ui.divizaNotice)}</div>` : ""}
+    ${ui.divisaNotice ? `<div class="banner info">${esc(ui.divisaNotice)}</div>` : ""}
     ${ratesChart()}
-    <div class="card table-wrap flush mt16">
-      <table><thead><tr><th>Fecha</th><th>Moneda</th><th class="r">Valor en CUP</th><th>Nota</th><th>Usuario</th>${canEdit ? "<th></th>" : ""}</tr></thead>
-      <tbody>${rates.map((r) => `<tr><td>${formatDate(r.date)}</td><td><span class="tag mov">${esc(r.currency)}</span></td><td class="mono r">${r.rate}</td><td>${esc(r.note || "")}</td><td class="hint">${esc(r.userName || "")}</td>${canEdit ? `<td class="actions"><button class="icon-btn" data-edit-rate="${r.id}">✎</button><button class="icon-btn danger" data-del-rate="${r.id}">🗑</button></td>` : ""}</tr>`).join("")}</tbody></table>
+    <div class="rate-history-heading mt16"><div><h2>Registro de tasas</h2><p class="hint">${trackedChanges} ${trackedChanges === 1 ? "cambio guardado" : "cambios guardados"} en los registros actuales desde esta versión (moneda, valor, fecha o nota; las altas no son cambios). Los cambios anteriores y los registros eliminados no se pueden recuperar aquí.</p></div><span class="rate-history-count">${rates.length} registros</span></div>
+    <div class="card table-wrap flush">
+      <table><thead><tr><th>Id</th><th>Fecha</th><th>Moneda</th><th class="r">Valor en CUP</th><th>Nota</th><th>Usuario</th><th>Cambios</th>${canEdit ? "<th></th>" : ""}</tr></thead>
+      <tbody>${rates.map((r) => {
+        const history = Array.isArray(r.revisionHistory) ? r.revisionHistory : [];
+        const prior = [...history].reverse().map((h) => `<li><b>${esc(h.currency)} · ${esc(rateValue(h.rate))} CUP</b> · fecha efectiva ${esc(formatDate(h.date))}<br><span class="hint">Registrada: ${esc(rateRecordedAt(h.recordedAt))} · ${esc(h.userName || "Usuario desconocido")} · ${esc(h.note || "Sin nota")}</span></li>`).join("");
+        return `<tr><td class="mono rate-id">${esc(r.id || "—")}</td><td>${esc(formatDate(r.date))}<br><span class="hint">Registro: ${esc(rateRecordedAt(r.updatedAt || r.createdAt))}</span></td><td><span class="tag mov">${esc(r.currency)}</span></td><td class="mono r">${esc(rateValue(r.rate))}</td><td>${esc(r.note || "")}</td><td class="hint">${esc(r.userName || "")}</td><td>${history.length ? `<details class="rate-revisions"><summary>${history.length} ${history.length === 1 ? "cambio" : "cambios"}</summary><ol>${prior}</ol></details>` : `<span class="hint">0 desde esta versión</span>`}</td>${canEdit ? `<td class="actions"><button class="icon-btn" data-edit-rate="${esc(r.id)}" aria-label="Editar tasa">✎</button><button class="icon-btn danger" data-del-rate="${esc(r.id)}" aria-label="Eliminar tasa">🗑</button></td>` : ""}</tr>`;
+      }).join("")}</tbody></table>
     </div>`;
 }
 
@@ -4012,7 +4048,7 @@ function rateModal(r = null) {
       <label>Fecha<input name="date" type="date" value="${x.date}" required max="${todayISO()}"></label>
       <label>Nota<input name="note" value="${esc(x.note || "")}"></label>
     </div>
-    <p class="hint">Si ya existe una tasa para esa moneda y fecha, se actualiza (una por día).</p>
+    <p class="hint">Si ya existe una tasa para esa moneda y fecha, se actualiza y se conserva su valor anterior. La fecha es efectiva; la hora de registro usa el reloj de este dispositivo.</p>
     <div class="row mt14"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "rateForm", `data-id="${r?.id || ""}"`);
 }
 
@@ -4615,6 +4651,7 @@ function bindLogin() {
 function bindApp() {
   ensureClicks();
   $("#rateChartSource")?.addEventListener("change", (e) => { ui.rateChartSource = e.target.value; render(); });
+  $("#rateChartMode")?.addEventListener("change", (e) => { ui.rateChartMode = e.target.value === "changes" ? "changes" : "daily"; render(); });
   $("#dashboardRange")?.addEventListener("change", (e) => { ui.dashboardRange = e.target.value; render(); });
   $("#dashboardMetric")?.addEventListener("change", (e) => { ui.dashboardMetric = e.target.value; render(); });
   $("#dashboardType")?.addEventListener("change", (e) => { ui.dashboardType = e.target.value; render(); });
@@ -5109,7 +5146,7 @@ function onClick(e) {
   else if (d.restoreMov) result(store.restoreMovement(d.restoreMov), "Movimiento restaurado");
   else if (d.purgeMov) confirmModal("¿Eliminar definitivamente este movimiento?", () => result(store.purgeMovement(d.purgeMov), "Eliminado definitivamente"));
   else if (d.editRate) { rateModal(store.state.rates.find((x) => x.id === d.editRate)); render(); }
-  else if (d.delRate) confirmModal("¿Eliminar este registro de tasa?", () => result(store.deleteRate(d.delRate), "Tasa eliminada"));
+  else if (d.delRate) confirmModal("¿Eliminar este registro de tasa? También se eliminarán sus versiones anteriores y dejarán de aparecer en el gráfico.", () => result(store.deleteRate(d.delRate), "Tasa eliminada"));
   else if (d.toggleUser) { const u = store.state.users.find((x) => String(x.id) === d.toggleUser); store.toggleUser(u.id, !u.active).then((r) => result(r, "Estado actualizado")); }
   else if (d.editUser) { userModal(store.state.users.find((x) => String(x.id) === d.editUser)); render(); }
   else if (d.reset2fa) confirmModal("¿Quitar la verificación en dos pasos a este usuario? Deberá volver a activarla.", () => store.reset2fa(Number(d.reset2fa)).then((r) => result(r, "2FA eliminada")));
@@ -5450,12 +5487,12 @@ function onClick(e) {
   else if (act === "back-login") { ui.recover = false; ui.question = null; ui.recNeed2fa = false; ui.pending2fa = null; ui.loginErr = null; render(); }
   else if (act === "new-product") { productModal(null); render(); }
   else if (act === "new-movement") { movementModal(); render(); }
-  else if (act === "diviza-update") {
-    if (!allowed("EXCHANGE_EDIT") || ui.loadingDiviza) return;
-    ui.loadingDiviza = true;
-    ui.divizaNotice = null;
+  else if (act === "divisa-update") {
+    if (!allowed("EXCHANGE_EDIT") || ui.loadingDivisa) return;
+    ui.loadingDivisa = true;
+    ui.divisaNotice = null;
     render();
-    api("/exchange/diviza", { timeout: 20000 }).then((data) => {
+    api("/exchange/divisa", { timeout: 20000 }).then((data) => {
       if (data.error || !data.ok) return toast(data.error || "No se pudo consultar Divisa.", "err");
       const rates = data.rates || {};
       const missing = CURRENCIES.filter((c) => !Object.hasOwn(rates, c));
@@ -5464,12 +5501,12 @@ function onClick(e) {
         return `${esc(c)}: ${esc(String(rates[c]))} CUP${prior ? ` (guardada ese día: ${esc(String(prior.rate))})` : ""}`;
       }).join("<br>");
       confirmModal(`<b>Divisa · mercado informal</b><br>Publicado: ${esc(data.publishedAt)}<br>Se reemplazarán las tasas registradas para la misma fecha.<br>${rows}<br>${missing.length ? `No publicadas por Divisa: <b>${esc(missing.join(", "))}</b>. No se modificarán.` : ""}<br>¿Aplicar estas referencias?`, () => {
-        const result = store.importDivizaRates(data);
+        const result = store.importDivisaRates(data);
         if (result.error) return toast(result.error, "err");
-        ui.divizaNotice = `Divisa: ${result.count} tasas registradas para ${result.date}.${result.missing.length ? ` Sin actualizar: ${result.missing.join(", ")}.` : ""}`;
-        toast(ui.divizaNotice, "ok");
+        ui.divisaNotice = `Divisa: ${result.count} tasas registradas para ${result.date}.${result.missing.length ? ` Sin actualizar: ${result.missing.join(", ")}.` : ""}`;
+        toast(ui.divisaNotice, "ok");
       });
-    }).catch(() => toast("No se pudo consultar Divisa.", "err")).finally(() => { ui.loadingDiviza = false; render(); });
+    }).catch(() => toast("No se pudo consultar Divisa.", "err")).finally(() => { ui.loadingDivisa = false; render(); });
   }
   else if (act === "eltoque-update") {
     if (!allowed("EXCHANGE_EDIT") || ui.loadingEltoque) return;

@@ -1038,7 +1038,7 @@ class Store {
     return { ok: true, count: currencies.length, date: data.date };
   }
 
-  importDivizaRates(data) {
+  importDivisaRates(data) {
     if (!can(this.state.session?.role, "EXCHANGE_EDIT")) return { error: "Tu rol no puede modificar tasas." };
     const currencies = ["USD", "EUR", "MLC", "CAD", "MXN", "ZELLE", "CLA"];
     const rates = data?.rates;
@@ -1059,15 +1059,23 @@ class Store {
     if (!(rate > 0)) return { error: "La tasa debe ser mayor que cero." };
     if (!currency) return { error: "Moneda requerida." };
     const who = this.state.session?.displayName;
+    const update = (r, fields) => {
+      // Repetir una consulta sin cambios no crea una revisión ficticia.
+      if (r.currency === fields.currency && r.rate === fields.rate && r.date === fields.date && (r.note || "") === (fields.note || "")) return;
+      const history = Array.isArray(r.revisionHistory) ? r.revisionHistory : [];
+      r.revisionHistory = [...history, { currency: r.currency, rate: r.rate, date: r.date,
+        note: r.note || "", userName: r.userName || "", recordedAt: r.updatedAt || r.createdAt || null }];
+      Object.assign(r, fields, { userName: who, updatedAt: Date.now() });
+    };
     if (id) {
       const r = this.state.rates.find((x) => x.id === id);
       if (!r) return { error: "No encontrado." };
-      Object.assign(r, { currency, rate, date, note, userName: who, updatedAt: Date.now() });
+      update(r, { currency, rate, date, note });
       this.audit("UPDATE", "exchange", `${currency} = ${rate} CUP (${date})`, id);
     } else {
       const same = this.state.rates.find((x) => x.currency === currency && x.date === date);
       if (same) {
-        Object.assign(same, { rate, note: note || same.note, userName: who, updatedAt: Date.now() });
+        update(same, { currency, rate, date, note: note || same.note });
       } else {
         this.state.rates.push({ id: uid("r"), currency, rate, date, note, userName: who, createdAt: Date.now() });
       }
