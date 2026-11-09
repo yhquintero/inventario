@@ -1,3 +1,33 @@
+## NovaGest v1.1.0 «Nebula» · revisión 2026-11-09 · Play Store y experiencia Top 1
+
+### App Android (v1.1.0 · versionCode 7)
+- **Tema «NovaGest Nebula»** en claro y oscuro: violeta eléctrico + cian neón + esmeralda sobre
+  índigo noche; superficies con elevación tonal y contornos de alto contraste.
+- **Barra de menú inferior y encabezado aclopados al tema**: contenedor propio en cada modo,
+  indicador-píldora violeta/cian, íconos y etiquetas acordes; cajón lateral con cabecera degradada.
+- **Gráficos futuristas** (sin dependencias nuevas, Canvas puro): barras con degradado y brillo,
+  anillo de composición de movimientos, curva de ventas con glow, sparkline de tipo de cambio,
+  **mapa de calor de ventas (10 semanas)** y **barra de progreso con degradado**.
+- **Inicio**: curva «Ventas · últimos 30 días», KPIs con icono y borde luminoso.
+- **Reportes**: comparador vs. período anterior (▲▼ %), mapa de calor, **Reposición sugerida**
+  (ritmo de venta de 30 días × cobertura de 14 días) y exportaciones sin cambios.
+- **Bienvenida Nebula** (3 pasos, una sola vez por instalación), **splash screen** Nebula en
+  Android 12+ y **respuesta háptica** al cobrar, imprimir o fallar.
+- **Ajustes**: botón «⭐ Califica NovaGest» (enlace directo a la ficha de Google Play).
+- KPIs con delta vs. período anterior y color semántico; versionCode 7 / versionName 1.1.0.
+- Pruebas unitarias nuevas: `DemandForecastTest` (ritmo, cobertura, heat levels y extremos del mapa).
+
+### Web
+- **Paleta Nebula** coherente con Android (claro/oscuro): fondo índigo noche, rail con degradado,
+  KPIs con acento en degradado, **línea de ventas en cian neón con glow**, barras de categoría con
+  degradado violeta→cian y verde→esmeralda, **mapa de calor con rampa neón** y metas con glow.
+- PWA: `theme-color` #0e1330, `background_color` #070a1a; caché del shell renovado (**novagest-v52**).
+- `smoke_web.mjs` en verde (86/86).
+
+### Play Store
+- Kit de tienda en `docs/assets/playstore/`: **feature graphic** y **icono 512** Nebula.
+- Ficha completa (descripción, data safety, permisos, checklist de lanzamiento): `docs/PLAY_STORE_FICHA.md`.
+
 ## NovaGest v1.0.0 · revisión 2026-11-03 (XLVIII) · Módulo de gestión económica y financiera
 
 - **Contabilidad de partida doble integrada** en la Web, el servidor y la API que consume la app Android:
