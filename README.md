@@ -129,7 +129,11 @@ interna para quien administra las licencias.
 
 ## 📸 Capturas
 
-*Datos de demostración del proyecto: no contienen información de personas reales.*
+*Datos de demostración del proyecto: no contienen información de personas reales. NovaGest «Nebula».*
+
+<p align="center">
+  <img src="docs/assets/capturas/galeria-novagest.png" width="100%" alt="NovaGest «Nebula»: Panel, Venta rápida, Inventario, Cuadre diario, Análisis y metas y Panel en tema oscuro" />
+</p>
 
 <table>
   <tr>

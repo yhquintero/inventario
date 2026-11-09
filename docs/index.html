@@ -134,6 +134,9 @@
   /* Capturas */
   .capturas { background: var(--surface); border-block: 1px solid var(--line); }
   .galeria { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem; }
+  .galeria-hero { margin: 2rem 0 0; }
+  .galeria-hero img { width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .galeria-hero figcaption { font-size: .85rem; color: var(--muted); margin-top: .55rem; text-align: center; }
   @media (max-width: 860px) { .galeria { grid-template-columns: 1fr; } }
   figure { margin: 0; }
   figure img { border-radius: 12px; border: 1px solid var(--line); box-shadow: var(--shadow); }
@@ -346,7 +349,12 @@
   <section class="capturas" id="capturas">
     <div class="wrap">
       <h2>Así se ve trabajando</h2>
-      <p class="introduccion">Capturas reales de la aplicación con datos de demostración.</p>
+      <p class="introduccion">Capturas reales de la aplicación con datos de demostración · tema claro y oscuro · NovaGest «Nebula».</p>
+      <figure class="galeria-hero">
+        <img src="assets/capturas/galeria-novagest.png" width="1920" height="1080" loading="lazy"
+             alt="NovaGest «Nebula»: Panel, Venta rápida, Inventario, Cuadre diario, Análisis y metas y Panel en tema oscuro." />
+        <figcaption>NovaGest «Nebula» — seis vistas reales de la interfaz, en un vistazo.</figcaption>
+      </figure>
       <div class="galeria">
         <figure>
           <img src="assets/capturas/panel.png" width="1440" height="900" loading="lazy"
@@ -359,9 +367,24 @@
           <figcaption>Venta rápida, con lector de códigos.</figcaption>
         </figure>
         <figure>
-          <img src="assets/capturas/analisis-y-metas.png" width="1440" height="900" loading="lazy"
+          <img src="assets/capturas/inventario.png" width="1440" height="900" loading="lazy"
+               alt="Inventario con existencias por almacén, precios, costos y categorías." />
+          <figcaption>Inventario, con existencias por almacén.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/capturas/cuadre-diario.png" width="1440" height="900" loading="lazy"
+               alt="Cuadre diario con tasas, fondos y gastos; el resultado debe quedar en cero." />
+          <figcaption>Cuadre diario: tasas, fondos y gastos.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/capturas/analisis-y-metas.png" width="1440" height="1060" loading="lazy"
                alt="Pantalla de análisis con gráficos de ventas, mapa de calor y metas por categoría." />
           <figcaption>Análisis: gráficos, mapa de calor y metas.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/capturas/panel-oscuro.png" width="1440" height="900" loading="lazy"
+               alt="El mismo panel en modo oscuro." />
+          <figcaption>Panel, también en modo oscuro.</figcaption>
         </figure>
       </div>
     </div>

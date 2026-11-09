@@ -627,18 +627,28 @@ test("Informes compara el período con el anterior (W-06)", () => {
   assert.match(html, /Variación/);
 });
 
-test("Simulación municipal pide confirmación y no modifica la base si faltan municipios", () => {
+test("Simulación municipal pide confirmación y crea los municipios que falten", () => {
+  const original = { products: structuredClone(store.state.products), movements: structuredClone(store.state.movements), warehouses: structuredClone(store.state.warehouses), audit: structuredClone(store.state.audit), warehouseEntries: structuredClone(store.state.warehouseEntries) };
+  // Quitamos GUANE para comprobar que el botón lo vuelve a crear en lugar de fallar.
+  const idx = store.state.warehouses.findIndex((w) => /^GUANE$/i.test(w.name));
+  if (idx >= 0) store.state.warehouses.splice(idx, 1);
   const before = JSON.stringify(store.shared());
-  const html = go("warehouses");
-  assert.match(html, /Simular 11 municipios/);
-  clickMatching("act", { act: "wh-municipal-demo" });
-  assert.match(app.innerHTML, /SIMULACIÓN: no es inventario real/);
-  assert.match(app.innerHTML, /afectarán existencias, informes y disponibilidad de venta/);
-  assert.equal(JSON.stringify(store.shared()), before);
-  clickMatching("act", { act: "confirm-yes" });
-  assert.match(app.innerHTML, /Se necesita exactamente un almacén activo/);
-  assert.equal(JSON.stringify(store.shared()), before);
-  go("home");
+  try {
+    const html = go("warehouses");
+    assert.match(html, /Simular 11 municipios/);
+    clickMatching("act", { act: "wh-municipal-demo" });
+    assert.match(app.innerHTML, /SIMULACIÓN: no es inventario real/);
+    assert.match(app.innerHTML, /Se crearán los almacenes municipales que falten/);
+    assert.match(app.innerHTML, /afectarán existencias, informes y disponibilidad de venta/);
+    assert.equal(JSON.stringify(store.shared()), before, "mientras el modal está abierto no toca la base");
+    clickMatching("act", { act: "confirm-yes" });
+    assert.match(app.innerHTML, /SIMULADO:/);
+    assert.ok(store.warehousesActive().some((w) => /^GUANE$/i.test(w.name)), "el municipio que faltaba fue creado");
+    assert.ok(store.activeProducts().some((p) => p.demoMunicipios), "se crearon los productos SIMULADO");
+  } finally {
+    Object.assign(store.state, original);
+    go("home");
+  }
 });
 
 test("Simulación confirmada se identifica en la aplicación y cubre los once municipios", () => {

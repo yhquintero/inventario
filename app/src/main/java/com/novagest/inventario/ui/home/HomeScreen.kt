@@ -52,6 +52,12 @@ import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.WarningAmber
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -119,14 +125,14 @@ fun HomeScreen(user: UserAccount, vm: HomeViewModel = hiltViewModel()) {
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                KpiCard("Ventas de hoy", Money.usd(ventas), "${Money.qty(unidades)} uds.", Modifier.weight(1f), MaterialTheme.colorScheme.tertiary, icon = androidx.compose.material.icons.Icons.Outlined.PointOfSale)
-                KpiCard("Inventario", Money.usd(valorInventario), "${products.size} productos", Modifier.weight(1f), MaterialTheme.colorScheme.primary, icon = androidx.compose.material.icons.Icons.Outlined.Inventory2)
+                KpiCard("Ventas de hoy", Money.usd(ventas), "${Money.qty(unidades)} uds.", Modifier.weight(1f), MaterialTheme.colorScheme.tertiary, icon = Icons.Outlined.PointOfSale)
+                KpiCard("Inventario", Money.usd(valorInventario), "${products.size} productos", Modifier.weight(1f), MaterialTheme.colorScheme.primary, icon = Icons.Outlined.Inventory2)
             }
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                KpiCard("Movimientos hoy", todayMovs.size.toString(), "VENTA / ENTRADA / SALIDA", Modifier.weight(1f), MaterialTheme.colorScheme.secondary, icon = androidx.compose.material.icons.Icons.Outlined.SwapHoriz)
-                KpiCard("Stock bajo", low.size.toString(), if (low.isEmpty()) "Todo cubierto" else "Requieren reposición", Modifier.weight(1f), if (low.isEmpty()) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error, icon = if (low.isEmpty()) androidx.compose.material.icons.Icons.Outlined.CheckCircle else androidx.compose.material.icons.Icons.Outlined.WarningAmber)
+                KpiCard("Movimientos hoy", todayMovs.size.toString(), "VENTA / ENTRADA / SALIDA", Modifier.weight(1f), MaterialTheme.colorScheme.secondary, icon = Icons.Outlined.SwapHoriz)
+                KpiCard("Stock bajo", low.size.toString(), if (low.isEmpty()) "Todo cubierto" else "Requieren reposición", Modifier.weight(1f), if (low.isEmpty()) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error, icon = if (low.isEmpty()) Icons.Outlined.CheckCircle else Icons.Outlined.WarningAmber)
             }
         }
         item {

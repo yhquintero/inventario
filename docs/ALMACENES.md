@@ -39,7 +39,10 @@ almacenes, importe los valores reales por municipio.
 ### Simulación diferenciada de los 11 municipios
 
 En **Almacenes → Simular 11 municipios** un administrador, jefe o almacenero puede
-confirmar la creación de un lote **ficticio**. Se generan hasta 16 productos
+confirmar la creación de un lote **ficticio**. Desde la v1.1.0, si falta alguno de
+los 11 almacenes municipales, el propio botón **los crea** (existencia cero,
+nombre y código oficiales, registrados en Entradas y en la auditoría); no hace
+falta reiniciar el servidor ni la migración de la base. Se generan hasta 16 productos
 separados con prefijo `[SIMULADO]`, basados en nombres y precios del catálogo
 existente, con entradas y salidas diferentes en cada uno de los 11 municipios,
 incluido Pinar del Río. No son ventas, mercancía real ni precios actuales. Los
@@ -51,8 +54,11 @@ embargo, los nuevos registros se guardan **en la base abierta**, se incluyen en
 existencias e informes y permiten operar con esos productos. Úsela exclusivamente
 para pruebas, haga una copia antes y no la confunda con la operación real. Un aviso
 aparece en la aplicación mientras haya productos simulados activos. La simulación
-exige exactamente un almacén activo para cada municipio, un catálogo no vacío y
-que el día no esté cerrado; no se duplica un lote existente. Los productos y sus
+requiere como máximo un almacén activo reconocido para cada municipio: si hay
+duplicados pide corregirlos y no toca nada; si falta alguno, lo crea antes de
+simular. También exige un catálogo no vacío y que el día no esté cerrado; no se
+duplica un lote existente. Los almacenes creados por la simulación quedan como
+cualquier otro almacén: puede editarlos, trasvasarles existencias o eliminarlos. Los productos y sus
 movimientos pueden eliminarse por las funciones habituales, sujetas a las
 restricciones de días cerrados; no hay reversión masiva automática.
 

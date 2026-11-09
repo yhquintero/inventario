@@ -55,6 +55,10 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlin.math.abs
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.outlined.SwapHoriz
 
 /** Fila de reposición sugerida (ritmo de venta de 30 días × cobertura). */
 data class RestockRow(
@@ -206,19 +210,19 @@ fun ReportsScreen(user: UserAccount, vm: ReportsViewModel = hiltViewModel()) {
                 KpiCard(
                     "Ventas", Money.usd(curVentas), "${Money.qty(ventas.sumOf { it.quantity })} uds.",
                     Modifier.weight(1f), MaterialTheme.colorScheme.tertiary,
-                    icon = androidx.compose.material.icons.Icons.Outlined.PointOfSale,
+                    icon = Icons.Outlined.PointOfSale,
                     delta = deltaText, deltaColor = deltaColor
                 )
                 KpiCard(
                     "Utilidad bruta", Money.usd(vm.rows.sumOf { it.utilidadBruta }),
                     "costo histórico ${Money.usd(vm.rows.sumOf { it.costoVentas })}",
                     Modifier.weight(1f), MaterialTheme.colorScheme.primary,
-                    icon = androidx.compose.material.icons.Icons.Outlined.TrendingUp
+                    icon = Icons.Outlined.TrendingUp
                 )
                 KpiCard(
                     "Entradas / salidas", "${Money.qty(entradas.sumOf { it.quantity })} / ${Money.qty(salidas.sumOf { it.quantity })}",
                     "unidades", Modifier.weight(1f), MaterialTheme.colorScheme.secondary,
-                    icon = androidx.compose.material.icons.Icons.Outlined.SwapHoriz
+                    icon = Icons.Outlined.SwapHoriz
                 )
             }
         }

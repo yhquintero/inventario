@@ -46,10 +46,24 @@ Seis piezas de **1080 × 1350 px** (`01-portada.png` … `06-cierre.png`) y su Z
 
 - `docs/assets/capturas/*.png`: capturas de la propia aplicación NovaGest tomadas el
   2026-10-14 en un servidor local de prueba con los datos de demostración del proyecto
-  (sin datos personales).
-- `docs/assets/novagest-hero.png`, `docs/assets/novagest-movil.png` y
-  `docs/assets/social-preview.png`: composiciones hechas a partir de esas capturas, del
-  logotipo de NovaGest y de marcos de navegador y de teléfono dibujados con CSS.
+  (sin datos personales). Ojo: el tema «Nebula» (v1.1.0) cambia la piel de la Web; para
+  regenerarlas hay que volver a tomarlas en un equipo con navegador:
+  `node tools/tomar_capturas.mjs http://127.0.0.1:8455 admin Admin123!`
+  (ver las instrucciones del propio archivo; levanta primero un servidor local de prueba
+  con `DATA_DIR` temporal y `NOVAGEST_DEMO_USERS=1`). El guion captura 19 vistas en
+  1440×900, 3 en tema oscuro y 3 móvil; sustituye a las capturas actuales cuando se ejecute.
+- `docs/assets/capturas/galeria-novagest.png` (2026-11-09): collage Nebula de las 6 vistas
+  reales, generado por `tools/build_sitio_assets_nebula.py` (determinista) a partir de las
+  capturas reales y del fondo Nebula del proyecto. No son pantallas inventadas.
+- `docs/assets/novagest-hero.png`, `docs/assets/social-preview.png` (2026-11-09):
+  regeneradas con el mismo guion a partir de las capturas reales y del icono de la marca
+  (`brand/novagest-icon.png`). Sustituyen a las composiciones antiguas (también derivadas
+  de capturas; ver historial).
+- `docs/assets/novagest-movil.png`: composición con tres teléfonos del Panel claro, la
+  Venta rápida y el tema oscuro (deriva de capturas reales).
+- `docs/assets/playstore/feature-graphic.png` (2026-11-09) e `icon-512.png` (2026-11-09):
+  arte de marca Nebula para Google Play, generados con IA y revisados en el repositorio;
+  no son capturas de la aplicación. El feature graphic cumple 1024×500 y el icono 512×512.
 
 ## Resto de imágenes
 - `brand/novagest-icon.png`, `web/public/icon-*.png`, lanzadores Android:
