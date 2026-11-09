@@ -3124,7 +3124,7 @@ function lineChart(series, goal) {
   const resumen = `Gráfica de ventas diarias: ${series.length} días, máximo ${usd(vmax.v)} el ${formatDate(vmax.d)}, media ${usd(vavg)}, último día ${usd(series[series.length - 1].v)}${goal ? `, meta diaria ${usd(goal)}` : ""}.`;
   const tablaDatos = `<details class="chart-data"><summary>Ver datos de la gráfica en tabla</summary><div class="table-wrap"><table><thead><tr><th scope="col">Fecha</th><th scope="col">Ventas</th>${goal ? '<th scope="col">Meta</th>' : ""}</tr></thead><tbody>${series.map((s) => `<tr><td>${formatDate(s.d)}</td><td class="mono">${usd(s.v)}</td>${goal ? `<td class="mono">${usd(goal)}</td>` : ""}</tr>`).join("")}</tbody></table></div></details>`;
   return `<svg viewBox="0 0 ${W} ${H}" class="line-chart" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title>
-    <defs><linearGradient id="lg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#14b8a6" stop-opacity=".45"/><stop offset="1" stop-color="#14b8a6" stop-opacity="0"/></linearGradient></defs>
+    <defs><linearGradient id="lg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".42"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs>
     ${[0.25, 0.5, 0.75, 1].map((k) => `<line x1="${P}" x2="${W - P}" y1="${y(max * k / 1.1)}" y2="${y(max * k / 1.1)}" class="grid"/>`).join("")}
     ${goal ? `<line x1="${P}" x2="${W - P}" y1="${y(goal)}" y2="${y(goal)}" class="goal"/><text x="${W - P}" y="${y(goal) - 6}" text-anchor="end" class="goal-t">Meta ${usd(goal)}</text>` : ""}
     <polygon points="${x(0)},${H - P} ${pts} ${x(series.length - 1)},${H - P}" fill="url(#lg)"/>
@@ -3201,7 +3201,7 @@ function categoryChartMarkup(rows) {
       <text x="${W - 6}" y="${y + 15}" text-anchor="end" class="cat-value">${usd(d.revenue)} · ${d.margin}%</text></g>`;
   }).join("");
   const tabla = datos.map((d) => `<tr><td>${esc(d.category)}</td><td class="mono r">${usd(d.revenue)}</td><td class="mono r">${usd(d.cost)}</td><td class="mono r">${usd(d.profit)}</td><td class="mono r">${d.margin} %</td><td class="mono r">${d.share} %</td></tr>`).join("");
-  return `<svg viewBox="0 0 ${W} ${H}" class="cat-chart" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title>${rejilla}${barras}</svg>
+  return `<svg viewBox="0 0 ${W} ${H}" class="cat-chart" role="img" aria-label="${esc(resumen)}"><title>${esc(resumen)}</title><defs><linearGradient id="catRevGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#574be0"/><stop offset="1" stop-color="#22d3ee"/></linearGradient><linearGradient id="catProfitGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#059669"/><stop offset="1" stop-color="#2fe6a8"/></linearGradient></defs>${rejilla}${barras}</svg>
     <div class="cat-legend"><span><i class="cat-rev"></i>Venta</span><span><i class="cat-profit"></i>Utilidad</span><span class="hint">margen sobre la venta, según los costos registrados</span></div>
     <details class="chart-data"><summary>Ver datos por categoría en tabla</summary><div class="table-wrap"><table><thead><tr><th scope="col">Categoría</th><th scope="col" class="r">Venta</th><th scope="col" class="r">Costo</th><th scope="col" class="r">Utilidad</th><th scope="col" class="r">Margen</th><th scope="col" class="r">% del total</th></tr></thead><tbody>${tabla}</tbody></table></div></details>`;
 }
