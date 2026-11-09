@@ -55,6 +55,11 @@ https://yhquintero.github.io/inventario/
 
 > `docs/.nojekyll` ya está incluido: GitHub publica los archivos tal cual, sin procesarlos con Jekyll.
 
+> La `docs/index.html` ya declara `og:image` y `twitter:image` **absolutas** hacia
+> `https://yhquintero.github.io/inventario/assets/social-preview.png` (1280×640) con ancho/alto
+> y alt (2026-11-09): al habilitar Pages, las previsualizaciones en WhatsApp/Telegram/X funcionan
+> sin tocar nada más. `social-preview.png` se regenera con `python3 tools/build_sitio_assets_nebula.py`.
+
 Después de publicarlo, poner esa misma dirección en **Settings → General → Website** y añadirla a la
 navegación del `README.md` junto a las secciones internas.
 

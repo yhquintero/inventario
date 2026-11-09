@@ -1,4 +1,4 @@
-import { store } from "./store.js";
+import { store, warehouseIcon } from "./store.js";
 import { api, setLicenseErrorHandler } from "./api.js";
 import { parseLegacyCuadreGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
 import { LicenseManager } from "./license.js";
@@ -3537,7 +3537,7 @@ function warehouseCard(w, s, active) {
   const isActive = active?.id === w.id;
   return `<div class="card wh-card ${isActive ? "on" : ""}">
     <div class="card-h"><span class="k">${w.isDefault ? "★ Principal" : "Almacén"}${isActive ? " · en uso" : ""}</span><span class="tag mov">${esc(w.code || "")}</span></div>
-    <h3 class="wh-name">${hl(w.name)}</h3>
+    <h3 class="wh-name"><span class="wh-ico" aria-hidden="true">${warehouseIcon(w.name)}</span>${hl(w.name)}</h3>
     <p class="hint">${esc(w.location || "Sin ubicación")}${w.notes ? ` · ${esc(w.notes)}` : ""}</p>
     <div class="wh-stats">
       <div><span>Ítems</span><b>${s.items}</b></div>
@@ -3548,14 +3548,14 @@ function warehouseCard(w, s, active) {
     ${s.bajo ? `<div class="banner m10-0-0">⚠ ${s.bajo} productos en el mínimo</div>` : ""}
     <p class="hint mt8">${s.last ? `Última entrada: ${WH_KIND[s.last.kind] || s.last.kind} · ${esc(s.last.userName || "")} · ${new Date(s.last.ts).toLocaleString("es-CU")}` : "Sin entradas registradas"}</p>
     <div class="row mt12">
-      <button class="btn small" data-wh-use="${w.id}">Ver existencias</button>
+      <button class="btn small" data-wh-use="${w.id}">👁️ Ver existencias</button>
       ${canImport ? `<button class="btn ghost small" data-wh-imp="${w.id}">📥 Importar</button>` : ""}
-      ${canEdit ? `<button class="btn ghost small" data-wh-edit="${w.id}">✎ Editar</button>` : ""}
-      ${canEdit ? `<button class="btn ghost small" data-wh-tr="${w.id}">⇄ Traspaso</button>` : ""}
-      <button class="btn ghost small" data-wh-export="${w.id}">CSV</button>
-      <button class="btn gold small" data-wh-pdf="${w.id}">PDF</button>
-      ${canEdit ? `<button class="btn ghost small danger-t" data-wh-del="${w.id}">Eliminar</button>` : ""}
-      ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost small danger-t" data-wh-clear="${esc(w.id)}" ${warehouseHasVisibleInventory(s) ? "" : "disabled"} title="${warehouseHasVisibleInventory(s) ? "Limpiar este almacén" : "No hay ítems, unidades, valor ni movimientos activos"}">Limpiar inventario</button>` : ""}
+      ${canEdit ? `<button class="btn ghost small" data-wh-edit="${w.id}">✏️ Editar</button>` : ""}
+      ${canEdit ? `<button class="btn ghost small" data-wh-tr="${w.id}">🚚 Traspaso</button>` : ""}
+      <button class="btn ghost small" data-wh-export="${w.id}">📄 CSV</button>
+      <button class="btn gold small" data-wh-pdf="${w.id}">🖨️ PDF</button>
+      ${canEdit ? `<button class="btn ghost small danger-t" data-wh-del="${w.id}">🗑️ Eliminar</button>` : ""}
+      ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost small danger-t" data-wh-clear="${esc(w.id)}" ${warehouseHasVisibleInventory(s) ? "" : "disabled"} title="${warehouseHasVisibleInventory(s) ? "Limpiar este almacén" : "No hay ítems, unidades, valor ni movimientos activos"}">🧹 Limpiar inventario</button>` : ""}
     </div>
   </div>`;
 }
@@ -3631,10 +3631,11 @@ function warehousesView() {
         <button class="chip ${ui.whTab === "entradas" ? "on" : ""}" data-wh-tab="entradas">Entradas (${entradas})</button>
       </div>
       <div class="row">
-        ${canEdit ? `<button class="btn" data-act="wh-new">＋ Nuevo almacén</button>` : ""}
-        ${canEdit && whs.length > 1 && active ? `<button class="btn ghost" data-wh-tr="${active.id}">⇄ Traspaso</button>` : ""}
-        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button><button class="btn ghost" data-act="wh-demo">Llenar con datos de prueba</button><button class="btn ghost" data-act="wh-municipal-demo">Simular 11 municipios</button>` : ""}
-        ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost danger-t" data-act="wh-municipal-clear">Limpiar inventario de los 11 municipios</button>` : ""}
+        ${canEdit ? `<button class="btn" data-act="wh-new">🏬 ＋ Nuevo almacén</button>` : ""}
+        ${canEdit && whs.length > 1 && active ? `<button class="btn ghost" data-wh-tr="${active.id}">🚚 ⇄ Traspaso</button>` : ""}
+        ${canEdit && (store.missingMunicipalities().missing.length || 0) > 0 ? `<button class="btn gold" data-act="wh-municipal-create">🏗️ Crear ${store.missingMunicipalities().missing.length === 11 ? "los 11 municipios" : `${store.missingMunicipalities().missing.length} municipio${store.missingMunicipalities().missing.length > 1 ? "s" : ""}`}</button>` : ""}
+        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button><button class="btn ghost" data-act="wh-demo">🧪 Llenar con datos de prueba</button><button class="btn ghost" data-act="wh-municipal-demo">🗺️ Simular 11 municipios</button>` : ""}
+        ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost danger-t" data-act="wh-municipal-clear">🧹 Limpiar inventario de los 11 municipios</button>` : ""}
       </div>
     </div>
     ${(store.state.warehouseEntries || []).some((e) => e.source === "DEMOSTRACIÓN" && !e.undoneAt) ? `<div class="banner info">Hay existencias de demostración ficticias en uno o más almacenes. No representan mercancía real. Revise Entradas antes de operar.</div>` : ""}
@@ -3707,7 +3708,7 @@ function whMunicipalClearFlow() {
   ui.whMunicipalClearIds = selection.warehouses.map((w) => w.id);
   const rows = selection.warehouses.map((w) => {
     const s = store.warehouseStats(w);
-    return `<li><b>${esc(w.name)}</b>: ${s.items} ítems · ${qty(s.unidades)} unidades · ${usd(s.valor)} · ${s.movs} movimientos activos</li>`;
+    return `<li><b>${warehouseIcon(w.name)} ${esc(w.name)}</b>: ${s.items} ítems · ${qty(s.unidades)} unidades · ${usd(s.valor)} · ${s.movs} movimientos activos</li>`;
   }).join("");
   modal("Limpiar inventario de los 11 municipios", `
     <p>Se pondrán a cero las existencias iniciales y actuales y se eliminarán todos los movimientos, incluidos los de papelera, de estos 11 almacenes:</p>
@@ -5353,6 +5354,18 @@ function onClick(e) {
       const r = store.populateDemoWarehouses();
       if (r.error) return toast(r.error, "err");
       toast(`Demostración: ${r.changed} existencias en ${r.warehouses} almacenes. Revisa Entradas.`, "ok");
+      render();
+    });
+  }
+  else if (act === "wh-municipal-create") {
+    if (!allowed("WAREHOUSE_EDIT")) return toast("Tu rol no puede crear almacenes.", "err");
+    const { missing, duplicates } = store.missingMunicipalities();
+    if (duplicates.length) return toast(`Hay duplicados: ${duplicates.map((d) => `${d.name} (${d.count})`).join(", ")}. Deja exactamente uno por municipio.`, "err");
+    if (!missing.length) { toast("Los 11 municipios ya existen.", "ok"); render(); return; }
+    confirmModal(`<b>🏗️ Crear los almacenes municipales.</b> Se crearán <b>${missing.length}</b> ${missing.length === 1 ? "almacén" : "almacenes"} (existencia cero):<br><br><ul>${missing.map((n) => `<li>${warehouseIcon(n)} <b>${esc(n)}</b></li>`).join("")}</ul>Los que ya existan se conservan y no se tocan. Después conviene importar los valores reales de cada municipio (Importar valores).<br><br>¿Deseas crearlos?`, () => {
+      const r = store.ensureMunicipalWarehouses("restaurar");
+      if (r.error) return toast(r.error, "err");
+      toast(`🏗️ Creados ${r.created.length} almacenes municipales: ${r.created.join(", ")}. Revisa Entradas.`, "ok");
       render();
     });
   }

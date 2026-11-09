@@ -537,6 +537,7 @@ td.nowrap, .row.nowrap { white-space: nowrap; flex-wrap: nowrap; }
 .wh-card { display: flex; flex-direction: column; }
 .wh-card.on { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .wh-name { margin: 2px 0 4px; font-family: var(--serif); font-size: 19px; font-weight: 600; }
+.wh-ico { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; margin-right: 8px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--line); font-size: 17px; vertical-align: -4px; }
 .wh-card p { margin: 4px 0; }
 .wh-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; background: var(--surface-2); border-radius: 12px; padding: 10px; }
 .wh-stats div { display: flex; flex-direction: column; gap: 2px; }

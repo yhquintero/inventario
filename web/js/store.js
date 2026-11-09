@@ -16,6 +16,28 @@ const PINAR_MUNICIPALITIES = [
   ["VIÑALES", "VIN"], ["LA PALMA", "LAP"], ["LOS PALACIOS", "LOS"],
   ["SANDINO", "SAN"],
 ];
+// Icono temático por municipio (decorativo): cada uno remite a lo que evoca el lugar.
+const MUNICIPALITY_ICONS = [
+  ["PINAR DEL RIO", "🏛️"],        // capital de la provincia
+  ["CONSOLACION", "🏭"],          // tradición azucarera
+  ["SAN LUIS", "🍂"],             // tierra de tabaco
+  ["SAN JUAN Y MARTINEZ", "🌿"],  // Vuelta Abajo, tabaco fino
+  ["GUANE", "🌾"],
+  ["MANTUA", "🌽"],
+  ["MINAS DE MATAHAMBRE", "⛏️"],  // su nombre
+  ["VINALES", "⛰️"],              // mogotes
+  ["LA PALMA", "🌴"],             // su nombre
+  ["LOS PALACIOS", "🏰"],         // su nombre
+  ["SANDINO", "🎖️"],              // en recuerdo del General de Hombres Libres
+];
+/** Icono temático del almacén (municipio de Pinar del Río o 🏬 por defecto). */
+export function warehouseIcon(name) {
+  const key = normName(String(name || "")).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
+  if (!key) return "🏬";
+  if (key.includes("PINAR DEL RIO")) return "🏛️";
+  for (const [k, ico] of MUNICIPALITY_ICONS) if (key.includes(k)) return ico;
+  return "🏬";
+}
 export const WAREHOUSE_KINDS = { CREACION: "Almacén creado", VALORES: "Valores importados", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Almacén eliminado", DESHACER: "Deshacer", LIMPIEZA: "Inventario limpiado" };
 const THEME = "novagest.theme";
 const WAREHOUSE = "novagest.warehouse";
@@ -535,6 +557,20 @@ class Store {
     return r.ok ? { ok: true } : { error: r.error };
   }
 
+  /** Qué municipios faltan (o están duplicados), sin mutar nada. Para el botón de crear. */
+  missingMunicipalities() {
+    const key = (name) => normName(name).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
+    const active = this.warehousesActive().filter((w) => w.active !== false);
+    const missing = [], duplicates = [];
+    for (const [name] of PINAR_MUNICIPALITIES) {
+      const expected = key(name);
+      const matches = active.filter((w) => key(w.name) === expected || (expected === "CONSOLACION DEL SUR" && key(w.name) === "CONSOLACION"));
+      if (matches.length === 0) missing.push(name);
+      else if (matches.length > 1) duplicates.push({ name, count: matches.length });
+    }
+    return { missing, duplicates };
+  }
+
   municipalWarehouses() {
     const key = (name) => normName(name).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
     const all = this.warehousesActive().filter((w) => w.active !== false);
@@ -549,7 +585,7 @@ class Store {
   }
 
   /** Igual que municipalWarehouses, pero crea los almacenes municipales que falten (existencia cero). Atómico: valida todo antes de tocar nada. */
-  ensureMunicipalWarehouses() {
+  ensureMunicipalWarehouses(origin = "simulacion") {
     const key = (name) => normName(name).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
     const active = this.warehousesActive().filter((w) => w.active !== false);
     // Primera pasada: comprobar cuántos coinciden por municipio; no se muta nada todavía.
@@ -567,9 +603,12 @@ class Store {
     const warehouses = [], created = [];
     for (const { name, code, matches } of plan) {
       if (matches.length === 1) { warehouses.push(matches[0]); continue; }
+      const restaurar = origin === "restaurar";
       const w = {
         id: uid("w"), name, code, location: `${name}, Pinar del Río`,
-        notes: "Creado por la simulación de 11 municipios. Inventario ficticio; importa los valores reales cuando corresponda.",
+        notes: restaurar
+          ? "Restaurado con el botón «Crear los 11 municipios». Importa los valores reales de este municipio cuando corresponda."
+          : "Creado por la simulación de 11 municipios. Inventario ficticio; importa los valores reales cuando corresponda.",
         active: true, isDefault: false, createdAt: now, createdBy: who, deletedAt: null,
       };
       this.state.warehouses.push(w);
@@ -579,7 +618,13 @@ class Store {
         if (p.stocks[w.id] === undefined) p.stocks[w.id] = 0;
         if (p.stocksInicial[w.id] === undefined) p.stocksInicial[w.id] = 0;
       }
-      this.logEntry({ warehouseId: w.id, kind: "CREACION", source: "simulacion", summary: `Almacén «${name}» creado por la simulación de 11 municipios`, counts: {} });
+      this.logEntry({
+        warehouseId: w.id, kind: "CREACION", source: origin === "restaurar" ? "restauracion" : "simulacion",
+        summary: origin === "restaurar"
+          ? `Almacén «${name}» restaurado con el botón Crear los 11 municipios`
+          : `Almacén «${name}» creado por la simulación de 11 municipios`,
+        counts: {},
+      });
       this.audit("CREATE", "warehouse", name, w.id);
       warehouses.push(w);
       created.push(name);

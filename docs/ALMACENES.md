@@ -36,6 +36,33 @@ contener saldos incorrectos de versiones previas: conviene revisarlos, pues no s
 corrigen automáticamente. Haga una copia antes de actualizar. Para llenar los nuevos
 almacenes, importe los valores reales por municipio.
 
+### Recuperar los 11 municipios («🏗️ Crear los 11 municipios»)
+
+Si los almacenes municipales desaparecieron (por ejemplo, borrados uno a uno desde
+**Editar → Eliminar** con la auditoría de por medio), la barra de **Almacenes** muestra,
+a quien tenga permiso para crear almacenes, el botón **🏗️ Crear los 11 municipios**
+(o **🏗️ Crear N municipios** si falta solo alguno). Al confirmar:
+
+- Se crean únicamente los que faltan; los que ya existen se conservan y no se tocan.
+- Cada uno nace con **existencia cero**, nombre y código oficiales (PRI, CON, SLU, SJM,
+  GUA, MAN, MIN, VIN, LAP, LOS, SAN), ubicación «municipio, Pinar del Río» y queda
+  registrado en **Entradas** con origen `restauracion` y en la auditoría (acción
+  `CREATE`, entidad `warehouse`).
+- Es **atómico**: primero comprueba que no haya almacenes duplicados para un mismo
+  municipio; si los hay, avisa y no crea nada.
+- El botón desaparece cuando ya no falta ninguno.
+
+Después de restaurarlos conviene **Importar valores** por municipio con los datos
+reales; hasta entonces sus existencias son cero y no permiten ventas. Los almacenes
+restaurados se gestionan como cualquier otro (editar, traspasar, eliminar — esta vez
+con cuidado: recuerda que eliminar solo es posible sin existencias ni movimientos
+pendientes en él).
+
+**Iconos temáticos por municipio** (decorativos, junto al nombre en las tarjetas y en
+las listas de confirmación): 🏛️ Pinar del Río · 🏭 Consolación del Sur · 🍂 San Luis ·
+🌿 San Juan y Martínez · 🌾 Guane · 🌽 Mantua · ⛏️ Minas de Matahambre · ⛰️ Viñales ·
+🌴 La Palma · 🏰 Los Palacios · 🎖️ Sandino. Cualquier otro almacén usa 🏬.
+
 ### Simulación diferenciada de los 11 municipios
 
 En **Almacenes → Simular 11 municipios** un administrador, jefe o almacenero puede
