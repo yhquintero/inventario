@@ -34,6 +34,7 @@ import com.novagest.inventario.domain.model.UserAccount
 import com.novagest.inventario.domain.usecase.CuadreCalculator
 import com.novagest.inventario.ui.components.KpiCard
 import com.novagest.inventario.ui.components.SectionTitle
+import com.novagest.inventario.ui.components.Sparkline
 import com.novagest.inventario.util.Dates
 import com.novagest.inventario.util.Money
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -72,16 +73,45 @@ fun FinanceScreen(user: UserAccount, vm: FinanceViewModel = hiltViewModel()) {
         item { Text("Finanzas", style = MaterialTheme.typography.headlineMedium) }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                KpiCard("Ventas USD", Money.usd(ventas.sumOf { it.importeUsd }), modifier = Modifier.weight(1f))
-                KpiCard("Comisiones", Money.cup(comisiones), "GESTOR", Modifier.weight(1f))
+                KpiCard("Ventas USD", Money.usd(ventas.sumOf { it.importeUsd }), modifier = Modifier.weight(1f), tone = MaterialTheme.colorScheme.tertiary, icon = androidx.compose.material.icons.Icons.Outlined.PointOfSale)
+                KpiCard("Comisiones", Money.cup(comisiones), "GESTOR", Modifier.weight(1f), tone = MaterialTheme.colorScheme.secondary, icon = androidx.compose.material.icons.Icons.Outlined.AccountBalance)
             }
         }
         item {
             val tot = cuadres.fold(0.0) { acc, c -> acc + CuadreCalculator.totals(c, movs.filter { it.dateEpoch == c.dateEpoch }).extraccionTotalUsd }
             val ent = cuadres.fold(0.0) { acc, c -> acc + CuadreCalculator.totals(c, movs.filter { it.dateEpoch == c.dateEpoch }).entradaDineroUsd }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                KpiCard("Entradas dinero", Money.usd(ent), modifier = Modifier.weight(1f))
-                KpiCard("Extracciones", Money.usd(tot), modifier = Modifier.weight(1f))
+                KpiCard("Entradas dinero", Money.usd(ent), modifier = Modifier.weight(1f), tone = MaterialTheme.colorScheme.primary, icon = androidx.compose.material.icons.Icons.Outlined.SouthWest)
+                KpiCard("Extracciones", Money.usd(tot), modifier = Modifier.weight(1f), tone = MaterialTheme.colorScheme.primary, icon = androidx.compose.material.icons.Icons.Outlined.NorthEast)
+            }
+        }
+        item {
+            // Tendencia del último par usado (sparkline sin ejes).
+            val pairNow = rates.firstOrNull()?.pair
+            val series = remember(rates) {
+                rates.filter { it.pair == pairNow }
+                    .sortedBy { it.dateEpoch }
+                    .takeLast(20)
+                    .map { it.rate.toFloat() }
+            }
+            if (pairNow != null && series.size >= 2) {
+                val first = series.first()
+                val last = series.last()
+                val pct = if (first != 0f) ((last - first) / first) * 100f else 0f
+                androidx.compose.material3.Card {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Text("Tendencia · $pairNow", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                (if (pct >= 0f) "▲ " else "▼ ") + String.format("%.2f", kotlin.math.abs(pct)) + " %",
+                                color = if (pct >= 0f) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                        Text("Último valor $last · ${series.size} registros", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Sparkline(series, Modifier.fillMaxWidth())
+                    }
+                }
             }
         }
         item { SectionTitle("Historial de tipo de cambio") }

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_bg">#1E1B4B</color>
+    <color name="ic_launcher_bg">#171233</color>
+    <color name="splash_bg">#070A1A</color>
     <color name="seed_primary">#4F46E5</color>
     <color name="seed_gold">#B45309</color>
 </resources>

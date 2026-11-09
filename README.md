@@ -14,7 +14,7 @@
 🌐 **Español** · [English](docs/readme/README_en.md) · [Português](docs/readme/README_pt-BR.md) · [Français](docs/readme/README_fr.md) · [Italiano](docs/readme/README_it.md) · [Deutsch](docs/readme/README_de.md) · [Русский](docs/readme/README_ru.md) · [简体中文](docs/readme/README_zh-CN.md)
 
 [![CI](https://github.com/yhquintero/inventario/actions/workflows/ci.yml/badge.svg)](https://github.com/yhquintero/inventario/actions/workflows/ci.yml)
-[![Versión](https://img.shields.io/badge/versi%C3%B3n-1.0.0-4f46e5?style=flat-square)](CHANGELOG.md)
+[![Versión](https://img.shields.io/badge/versi%C3%B3n-1.1.0-4f46e5?style=flat-square)](CHANGELOG.md)
 [![Plataformas](https://img.shields.io/badge/plataformas-Web%20%C2%B7%20Android%20%C2%B7%20Servidor-1e1b4b?style=flat-square)](#-ecosistema)
 [![PWA](https://img.shields.io/badge/PWA-funciona%20sin%20conexi%C3%B3n-059669?style=flat-square)](#-preguntas-frecuentes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](#-requisitos)
@@ -57,7 +57,7 @@ el **mismo estado**, con roles, auditoría, licencia y copias cifradas.
 | **Cómo está hecho** | Python 3.10+ (servidor y API) · SQLite (datos) · Web PWA sin compilación · Kotlin + Jetpack Compose (Android) · `cryptography` (licencias y copias) |
 | **Dónde corre** | Servidor propio: Windows, Linux, macOS o Docker. Sin dependencia de la nube |
 | **Cómo se usa** | Navegador instalable (Web), app Android con sincronización, o modo local en el teléfono |
-| **Estado** | Versión **1.0.0** estable · integración continua en verde (Web, servidor y Android) |
+| **Estado** | Versión **1.1.0** estable · integración continua en verde (Web, servidor y Android) |
 | **Modelo** | Software propietario con **licencia de uso** firmada (HMAC-SHA256) y plazos de 1 día a permanente |
 
 > 📊 **Tus datos mandan.** Los libros de Excel son solo fuentes de importación y referencia: la aplicación nunca importa ni sustituye datos operativos sin mostrarte una **vista previa** y recibir tu confirmación. Una instalación nueva puede arrancar con la semilla incluida en el proyecto.

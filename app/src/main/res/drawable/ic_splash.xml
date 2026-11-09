@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monograma NovaGest Nebula: N blanca con diagonal esmeralda (igual que el icono). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,74 L40,38 L48,38 L60,62 L60,38 L68,38 L68,74 L60,74 L48,50 L48,74 Z" />
+    <path
+        android:fillColor="#22D3EE"
+        android:pathData="M48,38 L60,62 L60,74 L48,50 Z" />
+</vector>

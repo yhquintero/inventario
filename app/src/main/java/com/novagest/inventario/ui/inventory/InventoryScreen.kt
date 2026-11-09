@@ -126,9 +126,9 @@ fun InventoryScreen(user: UserAccount, vm: InventoryViewModel = hiltViewModel())
                                 Text(p.category + (if (p.barcode.isNotBlank()) " · ▦ ${p.barcode}" else "") + if (p.observaciones.isNotBlank()) " · ${p.observaciones}" else "", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                             }
                             val stockColor = when {
-                                p.stockActual <= 0 -> Color(0xFFDC2626)
-                                p.stockActual <= p.minStock -> Color(0xFFB7791F)
-                                else -> Color(0xFF16A34A)
+                                p.stockActual <= 0 -> MaterialTheme.colorScheme.error
+                                p.stockActual <= p.minStock -> MaterialTheme.colorScheme.secondary
+                                else -> MaterialTheme.colorScheme.tertiary
                             }
                             Box(Modifier.clip(RoundedCornerShape(8.dp)).background(stockColor.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 4.dp)) {
                                 Text(Money.qty(p.stockActual), color = stockColor, fontWeight = FontWeight.Bold)

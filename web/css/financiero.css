@@ -1,12 +1,12 @@
 /* Módulo económico-financiero: tema futurista con modo claro/oscuro vía variables. */
 :root {
   --fin-bg: #f4f6ff; --fin-card: #ffffff; --fin-ink: #17153a; --fin-mut: #5b5a7a;
-  --fin-line: #e3e1f5; --fin-acc: #6d5cff; --fin-acc2: #00d4ff; --fin-ok: #16c784; --fin-bad: #ea3943;
-  --fin-grad: linear-gradient(135deg, #6d5cff, #00d4ff);
+  --fin-line: #e3e1f5; --fin-acc: #574be0; --fin-acc2: #22d3ee; --fin-ok: #16c784; --fin-bad: #ea3943;
+  --fin-grad: linear-gradient(135deg, #574be0, #22d3ee);
 }
 html.dark {
-  --fin-bg: #0b0a1f; --fin-card: #161532; --fin-ink: #eceaff; --fin-mut: #9a97c4;
-  --fin-line: #2a2854; --fin-acc: #8b7bff; --fin-acc2: #00d4ff; --fin-ok: #16c784; --fin-bad: #ff5c68;
+  --fin-bg: #070a1a; --fin-card: #0e1330; --fin-ink: #eceaff; --fin-mut: #9a97c4;
+  --fin-line: #2a2854; --fin-acc: #8f86ff; --fin-acc2: #00d4ff; --fin-ok: #16c784; --fin-bad: #ff5c68;
 }
 .fin-body { background: var(--fin-bg); color: var(--fin-ink); margin: 0; font-family: system-ui, sans-serif; min-height: 100vh; }
 .fin-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; background: var(--fin-card); border-bottom: 1px solid var(--fin-line); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
