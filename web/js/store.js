@@ -535,7 +535,20 @@ class Store {
     return r.ok ? { ok: true } : { error: r.error };
   }
 
-  async clearWarehouse(warehouseId) {
+  municipalWarehouses() {
+    const key = (name) => normName(name).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
+    const all = this.warehousesActive().filter((w) => w.active !== false);
+    const warehouses = [];
+    for (const [name] of PINAR_MUNICIPALITIES) {
+      const expected = key(name);
+      const matches = all.filter((w) => key(w.name) === expected || (expected === "CONSOLACION DEL SUR" && key(w.name) === "CONSOLACION"));
+      if (matches.length !== 1) return { error: `Se necesita exactamente un almacén activo para ${name}; revisa los nombres antes de continuar.` };
+      warehouses.push(matches[0]);
+    }
+    return { warehouses };
+  }
+
+  async clearWarehouse(warehouseId, municipalityIds = null) {
     if (this.state.session?.role !== "ADMINISTRADOR") return { error: "Solo un administrador puede limpiar el inventario." };
     if (this.clearConflictPending) return { error: "Hay cambios anteriores a una limpieza pendientes de revisión." };
     if (this.saving) return { error: "Espere a que termine el guardado y vuelva a intentarlo." };
@@ -543,7 +556,10 @@ class Store {
     if (this.saving || this.dirty || this.sync === "offline" || this.sync === "error") return { error: "Hay cambios pendientes o sin conexión. Sincronice antes de limpiar." };
     this.saving = true; // también pausa la sincronización periódica durante la operación
     try {
-      const r = await api("/warehouses/clear", { method: "POST", timeout: 120000, body: { warehouseId, version: this.version, confirmation: "LIMPIAR" } });
+      const body = municipalityIds
+        ? { municipalityIds, version: this.version, confirmation: "LIMPIAR 11 MUNICIPIOS" }
+        : { warehouseId, version: this.version, confirmation: "LIMPIAR" };
+      const r = await api("/warehouses/clear", { method: "POST", timeout: 120000, body });
       if (!r.ok) return { error: r.status === 0 ? "No se recibió respuesta. La limpieza podría haberse realizado; recargue y verifique antes de reintentar." : r.error };
       if (this.dirty) {
         writePending(localStorage, this.shared());
@@ -1453,11 +1469,12 @@ class Store {
   }
   /** Almacén en uso (se recuerda en el dispositivo). */
   activeWarehouseId() {
-    return this.warehouseById(this.warehouseId)?.id || this.defaultWarehouse()?.id || WAREHOUSE_DEFAULT_ID;
+    const selected = this.warehouseById(this.warehouseId);
+    return (selected && !selected.deletedAt ? selected.id : null) || this.defaultWarehouse()?.id || WAREHOUSE_DEFAULT_ID;
   }
   activeWarehouse() { return this.warehouseById(this.activeWarehouseId()); }
   setActiveWarehouse(id) {
-    if (!this.warehouseById(id)) return;
+    if (!this.warehouseById(id) || this.warehouseById(id).deletedAt) return;
     this.warehouseId = id;
     try { localStorage.setItem(WAREHOUSE, id); } catch {}
     this.emit(false);
@@ -1560,6 +1577,14 @@ class Store {
     return { ok: true, id: w.id };
   }
 
+  /** Incluye papelera y saldos iniciales, pero no las marcas de movimientos limpiados. */
+  warehouseDeletionContents(id) {
+    return {
+      hasStock: this.state.products.some((p) => Number(p.stocks?.[id] || 0) !== 0 || Number(p.stocksInicial?.[id] || 0) !== 0),
+      movements: this.state.movements.filter((m) => !m.warehouseCleared && this.warehouseOf(m) === id),
+    };
+  }
+
   /** Elimina un almacén. Si tiene existencias hay que indicar a cuál se mueven. */
   deleteWarehouse(id, moveTo = null) {
     if (!can(this.state.session?.role, "WAREHOUSE_EDIT")) return { error: "Tu rol no puede eliminar almacenes." };
@@ -1567,8 +1592,8 @@ class Store {
     if (!w || w.deletedAt) return { error: "Almacén no encontrado." };
     const others = this.warehousesActive().filter((x) => x.id !== id);
     if (!others.length) return { error: "Es el único almacén. Crea otro antes de eliminarlo." };
-    const hasStock = this.state.products.some((p) => Number(p.stocks?.[id] || 0) !== 0 || Number(p.stocksInicial?.[id] || 0) !== 0);
-    const movs = this.state.movements.filter((m) => this.warehouseOf(m) === id).length;
+    const { hasStock, movements: movementsToMove } = this.warehouseDeletionContents(id);
+    const movs = movementsToMove.length;
     const target = moveTo ? this.warehouseById(moveTo) : null;
     let moved = 0;
     if ((hasStock || movs) && (!target || target.deletedAt || target.id === id)) {
@@ -1592,11 +1617,14 @@ class Store {
         delete p.stocks[id];
         delete p.stocksInicial[id];
       }
-      this.state.movements.forEach((m) => { if (m.warehouseId === id) m.warehouseId = target.id; });
+      movementsToMove.forEach((m) => { m.warehouseId = target.id; });
       this.state.products.forEach((p) => this.recalcProduct(p.id));
     }
     if (w.isDefault) { w.isDefault = false; others[0].isDefault = true; }
-    if (!this.warehouseById(this.warehouseId)) this.warehouseId = others[0].id;
+    if (this.warehouseId === id || !this.warehouseById(this.warehouseId) || this.warehouseById(this.warehouseId).deletedAt) {
+      this.warehouseId = others[0].id;
+      try { localStorage.setItem(WAREHOUSE, this.warehouseId); } catch {}
+    }
     this.logEntry({
       warehouseId: id, kind: "ELIMINACION", source: "manual", warehouseName: w.name,
       summary: `Almacén «${w.name}» eliminado${target ? `; ${moved} productos y ${movs} movimientos pasaron a «${target.name}»` : ""}`,
@@ -1645,15 +1673,9 @@ class Store {
     if (this.closedErr(todayISO())) return this.closedErr(todayISO());
     if (this.state.products.some((p) => p.demoMunicipios) || this.state.movements.some((m) => m.demoMunicipios))
       return { error: "Ya existe un lote de demostración municipal; no se duplicará." };
-    const key = (name) => normName(name).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
-    const all = this.warehousesActive().filter((w) => w.active !== false);
-    const warehouses = [];
-    for (const [name] of PINAR_MUNICIPALITIES) {
-      const expected = key(name);
-      const matches = all.filter((w) => key(w.name) === expected || (expected === "CONSOLACION DEL SUR" && key(w.name) === "CONSOLACION"));
-      if (matches.length !== 1) return { error: `Se necesita exactamente un almacén activo para ${name}; revisa los nombres antes de continuar.` };
-      warehouses.push(matches[0]);
-    }
+    const selection = this.municipalWarehouses();
+    if (selection.error) return selection;
+    const warehouses = selection.warehouses;
     const seenNames = new Set(), categories = new Map();
     const catalog = this.activeProducts().filter((p) => p.name && !p.demoMunicipios && !/^\[SIMULADO\]/i.test(p.name))
       .sort((a, b) => a.name.localeCompare(b.name, "es"));

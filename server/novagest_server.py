@@ -2171,9 +2171,18 @@ def state_put(h, u, _):
 def clear_warehouse(h, u, _):
     """Limpieza por almacén con copia verificada, versión y auditoría atómica."""
     b = h.body()
-    if not isinstance(b, dict) or b.get("confirmation") != "LIMPIAR" or not isinstance(b.get("warehouseId"), str) or type(b.get("version")) is not int:
-        return h.err(400, "Confirme la limpieza y proporcione el almacén y la versión.")
-    wid, expected = b["warehouseId"], b["version"]
+    if not isinstance(b, dict) or type(b.get("version")) is not int:
+        return h.err(400, "Confirme la limpieza y proporcione la versión.")
+    municipal = "municipalityIds" in b
+    if municipal:
+        ids = b.get("municipalityIds")
+        if b.get("confirmation") != "LIMPIAR 11 MUNICIPIOS" or not isinstance(ids, list) or len(ids) != 11 or any(not isinstance(x, str) or not x for x in ids) or len(set(ids)) != 11:
+            return h.err(400, "Confirme la limpieza de los 11 municipios y revise su selección.")
+    elif b.get("confirmation") != "LIMPIAR" or not isinstance(b.get("warehouseId"), str) or not b["warehouseId"]:
+        return h.err(400, "Confirme la limpieza y proporcione el almacén.")
+    else:
+        ids = [b["warehouseId"]]
+    expected = b["version"]
     timestamp = int(time.time() * 1000)
     operation_id = secrets.token_hex(12)
     with _lock:
@@ -2184,12 +2193,33 @@ def clear_warehouse(h, u, _):
             return h.err(409, "El inventario cambió. Recargue y revise antes de limpiar.")
         state = json.loads(row["data"])
         closed = closed_set()
+        if municipal:
+            active = [w for w in state.get("warehouses", []) if isinstance(w, dict) and not w.get("deletedAt") and w.get("active") is not False]
+            resolved = []
+            for name, _code in PINAR_MUNICIPALITIES:
+                expected_name = _municipality_key(name)
+                matches = [w for w in active if _municipality_key(w.get("name")) == expected_name or
+                           (expected_name == "CONSOLACION DEL SUR" and _municipality_key(w.get("name")) == "CONSOLACION")]
+                if len(matches) != 1 or not isinstance(matches[0].get("id"), str):
+                    return h.err(409, f"Se necesita exactamente un almacén activo para {name}; revise los nombres.")
+                resolved.append(matches[0]["id"])
+            if len(set(resolved)) != 11 or set(resolved) != set(ids):
+                return h.err(409, "Los municipios cambiaron desde la revisión. Recargue y confirme de nuevo.")
+            ids = resolved
+        prepared = state
+        results = []
         try:
-            prepared, details = warehouse_clear.prepare(state, wid, closed, timestamp, u["display_name"], operation_id)
+            for index, wid in enumerate(ids):
+                prepared, detail = warehouse_clear.prepare(prepared, wid, closed, timestamp, u["display_name"], f"{operation_id}_{index}")
+                results.append({"id": wid, **detail})
         except warehouse_clear.ClearError as exc:
-            return h.err(exc.status, str(exc))
+            return h.err(exc.status, f"{next((w.get('name') for w in state.get('warehouses', []) if isinstance(w, dict) and w.get('id') == wid), wid)}: {exc}")
+        details = {"changed": any(r["changed"] for r in results),
+                   "products": sum(r["products"] for r in results), "movements": sum(r["movements"] for r in results),
+                   "warehouse": "11 municipios" if municipal else (results[0].get("warehouse") or "Almacén"),
+                   "warehouses": results if municipal else None}
     if not details["changed"]:
-        return h.send_json(200, {"ok": True, "changed": False, "version": expected, **details})
+        return h.send_json(200, {"ok": True, "version": expected, **details})
     # Sin mantener _lock: make_backup también registra auditoría (_CHAIN_LOCK → _lock).
     try:
         backup = make_backup("pre-clear-" + secrets.token_hex(4), u["username"])
@@ -2206,9 +2236,14 @@ def clear_warehouse(h, u, _):
         current_closed = {r["date"] for r in CON.execute("SELECT date FROM closed_days").fetchall()}
         if not current or current["version"] != expected or current_closed != closed:
             return h.err(409, "La base o los días cerrados cambiaron. Recargue antes de limpiar.")
-        prepared["warehouseEntries"][0]["date"] = dt.datetime.fromtimestamp(timestamp / 1000, divisa._havana_zone()).date().isoformat()
+        date = dt.datetime.fromtimestamp(timestamp / 1000, divisa._havana_zone()).date().isoformat()
+        new_entry_ids = {f"e_clear_{operation_id}_{i}" for i, r in enumerate(results) if r["changed"]}
+        for entry in prepared["warehouseEntries"]:
+            if entry.get("id") in new_entry_ids:
+                entry["date"] = date
+        entity_id = ",".join(ids) if municipal else ids[0]
         prepared.setdefault("audit", []).insert(0, {"id": "a_clear_" + operation_id, "userId": u["id"],
-            "userName": u["username"], "action": "CLEAR", "entity": "warehouse", "entityId": wid,
+            "userName": u["username"], "action": "CLEAR", "entity": "warehouse", "entityId": entity_id,
             "details": f"Limpieza · {details['warehouse']} · {details['products']} productos · {details['movements']} movimientos · copia {backup}", "timestamp": timestamp})
         version = expected + 1
         try:
@@ -2219,7 +2254,7 @@ def clear_warehouse(h, u, _):
             last = CON.execute("SELECT hash FROM audit ORDER BY id DESC LIMIT 1").fetchone()
             prev = (last["hash"] if last else "") or ""
             ts, ip = now(), h.ip()
-            text = f"{wid} · {details['warehouse']} · {details['products']} productos · {details['movements']} movimientos · copia {backup}"
+            text = f"{entity_id} · {details['warehouse']} · {details['products']} productos · {details['movements']} movimientos · copia {backup}"
             digest = _hash_auditoria(prev, ts, u["username"], "WAREHOUSE_CLEAR", text, ip)
             CON.execute("INSERT INTO audit(ts,user,action,details,ip,prev,hash) VALUES(?,?,?,?,?,?,?)",
                 (ts, u["username"], "WAREHOUSE_CLEAR", text, ip, prev, digest))

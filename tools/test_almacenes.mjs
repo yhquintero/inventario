@@ -228,5 +228,48 @@ test("borrar un almacén moviendo todo a otro conserva el total", () => {
   assert.ok(store.state.warehouseEntries[0].kind === "ELIMINACION");
 });
 
+test("eliminar almacén limpio ignora las marcas protegidas y cambia el almacén en uso", () => {
+  const result = store.saveWarehouse({ name: "MUNICIPIO VACÍO" });
+  assert.equal(result.ok, true);
+  const id = result.id;
+  store.state.movements.push({ id: "limpiado", warehouseId: id, warehouseCleared: true, deletedAt: 1, updatedAt: 2 });
+  const marker = structuredClone(store.state.movements.find((m) => m.id === "limpiado"));
+  store.setActiveWarehouse(id);
+  const deleted = store.deleteWarehouse(id);
+  assert.equal(deleted.ok, true, deleted.error);
+  assert.equal(deleted.movimientos, 0);
+  assert.deepEqual(store.state.movements.find((m) => m.id === "limpiado"), marker);
+  assert.notEqual(store.activeWarehouseId(), id);
+  store.warehouseId = id;
+  assert.notEqual(store.activeWarehouseId(), id, "tampoco se selecciona un almacén borrado al recargar");
+});
+
+test("se puede eliminar el principal limpio sin trasladar sus marcas ni afectar otro almacén", () => {
+  const saved = structuredClone({ warehouses: store.state.warehouses, products: store.state.products, movements: store.state.movements, warehouseEntries: store.state.warehouseEntries });
+  const selected = store.warehouseId;
+  try {
+    store.state.warehouses = [{ id: "principal", name: "PRINCIPAL", isDefault: true }, { id: "otro", name: "OTRO", isDefault: false }];
+    store.state.products = [{ id: "p", name: "ARROZ", stocks: { principal: 0, otro: 5 }, stocksInicial: { principal: 0, otro: 5 }, stockActual: 5, stockInicial: 5 }];
+    const mark = { id: "m", warehouseId: "principal", warehouseCleared: true, deletedAt: 12, updatedAt: 12 };
+    store.state.movements = [structuredClone(mark)];
+    store.setActiveWarehouse("principal");
+    assert.equal(store.deleteWarehouse("principal").ok, true);
+    assert.equal(store.defaultWarehouse().id, "otro");
+    assert.equal(store.activeWarehouseId(), "otro");
+    assert.equal(store.state.products[0].stocks.otro, 5);
+    assert.deepEqual(store.state.movements[0], mark);
+  } finally { Object.assign(store.state, saved); store.warehouseId = selected; }
+});
+
+test("no se ignoran movimientos reales en papelera ni saldos iniciales", () => {
+  const result = store.saveWarehouse({ name: "MUNICIPIO PENDIENTE" });
+  const id = result.id;
+  store.state.movements.push({ id: "papelera", warehouseId: id, deletedAt: 2 });
+  assert.equal(store.deleteWarehouse(id).needsTarget, true);
+  store.state.movements = store.state.movements.filter((m) => m.id !== "papelera");
+  store.state.products[0].stocksInicial[id] = 3;
+  assert.equal(store.deleteWarehouse(id).needsTarget, true);
+});
+
 console.log(`\n${ok} pruebas correctas, ${fail} fallidas\n`);
 process.exit(fail ? 1 : 0);

@@ -95,7 +95,9 @@ inventario manualmente.
 ### Limpiar inventario de un almacén
 
 Solo **ADMINISTRADOR** ve «Limpiar inventario» después de «Eliminar» en cada tarjeta.
-Revise el nombre y escriba **LIMPIAR** para confirmar. Se ponen a cero las existencias
+El botón individual se desactiva cuando los cuatro indicadores visibles (ítems,
+unidades, valor y movimientos activos) están en cero; se habilita cuando al menos uno
+es mayor que cero. Revise el nombre y escriba **LIMPIAR** para confirmar. Se ponen a cero las existencias
 actuales e iniciales del almacén elegido y se eliminan sus movimientos activos y de
 papelera; los ítems, unidades y valor de esa tarjeta quedan en cero. Los movimientos
 sin almacén se atribuyen al principal. Los informes calculados a partir de esos
@@ -120,13 +122,34 @@ identifica ese conflicto, la aplicación bloquea la edición y ofrece descargar 
 local sensible para revisarla con el administrador, o descartarla explícitamente. No
 la importa ni la fusiona automáticamente. Proteja el archivo descargado.
 
+### Limpiar los 11 municipios a la vez
+
+El botón **Limpiar inventario de los 11 municipios** está junto a las acciones de
+simulación y solo lo ve ADMINISTRADOR. Se muestran los 11 nombres y sus indicadores;
+para aprobar se debe escribir **LIMPIAR 11 MUNICIPIOS**. Se exige identificar un
+único almacén activo por municipio (se acepta «Consolación» como abreviatura); si
+falta alguno o hay nombres duplicados, se bloquea para evitar seleccionar destinos
+incorrectos. Los almacenes adicionales no se incluyen.
+
+La operación también examina movimientos en papelera y existencias iniciales aunque
+los indicadores visibles estén en cero. Se verifica una sola copia cifrada de toda
+la base y la limpieza se guarda como una sola transacción: si cualquiera de los
+municipios tiene un día cerrado o fiado vinculado, o falla la copia o el guardado,
+ninguno se modifica. Las mismas advertencias y efectos de la limpieza individual se
+aplican a cada municipio.
+
+Los identificadores de protección que quedan tras limpiar no cuentan como movimientos
+al eliminar un almacén vacío y se conservan sin trasladarlos. Aun así, saldos iniciales
+o movimientos reales en papelera sí requieren un destino al eliminar el almacén.
+El último almacén no se puede eliminar.
+
 ## 2. Almacén en uso
 
 Arriba, a la derecha, hay un selector **🏬 ALMACÉN**. Todo apunta a ese almacén:
 
 | Pantalla | Qué usa el almacén en uso |
 |---|---|
-| Inventario | columna **EN «código»** con la existencia de ese almacén (y el chip *En CEN* para filtrar) |
+| Inventario | muestra por defecto los productos con existencia en el almacén seleccionado; **Catálogo completo** permite consultar los productos compartidos sin existencias aquí |
 | Venta rápida (POS) | descuenta del almacén elegido y no deja vender más de lo que hay ahí |
 | Movimientos | columna **ALMACÉN**; al crear un movimiento puedes cambiarlo |
 | Importar valores | destino de los valores |

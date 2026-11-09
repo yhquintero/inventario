@@ -219,7 +219,7 @@ function setTexto(size) {
 function navTo(route) {
   rememberSidebarScroll();
   if (!allowed(routes[route]?.perm)) return toast("No tienes permiso para esa sección.", "err");
-  if (ui.route !== route) { ui.q = ""; ui.filter = "TODOS"; ui.cat = "TODAS"; }
+  if (ui.route !== route) { ui.q = ""; ui.filter = route === "inventory" ? "AQUI" : "TODOS"; ui.cat = "TODAS"; }
   ui.route = route;
   ui.drawer = false;
   if (location.hash !== "#" + route) history.replaceState(null, "", "#" + route);
@@ -1296,7 +1296,7 @@ function inventoryView() {
     ${printReportHeader("Inventario", inventorySubtitle)}
     <div class="toolbar">
       <div class="chips">
-        ${[["TODOS", "Todos"], ["STOCK", "Con stock"], ["BAJO", "Stock bajo"], ["AGOTADOS", "Agotados"], ...(multi ? [["AQUI", `En ${wh?.code || wh?.name || ""}`]] : [])].map(([k, l]) => `<button class="chip ${ui.filter === k ? "on" : ""}" data-filter="${k}">${l}</button>`).join("")}
+        ${[["AQUI", `En ${wh?.code || wh?.name || "almacén"}`], ["TODOS", "Catálogo completo"], ["STOCK", "Con stock"], ["BAJO", "Stock bajo"], ["AGOTADOS", "Agotados"]].map(([k, l]) => `<button class="chip ${ui.filter === k ? "on" : ""}" data-filter="${k}">${l}</button>`).join("")}
       </div>
       <div class="row">
         <select id="catFilter" class="sel"><option value="TODAS">Todas las categorías</option>${cats.map((c) => `<option ${ui.cat === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
@@ -1308,6 +1308,7 @@ function inventoryView() {
         <button class="btn ghost" data-nav="warehouses" data-tip="Crear almacenes y ver sus entradas">🏬 Almacenes</button>
       </div>
     </div>
+    <p class="hint">Por defecto se muestran las existencias del almacén en uso. «Catálogo completo» incluye productos compartidos, incluso sin existencias aquí.</p>
     <div class="summary">
       <span><b>${list.length}</b> ítems${list.length !== all.length ? ` de ${all.length}` : ""}</span>
       <span>Stock inicial <b>${qty(tot.ini)}</b></span><span>Stock actual <b>${qty(tot.act)}</b></span><span>Valor <b>${usd(tot.val)}</b></span>
@@ -1336,7 +1337,7 @@ function inventoryView() {
               <td>${catBadge(p.category)}</td>
               <td class="hint">${esc(p.observaciones || "")}</td>
               ${canEdit ? `<td class="actions"><button class="icon-btn" data-edit-product="${p.id}" title="Modificar">✎</button><button class="icon-btn" data-quick-mov="${p.id}" title="Movimiento">⇄</button>${multi && canEdit ? `<button class="icon-btn" data-send-wh="${p.id}" title="Traspasar a otro almacén">🏬</button>` : ""}<button class="icon-btn danger" data-del-product="${p.id}" title="Enviar a papelera">🗑</button></td>` : ""}
-            </tr>`).join("") || `<tr><td colspan="${cols}" class="empty">Ningún producto coincide con “${esc(ui.q)}”.</td></tr>`}
+            </tr>`).join("") || `<tr><td colspan="${cols}" class="empty">${ui.filter === "AQUI" && !ui.q ? `Este almacén no tiene productos con existencias. El catálogo compartido sigue disponible.` : `Ningún producto coincide con “${esc(ui.q)}”.`}</td></tr>`}
         </tbody>
         <tfoot><tr><td></td><td></td><td>TOTAL · ${list.length} ítems</td><td class="mono r">${qty(tot.ini)}</td><td class="mono r">${qty(tot.act)}</td>${multi ? `<td class="mono r">${qty(tot.wh)}</td>` : ""}<td colspan="${canEdit ? 6 : 5}"></td></tr></tfoot>
       </table>
@@ -3528,6 +3529,8 @@ function whPicker() {
   </label>`;
 }
 
+const warehouseHasVisibleInventory = (s) => s.items > 0 || s.unidades > 0 || s.valor > 0 || s.movs > 0;
+
 function warehouseCard(w, s, active) {
   const canEdit = allowed("WAREHOUSE_EDIT");
   const canImport = allowed("VALUES_IMPORT");
@@ -3552,7 +3555,7 @@ function warehouseCard(w, s, active) {
       <button class="btn ghost small" data-wh-export="${w.id}">CSV</button>
       <button class="btn gold small" data-wh-pdf="${w.id}">PDF</button>
       ${canEdit ? `<button class="btn ghost small danger-t" data-wh-del="${w.id}">Eliminar</button>` : ""}
-      ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost small danger-t" data-wh-clear="${esc(w.id)}">Limpiar inventario</button>` : ""}
+      ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost small danger-t" data-wh-clear="${esc(w.id)}" ${warehouseHasVisibleInventory(s) ? "" : "disabled"} title="${warehouseHasVisibleInventory(s) ? "Limpiar este almacén" : "No hay ítems, unidades, valor ni movimientos activos"}">Limpiar inventario</button>` : ""}
     </div>
   </div>`;
 }
@@ -3631,6 +3634,7 @@ function warehousesView() {
         ${canEdit ? `<button class="btn" data-act="wh-new">＋ Nuevo almacén</button>` : ""}
         ${canEdit && whs.length > 1 && active ? `<button class="btn ghost" data-wh-tr="${active.id}">⇄ Traspaso</button>` : ""}
         ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button><button class="btn ghost" data-act="wh-demo">Llenar con datos de prueba</button><button class="btn ghost" data-act="wh-municipal-demo">Simular 11 municipios</button>` : ""}
+        ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost danger-t" data-act="wh-municipal-clear">Limpiar inventario de los 11 municipios</button>` : ""}
       </div>
     </div>
     ${(store.state.warehouseEntries || []).some((e) => e.source === "DEMOSTRACIÓN" && !e.undoneAt) ? `<div class="banner info">Hay existencias de demostración ficticias en uno o más almacenes. No representan mercancía real. Revise Entradas antes de operar.</div>` : ""}
@@ -3686,6 +3690,7 @@ function whClearFlow(id) {
   const w = store.warehouseById(id);
   if (!w) return;
   const s = store.warehouseStats(w);
+  if (!warehouseHasVisibleInventory(s)) return;
   modal(`Limpiar inventario de ${esc(w.name)}`, `
     <p>Se pondrán a cero los ítems, unidades y valor de <b>${esc(w.name)}</b> y se eliminarán sus movimientos, incluidos los de la papelera. Los informes calculados cambiarán; los cuadres y reportes importados guardados no se borran. Otros almacenes y el catálogo compartido se conservarán.</p>
     <p>Ahora: <b>${s.items} ítems · ${qty(s.unidades)} unidades · ${usd(s.valor)} · ${s.movs} movimientos activos</b>. Las entradas y traspasos relacionados ya no podrán deshacerse. Días cerrados y fiados vinculados impiden la limpieza.</p>
@@ -3695,16 +3700,36 @@ function whClearFlow(id) {
   render();
 }
 
+function whMunicipalClearFlow() {
+  if (store.state.session?.role !== "ADMINISTRADOR") return;
+  const selection = store.municipalWarehouses();
+  if (selection.error) return toast(selection.error, "err");
+  ui.whMunicipalClearIds = selection.warehouses.map((w) => w.id);
+  const rows = selection.warehouses.map((w) => {
+    const s = store.warehouseStats(w);
+    return `<li><b>${esc(w.name)}</b>: ${s.items} ítems · ${qty(s.unidades)} unidades · ${usd(s.valor)} · ${s.movs} movimientos activos</li>`;
+  }).join("");
+  modal("Limpiar inventario de los 11 municipios", `
+    <p>Se pondrán a cero las existencias iniciales y actuales y se eliminarán todos los movimientos, incluidos los de papelera, de estos 11 almacenes:</p>
+    <ul>${rows}</ul>
+    <p>Los demás almacenes y el catálogo compartido se conservan. Los informes calculados cambiarán; los cuadres y reportes importados guardados no se borran. Las entradas y traspasos relacionados dejarán de poder deshacerse.</p>
+    <p>Se necesita conexión y se verificará una copia cifrada de toda la base. Si hay días cerrados o fiados vinculados en cualquiera de ellos, no se limpiará ninguno. Restaurar la copia reemplaza toda la base.</p>
+    <label>Escriba LIMPIAR 11 MUNICIPIOS para confirmar<input name="confirmation" required autocomplete="off"></label>
+    <div class="row mt14"><button class="btn danger">Limpiar los 11 municipios</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whMunicipalClearForm");
+  render();
+}
+
 function whDeleteFlow(id) {
   const w = store.warehouseById(id);
   if (!w) return;
   const st = store.warehouseStats(w);
   const others = store.warehousesActive().filter((x) => x.id !== id);
   if (!others.length) return toast("Es el único almacén: crea otro antes de eliminarlo.", "err");
-  if (st.items || st.movs) {
+  const remaining = store.warehouseDeletionContents(id);
+  if (remaining.hasStock || remaining.movements.length) {
     ui.modal = `<div class="modal-back" data-act="close-modal"><form class="modal" id="whMoveForm" role="dialog" aria-modal="true" data-id="${id}">
       <div class="modal-h"><div class="h2">Eliminar «${esc(w.name)}»</div><button type="button" class="icon-btn" data-act="close-modal">✕</button></div>
-      <p>Tiene <b>${st.items} ítems</b> (${qty(st.unidades)} unidades) y <b>${st.movs} movimientos</b>. Elige a qué almacén se pasan antes de eliminarlo: nada se pierde.</p>
+      <p>Tiene <b>${st.items} ítems</b> (${qty(st.unidades)} unidades) y <b>${remaining.movements.length} movimientos</b> (incluida la papelera). También se comprueban los saldos iniciales. Elige a qué almacén se pasan antes de eliminarlo: nada se pierde.</p>
       <label>Mover todo a<select name="moveTo">${others.map((o) => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></label>
       <div class="row mt14"><button class="btn danger">Mover y eliminar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>
     </form></div>`;
@@ -4955,7 +4980,22 @@ function bindApp() {
     const r = await store.clearWarehouse(id);
     ui.modal = null;
     if (r.error) return toast(r.error, "err");
+    ui.filter = "AQUI";
     toast(r.changed ? `Inventario limpiado · copia ${r.backup}` : "El almacén ya está vacío.", "ok");
+  });
+  $("#whMunicipalClearForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (new FormData(e.target).get("confirmation") !== "LIMPIAR 11 MUNICIPIOS") return toast("Escriba LIMPIAR 11 MUNICIPIOS para confirmar.", "err");
+    const ids = ui.whMunicipalClearIds;
+    if (!Array.isArray(ids) || ids.length !== 11) return toast("Revise de nuevo los municipios.", "err");
+    ui.modal = `<div class="modal-back"><div class="modal small" role="dialog" aria-modal="true"><div class="h2">Limpiando los 11 municipios…</div><p>Verificando la copia y guardando todos los cambios. No cierre esta ventana.</p></div></div>`;
+    render();
+    const r = await store.clearWarehouse(null, ids);
+    ui.modal = null;
+    ui.whMunicipalClearIds = null;
+    if (r.error) return toast(r.error, "err");
+    ui.filter = "AQUI";
+    toast(r.changed ? `Municipios limpiados · copia ${r.backup}` : "Los 11 municipios ya están vacíos.", "ok");
   });
   $("#warehouseForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -5101,7 +5141,7 @@ function onClick(e) {
   else if (d.whTab) { ui.whTab = d.whTab; ui.whDetail = null; render(); }
   else if (d.whKind) { ui.whKind = d.whKind; render(); }
   else if (d.whFilter) { ui.whFilter = ui.whFilter === d.whFilter ? "" : d.whFilter; render(); }
-  else if (d.whUse) { store.setActiveWarehouse(d.whUse); ui.cat = "TODAS"; ui.filter = "TODOS"; navTo("inventory"); }
+  else if (d.whUse) { store.setActiveWarehouse(d.whUse); ui.cat = "TODAS"; ui.filter = "AQUI"; navTo("inventory"); }
   else if (d.whEdit) { warehouseModal(store.warehouseById(d.whEdit)); render(); }
   else if (d.whDel) whDeleteFlow(d.whDel);
   else if (d.whClear) whClearFlow(d.whClear);
@@ -5322,6 +5362,7 @@ function onClick(e) {
       render();
     });
   }
+  else if (act === "wh-municipal-clear") whMunicipalClearFlow();
   else if (act === "wh-new") { warehouseModal(); render(); }
   else if (act === "iv-go") { const st = ivState(); st.warehouseId = store.activeWarehouseId(); navTo("importValues"); }
   else if (act === "iv-analyze") {
@@ -5994,6 +6035,6 @@ LicenseManager.fetchStatus().then((st) => {
   render();
   // Solo si hay licencia válida inicia el store (que intenta restaurar sesión)
   if (st.valid) {
-    store.init().then(() => { const r = location.hash.slice(1); if (routes[r]) ui.route = r; render(); });
+    store.init().then(() => { const r = location.hash.slice(1); if (routes[r]) { ui.route = r; if (r === "inventory") ui.filter = "AQUI"; } render(); });
   }
 });
