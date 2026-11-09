@@ -104,9 +104,12 @@ def main() -> int:
     ok("declara el color de tema", 'name="theme-color"' in html)
 
     print("\nSin dependencias externas")
+    # github.com (enlaces al repo) y yhquintero.github.io (el propio Pages, ver
+    # docs/METADATOS_GITHUB.md) son infraestructura propia, no terceros.
+    propios = ("github.com", "yhquintero.github.io")
     externos = [
         u for u in re.findall(r'(?:src|href)="(https?://[^"]+)"', html)
-        if "github.com" not in u
+        if not any(p in u for p in propios)
     ]
     ok("no carga scripts, hojas ni fuentes de terceros", not externos, ", ".join(externos[:3]))
     ok("no usa @import ni @font-face remotos",

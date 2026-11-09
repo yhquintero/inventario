@@ -28,6 +28,19 @@
 - Kit de tienda en `docs/assets/playstore/`: **feature graphic** y **icono 512** Nebula.
 - Ficha completa (descripción, data safety, permisos, checklist de lanzamiento): `docs/PLAY_STORE_FICHA.md`.
 
+### Almacenes: recuperar los 11 municipios y iconos temáticos
+- **«🏗️ Crear los 11 municipios»**: si tras su eliminación (auditoría DELETE 8/11/2026) faltan
+  almacenes municipales, la barra de Almacenes muestra el botón para crearlos (solo los que
+  falten, existencia cero, atómico, origin `restauracion` en Entradas y auditoría); el botón
+  desaparece cuando ya están todos. Smoke 87/87.
+- **Iconos temáticos por municipio** en tarjetas, botones de la sección y listas de confirmación
+  (🏛️ Pinar del Río · ⛏️ Minas de Matahambre · ⛰️ Viñales · 🍂 San Luis · 🌿 San Juan y
+  Martínez · 🌴 La Palma · 🏰 Los Palacios · 🏭 Consolación del Sur · 🌾 Guane · 🌽 Mantua · 🎖️ Sandino).
+- **og:image y twitter:image absolutas** hacia `https://yhquintero.github.io/inventario/assets/social-preview.png`
+  (1280×640) + `og:image:*` y canonical: al habilitar Pages las previsualizaciones al compartir
+  funcionan sin tocar nada más (`tools/test_sitio.py` permite el dominio propio `yhquintero.github.io`).
+- Service worker `novagest-v53`.
+
 ### Correcciones post-lanzamiento Nebula
 - **Simular 11 municipios**: el botón ahora **crea los almacenes municipales que falten** (existencia
   cero, con código y ubicación, registrados en Entradas y auditoría) en lugar de fallar cuando la

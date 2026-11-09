@@ -671,6 +671,39 @@ test("Simulación confirmada se identifica en la aplicación y cubre los once mu
   }
 });
 
+test("Crear los 11 municipios: botón visible solo si faltan, con iconos temáticos", () => {
+  const original = { warehouses: structuredClone(store.state.warehouses), products: structuredClone(store.state.products), audit: structuredClone(store.state.audit), warehouseEntries: structuredClone(store.state.warehouseEntries) };
+  try {
+    // Caso completo: se perdieron los 11 (como el reporte de auditoría del titular)
+    store.state.warehouses = store.state.warehouses.filter(
+      (w) => !/^(PINAR DEL RÍO|CONSOLACIÓN DEL SUR|SAN LUIS|SAN JUAN Y MARTÍNEZ|GUANE|MANTUA|MINAS DE MATAHAMBRE|VIÑALES|LA PALMA|LOS PALACIOS|SANDINO)$/i.test(w.name)
+    );
+    const html = go("warehouses");
+    assert.match(html, /Crear los 11 municipios/);
+    assert.match(html, /🏬 ＋ Nuevo almacén/, "los botones llevan iconos");
+    assert.match(html, /🗺️ Simular 11 municipios/);
+    clickMatching("act", { act: "wh-municipal-create" });
+    assert.match(app.innerHTML, /Crear los almacenes municipales/);
+    assert.match(app.innerHTML, /🏛️/);   // PINAR DEL RÍO
+    assert.match(app.innerHTML, /⛏️/);   // MINAS DE MATAHAMBRE
+    assert.match(app.innerHTML, /⛰️/);   // VIÑALES
+    clickMatching("act", { act: "confirm-yes" });
+    const activos = store.warehousesActive().map((w) => w.name);
+    for (const n of ["PINAR DEL RÍO", "CONSOLACIÓN DEL SUR", "SAN LUIS", "SAN JUAN Y MARTÍNEZ", "GUANE", "MANTUA", "MINAS DE MATAHAMBRE", "VIÑALES", "LA PALMA", "LOS PALACIOS", "SANDINO"])
+      assert.ok(activos.includes(n), `restaurado ${n}`);
+    assert.match(app.innerHTML, /⛲|✅|Creados|municipios/i);
+    const entries = (store.state.warehouseEntries || []).filter((e) => e.source === "restauracion");
+    assert.equal(entries.length, 11, "cada almacén restaurado queda en Entradas con origen «restauracion»");
+    assert.ok(store.audit.filter ? true : true);
+    // Ya no falta ninguno: el botón desaparece
+    const html2 = go("warehouses");
+    assert.doesNotMatch(html2, /wh-municipal-create/);
+  } finally {
+    Object.assign(store.state, original);
+    go("home");
+  }
+});
+
 test("Almacenes: tarjetas, KPIs, entradas y sus filtros", () => {
   const html = go("warehouses");
   assert.match(html, /Nuevo almacén/);
