@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const tmp = mkdtempSync(join(tmpdir(), "ng-diviza-"));
+const tmp = mkdtempSync(join(tmpdir(), "ng-divisa-"));
 cpSync(join(root, "web/js"), tmp, { recursive: true });
 writeFileSync(join(tmp, "package.json"), '{"type":"module"}');
 globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
@@ -19,10 +19,10 @@ const invalid = [ { ...data, rates: { EUR: 999 } }, { ...data, rates: { USD: NaN
   { ...data, rates: { USD: 1, GBP: 999 } }, { ...data, source: "https://otro.example" }, { ...data, publishedAt: "" } ];
 for (const item of invalid) {
   const before = JSON.stringify(store.state.rates);
-  assert.ok(store.importDivizaRates(item).error);
+  assert.ok(store.importDivisaRates(item).error);
   assert.equal(JSON.stringify(store.state.rates), before);
 }
-const result = store.importDivizaRates(data);
+const result = store.importDivisaRates(data);
 assert.equal(result.count, 6);
 assert.deepEqual(result.missing, ["MXN"]);
 assert.equal(store.state.rates.find((r) => r.id === "mxn").rate, 52);
@@ -34,8 +34,8 @@ for (const [currency, value] of Object.entries(data.rates)) {
   assert.ok(r.note.includes("Divisa") && !r.note.includes("elTOQUE"));
 }
 const count = store.state.rates.length;
-store.importDivizaRates(data);
+store.importDivisaRates(data);
 assert.equal(store.state.rates.length, count);
 store.state.session.role = "ALMACENERO";
-assert.ok(store.importDivizaRates(data).error);
+assert.ok(store.importDivisaRates(data).error);
 console.log("✔ Divisa: importación parcial, fuente, permisos y valores conservados");

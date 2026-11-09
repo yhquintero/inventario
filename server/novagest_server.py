@@ -1069,7 +1069,7 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; "
 # Límite de peticiones por IP (además del bloqueo por cuenta que ya existe):
 # (método, ruta) -> (máximo, ventana en segundos)
 RATE_LIMITS = {
-    ("GET", "/api/exchange/diviza"): (12, 60),
+    ("GET", "/api/exchange/divisa"): (12, 60),
     ("POST", "/api/login"): (30, 60),
     ("POST", "/api/recover"): (10, 3600),
     ("POST", "/api/license/request"): (10, 3600),
@@ -1186,6 +1186,9 @@ class Api(BaseHTTPRequestHandler):
 
     def route(self, method):
         path = urlparse(self.path).path
+        # La ruta anterior se mantiene para clientes en caché y comparte el mismo límite.
+        if path == "/api/exchange/diviza":
+            path = "/api/exchange/divisa"
         if not path.startswith("/api/"):
             return self.static(path) if method == "GET" else self.err(405, "Método no permitido")
         # --- LICENCIA DE USO: verificación obligatoria siempre primero ---
@@ -2103,8 +2106,8 @@ def exchange_eltoque(h, u, _):
     h.send_json(200, {"ok": True, **result})
 
 
-@route("GET", "/api/exchange/diviza", roles=ADMINS | {"ECONOMICO"})
-def exchange_diviza(h, u, _):
+@route("GET", "/api/exchange/divisa", roles=ADMINS | {"ECONOMICO"})
+def exchange_divisa(h, u, _):
     """Obtiene una referencia gratuita para revisión, sin escribir tasas."""
     try:
         result = divisa.fetch_rates()

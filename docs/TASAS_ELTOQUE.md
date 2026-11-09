@@ -7,7 +7,8 @@ CAD, MXN, ZELLE y CLA en CUP. Son referencias informales, no tasas oficiales.
 
 Si están completas y tienen fecha verificable de las últimas 48 horas, se guardan
 con esa fecha, fuente y hora de publicación. Una tasa registrada para la misma moneda
-y fecha se reemplaza; las demás fechas quedan intactas. El historial de tasas y la
+y fecha se actualiza, conservando su versión anterior desde esta funcionalidad; las
+demás fechas quedan intactas. El historial de tasas y la
 auditoría registran el cambio. La consulta no modifica tasas cuando faltan datos,
 son antiguos o el servidor no puede acceder a la fuente. La página puede cambiar su
 formato o bloquear solicitudes con Cloudflare: se mostrará un error y se podrán
@@ -47,3 +48,8 @@ Otras fuentes para comparar manualmente: [Directorio Cubano](https://www.directo
 y el [Banco Central de Cuba](https://www.bc.gob.cu/tasas-de-cambio), cuyas tasas
 son oficiales y no equivalen a las informales. La disponibilidad, actualización y
 condiciones de uso de servicios externos pueden cambiar.
+
+La ruta del servidor es `GET /api/exchange/divisa`. Para clientes con versiones
+anteriores se mantiene el alias `/api/exchange/diviza`, con los mismos permisos y
+límite de consultas compartido. Pruebas sin conexión: `python3 tools/test_divisa.py`
+y `node tools/test_divisa.mjs`.

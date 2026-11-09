@@ -960,3 +960,41 @@ html[data-texto="grande"] body, html[data-texto="muy-grande"] body { zoom: var(-
 .rate-dot { fill:var(--rate-color); stroke:var(--surface); stroke-width:1.5; }
 .rate-empty { min-height:150px; display:flex; align-items:center; justify-content:center; }
 @media (max-width: 600px) { .rate-chart-controls { align-items:stretch; flex-direction:column; } .rate-chart-controls .dashboard-control { width:100%; } }
+
+/* Monedas: panel de comparación de alto contraste y detalles visibles en móvil. */
+.rate-chart-card { background: linear-gradient(145deg, var(--surface) 68%, var(--surface-2)); }
+.rate-chart-heading, .rate-history-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.rate-chart-heading h2, .rate-history-heading h2 { margin:4px 0; font-size:20px; letter-spacing:-.025em; }
+.rate-eyebrow { color:var(--primary); font-size:10px; font-weight:800; letter-spacing:.16em; }
+.rate-unit, .rate-history-count { border:1px solid var(--line); border-radius:999px; padding:7px 11px; color:var(--muted); font-size:11px; font-weight:700; white-space:nowrap; }
+.rate-chart-selects { display:flex; flex-wrap:wrap; gap:10px; }
+.rate-chart-selects .dashboard-control { min-width:155px; }
+.rate-legend-button { transition: border-color .15s, background .15s; }
+.rate-legend-button.on { background:var(--surface-2); }
+.rate-legend-button:focus-visible { outline:3px solid var(--primary); outline-offset:2px; }
+.rate-comparisons { display:grid; grid-template-columns:repeat(auto-fit, minmax(185px,1fr)); gap:10px; margin:16px 0; }
+.rate-comparison { display:flex; flex-direction:column; gap:7px; min-width:0; padding:13px 15px; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+.rate-comparison > span { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:750; }
+.rate-comparison > span small { margin-left:auto; color:var(--muted); font-weight:500; }
+.rate-comparison strong { font-size:22px; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.rate-comparison strong small { color:var(--muted); font-size:11px; letter-spacing:0; }
+.rate-delta { color:var(--muted); font-size:11px; line-height:1.4; }
+.rate-delta.up { color:#087551; } .rate-delta.down { color:#b42350; }
+[data-theme="dark"] .rate-delta.up { color:#6ee7b7; } [data-theme="dark"] .rate-delta.down { color:#fda4af; }
+.rate-chart-plot { padding:15px 16px 8px; overflow-x:auto; border:1px solid #253c67; border-radius:15px; background:radial-gradient(ellipse at 70% 0%, #18345b 0%, #0b142c 55%, #090f21 100%); }
+.rate-plot-heading { display:flex; justify-content:space-between; gap:12px; min-width:600px; color:#a5c3e9; font-size:10px; font-weight:700; letter-spacing:.12em; }
+.rate-chart-plot .rate-chart-svg { min-width:600px; margin-top:12px; }
+.rate-chart-plot .dashboard-grid-line { stroke:#385071; opacity:.7; }
+.rate-chart-plot .dashboard-axis-label { fill:#b8cae6; }
+.rate-chart-plot .rate-usd { --rate-color:#4ade80; } .rate-chart-plot .rate-eur { --rate-color:#60a5fa; }
+.rate-chart-plot .rate-mlc { --rate-color:#fb923c; } .rate-chart-plot .rate-cad { --rate-color:#f472b6; }
+.rate-chart-plot .rate-mxn { --rate-color:#22d3ee; } .rate-chart-plot .rate-zelle { --rate-color:#c084fc; }
+.rate-chart-plot .rate-cla { --rate-color:#facc15; }
+.rate-chart-plot .rate-line { filter:drop-shadow(0 0 4px var(--rate-color)); vector-effect:non-scaling-stroke; }
+.rate-chart-plot .rate-dot { stroke:#0b142c; vector-effect:non-scaling-stroke; }
+.rate-id { max-width:170px; overflow-wrap:anywhere; color:var(--muted); }
+.rate-revisions { min-width:150px; }
+.rate-revisions summary { cursor:pointer; color:var(--primary); font-weight:700; }
+.rate-revisions ol { min-width:230px; max-width:350px; padding-left:18px; }
+.rate-revisions li { margin-top:9px; line-height:1.45; overflow-wrap:anywhere; }
+@media (max-width:600px) { .rate-chart-heading, .rate-history-heading { align-items:flex-start; flex-direction:column; } .rate-chart-selects { width:100%; } .rate-chart-selects .dashboard-control { flex:1 1 150px; } }

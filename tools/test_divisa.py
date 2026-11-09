@@ -99,11 +99,11 @@ subprocess.run([sys.executable, "-S", "-c", child, str(pathlib.Path(divisa.__fil
 
 # La ruta exige sesión y rol financiero y no escribe al consultar.
 import tempfile
-os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="ng-diviza-api-")
+os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="ng-divisa-api-")
 import novagest_server as server
 
 class Handler:
-    path = "/api/exchange/diviza"
+    path = "/api/exchange/divisa"
     command = "GET"
     def __init__(self, role):
         self.role, self.response = role, None
@@ -114,16 +114,55 @@ class Handler:
     def send_json(self, code, data):
         self.response = (code, data)
 
-route = server.ROUTES[("GET", "/api/exchange/diviza")]
+route = server.ROUTES[("GET", "/api/exchange/divisa")]
 with patch.object(divisa, "fetch_rates", return_value=parsed) as fetch:
     for role, expected in ((None, 401), ("ALMACENERO", 403), ("ECONOMICO", 200)):
         h = Handler(role)
-        route(h, "diviza")
+        route(h, "divisa")
         assert h.response[0] == expected
     assert fetch.call_count == 1
     assert h.response[1]["rates"] == parsed["rates"]
 with patch.object(divisa, "fetch_rates", side_effect=divisa.RateError("Fuente indisponible")):
     h = Handler("ECONOMICO")
-    route(h, "diviza")
+    route(h, "divisa")
     assert h.response == (502, {"error": "Fuente indisponible"})
-print("✔ Divisa: datos informales, fecha cubana, parciales, permisos y bloqueo")
+
+# Las dos rutas comparten autenticación, resultado y cuota de 12 consultas por IP.
+class ApiHandler(Handler):
+    headers = {}
+    def __init__(self, path, role="ECONOMICO"):
+        super().__init__(role)
+        self.path = path
+    def ip(self):
+        return "198.51.100.1"
+
+hits = {}
+def fake_query(sql, args, one=False):
+    if sql.startswith("SELECT hits"):
+        return {"hits": hits[args[0]]} if args[0] in hits else None
+    if sql.startswith("INSERT OR REPLACE INTO rate_hits"):
+        hits[args[0]] = args[1]
+        return None
+    raise AssertionError(sql)
+
+with patch.object(server, "check_license_active", return_value={"valid": True}), \
+     patch.object(server, "q", side_effect=fake_query), \
+     patch.object(divisa, "fetch_rates", return_value=parsed) as fetch:
+    for path in ("/api/exchange/divisa", "/api/exchange/diviza"):
+        for role, expected in ((None, 401), ("ALMACENERO", 403)):
+            h = ApiHandler(path, role)
+            server.Api.route(h, "GET")
+            assert h.response[0] == expected
+    hits.clear()
+    for i in range(12):
+        path = "/api/exchange/divisa" if i % 2 else "/api/exchange/diviza"
+        h = ApiHandler(path + "?ejemplo=1")
+        server.Api.route(h, "GET")
+        assert h.response == (200, {"ok": True, **parsed})
+    for path in ("/api/exchange/divisa", "/api/exchange/diviza"):
+        h = ApiHandler(path)
+        server.Api.route(h, "GET")
+        assert h.response[0] == 429
+    assert fetch.call_count == 12
+    assert len(hits) == 1 and "/api/exchange/divisa" in next(iter(hits))
+print("✔ Divisa: datos informales, fecha cubana, permisos y compatibilidad de rutas")

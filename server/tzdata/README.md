@@ -9,5 +9,5 @@ licencia del paquete acompaña a este archivo en `LICENSE` (Apache-2.0; copyrigh
 
 Las reglas horarias pueden cambiar. Al actualizar NovaGest, sustituir este
 archivo por el correspondiente a una versión actual del paquete tzdata, actualizar
-la versión indicada arriba y ejecutar `python3 tools/test_diviza.py`. La base del
+la versión indicada arriba y ejecutar `python3 tools/test_divisa.py`. La base del
 sistema o el paquete instalado tienen prioridad sobre esta copia.
