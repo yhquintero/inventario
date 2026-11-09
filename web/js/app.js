@@ -5358,10 +5358,10 @@ function onClick(e) {
   }
   else if (act === "wh-municipal-demo") {
     if (!allowed("VALUES_IMPORT") || !allowed("MOVEMENT_CREATE")) return toast("Tu rol no puede crear esta demostración.", "err");
-    confirmModal("<b>SIMULACIÓN: no es inventario real.</b> Se crearán hasta 16 productos separados con el prefijo [SIMULADO] y entradas y salidas ficticias en los 11 municipios, incluida Pinar del Río. No se reemplazan los productos ni movimientos existentes.<br><br><b>Atención:</b> se guardarán en esta base y afectarán existencias, informes y disponibilidad de venta. Úsalo solo en una base de pruebas y haz una copia antes. Los precios son referencias del catálogo, no precios actuales. Las divisas se consultan aparte en Monedas.<br><br>¿Deseas crear esta simulación?", () => {
+    confirmModal("<b>SIMULACIÓN: no es inventario real.</b> Se crearán los almacenes municipales que falten (los 11 municipios de Pinar del Río que aún no existan), hasta 16 productos separados con el prefijo [SIMULADO] y entradas y salidas ficticias en todos ellos, incluido Pinar del Río. No se reemplazan los productos ni movimientos existentes.<br><br><b>Atención:</b> se guardarán en esta base y afectarán existencias, informes y disponibilidad de venta. Úsalo solo en una base de pruebas y haz una copia antes. Los precios son referencias del catálogo, no precios actuales. Las divisas se consultan aparte en Monedas.<br><br>¿Deseas crear esta simulación?", () => {
       const r = store.populateMunicipalDemo();
       if (r.error) return toast(r.error, "err");
-      toast(`SIMULADO: ${r.products} productos y ${r.movements} movimientos en ${r.warehouses} municipios.`, "ok");
+      toast(`SIMULADO: ${r.products} productos y ${r.movements} movimientos en ${r.warehouses} municipios${r.createdMunicipalities ? ` · ${r.createdMunicipalities} almacenes municipales creados` : ""}.`, "ok");
       render();
     });
   }

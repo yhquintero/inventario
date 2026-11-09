@@ -548,6 +548,46 @@ class Store {
     return { warehouses };
   }
 
+  /** Igual que municipalWarehouses, pero crea los almacenes municipales que falten (existencia cero). Atómico: valida todo antes de tocar nada. */
+  ensureMunicipalWarehouses() {
+    const key = (name) => normName(name).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
+    const active = this.warehousesActive().filter((w) => w.active !== false);
+    // Primera pasada: comprobar cuántos coinciden por municipio; no se muta nada todavía.
+    const plan = PINAR_MUNICIPALITIES.map(([name, code]) => {
+      const expected = key(name);
+      const matches = active.filter((w) => key(w.name) === expected || (expected === "CONSOLACION DEL SUR" && key(w.name) === "CONSOLACION"));
+      return { name, code, matches };
+    });
+    for (const { name, matches } of plan)
+      if (matches.length > 1)
+        return { error: `Hay ${matches.length} almacenes activos reconocidos como ${name}; deja exactamente uno antes de continuar.` };
+    // Segunda pasada: con la garantía de unicidad, crear los que falten.
+    const who = this.state.session?.displayName || "sistema";
+    const now = Date.now();
+    const warehouses = [], created = [];
+    for (const { name, code, matches } of plan) {
+      if (matches.length === 1) { warehouses.push(matches[0]); continue; }
+      const w = {
+        id: uid("w"), name, code, location: `${name}, Pinar del Río`,
+        notes: "Creado por la simulación de 11 municipios. Inventario ficticio; importa los valores reales cuando corresponda.",
+        active: true, isDefault: false, createdAt: now, createdBy: who, deletedAt: null,
+      };
+      this.state.warehouses.push(w);
+      for (const p of this.state.products) {
+        p.stocks = p.stocks || {};
+        p.stocksInicial = p.stocksInicial || {};
+        if (p.stocks[w.id] === undefined) p.stocks[w.id] = 0;
+        if (p.stocksInicial[w.id] === undefined) p.stocksInicial[w.id] = 0;
+      }
+      this.logEntry({ warehouseId: w.id, kind: "CREACION", source: "simulacion", summary: `Almacén «${name}» creado por la simulación de 11 municipios`, counts: {} });
+      this.audit("CREATE", "warehouse", name, w.id);
+      warehouses.push(w);
+      created.push(name);
+    }
+    if (created.length) this.emit();
+    return { warehouses, created };
+  }
+
   async clearWarehouse(warehouseId, municipalityIds = null) {
     if (this.state.session?.role !== "ADMINISTRADOR") return { error: "Solo un administrador puede limpiar el inventario." };
     if (this.clearConflictPending) return { error: "Hay cambios anteriores a una limpieza pendientes de revisión." };
@@ -1673,7 +1713,7 @@ class Store {
     if (this.closedErr(todayISO())) return this.closedErr(todayISO());
     if (this.state.products.some((p) => p.demoMunicipios) || this.state.movements.some((m) => m.demoMunicipios))
       return { error: "Ya existe un lote de demostración municipal; no se duplicará." };
-    const selection = this.municipalWarehouses();
+    const selection = this.ensureMunicipalWarehouses();
     if (selection.error) return selection;
     const warehouses = selection.warehouses;
     const seenNames = new Set(), categories = new Map();
@@ -1730,7 +1770,7 @@ class Store {
     this.state.movements.unshift(...movements);
     this.audit("DEMO", "warehouse", `SIMULADO · ${warehouses.length} municipios, ${products.length} productos y ${movements.length} movimientos ficticios`, batch);
     this.emit();
-    return { ok: true, warehouses: warehouses.length, products: products.length, movements: movements.length };
+    return { ok: true, warehouses: warehouses.length, products: products.length, movements: movements.length, createdMunicipalities: selection.created?.length || 0 };
   }
 
   /** Datos ficticios: reutiliza el catálogo, nunca modifica el principal ni existencias previas. */

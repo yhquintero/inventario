@@ -28,6 +28,14 @@
 - Kit de tienda en `docs/assets/playstore/`: **feature graphic** y **icono 512** Nebula.
 - Ficha completa (descripción, data safety, permisos, checklist de lanzamiento): `docs/PLAY_STORE_FICHA.md`.
 
+### Correcciones post-lanzamiento Nebula
+- **Simular 11 municipios**: el botón ahora **crea los almacenes municipales que falten** (existencia
+  cero, con código y ubicación, registrados en Entradas y auditoría) en lugar de fallar cuando la
+  base no los tiene; atómico (valida duplicados antes de crear nada). El diálogo y el aviso final lo indican.
+- CI en verde en la rama: toolchain AGP 8.13.2 · Kotlin 2.2.21 · KSP 2.3.13 · Hilt 2.58 (KSP no existe
+  para Kotlin 2.4/2.3; Hilt 2.55 no lee metadatos 2.2), `sqlcipher-android` 4.6.0 (el artefacto antiguo
+  ya no publica 4.6.x), XSS-001 en `web/js/app.js` y `installSplashScreen`/iconos Outlined corregidos.
+
 ## NovaGest v1.0.0 · revisión 2026-11-03 (XLVIII) · Módulo de gestión económica y financiera
 
 - **Contabilidad de partida doble integrada** en la Web, el servidor y la API que consume la app Android:
