@@ -260,6 +260,12 @@ export function warehouseIcon(name, location) {
   for (const [k, ico] of PROVINCE_ICONS) if (key.includes(k)) return ico;
   return "🏬";
 }
+/** Icono representativo de una provincia de Cuba. */
+export function provinceIcon(province) {
+  const prov = normName(String(province || ""));
+  for (const [k, ico] of PROVINCE_ICONS) if (prov === k || prov.includes(k) || k.includes(prov)) return ico;
+  return "🏬";
+}
 export const WAREHOUSE_KINDS = { CREACION: "Almacén creado", VALORES: "Valores importados", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Almacén eliminado", DESHACER: "Deshacer", LIMPIEZA: "Inventario limpiado" };
 const THEME = "novagest.theme";
 const WAREHOUSE = "novagest.warehouse";
@@ -646,12 +652,14 @@ class Store {
     const admin = { id: s.session?.id, username: s.session?.username || "admin", displayName: s.session?.displayName || "Administrador" };
     const now = Date.now();
     const byName = {};
-    s.warehouses = CUBA_MUNICIPALITIES.map(([province, name, code], index) => ({
-      id: index === 0 ? WAREHOUSE_DEFAULT_ID : uid("w"), name: municipalWarehouseName(province, name), code,
-      location: `${name}, ${province}`,
-      notes: index === 0 ? `Inventario histórico de ${SEED.source}.` : "Sin inventario inicial; importe los valores de este municipio.",
-      active: true, isDefault: index === 0, createdAt: now, createdBy: admin.displayName, deletedAt: null,
-    }));
+    // Los municipios NO se crean automáticamente: al inicio solo existe el almacén
+    // principal (no municipal) con el histórico. Los municipios se crean únicamente
+    // cuando el usuario hace clic en «Crear» (global o por provincia), todos en 0.
+    s.warehouses = [{
+      id: WAREHOUSE_DEFAULT_ID, name: "ALMACÉN PRINCIPAL", code: "PRI", location: "",
+      notes: `Inventario histórico de ${SEED.source}. Los municipios de Cuba se crean al hacer clic en Crear (por provincia o todos).`,
+      active: true, isDefault: true, createdAt: now, createdBy: admin.displayName, deletedAt: null,
+    }];
     s.products = SEED.products.map((p) => {
       const prod = {
         id: uid("p"), name: p.name, category: p.category || categorize(p.name),
@@ -779,82 +787,153 @@ class Store {
     return r.ok ? { ok: true } : { error: r.error };
   }
 
-  /** Qué municipios faltan (o están duplicados), sin mutar nada. Para el botón de crear. */
-  missingMunicipalities() {
+  /** Municipios de una provincia (o todos si no se indica). */
+  municipalitiesOf(province = null) {
+    return CUBA_MUNICIPALITIES.filter(([prov]) => !province || prov === province);
+  }
+
+  /** Resumen por provincia: total, creados, faltantes y almacenes existentes. */
+  municipalitiesByProvince() {
+    return CUBA_PROVINCES.map((province) => {
+      const total = CUBA_MUNICIPALITIES.filter(([prov]) => prov === province).length;
+      const warehouses = this.existingMunicipalWarehouses(province);
+      return { province, total, existing: warehouses.length, missing: total - warehouses.length, warehouses };
+    });
+  }
+
+  /** Qué municipios faltan (o están duplicados), sin mutar nada. Para el botón de crear.
+   *  Con `province`, solo los de esa provincia. */
+  missingMunicipalities(province = null) {
     const active = this.warehousesActive().filter((w) => w.active !== false);
     const missing = [], duplicates = [];
-    for (const [province, name] of CUBA_MUNICIPALITIES) {
-      const matches = active.filter((w) => matchesMunicipality(w, province, name));
+    for (const [prov, name] of this.municipalitiesOf(province)) {
+      const matches = active.filter((w) => matchesMunicipality(w, prov, name));
       if (matches.length === 0) missing.push(name);
-      else if (matches.length > 1) duplicates.push({ name: `${name}, ${province}`, count: matches.length });
+      else if (matches.length > 1) duplicates.push({ name: `${name}, ${prov}`, count: matches.length });
     }
     return { missing, duplicates };
   }
 
-  municipalWarehouses() {
+  municipalWarehouses(province = null) {
     const all = this.warehousesActive().filter((w) => w.active !== false);
     const warehouses = [];
-    for (const [province, name] of CUBA_MUNICIPALITIES) {
-      const matches = all.filter((w) => matchesMunicipality(w, province, name));
-      if (matches.length !== 1) return { error: `Se necesita exactamente un almacén activo para ${name}, ${province}; revisa los nombres antes de continuar.` };
+    for (const [prov, name] of this.municipalitiesOf(province)) {
+      const matches = all.filter((w) => matchesMunicipality(w, prov, name));
+      if (matches.length !== 1) return { error: `Se necesita exactamente un almacén activo para ${name}, ${prov}; revisa los nombres antes de continuar.` };
       warehouses.push(matches[0]);
     }
     return { warehouses };
   }
 
   /** Almacenes municipales que existen (aunque falten otros o haya duplicados).
-   *  Para «Eliminar municipios»: no exige que estén los 168. */
-  existingMunicipalWarehouses() {
+   *  Para «Eliminar municipios»: no exige que estén los 168. Con `province`, solo esa provincia. */
+  existingMunicipalWarehouses(province = null) {
     const active = this.warehousesActive().filter((w) => w.active !== false);
     const seen = new Set();
     const warehouses = [];
-    for (const [province, name] of CUBA_MUNICIPALITIES) {
+    for (const [prov, name] of this.municipalitiesOf(province)) {
       for (const w of active) {
         if (seen.has(w.id)) continue;
-        if (matchesMunicipality(w, province, name)) { seen.add(w.id); warehouses.push(w); }
+        if (matchesMunicipality(w, prov, name)) { seen.add(w.id); warehouses.push(w); }
       }
     }
     return warehouses;
   }
 
-  /** Igual que municipalWarehouses, pero crea los almacenes municipales que falten (existencia cero). Atómico: valida todo antes de tocar nada. */
-  ensureMunicipalWarehouses(origin = "simulacion") {
+  /** Almacenes municipales ya creados y sin duplicados, listos para simular o limpiar.
+   *  Nunca crea almacenes automáticamente. */
+  clearableMunicipalWarehouses(province = null) {
+    const { duplicates } = this.missingMunicipalities(province);
+    if (duplicates.length)
+      return { error: `Hay almacenes municipales duplicados (${duplicates[0].name}); deja exactamente uno antes de continuar.` };
+    const warehouses = this.existingMunicipalWarehouses(province);
+    if (!warehouses.length)
+      return { error: province ? `No hay municipios creados en ${province}.` : "Primero debes crear los municipios haciendo clic en Crear (todos o por provincia)." };
+    return { warehouses };
+  }
+
+  /** Modifica en lote los almacenes municipales ya creados de una provincia (atómico). */
+  updateProvinceWarehouses(province, items = []) {
+    if (!can(this.state.session?.role, "WAREHOUSE_EDIT")) return { error: "Tu rol no puede crear ni modificar almacenes." };
+    if (!CUBA_PROVINCES.includes(province)) return { error: "Provincia no reconocida." };
+    const existing = new Map(this.existingMunicipalWarehouses(province).map((w) => [w.id, w]));
+    if (!existing.size) return { error: `No hay municipios creados en ${province} para modificar.` };
+    if (!Array.isArray(items) || !items.length) return { error: "No se recibieron municipios para modificar." };
+    const touchedIds = new Set();
+    const seenKeys = new Set();
+    const prepared = [];
+    for (const row of items) {
+      const w = existing.get(row?.id);
+      if (!w) return { error: `Uno de los almacenes no pertenece a ${province} o ya no está activo.` };
+      if (touchedIds.has(w.id)) return { error: "Almacén repetido en la solicitud." };
+      touchedIds.add(w.id);
+      const name = String(row.name || "").replace(/\s+/g, " ").trim().toUpperCase();
+      if (name.length < 3) return { error: "El nombre de cada almacén debe tener al menos 3 caracteres." };
+      const key = normName(name);
+      if (seenKeys.has(key)) return { error: `Nombre repetido en el formulario: «${name}».` };
+      seenKeys.add(key);
+      prepared.push({
+        w, name, key,
+        code: String(row.code || "").trim().toUpperCase().slice(0, 6) || name.slice(0, 3),
+        location: String(row.location ?? w.location ?? "").trim(),
+        notes: String(row.notes ?? w.notes ?? "").trim(),
+      });
+    }
+    for (const item of prepared) {
+      const dup = (this.state.warehouses || []).find((x) => !x.deletedAt && !touchedIds.has(x.id) && normName(x.name) === item.key);
+      if (dup) return { error: `Ya existe otro almacén llamado «${dup.name}».` };
+    }
+    const who = this.state.session?.displayName || "sistema";
+    const now = Date.now();
+    let updated = 0;
+    for (const { w, name, code, location, notes } of prepared) {
+      if (w.name === name && (w.code || "") === code && (w.location || "") === location && (w.notes || "") === notes) continue;
+      Object.assign(w, { name, code, location, notes, updatedAt: now, updatedBy: who });
+      this.audit("UPDATE", "warehouse", `${name} (${province})`, w.id);
+      updated++;
+    }
+    if (updated) this.emit();
+    return { ok: true, updated, province };
+  }
+
+  /** Crea los almacenes municipales que falten (existencia cero), SOLO al hacer clic
+   *  en Crear. Nunca se llama automáticamente (ni en la semilla, ni en la migración,
+   *  ni en Simular). Con `province`, solo los de esa provincia; sin ella, todos los
+   *  que falten de Cuba. Atómico: valida duplicados antes de tocar nada.
+   *  Todos los creados nacen en 0 (stocks y stocksInicial a cero). */
+  ensureMunicipalWarehouses(origin = "restaurar", province = null) {
+    if (!can(this.state.session?.role, "WAREHOUSE_EDIT")) return { error: "Tu rol no puede crear almacenes." };
     const active = this.warehousesActive().filter((w) => w.active !== false);
     // Primera pasada: comprobar cuántos coinciden por municipio; no se muta nada todavía.
-    const plan = CUBA_MUNICIPALITIES.map(([province, name, code]) => ({
-      province, name, code,
-      matches: active.filter((w) => matchesMunicipality(w, province, name)),
+    const plan = this.municipalitiesOf(province).map(([prov, name, code]) => ({
+      province: prov, name, code,
+      matches: active.filter((w) => matchesMunicipality(w, prov, name)),
     }));
-    for (const { name, province, matches } of plan)
+    for (const { name, province: prov, matches } of plan)
       if (matches.length > 1)
-        return { error: `Hay ${matches.length} almacenes activos reconocidos como ${name}, ${province}; deja exactamente uno antes de continuar.` };
-    // Segunda pasada: con la garantía de unicidad, crear los que falten.
+        return { error: `Hay ${matches.length} almacenes activos reconocidos como ${name}, ${prov}; deja exactamente uno antes de continuar.` };
+    // Segunda pasada: con la garantía de unicidad, crear los que falten, todos en 0.
     const who = this.state.session?.displayName || "sistema";
     const now = Date.now();
     const warehouses = [], created = [];
-    for (const { province, name, code, matches } of plan) {
+    for (const { province: prov, name, code, matches } of plan) {
       if (matches.length === 1) { warehouses.push(matches[0]); continue; }
-      const restaurar = origin === "restaurar";
-      const whName = municipalWarehouseName(province, name);
+      const whName = municipalWarehouseName(prov, name);
       const w = {
-        id: uid("w"), name: whName, code, location: `${name}, ${province}`,
-        notes: restaurar
-          ? `Restaurado con el botón «Crear los ${TOTAL_MUNICIPIOS} municipios». Importa los valores reales de este municipio cuando corresponda.`
-          : `Creado por la simulación de ${TOTAL_MUNICIPIOS} municipios. Inventario ficticio; importa los valores reales cuando corresponda.`,
+        id: uid("w"), name: whName, code, location: `${name}, ${prov}`,
+        notes: `Creado al hacer clic en Crear municipios (${prov}). Existencia cero; importa los valores reales de este municipio cuando corresponda.`,
         active: true, isDefault: false, createdAt: now, createdBy: who, deletedAt: null,
       };
       this.state.warehouses.push(w);
       for (const p of this.state.products) {
         p.stocks = p.stocks || {};
         p.stocksInicial = p.stocksInicial || {};
-        if (p.stocks[w.id] === undefined) p.stocks[w.id] = 0;
-        if (p.stocksInicial[w.id] === undefined) p.stocksInicial[w.id] = 0;
+        p.stocks[w.id] = 0;
+        p.stocksInicial[w.id] = 0;
       }
       this.logEntry({
-        warehouseId: w.id, kind: "CREACION", source: origin === "restaurar" ? "restauracion" : "simulacion",
-        summary: origin === "restaurar"
-          ? `Almacén «${whName}» restaurado con el botón Crear los ${TOTAL_MUNICIPIOS} municipios`
-          : `Almacén «${whName}» creado por la simulación de ${TOTAL_MUNICIPIOS} municipios`,
+        warehouseId: w.id, kind: "CREACION", source: "restauracion",
+        summary: `Almacén «${whName}» creado con el botón Crear municipios (${prov}) en 0`,
         counts: {},
       });
       this.audit("CREATE", "warehouse", whName, w.id);
@@ -862,7 +941,7 @@ class Store {
       created.push(whName);
     }
     if (created.length) this.emit();
-    return { warehouses, created };
+    return { warehouses, created, province: province || null };
   }
 
   /** Elimina en bloque los almacenes municipales que existan (🗑️ Eliminar municipios).
@@ -870,9 +949,9 @@ class Store {
    *  un almacén de destino no municipal al que pasen; si no hay ninguno, se bloquea.
    *  Nunca deja la base sin almacenes. Es la contrapartida de «Crear los 168 municipios»:
    *  tras limpiar (🧹) los municipios quedan vacíos y se pueden eliminar sin destino. */
-  deleteMunicipalWarehouses(moveTo = null) {
+  deleteMunicipalWarehouses(moveTo = null, province = null) {
     if (this.state.session?.role !== "ADMINISTRADOR") return { error: "Solo un administrador puede eliminar los municipios en bloque." };
-    const targets = this.existingMunicipalWarehouses();
+    const targets = this.existingMunicipalWarehouses(province);
     if (!targets.length) return { error: "No hay almacenes municipales para eliminar." };
     const targetIds = new Set(targets.map((w) => w.id));
     const remaining = this.warehousesActive().filter((w) => !targetIds.has(w.id));
@@ -2062,14 +2141,15 @@ class Store {
     return { ok: true, from: from.name, to: to.name, qty: q };
   }
 
-  /** Crea un lote separado y claramente ficticio para los 168 municipios de Cuba, sin editar datos existentes. */
+  /** Crea un lote separado y claramente ficticio sobre los municipios ya creados,
+   *  sin crear almacenes automáticamente ni editar datos existentes. */
   populateMunicipalDemo() {
     if (!can(this.state.session?.role, "VALUES_IMPORT") || !can(this.state.session?.role, "MOVEMENT_CREATE"))
       return { error: "Tu rol no puede crear esta demostración." };
     if (this.closedErr(todayISO())) return this.closedErr(todayISO());
     if (this.state.products.some((p) => p.demoMunicipios) || this.state.movements.some((m) => m.demoMunicipios))
       return { error: "Ya existe un lote de demostración municipal; no se duplicará." };
-    const selection = this.ensureMunicipalWarehouses();
+    const selection = this.clearableMunicipalWarehouses();
     if (selection.error) return selection;
     const warehouses = selection.warehouses;
     const seenNames = new Set(), categories = new Map();
@@ -2103,6 +2183,10 @@ class Store {
         comisionCup: Number(original.comisionCup) || 0, minStock: 1,
         observaciones: "SIMULADO · No representa mercancía real ni precios actuales.", image: null,
         demoMunicipios: batch, createdAt: now, updatedAt: now, deletedAt: null };
+      for (const activeWh of this.warehousesActive()) {
+        p.stocksInicial[activeWh.id] = 0;
+        p.stocks[activeWh.id] = 0;
+      }
       for (const [j, w] of warehouses.entries()) {
         const price = Number(p.precioVentaUsd) || 0;
         const size = price >= 500 ? 3 : price >= 100 ? 7 : 15;
@@ -2126,12 +2210,13 @@ class Store {
     this.state.movements.unshift(...movements);
     this.audit("DEMO", "warehouse", `SIMULADO · ${warehouses.length} municipios, ${products.length} productos y ${movements.length} movimientos ficticios`, batch);
     this.emit();
-    return { ok: true, warehouses: warehouses.length, products: products.length, movements: movements.length, createdMunicipalities: selection.created?.length || 0 };
+    return { ok: true, warehouses: warehouses.length, products: products.length, movements: movements.length, createdMunicipalities: 0 };
   }
 
   /** Datos ficticios: reutiliza el catálogo, nunca modifica el principal ni existencias previas. */
   populateDemoWarehouses() {
     if (!can(this.state.session?.role, "VALUES_IMPORT")) return { error: "Tu rol no puede importar valores." };
+    if (!this.existingMunicipalWarehouses().length) return { error: "Primero debes crear los municipios haciendo clic en Crear (todos o por provincia)." };
     const source = this.defaultWarehouse();
     if (!source) return { error: "No hay almacén principal." };
     const products = this.activeProducts();

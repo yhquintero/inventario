@@ -82,4 +82,20 @@ with tempfile.TemporaryDirectory(prefix='ng-batch-clear-') as tmp:
     assert s.verificar_auditoria()['ok']
     assert s.validate_change(final, final, 'ADMINISTRADOR', set()) is None
     assert call()[0] == 409
-    print('Limpieza de 168 municipios de Cuba: aprobación, copia y atomicidad verificadas.')
+    # También permite limpiar cuando solo se han creado los municipios de una provincia (ej. 11 de Pinar del Río).
+    pinar_ws = [{'id': f'p{i}', 'name': s._municipal_warehouse_name(prov, name), 'location': f'{name}, {prov}', 'active': True}
+                for i, (prov, name, _c) in enumerate(s.CUBA_MUNICIPALITIES) if prov == 'Pinar del Río']
+    pinar_ids = [w['id'] for w in pinar_ws]
+    assert len(pinar_ids) == 11
+    pinar_state = {'warehouses': [{'id': 'w_principal', 'name': 'ALMACÉN PRINCIPAL', 'isDefault': True, 'active': True}] + pinar_ws,
+                   'products': [{'id': 'p', 'name': 'Producto', 'stocks': {'w_principal': 5, **{wid: 2 for wid in pinar_ids}},
+                                 'stocksInicial': {'w_principal': 5, **{wid: 2 for wid in pinar_ids}}, 'stockActual': 27, 'stockInicial': 27}],
+                   'movements': [], 'warehouseEntries': [], 'credits': [], 'audit': []}
+    s.q('UPDATE app_state SET version=10,data=? WHERE id=1', (json.dumps(pinar_state),))
+    s.index_state_changes(pinar_state, 10)
+    st_pinar, res_pinar = call({'municipalityIds': pinar_ids, 'version': 10, 'confirmation': 'LIMPIAR 11 MUNICIPIOS'})
+    assert st_pinar == 200 and res_pinar['changed'], res_pinar
+    after_pinar = json.loads(s.q('SELECT data FROM app_state WHERE id=1', one=True)['data'])
+    assert after_pinar['products'][0]['stocks']['w_principal'] == 5
+    assert all(after_pinar['products'][0]['stocks'][wid] == 0 for wid in pinar_ids)
+    print('Limpieza de municipios de Cuba (168 y por provincia): aprobación, copia y atomicidad verificadas.')

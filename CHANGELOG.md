@@ -1,3 +1,25 @@
+## NovaGest · revisión 2026-11-10 · Municipios solo bajo clic explícito y controles por Provincia
+
+### Almacenes: creación manual, botones por provincia y visibilidad condicional
+- **Creación solo al hacer clic (nunca automática)**: en una base nueva (`seed()`), en la
+  migración del servidor (`migrate_state()`) y en la simulación (`populateMunicipalDemo()`) ya
+  no se crean municipios automáticamente. Al inicio solo existe **ALMACÉN PRINCIPAL** con el
+  histórico, y los municipios de Cuba se crean únicamente al pulsar **🏗️ Crear** (global o por
+  provincia).
+- **Todos en 0 al crear**: tanto al crear una provincia como al crear el total de Cuba, cada
+  almacén municipal nace con `stocks = 0` y `stocksInicial = 0` para todos los productos.
+- **Botones por Provincia (Crear, Seleccionar, Modificar y Eliminar)**: nuevo panel
+  **Municipios por provincia** en Almacenes con las 16 provincias de Cuba (`creados/total`),
+  con acciones individuales por provincia para **🏗️ Crear** (solo los que falten de esa
+  provincia, en 0), **🎯 Seleccionar** (filtra Almacenes a esa provincia y activa su primer
+  municipio), **✏️ Modificar** (edición en lote de nombre, código, ubicación y notas de sus
+  municipios, más acceso individual) y **🗑️ Eliminar** (solo `ADMINISTRADOR`, con destino si
+  hay existencias o movimientos).
+- **Ocultación inicial de Llenar y Simular**: mientras no exista ningún municipio creado
+  (`municipalCount === 0`), no se muestran **🧪 Llenar con datos de prueba** ni **🗺️ Simular
+  168 municipios** (ni limpiar/eliminar municipios); aparecen únicamente cuando ya se han
+  creado municipios. Service worker `novagest-v55`.
+
 ## NovaGest · revisión 2026-11-10 · Todos los municipios de Cuba (168) y Eliminar municipios
 
 ### Almacenes: de los 11 de Pinar del Río a los 168 de Cuba

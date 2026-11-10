@@ -1173,12 +1173,14 @@ def _matches_municipality(warehouse, province, name):
     return not duplicated or expected_prov == "PINAR DEL RIO"
 
 
-def add_cuba_municipalities(st):
-    """Añade solo municipios ausentes. Nunca asigna mercancía a los nuevos."""
+def add_cuba_municipalities(st, province_filter=None):
+    """Añade municipios ausentes en 0 (solo bajo invocación explícita; nunca automático)."""
     active = [w for w in st["warehouses"] if isinstance(w, dict) and not w.get("deletedAt")]
     timestamp = now() * 1000
     created = []
     for province, name, code in CUBA_MUNICIPALITIES:
+        if province_filter and province != province_filter:
+            continue
         if any(_matches_municipality(w, province, name) for w in active):
             continue
         wh_name = _municipal_warehouse_name(province, name)
@@ -1214,7 +1216,8 @@ def add_pinar_municipalities(st):
 
 
 def migrate_state():
-    """Migra una sola vez una BD existente, de forma atómica e idempotente."""
+    """Prepara una BD existente para almacenes sin crear municipios automáticamente.
+    Los municipios solo se crean cuando el usuario hace clic en Crear (global o por provincia)."""
     with _lock:
         r = q("SELECT version,data FROM app_state WHERE id=1", one=True)
         if not r or not r["data"]:
@@ -1222,11 +1225,7 @@ def migrate_state():
         st, changed = ensure_warehouses(json.loads(r["data"]))
         if not isinstance(st, dict):
             raise ValueError("El estado guardado no es un objeto; no se puede migrar.")
-        # Migración de Cuba (168): una sola vez por base. Las bases que ya traían los
-        # 11 de Pinar del Río conservan esos almacenes y solo reciben los 157 que faltan.
         done = q("SELECT 1 FROM schema_migrations WHERE name=?", (CUBA_MIGRATION,), one=True)
-        created = add_cuba_municipalities(st) if not done else []
-        changed = changed or bool(created)
         try:
             CON.execute("BEGIN IMMEDIATE")
             if changed:
@@ -1241,7 +1240,7 @@ def migrate_state():
             CON.rollback()
             raise
     if changed:
-        audit("sistema", "MIGRATE", f"Almacenes municipales creados sin existencias: {', '.join(created) or 'conversión de datos antiguos'}")
+        audit("sistema", "MIGRATE", "Conversión de datos antiguos a estructura de almacenes (sin crear municipios automáticamente)")
 
 
 def core(m):
@@ -2400,11 +2399,12 @@ def clear_warehouse(h, u, _):
     municipal = "municipalityIds" in b
     if municipal:
         ids = b.get("municipalityIds")
-        # La confirmación es «LIMPIAR N MUNICIPIOS» con N = total de Cuba (168).
-        # Se acepta también el texto histórico de 11 por compatibilidad con clientes viejos.
-        expected_confirmation = f"LIMPIAR {len(ids) if isinstance(ids, list) else 0} MUNICIPIOS"
-        if b.get("confirmation") not in (expected_confirmation, "LIMPIAR 11 MUNICIPIOS") or not isinstance(ids, list) or len(ids) != TOTAL_MUNICIPIOS or any(not isinstance(x, str) or not x for x in ids) or len(set(ids)) != TOTAL_MUNICIPIOS:
-            return h.err(400, f"Confirme la limpieza de los {TOTAL_MUNICIPIOS} municipios y revise su selección.")
+        count = len(ids) if isinstance(ids, list) else 0
+        valid_confirmations = {f"LIMPIAR {count} MUNICIPIOS"}
+        if count == 1:
+            valid_confirmations.add("LIMPIAR 1 MUNICIPIO")
+        if b.get("confirmation") not in valid_confirmations or not isinstance(ids, list) or not (1 <= count <= TOTAL_MUNICIPIOS) or any(not isinstance(x, str) or not x for x in ids) or len(set(ids)) != count:
+            return h.err(400, f"Confirme la limpieza de los municipios seleccionados y revise su selección.")
     elif b.get("confirmation") != "LIMPIAR" or not isinstance(b.get("warehouseId"), str) or not b["warehouseId"]:
         return h.err(400, "Confirme la limpieza y proporcione el almacén.")
     else:
@@ -2422,15 +2422,17 @@ def clear_warehouse(h, u, _):
         closed = closed_set()
         if municipal:
             active = [w for w in state.get("warehouses", []) if isinstance(w, dict) and not w.get("deletedAt") and w.get("active") is not False]
-            resolved = []
+            valid_municipal = []
             for province, name, _code in CUBA_MUNICIPALITIES:
                 matches = [w for w in active if _matches_municipality(w, province, name)]
-                if len(matches) != 1 or not isinstance(matches[0].get("id"), str):
-                    return h.err(409, f"Se necesita exactamente un almacén activo para {name}, {province}; revise los nombres.")
-                resolved.append(matches[0]["id"])
-            if len(set(resolved)) != TOTAL_MUNICIPIOS or set(resolved) != set(ids):
-                return h.err(409, "Los municipios cambiaron desde la revisión. Recargue y confirme de nuevo.")
-            ids = resolved
+                if len(matches) > 1:
+                    return h.err(409, f"Hay más de un almacén activo para {name}, {province}; revise los nombres.")
+                if len(matches) == 1 and isinstance(matches[0].get("id"), str):
+                    valid_municipal.append(matches[0]["id"])
+            valid_set = set(valid_municipal)
+            if len(valid_set) != len(valid_municipal) or not set(ids).issubset(valid_set):
+                return h.err(409, "Los municipios cambiaron desde la revisión o incluyen almacenes no municipales. Recargue y confirme de nuevo.")
+            ids = [wid for wid in valid_municipal if wid in set(ids)]
         prepared = state
         results = []
         try:
@@ -2441,7 +2443,7 @@ def clear_warehouse(h, u, _):
             return h.err(exc.status, f"{next((w.get('name') for w in state.get('warehouses', []) if isinstance(w, dict) and w.get('id') == wid), wid)}: {exc}")
         details = {"changed": any(r["changed"] for r in results),
                    "products": sum(r["products"] for r in results), "movements": sum(r["movements"] for r in results),
-                   "warehouse": f"{TOTAL_MUNICIPIOS} municipios" if municipal else (results[0].get("warehouse") or "Almacén"),
+                   "warehouse": (f"{len(ids)} municipio" if len(ids) == 1 else f"{len(ids)} municipios") if municipal else (results[0].get("warehouse") or "Almacén"),
                    "warehouses": results if municipal else None}
     if not details["changed"]:
         return h.send_json(200, {"ok": True, "version": expected, **details})

@@ -627,23 +627,21 @@ test("Informes compara el período con el anterior (W-06)", () => {
   assert.match(html, /Variación/);
 });
 
-test("Simulación municipal pide confirmación y crea los municipios que falten", () => {
+test("Simulación municipal pide confirmación y opera solo sobre los municipios ya creados (sin auto-crear)", () => {
   const original = { products: structuredClone(store.state.products), movements: structuredClone(store.state.movements), warehouses: structuredClone(store.state.warehouses), audit: structuredClone(store.state.audit), warehouseEntries: structuredClone(store.state.warehouseEntries) };
-  // Quitamos GUANE para comprobar que el botón lo vuelve a crear en lugar de fallar.
-  const idx = store.state.warehouses.findIndex((w) => /^GUANE$/i.test(w.name));
-  if (idx >= 0) store.state.warehouses.splice(idx, 1);
-  const before = JSON.stringify(store.shared());
   try {
+    store.ensureMunicipalWarehouses("restaurar", "Pinar del Río");
+    const before = JSON.stringify(store.shared());
     const html = go("warehouses");
-    assert.match(html, /Simular 168 municipios/);
+    assert.match(html, /Simular 11 municipios/);
     clickMatching("act", { act: "wh-municipal-demo" });
     assert.match(app.innerHTML, /SIMULACIÓN: no es inventario real/);
-    assert.match(app.innerHTML, /Se crearán los almacenes municipales que falten/);
+    assert.match(app.innerHTML, /no se crean municipios automáticamente/);
     assert.match(app.innerHTML, /afectarán existencias, informes y disponibilidad de venta/);
     assert.equal(JSON.stringify(store.shared()), before, "mientras el modal está abierto no toca la base");
     clickMatching("act", { act: "confirm-yes" });
     assert.match(app.innerHTML, /SIMULADO:/);
-    assert.ok(store.warehousesActive().some((w) => /^GUANE$/i.test(w.name)), "el municipio que faltaba fue creado");
+    assert.equal(store.existingMunicipalWarehouses().length, 11, "no se crearon automáticamente las demás provincias");
     assert.ok(store.activeProducts().some((p) => p.demoMunicipios), "se crearon los productos SIMULADO");
   } finally {
     Object.assign(store.state, original);
@@ -651,15 +649,17 @@ test("Simulación municipal pide confirmación y crea los municipios que falten"
   }
 });
 
-test("Simulación confirmada se identifica en la aplicación y cubre los 168 municipios de Cuba", () => {
+test("Simulación confirmada se identifica en la aplicación y cubre los 168 municipios de Cuba cuando están creados", () => {
   const original = { products: store.state.products, movements: store.state.movements, warehouses: store.state.warehouses, audit: store.state.audit, warehouseEntries: store.state.warehouseEntries };
   try {
     store.state.products = structuredClone(original.products);
     store.state.movements = structuredClone(original.movements);
     store.state.audit = structuredClone(original.audit);
     store.state.warehouseEntries = structuredClone(original.warehouseEntries);
-    store.state.warehouses = ["Pinar del Río", "Consolación del Sur", "San Luis", "San Juan y Martínez", "Guane", "Mantua", "Minas de Matahambre", "Viñales", "La Palma", "Los Palacios", "Sandino"].map((name, i) => ({ id: `demo-wh-${i}`, name, code: `D${i}`, active: true, isDefault: i === 0 }));
-    go("warehouses");
+    store.state.warehouses = structuredClone(original.warehouses);
+    store.ensureMunicipalWarehouses("restaurar");
+    const html0 = go("warehouses");
+    assert.match(html0, /🗺️ Simular 168 municipios/);
     clickMatching("act", { act: "wh-municipal-demo" });
     clickMatching("act", { act: "confirm-yes" });
     assert.equal(new Set(store.state.movements.filter((m) => m.demoMunicipios).map((m) => m.warehouseId)).size, 168);
@@ -672,38 +672,115 @@ test("Simulación confirmada se identifica en la aplicación y cubre los 168 mun
   }
 });
 
-test("Crear los 168 municipios de Cuba: botón visible solo si faltan, con iconos temáticos", () => {
+test("Crear los 168 municipios de Cuba: al inicio sin municipios se ocultan Llenar y Simular hasta crearlos", () => {
   const original = { warehouses: structuredClone(store.state.warehouses), products: structuredClone(store.state.products), audit: structuredClone(store.state.audit), warehouseEntries: structuredClone(store.state.warehouseEntries) };
   try {
-    // Caso completo: se perdieron los 168 (como el reporte de auditoría del titular)
-    store.state.warehouses = [];
+    // Al inicio sin municipios: NO se muestran 🧪 Llenar con datos de prueba ni 🗺️ Simular 168 municipios
+    store.state.warehouses = [{ id: "w1", name: "ALMACÉN PRINCIPAL", code: "PRI", isDefault: true, active: true, deletedAt: null, createdAt: 1 }];
+    store.state.warehouseEntries = [];
     const html = go("warehouses");
     assert.match(html, /Crear los 168 municipios/);
     assert.match(html, /🏬 ＋ Nuevo almacén/, "los botones llevan iconos");
-    assert.match(html, /🗺️ Simular 168 municipios/);
-    assert.match(html, /🧹 Limpiar inventario de los 168 municipios/);
-    assert.doesNotMatch(html, /wh-municipal-delete/, "sin municipios no hay botón de eliminar");
+    assert.doesNotMatch(html, /data-act="wh-demo"/, "sin municipios no se muestra 🧪 Llenar con datos de prueba");
+    assert.doesNotMatch(html, /data-act="wh-municipal-demo"/, "sin municipios no se muestra 🗺️ Simular");
+    assert.doesNotMatch(html, /wh-municipal-clear/, "sin municipios no se muestra Limpiar municipios");
+    assert.doesNotMatch(html, /wh-municipal-delete/, "sin municipios no se muestra Eliminar municipios");
     clickMatching("act", { act: "wh-municipal-create" });
     assert.match(app.innerHTML, /Crear los almacenes municipales de Cuba/);
     assert.match(app.innerHTML, /168 municipios/);
     clickMatching("act", { act: "confirm-yes" });
-    const activos = store.warehousesActive().map((w) => w.name);
+    const activos = store.existingMunicipalWarehouses().map((w) => w.name);
     for (const n of ["PINAR DEL RÍO", "CONSOLACIÓN DEL SUR", "SAN LUIS", "SAN JUAN Y MARTÍNEZ", "GUANE", "MANTUA", "MINAS DE MATAHAMBRE", "VIÑALES", "LA PALMA", "LOS PALACIOS", "SANDINO", "HABANA VIEJA", "SANTIAGO DE CUBA", "ISLA DE LA JUVENTUD", "SAN LUIS, SANTIAGO DE CUBA"])
-      assert.ok(activos.includes(n), `restaurado ${n}`);
+      assert.ok(activos.includes(n), `creado ${n}`);
     assert.equal(activos.length, 168, "todos los municipios de Cuba creados");
-    assert.match(app.innerHTML, /⛲|✅|Creados|municipios/i);
-    // Iconos temáticos en las tarjetas (Pinar del Río conserva los suyos)
+    assert.match(app.innerHTML, /🏗️|Creados|municipios/i);
     assert.match(app.innerHTML, /🏛️/);   // PINAR DEL RÍO
     assert.match(app.innerHTML, /⛏️/);   // MINAS DE MATAHAMBRE
     assert.match(app.innerHTML, /⛰️/);   // VIÑALES
     const entries = (store.state.warehouseEntries || []).filter((e) => e.source === "restauracion");
-    assert.equal(entries.length, 168, "cada almacén restaurado queda en Entradas con origen «restauracion»");
-    assert.ok(store.audit.filter ? true : true);
-    // Ya no falta ninguno: el botón desaparece
+    assert.equal(entries.length, 168, "cada almacén creado queda en Entradas con origen «restauracion»");
+    // Ahora que sí existen los municipios, aparecen 🧪 Llenar y 🗺️ Simular 168 municipios, y desaparece Crear
     const html2 = go("warehouses");
     assert.doesNotMatch(html2, /wh-municipal-create/);
+    assert.match(html2, /🧪 Llenar con datos de prueba/);
+    assert.match(html2, /🗺️ Simular 168 municipios/);
   } finally {
     Object.assign(store.state, original);
+    go("home");
+  }
+});
+
+test("Provincias: botones por provincia para Crear (en 0), Seleccionar, Modificar y Eliminar", () => {
+  const saved = structuredClone({ warehouses: store.state.warehouses, products: store.state.products, movements: store.state.movements, warehouseEntries: store.state.warehouseEntries, audit: store.state.audit, customers: store.state.customers, credits: store.state.credits, cuadres: store.state.cuadres, rates: store.state.rates, priceHistory: store.state.priceHistory });
+  const prevWh = store.warehouseId;
+  try {
+    store.seed();
+    assert.equal(store.existingMunicipalWarehouses().length, 0, "la semilla no crea municipios automáticamente");
+    const html0 = go("warehouses");
+    assert.match(html0, /id="whProvincesPanel"/);
+    assert.match(html0, /data-prov-create="Pinar del Río"/);
+    assert.match(html0, /data-prov-select="Pinar del Río"\s+disabled/);
+    assert.match(html0, /data-prov-edit="Pinar del Río"\s+disabled/);
+    assert.match(html0, /data-prov-delete="Pinar del Río"\s+disabled/);
+    assert.doesNotMatch(html0, /data-act="wh-demo"/);
+    assert.doesNotMatch(html0, /data-act="wh-municipal-demo"/);
+
+    // 1. Crear municipios de Pinar del Río -> todos en 0
+    clickMatching("prov-create", { provCreate: "Pinar del Río" });
+    assert.match(app.innerHTML, /Crear municipios de Pinar del Río/);
+    clickMatching("act", { act: "confirm-yes" });
+    const pinar = store.existingMunicipalWarehouses("Pinar del Río");
+    assert.equal(pinar.length, 11);
+    assert.equal(store.existingMunicipalWarehouses().length, 11, "solo se creó Pinar del Río");
+    for (const w of pinar) {
+      const st = store.warehouseStats(w);
+      assert.equal(st.items, 0, `${w.name} creado en 0 ítems`);
+      assert.equal(st.unidades, 0, `${w.name} creado en 0 unidades`);
+      assert.equal(st.valor, 0, `${w.name} creado en 0 valor`);
+    }
+    assert.match(app.innerHTML, /🧪 Llenar con datos de prueba/);
+    assert.match(app.innerHTML, /🗺️ Simular 11 municipios/);
+
+    // 2. Seleccionar provincia (alternar todas <-> Pinar del Río)
+    clickMatching("prov-select", { provSelect: "Pinar del Río" });
+    assert.match(app.innerHTML, /Mostrando todas las provincias|Todas las provincias/);
+    clickMatching("prov-select", { provSelect: "Pinar del Río" });
+    assert.match(app.innerHTML, /🎯 Seleccionada/);
+
+    // 3. Modificar provincia
+    clickMatching("prov-edit", { provEdit: "Pinar del Río" });
+    assert.match(app.innerHTML, /id="whProvinceEditForm"/);
+    assert.match(app.innerHTML, /Modificar municipios de Pinar del Río/);
+    const oldFormData = globalThis.FormData;
+    try {
+      const map = new Map();
+      pinar.forEach((w, i) => {
+        map.set(`id_${i}`, w.id);
+        map.set(`name_${i}`, w.name);
+        map.set(`code_${i}`, i === 0 ? "PRIO" : w.code);
+        map.set(`location_${i}`, w.location);
+        map.set(`notes_${i}`, i === 0 ? "Nota provincial editada" : w.notes);
+      });
+      globalThis.FormData = class { get(k) { return map.get(k); } };
+      getEl("whProvinceEditForm").dispatch("submit", { preventDefault() {}, target: { dataset: { prov: "Pinar del Río", count: "11" } } });
+      assert.equal(store.warehouseById(pinar[0].id).code, "PRIO");
+      assert.equal(store.warehouseById(pinar[0].id).notes, "Nota provincial editada");
+    } finally { globalThis.FormData = oldFormData; }
+
+    // 4. Eliminar provincia (están en 0: no requiere destino)
+    clickMatching("prov-delete", { provDelete: "Pinar del Río" });
+    assert.match(app.innerHTML, /id="whMunicipalDeleteForm"/);
+    assert.match(app.innerHTML, /ELIMINAR 11 MUNICIPIOS/);
+    try {
+      globalThis.FormData = class { get(k) { return k === "confirmation" ? "ELIMINAR 11 MUNICIPIOS" : null; } };
+      getEl("whMunicipalDeleteForm").dispatch("submit", { preventDefault() {}, target: {} });
+      assert.equal(store.existingMunicipalWarehouses().length, 0);
+      assert.doesNotMatch(app.innerHTML, /data-act="wh-demo"/, "al eliminar los municipios vuelven a ocultarse Llenar y Simular");
+      assert.doesNotMatch(app.innerHTML, /data-act="wh-municipal-demo"/);
+    } finally { globalThis.FormData = oldFormData; }
+  } finally {
+    Object.assign(store.state, saved);
+    store.setActiveWarehouse(prevWh);
     go("home");
   }
 });
@@ -789,8 +866,9 @@ test("Limpieza de 168 municipios exige Administrador, identifica los destinos y 
   const saved = structuredClone({ warehouses: store.state.warehouses, products: store.state.products, movements: store.state.movements, warehouseEntries: store.state.warehouseEntries, audit: store.state.audit, customers: store.state.customers, credits: store.state.credits, cuadres: store.state.cuadres, rates: store.state.rates, priceHistory: store.state.priceHistory });
   const session = store.state.session;
   try {
-    store.seed(); // 168 municipios de Cuba, Pinar del Río con el histórico
+    store.seed();
     store.state.session = { ...session, role: "ADMINISTRADOR" };
+    store.ensureMunicipalWarehouses("restaurar");
     go("warehouses");
     assert.match(app.innerHTML, /data-act="wh-municipal-clear"/);
     assert.match(app.innerHTML, /🧹 Limpiar inventario de los 168 municipios/);
@@ -822,9 +900,12 @@ test("Eliminar municipios: botón 🗑️ tras Limpiar, solo Administrador, pide
   const saved = structuredClone({ warehouses: store.state.warehouses, products: store.state.products, movements: store.state.movements, warehouseEntries: store.state.warehouseEntries, audit: store.state.audit, customers: store.state.customers, credits: store.state.credits, cuadres: store.state.cuadres, rates: store.state.rates, priceHistory: store.state.priceHistory });
   const session = store.state.session;
   try {
-    store.seed(); // 168 municipios; Pinar del Río tiene existencias históricas
-    store.state.warehouses.push({ id: "central-test", name: "ALMACÉN CENTRAL", code: "CEN", location: "", active: true, isDefault: false, createdAt: 1 });
+    store.seed(); // solo ALMACÉN PRINCIPAL
     store.state.session = { ...session, role: "ADMINISTRADOR" };
+    store.ensureMunicipalWarehouses("restaurar"); // crea los 168 en 0
+    // Ponemos existencia en uno de los municipios para comprobar que exige almacén destino
+    const firstMun = store.existingMunicipalWarehouses()[0];
+    store.applyWarehouseImport({ warehouseId: firstMun.id, rows: [{ name: store.state.products[0].name, stock: 4 }], source: "prueba" });
     go("warehouses");
     assert.match(app.innerHTML, /data-act="wh-municipal-delete"/);
     assert.match(app.innerHTML, /🗑️ Eliminar 168 municipios/);
@@ -852,9 +933,9 @@ test("Eliminar municipios: botón 🗑️ tras Limpiar, solo Administrador, pide
     store.state.session = { ...session, role: "ADMINISTRADOR" };
     const blocked = store.deleteMunicipalWarehouses(null);
     assert.ok(blocked.error && blocked.needsTarget, "con existencias exige destino");
-    const done = store.deleteMunicipalWarehouses("central-test");
+    const done = store.deleteMunicipalWarehouses(store.defaultWarehouse().id);
     assert.ok(done.ok && done.deleted === 168, "elimina los 168 en bloque");
-    assert.deepEqual(store.warehousesActive().map((w) => w.name), ["ALMACÉN CENTRAL"]);
+    assert.deepEqual(store.warehousesActive().map((w) => w.name), ["ALMACÉN PRINCIPAL"]);
     assert.equal(store.missingMunicipalities().missing.length, 168, "tras eliminar, faltan los 168 y se pueden volver a crear");
   } finally { Object.assign(store.state, saved); store.state.session = session; go("warehouses"); }
 });

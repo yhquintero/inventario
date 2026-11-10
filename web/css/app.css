@@ -536,6 +536,12 @@ td.nowrap, .row.nowrap { white-space: nowrap; flex-wrap: nowrap; }
 .wh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
 .wh-card { display: flex; flex-direction: column; }
 .wh-card.on { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.prov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(265px, 1fr)); gap: 10px; }
+.prov-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--surface-2); display: flex; flex-direction: column; gap: 6px; }
+.prov-card.on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); background: var(--surface); }
+.prov-card-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.prov-card-title { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; }
+.prov-card-title .wh-ico { width: 26px; height: 26px; margin-right: 0; font-size: 15px; vertical-align: 0; }
 .wh-name { margin: 2px 0 4px; font-family: var(--serif); font-size: 19px; font-weight: 600; }
 .wh-ico { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; margin-right: 8px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--line); font-size: 17px; vertical-align: -4px; }
 .wh-card p { margin: 4px 0; }

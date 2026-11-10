@@ -12,18 +12,22 @@ globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: 
 const { store } = await import(pathToFileURL(join(tmp, "store.js")).href);
 store.state.session = { role: "ADMINISTRADOR", displayName: "Prueba" };
 store.seed();
+// Sin municipios creados no se permite llenar datos de prueba.
+assert.match(store.populateDemoWarehouses().error, /Primero debes crear los municipios/);
+// Crear Pinar del Río (11 municipios en 0) para probar el llenado sobre esos almacenes.
+assert.equal(store.ensureMunicipalWarehouses("restaurar", "Pinar del Río").created.length, 11);
 const principal = store.defaultWarehouse();
-const wh = store.state.warehouses[1];
+const wh = store.existingMunicipalWarehouses("Pinar del Río")[0];
 const product = store.activeProducts()[0];
 store.setStockIn(product, wh.id, 12);
 const before = store.stockIn(product, principal.id);
 const oldPrices = store.activeProducts().map((p) => p.precioVentaUsd);
 const r = store.populateDemoWarehouses();
-assert.ok(r.changed > 1000 && r.warehouses === 10);
+assert.ok(r.changed > 1000 && r.warehouses === 11);
 assert.equal(store.stockIn(product, wh.id), 12);
 assert.equal(store.stockIn(product, principal.id), before);
 assert.deepEqual(store.activeProducts().map((p) => p.precioVentaUsd), oldPrices);
-assert.ok(store.state.warehouseEntries.filter((e) => e.source === "DEMOSTRACIÓN").length === 10);
+assert.ok(store.state.warehouseEntries.filter((e) => e.source === "DEMOSTRACIÓN").length === 11);
 assert.equal(store.populateDemoWarehouses().changed, 0);
 const entry = store.state.warehouseEntries.find((e) => e.source === "DEMOSTRACIÓN" && e.warehouseId === wh.id);
 const demoItem = entry.items.find((i) => i.field === "stock");
@@ -55,4 +59,4 @@ store.importEltoqueRates(data);
 assert.equal(store.state.rates.length, count);
 store.state.session.role = "ALMACENERO";
 assert.ok(store.importEltoqueRates(data).error);
-console.log("✔ Demostración por almacén y siete tasas, permisos e idempotencia");
+console.log("✔ Demostración por almacén (tras crear municipios) y siete tasas, permisos e idempotencia");

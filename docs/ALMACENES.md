@@ -4,73 +4,63 @@ Módulo nuevo de la Web (v5). Cada almacén guarda **su propia existencia** de c
 producto; el stock total es la suma de todos. Todo lo que entra a un almacén queda
 registrado en **Entradas**, con quién, cuándo y qué valores cambió.
 
-## Almacenes iniciales: todos los municipios de Cuba (168)
+## Almacenes iniciales y municipios de Cuba (168)
 
-En una base Web nueva, la primera entrada de un administrador crea un almacén por
-cada municipio de Cuba: **168 en total** (167 en 15 provincias + Isla de la
-Juventud, municipio especial). Pinar del Río va primero y es el principal:
-recibe el catálogo, la apertura y los movimientos históricos de
-`NovaGest SEPT.xlsx`. Sus existencias son históricas, no necesariamente actuales.
-Las provincias son Pinar del Río (11), Artemisa (11), La Habana (15), Mayabeque
-(11), Matanzas (13), Villa Clara (13), Cienfuegos (8), Sancti Spíritus (8),
-Ciego de Ávila (10), Camagüey (13), Las Tunas (8), Holguín (14), Granma (13),
-Santiago de Cuba (9), Guantánamo (10) e Isla de la Juventud (1). En Almacenes
-puedes filtrar por provincia para no recorrer las 168 tarjetas, y el selector de
-almacén de la barra superior (y el de Venta rápida) agrupa los destinos por
-provincia.
+En una base Web nueva, al iniciar solo se crea **ALMACÉN PRINCIPAL** (con el
+catálogo, la apertura y los movimientos históricos de `NovaGest SEPT.xlsx`).
+**Los municipios de Cuba NO se crean de forma automática** (ni en la semilla, ni
+en la migración del servidor, ni al simular): solo se crean cuando el usuario
+hace clic explícitamente en **🏗️ Crear** (para toda Cuba o para una provincia).
 
-Los demás almacenes empiezan sin existencias: no se dispone de un inventario completo
-confirmado para cada municipio. El catálogo es compartido, pero el stock es independiente. Use
-**Importar valores** para cargar los ítems y las existencias reales de cada almacén;
-por ejemplo, `PCH.xlsx` permite seleccionar una ubicación y revisar su destino antes
-de aplicarla. Herradura es una ubicación de Consolación del Sur, no otro municipio;
-no se fusiona automáticamente con la sección de Consolación.
+Mientras no haya municipios creados, la barra de **Almacenes** **no muestra**
+los botones **🧪 Llenar con datos de prueba** ni **🗺️ Simular … municipios** (ni
+los de limpiar o eliminar municipios): aparecen únicamente después de crear al
+menos una provincia o los 168 municipios.
+
+El catálogo municipal cubre los **168 municipios de Cuba** (167 en 15 provincias
++ Isla de la Juventud, municipio especial): Pinar del Río (11), Artemisa (11),
+La Habana (15), Mayabeque (11), Matanzas (13), Villa Clara (13), Cienfuegos (8),
+Sancti Spíritus (8), Ciego de Ávila (10), Camagüey (13), Las Tunas (8), Holguín
+(14), Granma (13), Santiago de Cuba (9), Guantánamo (10) e Isla de la Juventud
+(1). Todo municipio creado nace **en 0** (`stocks = 0` y `stocksInicial = 0`
+para todos los productos). Use **Importar valores** para cargar las existencias
+reales de cada almacén cuando corresponda.
 
 ### Bases existentes
 
-Al actualizar y reiniciar el servidor, se realiza una migración única en SQLite
-(`cuba_municipios_2026_1`): se crean los municipios que faltan con existencia cero
-y queda registrada su creación en Entradas y en la auditoría. Las bases que ya
-traían los 11 de Pinar del Río conservan esos almacenes y solo reciben los 157
-que faltan. Se reconocen los nombres municipales existentes, incluso con el
-prefijo «Almacén»; «Consolación» se reconoce como Consolación del Sur, «Lajas»
-como Santa Isabel de las Lajas y «Amancio» como Amancio Rodríguez. El
-reconocimiento es por **nombre + provincia** (de la ubicación «municipio,
-provincia»): «San Luis» existe en Pinar del Río y en Santiago de Cuba, y el de
-Santiago se crea como «SAN LUIS, SANTIAGO DE CUBA» para que el nombre sea único.
-El almacén principal anterior no se identifica automáticamente con ningún municipio ni
-se mueve su mercancía. Si ya existen otros almacenes, se conservan, por lo que puede
-haber más de 168 en total. Revise las ubicaciones y, si corresponde, use traspasos.
+Al actualizar y reiniciar el servidor, `migrate_state()` convierte estructuras
+antiguas sin almacenes hacia **ALMACÉN PRINCIPAL** sin crear municipios de forma
+automática. Las bases que ya tuvieran municipios creados los conservan tal cual,
+sin tocar precios, movimientos ni existencias. Se reconocen los nombres
+municipales existentes, incluso con el prefijo «Almacén»; «Consolación» se
+reconoce como Consolación del Sur, «Lajas» como Santa Isabel de las Lajas y
+«Amancio» como Amancio Rodríguez. El reconocimiento es por **nombre + provincia**
+(de la ubicación «municipio, provincia»): «San Luis» existe en Pinar del Río y
+en Santiago de Cuba, y el de Santiago se crea como «SAN LUIS, SANTIAGO DE CUBA»
+para que el nombre sea único.
 
-La migración no cambia precios, movimientos ni existencias existentes y no se repite
-al reiniciar, incluso si luego se elimina un almacén. Las bases anteriores pueden
-contener saldos incorrectos de versiones previas: conviene revisarlos, pues no se
-corrigen automáticamente. Haga una copia antes de actualizar. Para llenar los nuevos
-almacenes, importe los valores reales por municipio.
+### Controles por provincia y creación explícita («🏗️ Crear»)
 
-### Recuperar los municipios («🏗️ Crear los 168 municipios»)
+En **Almacenes** el panel **Municipios por provincia** muestra las 16 provincias
+con su contador (`creados/total`) y cuatro botones por cada provincia:
 
-Si los almacenes municipales desaparecieron (por ejemplo, borrados uno a uno desde
-**Editar → Eliminar** o en bloque con **🗑️ Eliminar municipios**), la barra de
-**Almacenes** muestra, a quien tenga permiso para crear almacenes, el botón
-**🏗️ Crear los 168 municipios** (o **🏗️ Crear N municipios** si falta solo alguno).
-Al confirmar:
+- **🏗️ Crear**: crea únicamente los municipios que falten de esa provincia,
+  **todos en 0** (existencia inicial y actual a cero), registrados en
+  **Entradas** (`restauracion`) y en la auditoría (`CREATE`).
+- **🎯 Seleccionar**: filtra la vista de Almacenes a esa provincia y activa su
+  primer almacén municipal si el almacén en uso era de otra provincia (volver a
+  pulsar muestra todas las provincias).
+- **✏️ Modificar**: abre el formulario de la provincia para editar en lote
+  nombre, código corto, ubicación o notas de sus municipios creados (o abrir uno
+  individual con ✏️).
+- **🗑️ Eliminar** (solo `ADMINISTRADOR`): elimina en bloque los municipios de
+  esa provincia con confirmación `ELIMINAR N MUNICIPIOS` (o `ELIMINAR 1 MUNICIPIO`
+  en Isla de la Juventud), pidiendo almacén destino si alguno conserva
+  existencias o movimientos.
 
-- Se crean únicamente los que faltan; los que ya existen se conservan y no se tocan.
-- Cada uno nace con **existencia cero**, nombre y código cortos, ubicación
-  «municipio, provincia» y queda registrado en **Entradas** con origen
-  `restauracion` y en la auditoría (acción `CREATE`, entidad `warehouse`).
-  Pinar del Río conserva sus códigos históricos (PRI, CON, SLU, SJM, GUA, MAN,
-  MIN, VIN, LAP, LOS, SAN).
-- Es **atómico**: primero comprueba que no haya almacenes duplicados para un mismo
-  municipio (nombre + provincia); si los hay, avisa y no crea nada.
-- El botón desaparece cuando ya no falta ninguno.
-
-Después de restaurarlos conviene **Importar valores** por municipio con los datos
-reales; hasta entonces sus existencias son cero y no permiten ventas. Los almacenes
-restaurados se gestionan como cualquier otro (editar, traspasar, eliminar — esta vez
-con cuidado: recuerda que eliminar solo es posible sin existencias ni movimientos
-pendientes en él).
+Además, en la barra superior de **Almacenes**, **🏗️ Crear los 168 municipios**
+(o **🏗️ Crear N municipios** si ya existen algunas provincias) crea de una vez
+todos los que falten en Cuba, también **todos en 0** y de forma atómica.
 
 **Iconos temáticos** (decorativos, junto al nombre en las tarjetas): Pinar del Río
 conserva los suyos por municipio — 🏛️ Pinar del Río · 🏭 Consolación del Sur ·
@@ -79,31 +69,26 @@ Matahambre · ⛰️ Viñales · 🌴 La Palma · 🏰 Los Palacios · 🎖️ S
 de Cuba usa el icono de su provincia (🏙️ La Habana, 🔥 Santiago de Cuba,
 🏝️ Isla de la Juventud, etc.). Cualquier otro almacén usa 🏬.
 
-### Simulación diferenciada de los 168 municipios
+### Simulación diferenciada sobre los municipios creados
 
-En **Almacenes → Simular 168 municipios** un administrador, jefe o almacenero puede
-confirmar la creación de un lote **ficticio**. Si falta alguno de los 168
-almacenes municipales, el propio botón **los crea** (existencia cero, nombre y
-código, registrados en Entradas y en la auditoría); no hace falta reiniciar el
-servidor ni la migración de la base. Se generan hasta 16 productos separados con
-prefijo `[SIMULADO]`, basados en nombres y precios del catálogo existente, con
-entradas y salidas diferentes en cada uno de los 168 municipios, incluido Pinar
-del Río. No son ventas, mercancía real ni precios actuales. Los
-movimientos llevan una nota de simulación y se registran con la fecha de creación;
-no se inventan operaciones históricas.
+Una vez creados municipios (una provincia, varias o los 168), la barra muestra
+**🗺️ Simular N municipios** (por ejemplo, **🗺️ Simular 168 municipios** cuando
+están creados todos). Un administrador, jefe o almacenero puede confirmar la
+creación de un lote **ficticio** sobre los municipios **ya creados**, sin crear
+nunca municipios faltantes de forma automática. Se generan hasta 16 productos
+separados con prefijo `[SIMULADO]`, basados en nombres y precios del catálogo
+existente, con entradas y salidas diferentes en cada municipio creado. No son
+ventas, mercancía real ni precios actuales. Los movimientos llevan una nota de
+simulación y se registran con la fecha de creación; no se inventan operaciones
+históricas.
 
 No se sobrescriben ni se modifican productos o movimientos preexistentes. Sin
 embargo, los nuevos registros se guardan **en la base abierta**, se incluyen en
 existencias e informes y permiten operar con esos productos. Úsela exclusivamente
 para pruebas, haga una copia antes y no la confunda con la operación real. Un aviso
 aparece en la aplicación mientras haya productos simulados activos. La simulación
-requiere como máximo un almacén activo reconocido para cada municipio: si hay
-duplicados pide corregirlos y no toca nada; si falta alguno, lo crea antes de
-simular. También exige un catálogo no vacío y que el día no esté cerrado; no se
-duplica un lote existente. Los almacenes creados por la simulación quedan como
-cualquier otro almacén: puede editarlos, trasvasarles existencias o eliminarlos. Los productos y sus
-movimientos pueden eliminarse por las funciones habituales, sujetas a las
-restricciones de días cerrados; no hay reversión masiva automática.
+exige al menos un municipio ya creado, sin duplicados, un catálogo no vacío y que
+el día no esté cerrado; no se duplica un lote existente.
 
 Los precios copiados del catálogo son solo referencias y las tasas de cambio no se
 modifican al simular. Para obtener referencias actuales, vaya a **Monedas → Consultar
@@ -113,7 +98,7 @@ anterior y no se inventan valores.
 
 ### Datos de demostración anteriores
 
-En **Almacenes → Llenar con datos de prueba** se puede confirmar una carga de
+Cuando ya existen municipios creados, en **Almacenes → 🧪 Llenar con datos de prueba** se puede confirmar una carga de
 cantidades ficticias para el catálogo compartido en todos los almacenes salvo el
 principal. Usa el stock principal como referencia cuando existe y genera cantidades
 para el resto; no crea productos nuevos ni cambia precios. Omite productos con saldo,

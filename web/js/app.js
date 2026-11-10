@@ -1,4 +1,4 @@
-import { store, warehouseIcon, warehouseProvince, CUBA_PROVINCES, TOTAL_MUNICIPIOS } from "./store.js";
+import { store, warehouseIcon, provinceIcon, warehouseProvince, CUBA_PROVINCES, TOTAL_MUNICIPIOS } from "./store.js";
 import { api, setLicenseErrorHandler } from "./api.js";
 import { parseLegacyCuadreGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
 import { LicenseManager } from "./license.js";
@@ -98,7 +98,7 @@ let ui = {
   dashboardCompare: (() => { try { return localStorage.getItem("novagest.dashboardCompare") === "1"; } catch { return false; } })(),
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
   histTab: "precios", rateChartRange: "all", rateChartSource: "all", rateChartMode: "daily", rateChartCurrencies: ["USD", "EUR", "MLC"],
-  whTab: "almacenes", whKind: "TODOS", whFilter: "", whProvince: "", whDetail: null, pdfWarehouseId: null, iv: null, whMunicipalClearIds: null, whMunicipalDeleteIds: null,
+  whTab: "almacenes", whKind: "TODOS", whFilter: "", whProvince: "", whDetail: null, pdfWarehouseId: null, iv: null, whMunicipalClearIds: null, whMunicipalDeleteIds: null, whMunicipalDeleteProvince: null,
   license: {
     status: null, loading: true, error: null, key: "", activating: false, info: null, infoLoaded: false,
     lastGenerated: null, tab: "estado", expand: false, infoTried: false,
@@ -3643,6 +3643,33 @@ function warehousePdfView(warehouse) {
     </table></div>`;
 }
 
+function provincesPanelHtml(canEdit, isAdmin, municipalCount) {
+  const rows = store.municipalitiesByProvince();
+  return `
+    <div class="card mt14" id="whProvincesPanel">
+      <div class="card-h">
+        <span class="k">Municipios por provincia (Cuba · ${TOTAL_MUNICIPIOS} municipios)</span>
+        <span class="hint">${municipalCount} de ${TOTAL_MUNICIPIOS} creados · Solo se crean al hacer clic en Crear (todos en 0)</span>
+      </div>
+      <div class="prov-grid mt8">${rows.map((r) => {
+        const selected = ui.whProvince === r.province;
+        const tagCls = r.existing === r.total ? "entrada" : r.existing > 0 ? "venta" : "mov";
+        return `<div class="prov-card ${selected ? "on" : ""}" data-province-card="${esc(r.province)}">
+          <div class="prov-card-h">
+            <span class="prov-card-title"><span class="wh-ico" aria-hidden="true">${provinceIcon(r.province)}</span>${esc(r.province)}</span>
+            <span class="tag ${tagCls}">${r.existing}/${r.total}</span>
+          </div>
+          <div class="row">
+            ${canEdit ? `<button class="btn small ${r.missing > 0 ? "gold" : "ghost"}" data-prov-create="${esc(r.province)}" ${r.missing > 0 ? "" : "disabled"} title="${r.missing > 0 ? `Crear ${r.missing} ${r.missing === 1 ? "municipio" : "municipios"} de ${esc(r.province)} en 0` : "Ya están creados todos los municipios de esta provincia"}">🏗️ Crear${r.missing > 0 ? ` (${r.missing})` : ""}</button>` : ""}
+            <button class="btn small ${selected ? "" : "ghost"}" data-prov-select="${esc(r.province)}" ${r.existing > 0 ? "" : "disabled"} title="${r.existing > 0 ? `Seleccionar ${esc(r.province)}` : "Crea primero los municipios de esta provincia"}">🎯 ${selected ? "Seleccionada" : "Seleccionar"}</button>
+            ${canEdit ? `<button class="btn small ghost" data-prov-edit="${esc(r.province)}" ${r.existing > 0 ? "" : "disabled"} title="${r.existing > 0 ? `Modificar los municipios creados de ${esc(r.province)}` : "Crea primero los municipios de esta provincia"}">✏️ Modificar</button>` : ""}
+            ${isAdmin ? `<button class="btn small ghost danger-t" data-prov-delete="${esc(r.province)}" ${r.existing > 0 ? "" : "disabled"} title="${r.existing > 0 ? `Eliminar los ${r.existing} municipios de ${esc(r.province)}` : "No hay municipios creados en esta provincia"}">🗑️ Eliminar</button>` : ""}
+          </div>
+        </div>`;
+      }).join("")}</div>
+    </div>`;
+}
+
 function warehousesView() {
   if (ui.pdfWarehouseId) {
     const warehouse = store.warehouseById(ui.pdfWarehouseId);
@@ -3654,6 +3681,7 @@ function warehousesView() {
   if (ui.whProvince && !whs.some((w) => provinceOfWarehouse(w) === ui.whProvince)) ui.whProvince = "";
   const canEdit = allowed("WAREHOUSE_EDIT");
   const canImport = allowed("VALUES_IMPORT");
+  const isAdmin = store.state.session?.role === "ADMINISTRADOR";
   const active = store.activeWarehouse() || whs[0];
   const stats = whs.map((w) => ({ w, s: store.warehouseStats(w) }));
   const tot = stats.reduce((a, { s }) => ({ items: a.items + s.items, unidades: a.unidades + s.unidades, valor: a.valor + s.valor }), { items: 0, unidades: 0, valor: 0 });
@@ -3672,9 +3700,11 @@ function warehousesView() {
         ${canEdit ? `<button class="btn" data-act="wh-new">🏬 ＋ Nuevo almacén</button>` : ""}
         ${canEdit && whs.length > 1 && active ? `<button class="btn ghost" data-wh-tr="${active.id}">🚚 ⇄ Traspaso</button>` : ""}
         ${canEdit && missingCount > 0 ? `<button class="btn gold" data-act="wh-municipal-create">🏗️ Crear ${missingCount === TOTAL_MUNICIPIOS ? `los ${TOTAL_MUNICIPIOS} municipios` : `${missingCount} municipio${missingCount > 1 ? "s" : ""}`}</button>` : ""}
-        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button><button class="btn ghost" data-act="wh-demo">🧪 Llenar con datos de prueba</button><button class="btn ghost" data-act="wh-municipal-demo">🗺️ Simular ${TOTAL_MUNICIPIOS} municipios</button>` : ""}
-        ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost danger-t" data-act="wh-municipal-clear">🧹 Limpiar inventario de los ${TOTAL_MUNICIPIOS} municipios</button>` : ""}
-        ${store.state.session?.role === "ADMINISTRADOR" && municipalCount > 0 ? `<button class="btn ghost danger-t" data-act="wh-municipal-delete">🗑️ Eliminar ${municipalCount} municipios</button>` : ""}
+        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button>` : ""}
+        ${canImport && municipalCount > 0 ? `<button class="btn ghost" data-act="wh-demo">🧪 Llenar con datos de prueba</button>` : ""}
+        ${canImport && allowed("MOVEMENT_CREATE") && municipalCount > 0 ? `<button class="btn ghost" data-act="wh-municipal-demo">🗺️ Simular ${municipalCount} ${municipalCount === 1 ? "municipio" : "municipios"}</button>` : ""}
+        ${isAdmin && municipalCount > 0 ? `<button class="btn ghost danger-t" data-act="wh-municipal-clear">🧹 Limpiar inventario de ${municipalCount === 1 ? "1 municipio" : `los ${municipalCount} municipios`}</button>` : ""}
+        ${isAdmin && municipalCount > 0 ? `<button class="btn ghost danger-t" data-act="wh-municipal-delete">🗑️ Eliminar ${municipalCount} ${municipalCount === 1 ? "municipio" : "municipios"}</button>` : ""}
       </div>
     </div>
     ${(store.state.warehouseEntries || []).some((e) => e.source === "DEMOSTRACIÓN" && !e.undoneAt) ? `<div class="banner info">Hay existencias de demostración ficticias en uno o más almacenes. No representan mercancía real. Revise Entradas antes de operar.</div>` : ""}
@@ -3685,12 +3715,13 @@ function warehousesView() {
       ${kpi("Valor a precio venta", usd(tot.valor), `Almacén en uso: ${esc(active?.name || "—")}`, "green")}
     </div>
     ${ui.whTab === "entradas" ? warehouseEntriesPanel() : `
+    ${provincesPanelHtml(canEdit, isAdmin, municipalCount)}
     <div class="toolbar mt14">
       <div class="row">
         <label class="hint">Provincia
           <select class="sel" id="whProvinceSel"><option value="">Todas las provincias (${whs.length})</option>${provincesPresent.map((prov) => `<option value="${esc(prov)}" ${ui.whProvince === prov ? "selected" : ""}>${esc(prov)} (${whs.filter((w) => provinceOfWarehouse(w) === prov).length})</option>`).join("")}</select>
         </label>
-        ${ui.whProvince ? `<span class="hint">Mostrando ${visibleStats.length} de ${whs.length} almacenes · <button class="btn ghost small" data-act="wh-province-clear">Ver todas</button></span>` : `<span class="hint">168 municipios de Cuba agrupados por provincia: filtra para no recorrerlos todos.</span>`}
+        ${ui.whProvince ? `<span class="hint">Mostrando ${visibleStats.length} de ${whs.length} almacenes (${esc(ui.whProvince)}) · <button class="btn ghost small" data-act="wh-province-clear">Ver todas</button></span>` : `<span class="hint">${municipalCount > 0 ? `${municipalCount} municipios creados: usa los botones de cada provincia para crear, seleccionar, modificar o eliminar.` : "Ningún municipio creado aún: haz clic en Crear en una provincia o en «Crear los 168 municipios»."}</span>`}
       </div>
     </div>
     <div class="wh-grid mt14">${visibleStats.map(({ w, s }) => warehouseCard(w, s, active)).join("") || `<div class="card empty">Todavía no hay almacenes. Crea el primero para empezar.</div>`}</div>`}`;
@@ -3749,31 +3780,88 @@ function whClearFlow(id) {
   render();
 }
 
-function whMunicipalClearFlow() {
+function whProvinceCreateFlow(province) {
+  if (!allowed("WAREHOUSE_EDIT")) return toast("Tu rol no puede crear almacenes.", "err");
+  if (!CUBA_PROVINCES.includes(province)) return toast("Provincia no reconocida.", "err");
+  const { missing, duplicates } = store.missingMunicipalities(province);
+  if (duplicates.length) return toast(`Hay duplicados en ${province}: ${duplicates.map((d) => `${d.name} (${d.count})`).join(", ")}.`, "err");
+  if (!missing.length) { toast(`Todos los municipios de ${province} ya están creados.`, "ok"); render(); return; }
+  confirmModal(`<b>🏗️ Crear municipios de ${esc(province)}.</b> Se crearán en <b>0</b> (existencia inicial 0 y existencia actual 0) los <b>${missing.length}</b> ${missing.length === 1 ? "municipio" : "municipios"} de <b>${esc(province)}</b> que aún no existen:<br><br><span class="hint">${esc(missing.join(", "))}</span><br><br>Los demás almacenes se conservan intactos. ¿Deseas crearlos en 0?`, () => {
+    const r = store.ensureMunicipalWarehouses("restaurar", province);
+    if (r.error) return toast(r.error, "err");
+    ui.whProvince = province;
+    const list = store.existingMunicipalWarehouses(province);
+    if (list.length && !list.some((w) => w.id === store.activeWarehouseId())) store.setActiveWarehouse(list[0].id);
+    toast(`🏗️ Creados ${r.created.length} ${r.created.length === 1 ? "municipio" : "municipios"} de ${province} en 0. Revisa Entradas.`, "ok");
+    render();
+  });
+}
+
+function whProvinceSelectFlow(province) {
+  const list = store.existingMunicipalWarehouses(province);
+  if (!list.length) return toast(`Primero crea los municipios de ${province}.`, "err");
+  if (ui.whProvince === province) {
+    ui.whProvince = "";
+    toast("Mostrando todas las provincias.", "ok");
+    render();
+    return;
+  }
+  ui.whProvince = province;
+  if (!list.some((w) => w.id === store.activeWarehouseId())) store.setActiveWarehouse(list[0].id);
+  toast(`🎯 Provincia seleccionada: ${province} (${list.length} ${list.length === 1 ? "municipio" : "municipios"}).`, "ok");
+  render();
+}
+
+function whProvinceEditFlow(province) {
+  if (!allowed("WAREHOUSE_EDIT")) return toast("Tu rol no puede crear ni modificar almacenes.", "err");
+  const list = store.existingMunicipalWarehouses(province);
+  if (!list.length) return toast(`Primero crea los municipios de ${province}.`, "err");
+  modal(`Modificar municipios de ${esc(province)}`, `
+    <p class="hint">Modifica nombre, código corto, ubicación o notas de los <b>${list.length}</b> ${list.length === 1 ? "municipio creado" : "municipios creados"} en <b>${esc(province)}</b>, o pulsa ✏️ en una fila para editar solo ese almacén.</p>
+    <div class="table-wrap flush mt8"><table>
+      <thead><tr><th>Nombre</th><th>Código</th><th>Ubicación</th><th>Notas</th><th></th></tr></thead>
+      <tbody>${list.map((w, i) => `<tr>
+        <td><input type="hidden" name="id_${i}" value="${esc(w.id)}"><input class="cell" name="name_${i}" value="${esc(w.name)}" required autocomplete="off" aria-label="Nombre de ${esc(w.name)}"></td>
+        <td><input class="cell" name="code_${i}" value="${esc(w.code || "")}" maxlength="6" aria-label="Código de ${esc(w.name)}"></td>
+        <td><input class="cell" name="location_${i}" value="${esc(w.location || "")}" aria-label="Ubicación de ${esc(w.name)}"></td>
+        <td><input class="cell" name="notes_${i}" value="${esc(w.notes || "")}" aria-label="Notas de ${esc(w.name)}"></td>
+        <td class="actions"><button type="button" class="icon-btn" data-wh-edit="${esc(w.id)}" title="Editar solo «${esc(w.name)}»">✏️</button></td>
+      </tr>`).join("")}</tbody>
+    </table></div>
+    <div class="row mt14"><button class="btn">Guardar cambios de ${esc(province)}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whProvinceEditForm", `data-prov="${esc(province)}" data-count="${list.length}"`);
+  render();
+}
+
+function whMunicipalClearFlow(province = null) {
   if (store.state.session?.role !== "ADMINISTRADOR") return;
-  const selection = store.municipalWarehouses();
+  const selection = store.clearableMunicipalWarehouses(province);
   if (selection.error) return toast(selection.error, "err");
+  const n = selection.warehouses.length;
+  const noun = n === 1 ? "MUNICIPIO" : "MUNICIPIOS";
   ui.whMunicipalClearIds = selection.warehouses.map((w) => w.id);
   const summary = municipalSummaryByProvince(selection.warehouses);
   const rows = summary.map((r) =>
     `<li><b>${esc(r.prov)}</b> (${r.count}): ${r.items} ítems · ${qty(r.unidades)} unidades · ${usd(r.valor)} · ${r.movs} movimientos activos</li>`).join("");
   const totItems = summary.reduce((a, r) => a + r.items, 0);
   const totUnits = summary.reduce((a, r) => a + r.unidades, 0);
-  modal(`Limpiar inventario de los ${TOTAL_MUNICIPIOS} municipios`, `
-    <p>Se pondrán a cero las existencias iniciales y actuales y se eliminarán todos los movimientos, incluidos los de papelera, de estos <b>${selection.warehouses.length} almacenes municipales</b> (todos los municipios de Cuba, agrupados por provincia):</p>
+  modal(`Limpiar inventario de ${n === 1 ? "1 municipio" : `los ${n} municipios`}${province ? ` (${esc(province)})` : ""}`, `
+    <p>Se pondrán a cero las existencias iniciales y actuales y se eliminarán todos los movimientos, incluidos los de papelera, de ${n === 1 ? "este <b>almacén municipal</b>" : `estos <b>${n} almacenes municipales</b>`}${province ? ` de <b>${esc(province)}</b>` : " (agrupados por provincia)"}:</p>
     <ul>${rows}</ul>
     <p>Total ahora: <b>${totItems} ítems · ${qty(totUnits)} unidades</b>. Los demás almacenes y el catálogo compartido se conservan. Los informes calculados cambiarán; los cuadres y reportes importados guardados no se borran. Las entradas y traspasos relacionados dejarán de poder deshacerse.</p>
     <p>Se necesita conexión y se verificará una copia cifrada de toda la base. Si hay días cerrados o fiados vinculados en cualquiera de ellos, no se limpiará ninguno. Restaurar la copia reemplaza toda la base.</p>
-    <label>Escriba LIMPIAR ${TOTAL_MUNICIPIOS} MUNICIPIOS para confirmar<input name="confirmation" required autocomplete="off"></label>
-    <div class="row mt14"><button class="btn danger">Limpiar los ${TOTAL_MUNICIPIOS} municipios</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whMunicipalClearForm");
+    <label>Escriba LIMPIAR ${n} ${noun} para confirmar<input name="confirmation" required autocomplete="off"></label>
+    <div class="row mt14"><button class="btn danger">Limpiar ${n === 1 ? "1 municipio" : `los ${n} municipios`}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whMunicipalClearForm");
   render();
 }
 
-function whMunicipalDeleteFlow() {
+function whMunicipalDeleteFlow(province = null) {
   if (store.state.session?.role !== "ADMINISTRADOR") return;
-  const targets = store.existingMunicipalWarehouses();
-  if (!targets.length) return toast("No hay almacenes municipales para eliminar.", "err");
+  const targets = store.existingMunicipalWarehouses(province);
+  if (!targets.length) return toast(province ? `No hay municipios creados en ${province} para eliminar.` : "No hay almacenes municipales para eliminar.", "err");
+  const n = targets.length;
+  const noun = n === 1 ? "MUNICIPIO" : "MUNICIPIOS";
   ui.whMunicipalDeleteIds = targets.map((w) => w.id);
+  ui.whMunicipalDeleteProvince = province || null;
   const summary = municipalSummaryByProvince(targets);
   const rows = summary.map((r) =>
     `<li><b>${esc(r.prov)}</b> (${r.count}): ${r.items} ítems · ${qty(r.unidades)} unidades · ${usd(r.valor)} · ${r.movs} movimientos activos</li>`).join("");
@@ -3786,16 +3874,16 @@ function whMunicipalDeleteFlow() {
     movs += c.movements.length;
   }
   const needsTarget = hasStock || movs > 0;
-  modal(`Eliminar ${targets.length} municipios`, `
-    <p>Se eliminarán los <b>${targets.length} almacenes municipales</b> que existen (todos los municipios de Cuba presentes, agrupados por provincia):</p>
+  modal(`Eliminar ${n} ${n === 1 ? "municipio" : "municipios"}${province ? ` de ${esc(province)}` : ""}`, `
+    <p>Se eliminarán ${n === 1 ? "el <b>almacén municipal</b>" : `los <b>${n} almacenes municipales</b>`} ${province ? `creados en <b>${esc(province)}</b>` : "que existen (agrupados por provincia)"}:</p>
     <ul>${rows}</ul>
     ${needsTarget
-      ? `<p><b>⚠ Todavía tienen existencias o movimientos</b> (${movs} movimientos, incluida la papelera). Elige a qué almacén <b>no municipal</b> pasan antes de eliminarlos: nada se pierde. Si no hay ninguno, crea uno primero o limpia antes los municipios (🧹).</p>
+      ? `<p><b>⚠ Todavía tienen existencias o movimientos</b> (${movs} movimientos, incluida la papelera). Elige a qué almacén <b>restante</b> pasan antes de eliminarlos: nada se pierde. Si no hay ninguno, crea uno primero o limpia antes los municipios (🧹).</p>
          ${remaining.length ? `<label>Mover todo a<select name="moveTo">${remaining.map((o) => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></label>` : `<p class="banner">No hay almacén de destino: crea primero otro almacén no municipal.</p>`}`
-      : `<p>No tienen existencias ni movimientos (por ejemplo, tras <b>🧹 Limpiar inventario</b>): se eliminan sin destino. Después podrás volver a crearlos con <b>🏗️ Crear los ${TOTAL_MUNICIPIOS} municipios</b>.</p>`}
+      : `<p>No tienen existencias ni movimientos: se eliminan sin destino. Después podrás volver a crearlos en 0 haciendo clic en <b>🏗️ Crear</b>.</p>`}
     <p>Los demás almacenes y el catálogo compartido se conservan. Cada eliminación queda en <b>Entradas</b> y en la auditoría. Esta operación es irreversible desde la aplicación.</p>
-    <label>Escriba ELIMINAR ${targets.length} MUNICIPIOS para confirmar<input name="confirmation" required autocomplete="off"></label>
-    <div class="row mt14"><button class="btn danger" ${needsTarget && !remaining.length ? "disabled" : ""}>Eliminar ${targets.length} municipios</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whMunicipalDeleteForm");
+    <label>Escriba ELIMINAR ${n} ${noun} para confirmar<input name="confirmation" required autocomplete="off"></label>
+    <div class="row mt14"><button class="btn danger" ${needsTarget && !remaining.length ? "disabled" : ""}>Eliminar ${n} ${n === 1 ? "municipio" : "municipios"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whMunicipalDeleteForm");
   render();
 }
 
@@ -5070,28 +5158,59 @@ function bindApp() {
   $("#whMunicipalClearForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const ids = ui.whMunicipalClearIds;
-    if (!Array.isArray(ids) || ids.length !== TOTAL_MUNICIPIOS) return toast("Revise de nuevo los municipios.", "err");
-    if (new FormData(e.target).get("confirmation") !== `LIMPIAR ${ids.length} MUNICIPIOS`) return toast(`Escriba LIMPIAR ${ids.length} MUNICIPIOS para confirmar.`, "err");
-    ui.modal = `<div class="modal-back"><div class="modal small" role="dialog" aria-modal="true"><div class="h2">Limpiando los ${ids.length} municipios…</div><p>Verificando la copia y guardando todos los cambios. No cierre esta ventana.</p></div></div>`;
+    if (!Array.isArray(ids) || !ids.length || ids.length > TOTAL_MUNICIPIOS) return toast("Revise de nuevo los municipios.", "err");
+    const noun = ids.length === 1 ? "MUNICIPIO" : "MUNICIPIOS";
+    const conf = new FormData(e.target).get("confirmation");
+    const allowedConf = ids.length === 1 ? ["LIMPIAR 1 MUNICIPIO", "LIMPIAR 1 MUNICIPIOS"] : [`LIMPIAR ${ids.length} MUNICIPIOS`];
+    if (!allowedConf.includes(conf)) return toast(`Escriba LIMPIAR ${ids.length} ${noun} para confirmar.`, "err");
+    ui.modal = `<div class="modal-back"><div class="modal small" role="dialog" aria-modal="true"><div class="h2">Limpiando ${ids.length === 1 ? "1 municipio" : `los ${ids.length} municipios`}…</div><p>Verificando la copia y guardando todos los cambios. No cierre esta ventana.</p></div></div>`;
     render();
     const r = await store.clearWarehouse(null, ids);
     ui.modal = null;
     ui.whMunicipalClearIds = null;
     if (r.error) return toast(r.error, "err");
     ui.filter = "AQUI";
-    toast(r.changed ? `Municipios limpiados · copia ${r.backup}` : `Los ${ids.length} municipios ya están vacíos.`, "ok");
+    toast(r.changed ? `Municipios limpiados · copia ${r.backup}` : `${ids.length === 1 ? "El municipio ya está vacío." : `Los ${ids.length} municipios ya están vacíos.`}`, "ok");
   });
   $("#whMunicipalDeleteForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
     const ids = ui.whMunicipalDeleteIds;
+    const prov = ui.whMunicipalDeleteProvince || null;
     if (!Array.isArray(ids) || !ids.length) return toast("Revise de nuevo los municipios.", "err");
-    if (new FormData(e.target).get("confirmation") !== `ELIMINAR ${ids.length} MUNICIPIOS`) return toast(`Escriba ELIMINAR ${ids.length} MUNICIPIOS para confirmar.`, "err");
-    const moveTo = new FormData(e.target).get("moveTo") || null;
-    const r = store.deleteMunicipalWarehouses(moveTo);
+    const noun = ids.length === 1 ? "MUNICIPIO" : "MUNICIPIOS";
+    const fd = new FormData(e.target);
+    const conf = fd.get("confirmation");
+    const allowedConf = ids.length === 1 ? ["ELIMINAR 1 MUNICIPIO", "ELIMINAR 1 MUNICIPIOS"] : [`ELIMINAR ${ids.length} MUNICIPIOS`];
+    if (!allowedConf.includes(conf)) return toast(`Escriba ELIMINAR ${ids.length} ${noun} para confirmar.`, "err");
+    const moveTo = fd.get("moveTo") || null;
+    const r = store.deleteMunicipalWarehouses(moveTo, prov);
     ui.modal = null;
     ui.whMunicipalDeleteIds = null;
+    ui.whMunicipalDeleteProvince = null;
     if (r.error) return toast(r.error, "err");
-    toast(`🗑️ Eliminados ${r.deleted} municipios${r.destino ? ` · existencias y movimientos pasaron a «${r.destino}»` : ""}. Revisa Entradas.`, "ok");
+    if (prov && ui.whProvince === prov) ui.whProvince = "";
+    toast(`🗑️ Eliminados ${r.deleted} ${r.deleted === 1 ? "municipio" : "municipios"}${prov ? ` de ${prov}` : ""}${r.destino ? ` · existencias y movimientos pasaron a «${r.destino}»` : ""}. Revisa Entradas.`, "ok");
+    render();
+  });
+  $("#whProvinceEditForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const prov = e.target.dataset.prov || "";
+    const count = Number(e.target.dataset.count) || 0;
+    const fd = new FormData(e.target);
+    const items = [];
+    for (let i = 0; i < count; i++) {
+      items.push({
+        id: fd.get(`id_${i}`),
+        name: fd.get(`name_${i}`),
+        code: fd.get(`code_${i}`),
+        location: fd.get(`location_${i}`),
+        notes: fd.get(`notes_${i}`),
+      });
+    }
+    const r = store.updateProvinceWarehouses(prov, items);
+    if (r.error) return toast(r.error, "err");
+    ui.modal = null;
+    toast(r.updated ? `✏️ Modificados ${r.updated} ${r.updated === 1 ? "almacén" : "almacenes"} de ${prov}.` : `Sin cambios en ${prov}.`, "ok");
     render();
   });
   $("#warehouseForm")?.addEventListener("submit", (e) => {
@@ -5202,7 +5321,7 @@ function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"
 
 function onClick(e) {
   const openerBefore = document.activeElement;
-  const t = e.target.closest("[data-rate-range],[data-rate-currency],[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-clear],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last],[data-fc-order],[data-mg-hist]");
+  const t = e.target.closest("[data-rate-range],[data-rate-currency],[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-clear],[data-prov-create],[data-prov-select],[data-prov-edit],[data-prov-delete],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last],[data-fc-order],[data-mg-hist]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
@@ -5242,6 +5361,10 @@ function onClick(e) {
   else if (d.whEdit) { warehouseModal(store.warehouseById(d.whEdit)); render(); }
   else if (d.whDel) whDeleteFlow(d.whDel);
   else if (d.whClear) whClearFlow(d.whClear);
+  else if (d.provCreate) whProvinceCreateFlow(d.provCreate);
+  else if (d.provSelect) whProvinceSelectFlow(d.provSelect);
+  else if (d.provEdit) whProvinceEditFlow(d.provEdit);
+  else if (d.provDelete) whMunicipalDeleteFlow(d.provDelete);
   else if (d.whTr) { transferModal({ fromId: d.whTr }); render(); }
   else if (d.whImp) { const st = ivState(); st.warehouseId = d.whImp; st.last = null; navTo("importValues"); }
   else if (d.whEntry) { ui.whDetail = ui.whDetail === d.whEntry ? null : d.whEntry; ui.whTab = "entradas"; render(); }
@@ -5443,6 +5566,7 @@ function onClick(e) {
   else if (act === "pinar-import-selected") importPinarSelected();
   else if (act === "wh-demo") {
     if (!allowed("VALUES_IMPORT")) return toast("Tu rol no puede importar valores.", "err");
+    if (!store.existingMunicipalWarehouses().length) return toast("Primero crea los municipios haciendo clic en Crear (todos o por provincia).", "err");
     confirmModal("<b>Datos de demostración, no mercancía real.</b> Se generarán cantidades ficticias del catálogo compartido en todos los almacenes salvo el principal. Se omitirán existencias y movimientos ya registrados; las cifras afectarán los totales y permitirán ventas. Haz una copia antes de continuar. ¿Deseas aplicarlo?", () => {
       const r = store.populateDemoWarehouses();
       if (r.error) return toast(r.error, "err");
@@ -5455,19 +5579,21 @@ function onClick(e) {
     const { missing, duplicates } = store.missingMunicipalities();
     if (duplicates.length) return toast(`Hay duplicados: ${duplicates.map((d) => `${d.name} (${d.count})`).join(", ")}. Deja exactamente uno por municipio.`, "err");
     if (!missing.length) { toast(`Los ${TOTAL_MUNICIPIOS} municipios ya existen.`, "ok"); render(); return; }
-    confirmModal(`<b>🏗️ Crear los almacenes municipales de Cuba.</b> Se crearán <b>${missing.length}</b> ${missing.length === 1 ? "almacén" : "almacenes"} (existencia cero) de los <b>${TOTAL_MUNICIPIOS} municipios</b> que aún no existen, con nombre, código y ubicación «municipio, provincia» oficiales.<br><br>Los que ya existan se conservan y no se tocan. Después conviene importar los valores reales de cada municipio (Importar valores).<br><br>¿Deseas crearlos?`, () => {
+    confirmModal(`<b>🏗️ Crear los almacenes municipales de Cuba.</b> Se crearán en <b>0</b> (existencia inicial 0 y existencia actual 0) los <b>${missing.length}</b> ${missing.length === 1 ? "almacén" : "almacenes"} de los <b>${TOTAL_MUNICIPIOS} municipios</b> que aún no existen, con nombre, código y ubicación «municipio, provincia» oficiales.<br><br>Los que ya existan se conservan y no se tocan. Después conviene importar los valores reales de cada municipio (Importar valores).<br><br>¿Deseas crearlos en 0?`, () => {
       const r = store.ensureMunicipalWarehouses("restaurar");
       if (r.error) return toast(r.error, "err");
-      toast(`🏗️ Creados ${r.created.length} almacenes municipales. Revisa Entradas.`, "ok");
+      toast(`🏗️ Creados ${r.created.length} almacenes municipales en 0. Revisa Entradas.`, "ok");
       render();
     });
   }
   else if (act === "wh-municipal-demo") {
     if (!allowed("VALUES_IMPORT") || !allowed("MOVEMENT_CREATE")) return toast("Tu rol no puede crear esta demostración.", "err");
-    confirmModal(`<b>SIMULACIÓN: no es inventario real.</b> Se crearán los almacenes municipales que falten (los ${TOTAL_MUNICIPIOS} municipios de Cuba que aún no existan), hasta 16 productos separados con el prefijo [SIMULADO] y entradas y salidas ficticias en todos ellos, incluido Pinar del Río. No se reemplazan los productos ni movimientos existentes.<br><br><b>Atención:</b> se guardarán en esta base y afectarán existencias, informes y disponibilidad de venta. Úsalo solo en una base de pruebas y haz una copia antes. Los precios son referencias del catálogo, no precios actuales. Las divisas se consultan aparte en Monedas.<br><br>¿Deseas crear esta simulación?`, () => {
+    const count = store.existingMunicipalWarehouses().length;
+    if (!count) return toast("Primero crea los municipios haciendo clic en Crear (todos o por provincia).", "err");
+    confirmModal(`<b>SIMULACIÓN: no es inventario real.</b> Se crearán hasta 16 productos separados con el prefijo [SIMULADO] y entradas y salidas ficticias en ${count === 1 ? "el <b>1 municipio creado</b>" : `los <b>${count} municipios ya creados</b>`} (no se crean municipios automáticamente ni se reemplazan los productos o movimientos existentes).<br><br><b>Atención:</b> se guardarán en esta base y afectarán existencias, informes y disponibilidad de venta. Úsalo solo en una base de pruebas y haz una copia antes. Los precios son referencias del catálogo, no precios actuales. Las divisas se consultan aparte en Monedas.<br><br>¿Deseas crear esta simulación?`, () => {
       const r = store.populateMunicipalDemo();
       if (r.error) return toast(r.error, "err");
-      toast(`SIMULADO: ${r.products} productos y ${r.movements} movimientos en ${r.warehouses} municipios${r.createdMunicipalities ? ` · ${r.createdMunicipalities} almacenes municipales creados` : ""}.`, "ok");
+      toast(`SIMULADO: ${r.products} productos y ${r.movements} movimientos en ${r.warehouses} ${r.warehouses === 1 ? "municipio" : "municipios"}.`, "ok");
       render();
     });
   }
