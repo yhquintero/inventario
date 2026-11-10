@@ -894,15 +894,187 @@ def backup_loop():
 def by_id(items):
     return {x.get("id"): x for x in (items or []) if isinstance(x, dict)}
 
+# Todos los municipios de Cuba (168: 167 en 15 provincias + Isla de la Juventud).
 # Las mismas denominaciones que la semilla Web; Herradura no es un municipio.
-PINAR_MUNICIPALITIES = (
-    ("PINAR DEL RÍO", "PRI"), ("CONSOLACIÓN DEL SUR", "CON"),
-    ("SAN LUIS", "SLU"), ("SAN JUAN Y MARTÍNEZ", "SJM"),
-    ("GUANE", "GUA"), ("MANTUA", "MAN"), ("MINAS DE MATAHAMBRE", "MIN"),
-    ("VIÑALES", "VIN"), ("LA PALMA", "LAP"), ("LOS PALACIOS", "LOS"),
-    ("SANDINO", "SAN"),
+# Formato: (provincia, municipio, código corto). Pinar del Río va primero y conserva
+# sus códigos históricos. «San Luis» existe en Pinar del Río y en Santiago de Cuba:
+# el de Santiago se crea como «SAN LUIS, SANTIAGO DE CUBA» para que el nombre sea único.
+CUBA_MUNICIPALITIES = (
+    ("Pinar del Río", "PINAR DEL RÍO", "PRI"),
+    ("Pinar del Río", "CONSOLACIÓN DEL SUR", "CON"),
+    ("Pinar del Río", "SAN LUIS", "SLU"),
+    ("Pinar del Río", "SAN JUAN Y MARTÍNEZ", "SJM"),
+    ("Pinar del Río", "GUANE", "GUA"),
+    ("Pinar del Río", "MANTUA", "MAN"),
+    ("Pinar del Río", "MINAS DE MATAHAMBRE", "MIN"),
+    ("Pinar del Río", "VIÑALES", "VIN"),
+    ("Pinar del Río", "LA PALMA", "LAP"),
+    ("Pinar del Río", "LOS PALACIOS", "LOS"),
+    ("Pinar del Río", "SANDINO", "SAN"),
+    ("Artemisa", "ARTEMISA", "ART"),
+    ("Artemisa", "ALQUÍZAR", "ALQ"),
+    ("Artemisa", "BAUTA", "BAU"),
+    ("Artemisa", "CAIMITO", "CAI"),
+    ("Artemisa", "GUANAJAY", "GUAA"),
+    ("Artemisa", "GÜIRA DE MELENA", "GUI"),
+    ("Artemisa", "MARIEL", "MAR"),
+    ("Artemisa", "SAN ANTONIO DE LOS BAÑOS", "SAD"),
+    ("Artemisa", "BAHÍA HONDA", "BAH"),
+    ("Artemisa", "SAN CRISTÓBAL", "SANA"),
+    ("Artemisa", "CANDELARIA", "CAN"),
+    ("La Habana", "ARROYO NARANJO", "ARR"),
+    ("La Habana", "BOYEROS", "BOY"),
+    ("La Habana", "CENTRO HABANA", "CEN"),
+    ("La Habana", "CERRO", "CER"),
+    ("La Habana", "COTORRO", "COT"),
+    ("La Habana", "DIEZ DE OCTUBRE", "DIE"),
+    ("La Habana", "GUANABACOA", "GUAL"),
+    ("La Habana", "HABANA DEL ESTE", "HAB"),
+    ("La Habana", "HABANA VIEJA", "HABL"),
+    ("La Habana", "LA LISA", "LAL"),
+    ("La Habana", "MARIANAO", "MARL"),
+    ("La Habana", "PLAYA", "PLA"),
+    ("La Habana", "PLAZA DE LA REVOLUCIÓN", "PDL"),
+    ("La Habana", "REGLA", "REG"),
+    ("La Habana", "SAN MIGUEL DEL PADRÓN", "SMD"),
+    ("Mayabeque", "BATABANÓ", "BAT"),
+    ("Mayabeque", "BEJUCAL", "BEJ"),
+    ("Mayabeque", "GÜINES", "GUIM"),
+    ("Mayabeque", "JARUCO", "JAR"),
+    ("Mayabeque", "MADRUGA", "MAD"),
+    ("Mayabeque", "MELENA DEL SUR", "MEL"),
+    ("Mayabeque", "NUEVA PAZ", "NUE"),
+    ("Mayabeque", "QUIVICÁN", "QUI"),
+    ("Mayabeque", "SAN JOSÉ DE LAS LAJAS", "SJD"),
+    ("Mayabeque", "SAN NICOLÁS DE BARI", "SND"),
+    ("Mayabeque", "SANTA CRUZ DEL NORTE", "SCD"),
+    ("Matanzas", "CALIMETE", "CAL"),
+    ("Matanzas", "CÁRDENAS", "CAR"),
+    ("Matanzas", "CIÉNAGA DE ZAPATA", "CIE"),
+    ("Matanzas", "COLÓN", "COL"),
+    ("Matanzas", "JAGÜEY GRANDE", "JAG"),
+    ("Matanzas", "JOVELLANOS", "JOV"),
+    ("Matanzas", "LIMONAR", "LIM"),
+    ("Matanzas", "LOS ARABOS", "LOSM"),
+    ("Matanzas", "MARTÍ", "MARM"),
+    ("Matanzas", "MATANZAS", "MAT"),
+    ("Matanzas", "PEDRO BETANCOURT", "PED"),
+    ("Matanzas", "PERICO", "PER"),
+    ("Matanzas", "UNIÓN DE REYES", "UNI"),
+    ("Villa Clara", "CAIBARIÉN", "CAIV"),
+    ("Villa Clara", "CAMAJUANÍ", "CAM"),
+    ("Villa Clara", "CIFUENTES", "CIF"),
+    ("Villa Clara", "CORRALILLO", "COR"),
+    ("Villa Clara", "ENCRUCIJADA", "ENC"),
+    ("Villa Clara", "MANICARAGUA", "MANV"),
+    ("Villa Clara", "PLACETAS", "PLAV"),
+    ("Villa Clara", "QUEMADO DE GÜINES", "QUE"),
+    ("Villa Clara", "RANCHUELO", "RAN"),
+    ("Villa Clara", "REMEDIOS", "REM"),
+    ("Villa Clara", "SAGUA LA GRANDE", "SAG"),
+    ("Villa Clara", "SANTA CLARA", "SANV"),
+    ("Villa Clara", "SANTO DOMINGO", "SANT"),
+    ("Cienfuegos", "ABREUS", "ABR"),
+    ("Cienfuegos", "AGUADA DE PASAJEROS", "AGU"),
+    ("Cienfuegos", "CIENFUEGOS", "CIEC"),
+    ("Cienfuegos", "CRUCES", "CRU"),
+    ("Cienfuegos", "CUMANAYAGUA", "CUM"),
+    ("Cienfuegos", "PALMIRA", "PAL"),
+    ("Cienfuegos", "RODAS", "ROD"),
+    ("Cienfuegos", "SANTA ISABEL DE LAS LAJAS", "SID"),
+    ("Sancti Spíritus", "CABAIGUÁN", "CAB"),
+    ("Sancti Spíritus", "FOMENTO", "FOM"),
+    ("Sancti Spíritus", "JATIBONICO", "JAT"),
+    ("Sancti Spíritus", "LA SIERPE", "LAS"),
+    ("Sancti Spíritus", "SANCTI SPÍRITUS", "SANS"),
+    ("Sancti Spíritus", "TAGUASCO", "TAG"),
+    ("Sancti Spíritus", "TRINIDAD", "TRI"),
+    ("Sancti Spíritus", "YAGUAJAY", "YAG"),
+    ("Ciego de Ávila", "CIRO REDONDO", "CIR"),
+    ("Ciego de Ávila", "BARAGUÁ", "BAR"),
+    ("Ciego de Ávila", "BOLIVIA", "BOL"),
+    ("Ciego de Ávila", "CHAMBAS", "CHA"),
+    ("Ciego de Ávila", "CIEGO DE ÁVILA", "CDA"),
+    ("Ciego de Ávila", "FLORENCIA", "FLO"),
+    ("Ciego de Ávila", "MAJAGUA", "MAJ"),
+    ("Ciego de Ávila", "MORÓN", "MOR"),
+    ("Ciego de Ávila", "PRIMERO DE ENERO", "PDE"),
+    ("Ciego de Ávila", "VENEZUELA", "VEN"),
+    ("Camagüey", "CAMAGÜEY", "CAMC"),
+    ("Camagüey", "CARLOS MANUEL DE CÉSPEDES", "CMD"),
+    ("Camagüey", "ESMERALDA", "ESM"),
+    ("Camagüey", "FLORIDA", "FLOC"),
+    ("Camagüey", "GUAIMARO", "GUAC"),
+    ("Camagüey", "JIMAGUAYÚ", "JIM"),
+    ("Camagüey", "MINAS", "MINC"),
+    ("Camagüey", "NAJASA", "NAJ"),
+    ("Camagüey", "NUEVITAS", "NUEC"),
+    ("Camagüey", "SANTA CRUZ DEL SUR", "SANC"),
+    ("Camagüey", "SIBANICÚ", "SIB"),
+    ("Camagüey", "SIERRA DE CUBITAS", "SIE"),
+    ("Camagüey", "VERTIENTES", "VER"),
+    ("Las Tunas", "AMANCIO RODRÍGUEZ", "AMA"),
+    ("Las Tunas", "COLOMBIA", "COLL"),
+    ("Las Tunas", "JESÚS MENÉNDEZ", "JES"),
+    ("Las Tunas", "JOBABO", "JOB"),
+    ("Las Tunas", "LAS TUNAS", "LASL"),
+    ("Las Tunas", "MAJIBACOA", "MAJL"),
+    ("Las Tunas", "MANATÍ", "MANL"),
+    ("Las Tunas", "PUERTO PADRE", "PUE"),
+    ("Holguín", "ANTILLA", "ANT"),
+    ("Holguín", "BÁGUANOS", "BAG"),
+    ("Holguín", "BANES", "BAN"),
+    ("Holguín", "CACOCUM", "CAC"),
+    ("Holguín", "CALIXTO GARCÍA", "CALH"),
+    ("Holguín", "CUETO", "CUE"),
+    ("Holguín", "FRANK PAÍS", "FRA"),
+    ("Holguín", "GIBARA", "GIB"),
+    ("Holguín", "HOLGUÍN", "HOL"),
+    ("Holguín", "MAYARÍ", "MAY"),
+    ("Holguín", "MOA", "MOA"),
+    ("Holguín", "RAFAEL FREYRE", "RAF"),
+    ("Holguín", "SAGUA DE TÁNAMO", "SDT"),
+    ("Holguín", "URBANO NORIS", "URB"),
+    ("Granma", "BARTOLOMÉ MASÓ", "BARG"),
+    ("Granma", "BAYAMO", "BAY"),
+    ("Granma", "BUEY ARRIBA", "BUE"),
+    ("Granma", "CAMPECHUELA", "CAMG"),
+    ("Granma", "CAUTO CRISTO", "CAU"),
+    ("Granma", "GUISA", "GUIG"),
+    ("Granma", "JIGUANÍ", "JIG"),
+    ("Granma", "MANZANILLO", "MANG"),
+    ("Granma", "MEDIA LUNA", "MED"),
+    ("Granma", "NIQUERO", "NIQ"),
+    ("Granma", "PILÓN", "PIL"),
+    ("Granma", "RÍO CAUTO", "RIO"),
+    ("Granma", "YARA", "YAR"),
+    ("Santiago de Cuba", "CONTRAMAESTRE", "CONS"),
+    ("Santiago de Cuba", "GUAMÁ", "GUAS"),
+    ("Santiago de Cuba", "JULIO ANTONIO MELLA", "JUL"),
+    ("Santiago de Cuba", "PALMA SORIANO", "PALS"),
+    ("Santiago de Cuba", "SAN LUIS", "SANL"),
+    ("Santiago de Cuba", "SANTIAGO DE CUBA", "SDC"),
+    ("Santiago de Cuba", "SEGUNDO FRENTE", "SEG"),
+    ("Santiago de Cuba", "SONGO LA MAYA", "SON"),
+    ("Santiago de Cuba", "TERCER FRENTE", "TER"),
+    ("Guantánamo", "BARACOA", "BARA"),
+    ("Guantánamo", "CAIMANERA", "CAIG"),
+    ("Guantánamo", "EL SALVADOR", "ELS"),
+    ("Guantánamo", "GUANTÁNAMO", "GUAG"),
+    ("Guantánamo", "IMÍAS", "IMI"),
+    ("Guantánamo", "MAISÍ", "MAI"),
+    ("Guantánamo", "MANUEL TAMES", "MANU"),
+    ("Guantánamo", "NICETO PÉREZ", "NIC"),
+    ("Guantánamo", "SAN ANTONIO DEL SUR", "SANG"),
+    ("Guantánamo", "YATERAS", "YAT"),
+    ("Isla de la Juventud", "ISLA DE LA JUVENTUD", "ISL"),
 )
+CUBA_PROVINCES = tuple(dict.fromkeys(prov for prov, _n, _c in CUBA_MUNICIPALITIES))
+TOTAL_MUNICIPIOS = len(CUBA_MUNICIPALITIES)  # 168
+# Compatibilidad: los 11 de Pinar del Río, en el mismo orden de siempre.
+PINAR_MUNICIPALITIES = tuple((n, c) for prov, n, c in CUBA_MUNICIPALITIES if prov == "Pinar del Río")
 PINAR_MIGRATION = "pinar_municipios_2026_1"
+CUBA_MIGRATION = "cuba_municipios_2026_1"
 
 
 def ensure_warehouses(st):
@@ -955,40 +1127,90 @@ def _municipality_key(name):
     text = "".join(c for c in text if not unicodedata.combining(c)).upper()
     text = re.sub(r"\s+", " ", text).strip()
     text = re.sub(r"^ALMACEN\s+", "", text)
-    return re.sub(r"\s*\(CENTRAL\)$", "", text).strip()
+    text = re.sub(r"\s*\(CENTRAL\)$", "", text).strip()
+    if "," in text:
+        text = text.split(",")[0].strip()
+    return re.sub(r"\s*\([^)]*\)$", "", text).strip()
 
 
-def add_pinar_municipalities(st):
+def _norm_text(text):
+    text = unicodedata.normalize("NFKD", str(text or ""))
+    text = "".join(c for c in text if not unicodedata.combining(c)).upper()
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _province_key(location):
+    loc = str(location or "")
+    if "," not in loc:
+        return ""
+    return _norm_text(loc.rsplit(",", 1)[-1])
+
+
+def _municipal_warehouse_name(province, name):
+    duplicated = sum(1 for _p, n, _c in CUBA_MUNICIPALITIES if _municipality_key(n) == _municipality_key(name)) > 1
+    return f"{name}, {province.upper()}" if duplicated and _norm_text(province) != "PINAR DEL RIO" else name
+
+
+def _matches_municipality(warehouse, province, name):
+    if not isinstance(warehouse, dict):
+        return False
+    key = _municipality_key(warehouse.get("name"))
+    expected = _municipality_key(name)
+    alias = expected == "CONSOLACION DEL SUR" and key == "CONSOLACION"
+    alias_lajas = expected == "SANTA ISABEL DE LAS LAJAS" and key == "LAJAS"
+    alias_amancio = expected == "AMANCIO RODRIGUEZ" and key == "AMANCIO"
+    if not (key == expected or alias or alias_lajas or alias_amancio):
+        return False
+    prov = _province_key(warehouse.get("location"))
+    expected_prov = _norm_text(province)
+    if prov == expected_prov:
+        return True
+    if prov:
+        return False
+    # Sin provincia declarada: solo vale si el nombre no está duplicado en Cuba
+    # (San Luis sí lo está: sin provincia se entiende el de Pinar del Río, el histórico).
+    duplicated = sum(1 for _p, n, _c in CUBA_MUNICIPALITIES if _municipality_key(n) == expected) > 1
+    return not duplicated or expected_prov == "PINAR DEL RIO"
+
+
+def add_cuba_municipalities(st):
     """Añade solo municipios ausentes. Nunca asigna mercancía a los nuevos."""
     active = [w for w in st["warehouses"] if isinstance(w, dict) and not w.get("deletedAt")]
-    names = {_municipality_key(w.get("name")) for w in active}
-    # «Consolación» es la abreviatura usada en PCH.xlsx.
-    if "CONSOLACION" in names:
-        names.add("CONSOLACION DEL SUR")
     timestamp = now() * 1000
     created = []
-    for name, code in PINAR_MUNICIPALITIES:
-        if _municipality_key(name) in names:
+    for province, name, code in CUBA_MUNICIPALITIES:
+        if any(_matches_municipality(w, province, name) for w in active):
             continue
+        wh_name = _municipal_warehouse_name(province, name)
         wid = "w_" + secrets.token_hex(12)
-        w = {"id": wid, "name": name, "code": code, "location": f"{name}, Pinar del Río",
+        w = {"id": wid, "name": wh_name, "code": code, "location": f"{name}, {province}",
              "notes": "Sin inventario inicial; importe los valores de este municipio.",
              "active": True, "isDefault": False, "createdAt": timestamp,
              "createdBy": "sistema", "deletedAt": None}
         st["warehouses"].append(w)
+        active.append(w)
         st["warehouseEntries"].append({
             "id": "e_" + secrets.token_hex(12), "ts": timestamp,
-            "date": dt.date.today().isoformat(), "warehouseId": wid, "warehouseName": name,
+            "date": dt.date.today().isoformat(), "warehouseId": wid, "warehouseName": wh_name,
             "kind": "CREACION", "source": "migración", "userName": "sistema",
-            "summary": f"Almacén «{name}» creado sin existencias; pendiente de importar valores",
+            "summary": f"Almacén «{wh_name}» creado sin existencias; pendiente de importar valores",
             "items": [], "counts": {"productos": 0}, "undoneAt": None,
         })
         for p in st.get("products") or []:
             if isinstance(p, dict):
+                if not isinstance(p.get("stocks"), dict):
+                    p["stocks"] = {}
+                if not isinstance(p.get("stocksInicial"), dict):
+                    p["stocksInicial"] = {}
                 p["stocks"][wid] = 0
                 p["stocksInicial"][wid] = 0
-        created.append(name)
+        created.append(wh_name)
     return created
+
+
+# Compatibilidad con el nombre anterior (migración de Pinar del Río).
+def add_pinar_municipalities(st):
+    return add_cuba_municipalities(st)
 
 
 def migrate_state():
@@ -1000,8 +1222,10 @@ def migrate_state():
         st, changed = ensure_warehouses(json.loads(r["data"]))
         if not isinstance(st, dict):
             raise ValueError("El estado guardado no es un objeto; no se puede migrar.")
-        done = q("SELECT 1 FROM schema_migrations WHERE name=?", (PINAR_MIGRATION,), one=True)
-        created = add_pinar_municipalities(st) if not done else []
+        # Migración de Cuba (168): una sola vez por base. Las bases que ya traían los
+        # 11 de Pinar del Río conservan esos almacenes y solo reciben los 157 que faltan.
+        done = q("SELECT 1 FROM schema_migrations WHERE name=?", (CUBA_MIGRATION,), one=True)
+        created = add_cuba_municipalities(st) if not done else []
         changed = changed or bool(created)
         try:
             CON.execute("BEGIN IMMEDIATE")
@@ -1011,7 +1235,7 @@ def migrate_state():
                             (version, json.dumps(st, ensure_ascii=False, separators=(",", ":")), now(), "migración de almacenes"))
                 index_state_changes(st, version, transactional=True)
             if not done:
-                CON.execute("INSERT INTO schema_migrations(name,applied_at) VALUES(?,?)", (PINAR_MIGRATION, now()))
+                CON.execute("INSERT INTO schema_migrations(name,applied_at) VALUES(?,?)", (CUBA_MIGRATION, now()))
             CON.commit()
         except Exception:
             CON.rollback()
@@ -2176,8 +2400,11 @@ def clear_warehouse(h, u, _):
     municipal = "municipalityIds" in b
     if municipal:
         ids = b.get("municipalityIds")
-        if b.get("confirmation") != "LIMPIAR 11 MUNICIPIOS" or not isinstance(ids, list) or len(ids) != 11 or any(not isinstance(x, str) or not x for x in ids) or len(set(ids)) != 11:
-            return h.err(400, "Confirme la limpieza de los 11 municipios y revise su selección.")
+        # La confirmación es «LIMPIAR N MUNICIPIOS» con N = total de Cuba (168).
+        # Se acepta también el texto histórico de 11 por compatibilidad con clientes viejos.
+        expected_confirmation = f"LIMPIAR {len(ids) if isinstance(ids, list) else 0} MUNICIPIOS"
+        if b.get("confirmation") not in (expected_confirmation, "LIMPIAR 11 MUNICIPIOS") or not isinstance(ids, list) or len(ids) != TOTAL_MUNICIPIOS or any(not isinstance(x, str) or not x for x in ids) or len(set(ids)) != TOTAL_MUNICIPIOS:
+            return h.err(400, f"Confirme la limpieza de los {TOTAL_MUNICIPIOS} municipios y revise su selección.")
     elif b.get("confirmation") != "LIMPIAR" or not isinstance(b.get("warehouseId"), str) or not b["warehouseId"]:
         return h.err(400, "Confirme la limpieza y proporcione el almacén.")
     else:
@@ -2196,14 +2423,12 @@ def clear_warehouse(h, u, _):
         if municipal:
             active = [w for w in state.get("warehouses", []) if isinstance(w, dict) and not w.get("deletedAt") and w.get("active") is not False]
             resolved = []
-            for name, _code in PINAR_MUNICIPALITIES:
-                expected_name = _municipality_key(name)
-                matches = [w for w in active if _municipality_key(w.get("name")) == expected_name or
-                           (expected_name == "CONSOLACION DEL SUR" and _municipality_key(w.get("name")) == "CONSOLACION")]
+            for province, name, _code in CUBA_MUNICIPALITIES:
+                matches = [w for w in active if _matches_municipality(w, province, name)]
                 if len(matches) != 1 or not isinstance(matches[0].get("id"), str):
-                    return h.err(409, f"Se necesita exactamente un almacén activo para {name}; revise los nombres.")
+                    return h.err(409, f"Se necesita exactamente un almacén activo para {name}, {province}; revise los nombres.")
                 resolved.append(matches[0]["id"])
-            if len(set(resolved)) != 11 or set(resolved) != set(ids):
+            if len(set(resolved)) != TOTAL_MUNICIPIOS or set(resolved) != set(ids):
                 return h.err(409, "Los municipios cambiaron desde la revisión. Recargue y confirme de nuevo.")
             ids = resolved
         prepared = state
@@ -2216,7 +2441,7 @@ def clear_warehouse(h, u, _):
             return h.err(exc.status, f"{next((w.get('name') for w in state.get('warehouses', []) if isinstance(w, dict) and w.get('id') == wid), wid)}: {exc}")
         details = {"changed": any(r["changed"] for r in results),
                    "products": sum(r["products"] for r in results), "movements": sum(r["movements"] for r in results),
-                   "warehouse": "11 municipios" if municipal else (results[0].get("warehouse") or "Almacén"),
+                   "warehouse": f"{TOTAL_MUNICIPIOS} municipios" if municipal else (results[0].get("warehouse") or "Almacén"),
                    "warehouses": results if municipal else None}
     if not details["changed"]:
         return h.send_json(200, {"ok": True, "version": expected, **details})

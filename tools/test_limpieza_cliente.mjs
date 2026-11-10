@@ -47,11 +47,11 @@ handler = async (url, opts) => {
 const r = await store.clearWarehouse('b');
 assert.equal(r.ok, true); assert.equal(store.version, 2);
 assert.equal(store.state.products[0].stocks.b, 0); assert.equal(store.state.products[0].stocks.a, 3);
-const municipalities = Array.from({ length: 11 }, (_, i) => `municipio${i}`);
+const municipalities = Array.from({ length: 168 }, (_, i) => `municipio${i}`);
 calls = [];
 handler = async (url, opts) => {
   if (url.endsWith('/warehouses/clear')) {
-    assert.deepEqual(JSON.parse(opts.body), { municipalityIds: municipalities, version: 2, confirmation: 'LIMPIAR 11 MUNICIPIOS' });
+    assert.deepEqual(JSON.parse(opts.body), { municipalityIds: municipalities, version: 2, confirmation: 'LIMPIAR 168 MUNICIPIOS' });
     return response({ ok: true, changed: true, backup: 'batch.bak', version: 3 });
   }
   return response({ version: 3, state: updated, closedDays: [] });
