@@ -4,14 +4,20 @@ Módulo nuevo de la Web (v5). Cada almacén guarda **su propia existencia** de c
 producto; el stock total es la suma de todos. Todo lo que entra a un almacén queda
 registrado en **Entradas**, con quién, cuándo y qué valores cambió.
 
-## Almacenes iniciales de Pinar del Río
+## Almacenes iniciales: todos los municipios de Cuba (168)
 
 En una base Web nueva, la primera entrada de un administrador crea un almacén por
-cada municipio de la provincia: Pinar del Río, Consolación del Sur, San Luis,
-San Juan y Martínez, Guane, Mantua, Minas de Matahambre, Viñales, La Palma,
-Los Palacios y Sandino. Pinar del Río es el principal: recibe el catálogo, la
-apertura y los movimientos históricos de `NovaGest SEPT.xlsx`. Sus existencias
-son históricas, no necesariamente actuales.
+cada municipio de Cuba: **168 en total** (167 en 15 provincias + Isla de la
+Juventud, municipio especial). Pinar del Río va primero y es el principal:
+recibe el catálogo, la apertura y los movimientos históricos de
+`NovaGest SEPT.xlsx`. Sus existencias son históricas, no necesariamente actuales.
+Las provincias son Pinar del Río (11), Artemisa (11), La Habana (15), Mayabeque
+(11), Matanzas (13), Villa Clara (13), Cienfuegos (8), Sancti Spíritus (8),
+Ciego de Ávila (10), Camagüey (13), Las Tunas (8), Holguín (14), Granma (13),
+Santiago de Cuba (9), Guantánamo (10) e Isla de la Juventud (1). En Almacenes
+puedes filtrar por provincia para no recorrer las 168 tarjetas, y el selector de
+almacén de la barra superior (y el de Venta rápida) agrupa los destinos por
+provincia.
 
 Los demás almacenes empiezan sin existencias: no se dispone de un inventario completo
 confirmado para cada municipio. El catálogo es compartido, pero el stock es independiente. Use
@@ -22,13 +28,19 @@ no se fusiona automáticamente con la sección de Consolación.
 
 ### Bases existentes
 
-Al actualizar y reiniciar el servidor, se realiza una migración única en SQLite: se
-crean los municipios que faltan con existencia cero y queda registrada su creación en
-Entradas y en la auditoría. Se reconocen los nombres municipales existentes, incluso
-con el prefijo «Almacén»; «Consolación» se reconoce como Consolación del Sur. El
-almacén principal anterior no se identifica automáticamente con ningún municipio ni
+Al actualizar y reiniciar el servidor, se realiza una migración única en SQLite
+(`cuba_municipios_2026_1`): se crean los municipios que faltan con existencia cero
+y queda registrada su creación en Entradas y en la auditoría. Las bases que ya
+traían los 11 de Pinar del Río conservan esos almacenes y solo reciben los 157
+que faltan. Se reconocen los nombres municipales existentes, incluso con el
+prefijo «Almacén»; «Consolación» se reconoce como Consolación del Sur, «Lajas»
+como Santa Isabel de las Lajas y «Amancio» como Amancio Rodríguez. El
+reconocimiento es por **nombre + provincia** (de la ubicación «municipio,
+provincia»): «San Luis» existe en Pinar del Río y en Santiago de Cuba, y el de
+Santiago se crea como «SAN LUIS, SANTIAGO DE CUBA» para que el nombre sea único.
+El almacén principal anterior no se identifica automáticamente con ningún municipio ni
 se mueve su mercancía. Si ya existen otros almacenes, se conservan, por lo que puede
-haber más de once en total. Revise las ubicaciones y, si corresponde, use traspasos.
+haber más de 168 en total. Revise las ubicaciones y, si corresponde, use traspasos.
 
 La migración no cambia precios, movimientos ni existencias existentes y no se repite
 al reiniciar, incluso si luego se elimina un almacén. Las bases anteriores pueden
@@ -36,20 +48,22 @@ contener saldos incorrectos de versiones previas: conviene revisarlos, pues no s
 corrigen automáticamente. Haga una copia antes de actualizar. Para llenar los nuevos
 almacenes, importe los valores reales por municipio.
 
-### Recuperar los 11 municipios («🏗️ Crear los 11 municipios»)
+### Recuperar los municipios («🏗️ Crear los 168 municipios»)
 
 Si los almacenes municipales desaparecieron (por ejemplo, borrados uno a uno desde
-**Editar → Eliminar** con la auditoría de por medio), la barra de **Almacenes** muestra,
-a quien tenga permiso para crear almacenes, el botón **🏗️ Crear los 11 municipios**
-(o **🏗️ Crear N municipios** si falta solo alguno). Al confirmar:
+**Editar → Eliminar** o en bloque con **🗑️ Eliminar municipios**), la barra de
+**Almacenes** muestra, a quien tenga permiso para crear almacenes, el botón
+**🏗️ Crear los 168 municipios** (o **🏗️ Crear N municipios** si falta solo alguno).
+Al confirmar:
 
 - Se crean únicamente los que faltan; los que ya existen se conservan y no se tocan.
-- Cada uno nace con **existencia cero**, nombre y código oficiales (PRI, CON, SLU, SJM,
-  GUA, MAN, MIN, VIN, LAP, LOS, SAN), ubicación «municipio, Pinar del Río» y queda
-  registrado en **Entradas** con origen `restauracion` y en la auditoría (acción
-  `CREATE`, entidad `warehouse`).
+- Cada uno nace con **existencia cero**, nombre y código cortos, ubicación
+  «municipio, provincia» y queda registrado en **Entradas** con origen
+  `restauracion` y en la auditoría (acción `CREATE`, entidad `warehouse`).
+  Pinar del Río conserva sus códigos históricos (PRI, CON, SLU, SJM, GUA, MAN,
+  MIN, VIN, LAP, LOS, SAN).
 - Es **atómico**: primero comprueba que no haya almacenes duplicados para un mismo
-  municipio; si los hay, avisa y no crea nada.
+  municipio (nombre + provincia); si los hay, avisa y no crea nada.
 - El botón desaparece cuando ya no falta ninguno.
 
 Después de restaurarlos conviene **Importar valores** por municipio con los datos
@@ -58,21 +72,23 @@ restaurados se gestionan como cualquier otro (editar, traspasar, eliminar — es
 con cuidado: recuerda que eliminar solo es posible sin existencias ni movimientos
 pendientes en él).
 
-**Iconos temáticos por municipio** (decorativos, junto al nombre en las tarjetas y en
-las listas de confirmación): 🏛️ Pinar del Río · 🏭 Consolación del Sur · 🍂 San Luis ·
-🌿 San Juan y Martínez · 🌾 Guane · 🌽 Mantua · ⛏️ Minas de Matahambre · ⛰️ Viñales ·
-🌴 La Palma · 🏰 Los Palacios · 🎖️ Sandino. Cualquier otro almacén usa 🏬.
+**Iconos temáticos** (decorativos, junto al nombre en las tarjetas): Pinar del Río
+conserva los suyos por municipio — 🏛️ Pinar del Río · 🏭 Consolación del Sur ·
+🍂 San Luis · 🌿 San Juan y Martínez · 🌾 Guane · 🌽 Mantua · ⛏️ Minas de
+Matahambre · ⛰️ Viñales · 🌴 La Palma · 🏰 Los Palacios · 🎖️ Sandino — y el resto
+de Cuba usa el icono de su provincia (🏙️ La Habana, 🔥 Santiago de Cuba,
+🏝️ Isla de la Juventud, etc.). Cualquier otro almacén usa 🏬.
 
-### Simulación diferenciada de los 11 municipios
+### Simulación diferenciada de los 168 municipios
 
-En **Almacenes → Simular 11 municipios** un administrador, jefe o almacenero puede
-confirmar la creación de un lote **ficticio**. Desde la v1.1.0, si falta alguno de
-los 11 almacenes municipales, el propio botón **los crea** (existencia cero,
-nombre y código oficiales, registrados en Entradas y en la auditoría); no hace
-falta reiniciar el servidor ni la migración de la base. Se generan hasta 16 productos
-separados con prefijo `[SIMULADO]`, basados en nombres y precios del catálogo
-existente, con entradas y salidas diferentes en cada uno de los 11 municipios,
-incluido Pinar del Río. No son ventas, mercancía real ni precios actuales. Los
+En **Almacenes → Simular 168 municipios** un administrador, jefe o almacenero puede
+confirmar la creación de un lote **ficticio**. Si falta alguno de los 168
+almacenes municipales, el propio botón **los crea** (existencia cero, nombre y
+código, registrados en Entradas y en la auditoría); no hace falta reiniciar el
+servidor ni la migración de la base. Se generan hasta 16 productos separados con
+prefijo `[SIMULADO]`, basados en nombres y precios del catálogo existente, con
+entradas y salidas diferentes en cada uno de los 168 municipios, incluido Pinar
+del Río. No son ventas, mercancía real ni precios actuales. Los
 movimientos llevan una nota de simulación y se registran con la fecha de creación;
 no se inventan operaciones históricas.
 
@@ -155,14 +171,15 @@ identifica ese conflicto, la aplicación bloquea la edición y ofrece descargar 
 local sensible para revisarla con el administrador, o descartarla explícitamente. No
 la importa ni la fusiona automáticamente. Proteja el archivo descargado.
 
-### Limpiar los 11 municipios a la vez
+### Limpiar los 168 municipios a la vez
 
-El botón **Limpiar inventario de los 11 municipios** está junto a las acciones de
-simulación y solo lo ve ADMINISTRADOR. Se muestran los 11 nombres y sus indicadores;
-para aprobar se debe escribir **LIMPIAR 11 MUNICIPIOS**. Se exige identificar un
-único almacén activo por municipio (se acepta «Consolación» como abreviatura); si
-falta alguno o hay nombres duplicados, se bloquea para evitar seleccionar destinos
-incorrectos. Los almacenes adicionales no se incluyen.
+El botón **🧹 Limpiar inventario de los 168 municipios** está junto a las acciones de
+simulación y solo lo ve ADMINISTRADOR. Se muestran los 168 municipios agrupados
+por provincia con sus indicadores (ya no se listan uno a uno); para aprobar se
+debe escribir **LIMPIAR 168 MUNICIPIOS**. Se exige identificar un único almacén
+activo por municipio (nombre + provincia; se aceptan «Consolación», «Lajas» y
+«Amancio» como abreviaturas); si falta alguno o hay duplicados, se bloquea para
+evitar seleccionar destinos incorrectos. Los almacenes adicionales no se incluyen.
 
 La operación también examina movimientos en papelera y existencias iniciales aunque
 los indicadores visibles estén en cero. Se verifica una sola copia cifrada de toda
@@ -175,6 +192,28 @@ Los identificadores de protección que quedan tras limpiar no cuentan como movim
 al eliminar un almacén vacío y se conservan sin trasladarlos. Aun así, saldos iniciales
 o movimientos reales en papelera sí requieren un destino al eliminar el almacén.
 El último almacén no se puede eliminar.
+
+### Eliminar los municipios en bloque («🗑️ Eliminar N municipios»)
+
+Justo después de **🧹 Limpiar inventario…** está el botón **🗑️ Eliminar N municipios**
+(solo ADMINISTRADOR; N es cuántos almacenes municipales existen en ese momento, 168
+cuando están todos). Elimina en bloque los almacenes municipales que existan — no
+exige que estén los 168, así que sirve también si ya borraste algunos de uno en uno.
+Para aprobar se debe escribir **ELIMINAR N MUNICIPIOS**.
+
+- Si los municipios **todavía tienen existencias o movimientos** (papelera incluida),
+  hay que elegir un almacén **no municipal** de destino: todo pasa allí y nada se
+  pierde. Si no hay ninguno, se bloquea: crea primero otro almacén o limpia antes
+  los municipios.
+- Si están **vacíos** (por ejemplo, tras 🧹 Limpiar), se eliminan sin destino.
+- **Nunca deja la base sin almacenes**: si los municipales fueran todos los que hay,
+  se bloquea con el aviso de crear otro primero.
+- Cada eliminación queda en **Entradas** (origen `municipal`) y en la auditoría
+  (acción `DELETE`, entidad `warehouse`). Después se pueden volver a crear con
+  **🏗️ Crear los 168 municipios**.
+- El flujo completo recomendado es: **🧹 Limpiar** → **🗑️ Eliminar** → trabajar sin
+  municipios → **🏗️ Crear** cuando se necesiten de nuevo. Eliminar de uno en uno
+  desde cada tarjeta sigue funcionando igual (con permiso de almacén).
 
 ## 2. Almacén en uso
 
@@ -270,10 +309,16 @@ cerrado**.
 
 ```bash
 node tools/test_almacenes.mjs
+node tools/test_pinar_municipios.mjs
 node tools/test_demo_municipios.mjs
+node tools/test_eliminar_municipios.mjs
+python3 tools/test_migracion_pinar.py
+python3 tools/test_limpieza_municipios.py
 ```
 
-14 pruebas: conversión de los datos anteriores, existencias por almacén, creación de
-almacenes, pegado del Excel con coma decimal, aviso de sobrescritura, importación que no
-toca los otros almacenes, modo *completar*, idempotencia, traspasos, deshacer y borrado
-con fusión.
+Pruebas de almacenes y municipios: conversión de los datos anteriores, existencias
+por almacén, creación de almacenes, pegado del Excel con coma decimal, aviso de
+sobrescritura, importación que no toca los otros almacenes, modo *completar*,
+idempotencia, traspasos, deshacer y borrado con fusión; semilla de los 168
+municipios de Cuba, simulación en los 168, migración SQLite a 168, limpieza
+atómica de los 168 y eliminación en bloque con destino y recreación.

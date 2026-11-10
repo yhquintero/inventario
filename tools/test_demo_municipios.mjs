@@ -20,9 +20,9 @@ const oldWarehouses = JSON.stringify(store.state.warehouses);
 const oldLength = store.state.movements.length;
 const r = store.populateMunicipalDemo();
 assert.ok(r.ok);
-assert.equal(r.warehouses, 11);
+assert.equal(r.warehouses, 168);
 assert.equal(r.products, 16);
-assert.equal(r.movements, 16 * 11 * 2);
+assert.equal(r.movements, 16 * 168 * 2);
 const demoProducts = store.state.products.filter((p) => p.demoMunicipios);
 const demoMovements = store.state.movements.filter((m) => m.demoMunicipios);
 assert.equal(JSON.stringify(store.state.products.filter((p) => !p.demoMunicipios)), oldProducts);
@@ -34,7 +34,7 @@ assert.ok(demoProducts.every((p) => p.name.startsWith("[SIMULADO]") && p.observa
 assert.ok(new Set(demoProducts.map((p) => p.category)).size > 1, "se combinan categorías del catálogo");
 assert.ok(demoMovements.every((m) => m.notes.includes("SIMULADO") && m.date === todayISO() && m.type !== "VENTA"));
 const ws = store.warehousesActive();
-assert.equal(ws.length, 11);
+assert.equal(ws.length, 168);
 for (const w of ws) {
   const wm = demoMovements.filter((m) => m.warehouseId === w.id);
   assert.equal(wm.filter((m) => m.type === "ENTRADA").length, 16);
@@ -47,7 +47,7 @@ for (const w of ws) {
     assert.ok(p.stocks[w.id] > 0);
   }
 }
-assert.equal(new Set(ws.map((w) => demoProducts.map((p) => p.stocks[w.id]).join(","))).size, 11, "cada municipio tiene una combinación distinta de existencias");
+assert.equal(new Set(ws.map((w) => demoProducts.map((p) => p.stocks[w.id]).join(","))).size, 168, "cada municipio tiene una combinación distinta de existencias");
 const beforeRepeat = JSON.stringify(store.shared());
 assert.ok(store.populateMunicipalDemo().error);
 assert.equal(JSON.stringify(store.shared()), beforeRepeat);
@@ -68,7 +68,7 @@ const quitado = store.state.warehouses.pop();
 const rCrear = store.populateMunicipalDemo();
 assert.ok(rCrear.ok, "crea el municipio que falte en lugar de fallar");
 assert.equal(rCrear.createdMunicipalities, 1);
-assert.equal(rCrear.warehouses, 11);
+assert.equal(rCrear.warehouses, 168);
 assert.ok(store.warehousesActive().some((w) => w.name === quitado.name), "el municipio eliminado vuelve a crearse");
 store.seed();
 store.state.warehouses[0].name = "Almacén Pinar del Río (Central)";
@@ -79,5 +79,5 @@ assert.ok(store.populateMunicipalDemo().error, "no se adivina el municipio si ha
 assert.equal(JSON.stringify(store.shared()), before);
 store.state.warehouses.pop();
 store.state.session.role = "ALMACENERO";
-assert.equal(store.populateMunicipalDemo().warehouses, 11, "alias municipales y permisos de almacenero");
-console.log("✔ Simulación municipal: 11 almacenes, entradas y salidas diferenciadas, preservación y controles");
+assert.equal(store.populateMunicipalDemo().warehouses, 168, "alias municipales y permisos de almacenero");
+console.log("✔ Simulación municipal: 168 almacenes de Cuba, entradas y salidas diferenciadas, preservación y controles");

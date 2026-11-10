@@ -11,7 +11,7 @@ const temp = mkdtempSync(join(tmpdir(), "novagest-pinar-"));
 cpSync(join(root, "web/js"), temp, { recursive: true });
 writeFileSync(join(temp, "package.json"), '{"type":"module"}');
 globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
-const { store } = await import(pathToFileURL(join(temp, "store.js")).href);
+const { store, CUBA_MUNICIPALITIES, TOTAL_MUNICIPIOS } = await import(pathToFileURL(join(temp, "store.js")).href);
 const { SEED } = await import(pathToFileURL(join(temp, "seed-data.js")).href);
 const { WAREHOUSE_DEFAULT_ID } = await import(pathToFileURL(join(temp, "calc.js")).href);
 const androidSeed = JSON.parse(readFileSync(join(root, "app/src/main/assets/seed.json"), "utf8"));
@@ -21,10 +21,19 @@ for (const p of SEED.products) assert.equal(p.stockInicial, openings.get(p.name)
 
 store.state.session = { id: 1, username: "admin", displayName: "Admin", role: "ADMINISTRADOR" };
 store.seed();
-const expected = ["PINAR DEL RÍO", "CONSOLACIÓN DEL SUR", "SAN LUIS", "SAN JUAN Y MARTÍNEZ", "GUANE", "MANTUA", "MINAS DE MATAHAMBRE", "VIÑALES", "LA PALMA", "LOS PALACIOS", "SANDINO"];
-assert.deepEqual(store.state.warehouses.map((w) => w.name), expected);
+assert.equal(TOTAL_MUNICIPIOS, 168);
+assert.equal(CUBA_MUNICIPALITIES.length, 168);
+const expectedPinar = ["PINAR DEL RÍO", "CONSOLACIÓN DEL SUR", "SAN LUIS", "SAN JUAN Y MARTÍNEZ", "GUANE", "MANTUA", "MINAS DE MATAHAMBRE", "VIÑALES", "LA PALMA", "LOS PALACIOS", "SANDINO"];
+assert.deepEqual(store.state.warehouses.slice(0, 11).map((w) => w.name), expectedPinar, "Pinar del Río va primero, en el orden histórico");
+assert.equal(store.state.warehouses.length, 168, "todos los municipios de Cuba");
+assert.equal(new Set(store.state.warehouses.map((w) => w.name)).size, 168, "nombres únicos (San Luis de Santiago lleva sufijo)");
+assert.ok(store.state.warehouses.some((w) => w.name === "SAN LUIS, SANTIAGO DE CUBA" && w.location === "SAN LUIS, Santiago de Cuba"), "San Luis duplicado desambiguado por provincia");
+assert.ok(store.state.warehouses.some((w) => w.name === "ISLA DE LA JUVENTUD" && w.location.includes("Isla de la Juventud")), "Isla de la Juventud, municipio especial");
+assert.ok(store.state.warehouses.some((w) => w.name === "HABANA VIEJA" && w.location.includes("La Habana")), "La Habana incluida");
+assert.equal(store.missingMunicipalities().missing.length, 0);
+assert.equal(store.municipalWarehouses().warehouses.length, 168);
 assert.equal(store.defaultWarehouse().id, WAREHOUSE_DEFAULT_ID);
-assert.equal(store.state.warehouseEntries.length, 11);
+assert.equal(store.state.warehouseEntries.length, 168);
 assert.ok(store.state.movements.every((m) => m.warehouseId === WAREHOUSE_DEFAULT_ID));
 for (const p of store.state.products) {
   const seed = SEED.products.find((s) => s.name === p.name);
@@ -50,4 +59,4 @@ existing.warehouses[0].name = "ALMACÉN EXISTENTE";
 store.applyServer({ state: existing, version: 5 });
 assert.deepEqual(store.state.warehouses.map((w) => w.name), ["ALMACÉN EXISTENTE"]);
 assert.equal(store.state.products.find((p) => p.id === cement.id).stockActual, 30);
-console.log("✔ Municipios de Pinar: semilla histórica, almacenes independientes y base existente");
+console.log("✔ Municipios de Cuba (168): semilla histórica en Pinar del Río, almacenes independientes por provincia y base existente");

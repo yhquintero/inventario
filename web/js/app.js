@@ -1,4 +1,4 @@
-import { store, warehouseIcon } from "./store.js";
+import { store, warehouseIcon, warehouseProvince, CUBA_PROVINCES, TOTAL_MUNICIPIOS } from "./store.js";
 import { api, setLicenseErrorHandler } from "./api.js";
 import { parseLegacyCuadreGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
 import { LicenseManager } from "./license.js";
@@ -98,7 +98,7 @@ let ui = {
   dashboardCompare: (() => { try { return localStorage.getItem("novagest.dashboardCompare") === "1"; } catch { return false; } })(),
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
   histTab: "precios", rateChartRange: "all", rateChartSource: "all", rateChartMode: "daily", rateChartCurrencies: ["USD", "EUR", "MLC"],
-  whTab: "almacenes", whKind: "TODOS", whFilter: "", whDetail: null, pdfWarehouseId: null, iv: null,
+  whTab: "almacenes", whKind: "TODOS", whFilter: "", whProvince: "", whDetail: null, pdfWarehouseId: null, iv: null, whMunicipalClearIds: null, whMunicipalDeleteIds: null,
   license: {
     status: null, loading: true, error: null, key: "", activating: false, info: null, infoLoaded: false,
     lastGenerated: null, tab: "estado", expand: false, infoTried: false,
@@ -3004,7 +3004,7 @@ function posView() {
         <div class="form-grid">
           <label>Fecha<input type="date" id="posDate" value="${ui.posDate || todayISO()}" max="${todayISO()}"></label>
           <label>Tipo<select id="posCenter">${["TIENDA", "GESTOR"].map((c) => `<option ${ui.posCenter === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
-          <label class="span-2">Almacén<select id="posWh" data-tip="La venta descuenta del almacén elegido">${store.warehousesActive().map((w) => `<option value="${w.id}" ${w.id === wid ? "selected" : ""}>${esc(w.name)} · ${qty(store.warehouseStats(w).unidades)} uds</option>`).join("")}</select></label>
+          <label class="span-2">Almacén<select id="posWh" data-tip="La venta descuenta del almacén elegido">${warehouseOptions(wid, { withUnits: true })}</select></label>
           <label class="span-2">Domicilio <small>CUP</small><input type="number" id="posDom" step="any" value="${ui.posDom || 0}"></label>
           <label>Cobro<select id="posPayment"><option value="CONTADO" ${!isFiado ? "selected" : ""}>Contado</option><option value="FIADO" ${isFiado ? "selected" : ""} ${customers.length ? "" : "disabled"}>Fiado (por cobrar)</option></select></label>
           <label>Vence <small>(fiado)</small><input type="date" id="posDue" value="${ui.posDue || ""}" ${isFiado ? "" : "disabled"}></label>
@@ -3516,6 +3516,39 @@ const WH_KIND_TAG = { CREACION: "entrada", VALORES: "venta", TRASPASO: "gestor",
 const fieldLabel = (k) => (k === "created" ? "producto nuevo" : VALUE_FIELDS.find((f) => f.key === k)?.short || k);
 const fmtVal = (v) => (v === null || v === undefined || v === "" ? "—" : esc(String(v)));
 
+/** Provincia de un almacén según su ubicación («MUNICIPIO, Provincia»); «Otros» si no es municipal. */
+function provinceOfWarehouse(w) {
+  const prov = warehouseProvince(w?.location);
+  return CUBA_PROVINCES.includes(prov) ? prov : "Otros almacenes";
+}
+/** Opciones de almacén agrupadas por provincia (168 municipios caben en un <select> plano, pero agrupados se encuentran). */
+function warehouseOptions(selectedId, { withUnits = false } = {}) {
+  const list = store.warehousesActive();
+  const groups = new Map();
+  for (const w of list) {
+    const prov = provinceOfWarehouse(w);
+    if (!groups.has(prov)) groups.set(prov, []);
+    groups.get(prov).push(w);
+  }
+  const order = [...CUBA_PROVINCES, "Otros almacenes"];
+  return order.filter((prov) => groups.has(prov)).map((prov) =>
+    `<optgroup label="${esc(prov)}">${groups.get(prov).map((x) =>
+      `<option value="${x.id}" ${x.id === selectedId ? "selected" : ""}>${esc(x.name)}${withUnits ? ` · ${qty(store.warehouseStats(x).unidades)} uds` : ""}</option>`).join("")}</optgroup>`
+  ).join("");
+}
+/** Resumen por provincia de una lista de almacenes con sus indicadores (para los modales de 168). */
+function municipalSummaryByProvince(warehouses) {
+  const byProv = new Map();
+  for (const w of warehouses) {
+    const prov = provinceOfWarehouse(w);
+    const s = store.warehouseStats(w);
+    if (!byProv.has(prov)) byProv.set(prov, { prov, count: 0, items: 0, unidades: 0, valor: 0, movs: 0 });
+    const row = byProv.get(prov);
+    row.count++; row.items += s.items; row.unidades += s.unidades; row.valor += s.valor; row.movs += s.movs;
+  }
+  return [...CUBA_PROVINCES, "Otros almacenes"].filter((prov) => byProv.has(prov)).map((prov) => byProv.get(prov));
+}
+
 /** Selector de almacén de la barra superior: todo apunta al almacén elegido. */
 function whPicker() {
   const list = store.warehousesActive();
@@ -3524,7 +3557,7 @@ function whPicker() {
   const w = store.warehouseById(id);
   return `<label class="wh-pick" data-tip="Almacén activo: la existencia, la venta y las importaciones apuntan aquí">
     <span>🏬</span>
-    <select id="whSel">${list.map((x) => `<option value="${x.id}" ${x.id === id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select>
+    <select id="whSel">${warehouseOptions(id)}</select>
     <small class="hint">${w ? `${qty(store.warehouseStats(w).unidades)} uds` : ""}</small>
   </label>`;
 }
@@ -3537,7 +3570,7 @@ function warehouseCard(w, s, active) {
   const isActive = active?.id === w.id;
   return `<div class="card wh-card ${isActive ? "on" : ""}">
     <div class="card-h"><span class="k">${w.isDefault ? "★ Principal" : "Almacén"}${isActive ? " · en uso" : ""}</span><span class="tag mov">${esc(w.code || "")}</span></div>
-    <h3 class="wh-name"><span class="wh-ico" aria-hidden="true">${warehouseIcon(w.name)}</span>${hl(w.name)}</h3>
+    <h3 class="wh-name"><span class="wh-ico" aria-hidden="true">${warehouseIcon(w.name, w.location)}</span>${hl(w.name)}</h3>
     <p class="hint">${esc(w.location || "Sin ubicación")}${w.notes ? ` · ${esc(w.notes)}` : ""}</p>
     <div class="wh-stats">
       <div><span>Ítems</span><b>${s.items}</b></div>
@@ -3572,7 +3605,7 @@ function warehouseEntriesPanel() {
     <div class="toolbar">
       <div class="chips">${kinds.map((k) => `<button class="chip ${ui.whKind === k ? "on" : ""}" data-wh-kind="${k}">${k === "TODOS" ? "Todas" : WH_KIND[k]}</button>`).join("")}</div>
       <div class="row">
-        <select class="sel" id="whFilterSel"><option value="">Todos los almacenes</option>${store.warehousesActive().map((w) => `<option value="${w.id}" ${ui.whFilter === w.id ? "selected" : ""}>${esc(w.name)}</option>`).join("")}</select>
+        <select class="sel" id="whFilterSel"><option value="">Todos los almacenes</option>${warehouseOptions(ui.whFilter)}</select>
       </div>
     </div>
     <p class="hint">Aquí queda cada entrada: cuando se creó un almacén, cada vez que se importaron valores y cada traspaso. Se puede deshacer la última entrada de valores o un traspaso.</p>
@@ -3618,12 +3651,17 @@ function warehousesView() {
   }
   const whs = store.warehousesActive();
   if (ui.whFilter && !whs.some((w) => w.id === ui.whFilter)) ui.whFilter = "";
+  if (ui.whProvince && !whs.some((w) => provinceOfWarehouse(w) === ui.whProvince)) ui.whProvince = "";
   const canEdit = allowed("WAREHOUSE_EDIT");
   const canImport = allowed("VALUES_IMPORT");
   const active = store.activeWarehouse() || whs[0];
   const stats = whs.map((w) => ({ w, s: store.warehouseStats(w) }));
   const tot = stats.reduce((a, { s }) => ({ items: a.items + s.items, unidades: a.unidades + s.unidades, valor: a.valor + s.valor }), { items: 0, unidades: 0, valor: 0 });
   const entradas = (store.state.warehouseEntries || []).length;
+  const missingCount = store.missingMunicipalities().missing.length || 0;
+  const municipalCount = store.existingMunicipalWarehouses().length;
+  const visibleStats = ui.whProvince ? stats.filter(({ w }) => provinceOfWarehouse(w) === ui.whProvince) : stats;
+  const provincesPresent = [...CUBA_PROVINCES, "Otros almacenes"].filter((prov) => whs.some((w) => provinceOfWarehouse(w) === prov));
   return `
     <div class="toolbar">
       <div class="chips">
@@ -3633,9 +3671,10 @@ function warehousesView() {
       <div class="row">
         ${canEdit ? `<button class="btn" data-act="wh-new">🏬 ＋ Nuevo almacén</button>` : ""}
         ${canEdit && whs.length > 1 && active ? `<button class="btn ghost" data-wh-tr="${active.id}">🚚 ⇄ Traspaso</button>` : ""}
-        ${canEdit && (store.missingMunicipalities().missing.length || 0) > 0 ? `<button class="btn gold" data-act="wh-municipal-create">🏗️ Crear ${store.missingMunicipalities().missing.length === 11 ? "los 11 municipios" : `${store.missingMunicipalities().missing.length} municipio${store.missingMunicipalities().missing.length > 1 ? "s" : ""}`}</button>` : ""}
-        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button><button class="btn ghost" data-act="wh-demo">🧪 Llenar con datos de prueba</button><button class="btn ghost" data-act="wh-municipal-demo">🗺️ Simular 11 municipios</button>` : ""}
-        ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost danger-t" data-act="wh-municipal-clear">🧹 Limpiar inventario de los 11 municipios</button>` : ""}
+        ${canEdit && missingCount > 0 ? `<button class="btn gold" data-act="wh-municipal-create">🏗️ Crear ${missingCount === TOTAL_MUNICIPIOS ? `los ${TOTAL_MUNICIPIOS} municipios` : `${missingCount} municipio${missingCount > 1 ? "s" : ""}`}</button>` : ""}
+        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button><button class="btn ghost" data-act="wh-demo">🧪 Llenar con datos de prueba</button><button class="btn ghost" data-act="wh-municipal-demo">🗺️ Simular ${TOTAL_MUNICIPIOS} municipios</button>` : ""}
+        ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost danger-t" data-act="wh-municipal-clear">🧹 Limpiar inventario de los ${TOTAL_MUNICIPIOS} municipios</button>` : ""}
+        ${store.state.session?.role === "ADMINISTRADOR" && municipalCount > 0 ? `<button class="btn ghost danger-t" data-act="wh-municipal-delete">🗑️ Eliminar ${municipalCount} municipios</button>` : ""}
       </div>
     </div>
     ${(store.state.warehouseEntries || []).some((e) => e.source === "DEMOSTRACIÓN" && !e.undoneAt) ? `<div class="banner info">Hay existencias de demostración ficticias en uno o más almacenes. No representan mercancía real. Revise Entradas antes de operar.</div>` : ""}
@@ -3645,7 +3684,16 @@ function warehousesView() {
       ${kpi("Unidades en total", qty(tot.unidades), "Suma de todos los almacenes", "gold")}
       ${kpi("Valor a precio venta", usd(tot.valor), `Almacén en uso: ${esc(active?.name || "—")}`, "green")}
     </div>
-    ${ui.whTab === "entradas" ? warehouseEntriesPanel() : `<div class="wh-grid mt14">${stats.map(({ w, s }) => warehouseCard(w, s, active)).join("") || `<div class="card empty">Todavía no hay almacenes. Crea el primero para empezar.</div>`}</div>`}`;
+    ${ui.whTab === "entradas" ? warehouseEntriesPanel() : `
+    <div class="toolbar mt14">
+      <div class="row">
+        <label class="hint">Provincia
+          <select class="sel" id="whProvinceSel"><option value="">Todas las provincias (${whs.length})</option>${provincesPresent.map((prov) => `<option value="${esc(prov)}" ${ui.whProvince === prov ? "selected" : ""}>${esc(prov)} (${whs.filter((w) => provinceOfWarehouse(w) === prov).length})</option>`).join("")}</select>
+        </label>
+        ${ui.whProvince ? `<span class="hint">Mostrando ${visibleStats.length} de ${whs.length} almacenes · <button class="btn ghost small" data-act="wh-province-clear">Ver todas</button></span>` : `<span class="hint">168 municipios de Cuba agrupados por provincia: filtra para no recorrerlos todos.</span>`}
+      </div>
+    </div>
+    <div class="wh-grid mt14">${visibleStats.map(({ w, s }) => warehouseCard(w, s, active)).join("") || `<div class="card empty">Todavía no hay almacenes. Crea el primero para empezar.</div>`}</div>`}`;
 }
 
 /* ---------------------------- modales de almacén ---------------------------- */
@@ -3673,7 +3721,7 @@ function transferModal({ fromId = null, productId = null } = {}) {
     <p class="hint">El traspaso mueve existencia de un almacén a otro. No es una venta: el cuadre del día y las ventas no se tocan.</p>
     <div class="form-grid">
       <label>Desde<input value="${esc(from.name)}" readonly><input type="hidden" name="fromId" value="${from.id}"></label>
-      <label>Hacia<select name="toId">${whs.filter((w) => w.id !== from.id).map((w) => `<option value="${w.id}" ${w.id === dest?.id ? "selected" : ""}>${esc(w.name)}</option>`).join("")}</select></label>
+      <label>Hacia<select name="toId">${warehouseOptions(dest?.id)}</select></label>
     </div>
     <label>Producto<select name="productId" id="trProd">
       ${prods.map((p) => `<option value="${p.id}" ${p.id === sel ? "selected" : ""}>${esc(p.name)} · hay ${qty(store.stockIn(p, from.id))}</option>`).join("") || `<option value="">— sin existencia en ${esc(from.name)} —</option>`}
@@ -3706,17 +3754,48 @@ function whMunicipalClearFlow() {
   const selection = store.municipalWarehouses();
   if (selection.error) return toast(selection.error, "err");
   ui.whMunicipalClearIds = selection.warehouses.map((w) => w.id);
-  const rows = selection.warehouses.map((w) => {
-    const s = store.warehouseStats(w);
-    return `<li><b>${warehouseIcon(w.name)} ${esc(w.name)}</b>: ${s.items} ítems · ${qty(s.unidades)} unidades · ${usd(s.valor)} · ${s.movs} movimientos activos</li>`;
-  }).join("");
-  modal("Limpiar inventario de los 11 municipios", `
-    <p>Se pondrán a cero las existencias iniciales y actuales y se eliminarán todos los movimientos, incluidos los de papelera, de estos 11 almacenes:</p>
+  const summary = municipalSummaryByProvince(selection.warehouses);
+  const rows = summary.map((r) =>
+    `<li><b>${esc(r.prov)}</b> (${r.count}): ${r.items} ítems · ${qty(r.unidades)} unidades · ${usd(r.valor)} · ${r.movs} movimientos activos</li>`).join("");
+  const totItems = summary.reduce((a, r) => a + r.items, 0);
+  const totUnits = summary.reduce((a, r) => a + r.unidades, 0);
+  modal(`Limpiar inventario de los ${TOTAL_MUNICIPIOS} municipios`, `
+    <p>Se pondrán a cero las existencias iniciales y actuales y se eliminarán todos los movimientos, incluidos los de papelera, de estos <b>${selection.warehouses.length} almacenes municipales</b> (todos los municipios de Cuba, agrupados por provincia):</p>
     <ul>${rows}</ul>
-    <p>Los demás almacenes y el catálogo compartido se conservan. Los informes calculados cambiarán; los cuadres y reportes importados guardados no se borran. Las entradas y traspasos relacionados dejarán de poder deshacerse.</p>
+    <p>Total ahora: <b>${totItems} ítems · ${qty(totUnits)} unidades</b>. Los demás almacenes y el catálogo compartido se conservan. Los informes calculados cambiarán; los cuadres y reportes importados guardados no se borran. Las entradas y traspasos relacionados dejarán de poder deshacerse.</p>
     <p>Se necesita conexión y se verificará una copia cifrada de toda la base. Si hay días cerrados o fiados vinculados en cualquiera de ellos, no se limpiará ninguno. Restaurar la copia reemplaza toda la base.</p>
-    <label>Escriba LIMPIAR 11 MUNICIPIOS para confirmar<input name="confirmation" required autocomplete="off"></label>
-    <div class="row mt14"><button class="btn danger">Limpiar los 11 municipios</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whMunicipalClearForm");
+    <label>Escriba LIMPIAR ${TOTAL_MUNICIPIOS} MUNICIPIOS para confirmar<input name="confirmation" required autocomplete="off"></label>
+    <div class="row mt14"><button class="btn danger">Limpiar los ${TOTAL_MUNICIPIOS} municipios</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whMunicipalClearForm");
+  render();
+}
+
+function whMunicipalDeleteFlow() {
+  if (store.state.session?.role !== "ADMINISTRADOR") return;
+  const targets = store.existingMunicipalWarehouses();
+  if (!targets.length) return toast("No hay almacenes municipales para eliminar.", "err");
+  ui.whMunicipalDeleteIds = targets.map((w) => w.id);
+  const summary = municipalSummaryByProvince(targets);
+  const rows = summary.map((r) =>
+    `<li><b>${esc(r.prov)}</b> (${r.count}): ${r.items} ítems · ${qty(r.unidades)} unidades · ${usd(r.valor)} · ${r.movs} movimientos activos</li>`).join("");
+  const targetIds = new Set(targets.map((w) => w.id));
+  const remaining = store.warehousesActive().filter((w) => !targetIds.has(w.id));
+  let hasStock = false, movs = 0;
+  for (const w of targets) {
+    const c = store.warehouseDeletionContents(w.id);
+    hasStock = hasStock || c.hasStock;
+    movs += c.movements.length;
+  }
+  const needsTarget = hasStock || movs > 0;
+  modal(`Eliminar ${targets.length} municipios`, `
+    <p>Se eliminarán los <b>${targets.length} almacenes municipales</b> que existen (todos los municipios de Cuba presentes, agrupados por provincia):</p>
+    <ul>${rows}</ul>
+    ${needsTarget
+      ? `<p><b>⚠ Todavía tienen existencias o movimientos</b> (${movs} movimientos, incluida la papelera). Elige a qué almacén <b>no municipal</b> pasan antes de eliminarlos: nada se pierde. Si no hay ninguno, crea uno primero o limpia antes los municipios (🧹).</p>
+         ${remaining.length ? `<label>Mover todo a<select name="moveTo">${remaining.map((o) => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></label>` : `<p class="banner">No hay almacén de destino: crea primero otro almacén no municipal.</p>`}`
+      : `<p>No tienen existencias ni movimientos (por ejemplo, tras <b>🧹 Limpiar inventario</b>): se eliminan sin destino. Después podrás volver a crearlos con <b>🏗️ Crear los ${TOTAL_MUNICIPIOS} municipios</b>.</p>`}
+    <p>Los demás almacenes y el catálogo compartido se conservan. Cada eliminación queda en <b>Entradas</b> y en la auditoría. Esta operación es irreversible desde la aplicación.</p>
+    <label>Escriba ELIMINAR ${targets.length} MUNICIPIOS para confirmar<input name="confirmation" required autocomplete="off"></label>
+    <div class="row mt14"><button class="btn danger" ${needsTarget && !remaining.length ? "disabled" : ""}>Eliminar ${targets.length} municipios</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whMunicipalDeleteForm");
   render();
 }
 
@@ -4787,6 +4866,7 @@ function bindApp() {
   }));
   $("#whSel")?.addEventListener("change", (e) => { store.setActiveWarehouse(e.target.value); ui.cart = []; render(); });
   $("#whFilterSel")?.addEventListener("change", (e) => { ui.whFilter = e.target.value; render(); });
+  $("#whProvinceSel")?.addEventListener("change", (e) => { ui.whProvince = e.target.value; render(); });
   $("#xlsxFile")?.addEventListener("change", (e) => e.target.files[0] && handleExcel(e.target.files[0]));
   const dz = $("#dropzone");
   if (dz) {
@@ -4989,17 +5069,30 @@ function bindApp() {
   });
   $("#whMunicipalClearForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (new FormData(e.target).get("confirmation") !== "LIMPIAR 11 MUNICIPIOS") return toast("Escriba LIMPIAR 11 MUNICIPIOS para confirmar.", "err");
     const ids = ui.whMunicipalClearIds;
-    if (!Array.isArray(ids) || ids.length !== 11) return toast("Revise de nuevo los municipios.", "err");
-    ui.modal = `<div class="modal-back"><div class="modal small" role="dialog" aria-modal="true"><div class="h2">Limpiando los 11 municipios…</div><p>Verificando la copia y guardando todos los cambios. No cierre esta ventana.</p></div></div>`;
+    if (!Array.isArray(ids) || ids.length !== TOTAL_MUNICIPIOS) return toast("Revise de nuevo los municipios.", "err");
+    if (new FormData(e.target).get("confirmation") !== `LIMPIAR ${ids.length} MUNICIPIOS`) return toast(`Escriba LIMPIAR ${ids.length} MUNICIPIOS para confirmar.`, "err");
+    ui.modal = `<div class="modal-back"><div class="modal small" role="dialog" aria-modal="true"><div class="h2">Limpiando los ${ids.length} municipios…</div><p>Verificando la copia y guardando todos los cambios. No cierre esta ventana.</p></div></div>`;
     render();
     const r = await store.clearWarehouse(null, ids);
     ui.modal = null;
     ui.whMunicipalClearIds = null;
     if (r.error) return toast(r.error, "err");
     ui.filter = "AQUI";
-    toast(r.changed ? `Municipios limpiados · copia ${r.backup}` : "Los 11 municipios ya están vacíos.", "ok");
+    toast(r.changed ? `Municipios limpiados · copia ${r.backup}` : `Los ${ids.length} municipios ya están vacíos.`, "ok");
+  });
+  $("#whMunicipalDeleteForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const ids = ui.whMunicipalDeleteIds;
+    if (!Array.isArray(ids) || !ids.length) return toast("Revise de nuevo los municipios.", "err");
+    if (new FormData(e.target).get("confirmation") !== `ELIMINAR ${ids.length} MUNICIPIOS`) return toast(`Escriba ELIMINAR ${ids.length} MUNICIPIOS para confirmar.`, "err");
+    const moveTo = new FormData(e.target).get("moveTo") || null;
+    const r = store.deleteMunicipalWarehouses(moveTo);
+    ui.modal = null;
+    ui.whMunicipalDeleteIds = null;
+    if (r.error) return toast(r.error, "err");
+    toast(`🗑️ Eliminados ${r.deleted} municipios${r.destino ? ` · existencias y movimientos pasaron a «${r.destino}»` : ""}. Revisa Entradas.`, "ok");
+    render();
   });
   $("#warehouseForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -5361,17 +5454,17 @@ function onClick(e) {
     if (!allowed("WAREHOUSE_EDIT")) return toast("Tu rol no puede crear almacenes.", "err");
     const { missing, duplicates } = store.missingMunicipalities();
     if (duplicates.length) return toast(`Hay duplicados: ${duplicates.map((d) => `${d.name} (${d.count})`).join(", ")}. Deja exactamente uno por municipio.`, "err");
-    if (!missing.length) { toast("Los 11 municipios ya existen.", "ok"); render(); return; }
-    confirmModal(`<b>🏗️ Crear los almacenes municipales.</b> Se crearán <b>${missing.length}</b> ${missing.length === 1 ? "almacén" : "almacenes"} (existencia cero):<br><br><ul>${missing.map((n) => `<li>${warehouseIcon(n)} <b>${esc(n)}</b></li>`).join("")}</ul>Los que ya existan se conservan y no se tocan. Después conviene importar los valores reales de cada municipio (Importar valores).<br><br>¿Deseas crearlos?`, () => {
+    if (!missing.length) { toast(`Los ${TOTAL_MUNICIPIOS} municipios ya existen.`, "ok"); render(); return; }
+    confirmModal(`<b>🏗️ Crear los almacenes municipales de Cuba.</b> Se crearán <b>${missing.length}</b> ${missing.length === 1 ? "almacén" : "almacenes"} (existencia cero) de los <b>${TOTAL_MUNICIPIOS} municipios</b> que aún no existen, con nombre, código y ubicación «municipio, provincia» oficiales.<br><br>Los que ya existan se conservan y no se tocan. Después conviene importar los valores reales de cada municipio (Importar valores).<br><br>¿Deseas crearlos?`, () => {
       const r = store.ensureMunicipalWarehouses("restaurar");
       if (r.error) return toast(r.error, "err");
-      toast(`🏗️ Creados ${r.created.length} almacenes municipales: ${r.created.join(", ")}. Revisa Entradas.`, "ok");
+      toast(`🏗️ Creados ${r.created.length} almacenes municipales. Revisa Entradas.`, "ok");
       render();
     });
   }
   else if (act === "wh-municipal-demo") {
     if (!allowed("VALUES_IMPORT") || !allowed("MOVEMENT_CREATE")) return toast("Tu rol no puede crear esta demostración.", "err");
-    confirmModal("<b>SIMULACIÓN: no es inventario real.</b> Se crearán los almacenes municipales que falten (los 11 municipios de Pinar del Río que aún no existan), hasta 16 productos separados con el prefijo [SIMULADO] y entradas y salidas ficticias en todos ellos, incluido Pinar del Río. No se reemplazan los productos ni movimientos existentes.<br><br><b>Atención:</b> se guardarán en esta base y afectarán existencias, informes y disponibilidad de venta. Úsalo solo en una base de pruebas y haz una copia antes. Los precios son referencias del catálogo, no precios actuales. Las divisas se consultan aparte en Monedas.<br><br>¿Deseas crear esta simulación?", () => {
+    confirmModal(`<b>SIMULACIÓN: no es inventario real.</b> Se crearán los almacenes municipales que falten (los ${TOTAL_MUNICIPIOS} municipios de Cuba que aún no existan), hasta 16 productos separados con el prefijo [SIMULADO] y entradas y salidas ficticias en todos ellos, incluido Pinar del Río. No se reemplazan los productos ni movimientos existentes.<br><br><b>Atención:</b> se guardarán en esta base y afectarán existencias, informes y disponibilidad de venta. Úsalo solo en una base de pruebas y haz una copia antes. Los precios son referencias del catálogo, no precios actuales. Las divisas se consultan aparte en Monedas.<br><br>¿Deseas crear esta simulación?`, () => {
       const r = store.populateMunicipalDemo();
       if (r.error) return toast(r.error, "err");
       toast(`SIMULADO: ${r.products} productos y ${r.movements} movimientos en ${r.warehouses} municipios${r.createdMunicipalities ? ` · ${r.createdMunicipalities} almacenes municipales creados` : ""}.`, "ok");
@@ -5379,6 +5472,8 @@ function onClick(e) {
     });
   }
   else if (act === "wh-municipal-clear") whMunicipalClearFlow();
+  else if (act === "wh-municipal-delete") whMunicipalDeleteFlow();
+  else if (act === "wh-province-clear") { ui.whProvince = ""; render(); }
   else if (act === "wh-new") { warehouseModal(); render(); }
   else if (act === "iv-go") { const st = ivState(); st.warehouseId = store.activeWarehouseId(); navTo("importValues"); }
   else if (act === "iv-analyze") {

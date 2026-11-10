@@ -1,3 +1,36 @@
+## NovaGest · revisión 2026-11-10 · Todos los municipios de Cuba (168) y Eliminar municipios
+
+### Almacenes: de los 11 de Pinar del Río a los 168 de Cuba
+- **Todos los municipios de Cuba (168)**: 167 en 15 provincias + Isla de la Juventud (municipio
+  especial). Una base nueva crea un almacén por municipio (Pinar del Río sigue primero y es el
+  principal con el histórico de `NovaGest SEPT.xlsx`; los demás nacen con existencia cero).
+  Las bases existentes reciben los 157 que faltan con la migración única
+  `cuba_municipios_2026_1` del servidor (atómica, idempotente, sin tocar existencias, precios
+  ni movimientos; los 11 de Pinar ya creados se conservan). «San Luis» existe en Pinar del Río
+  y en Santiago de Cuba: el de Santiago se crea como «SAN LUIS, SANTIAGO DE CUBA» para que el
+  nombre sea único, y el reconocimiento por nombre+provincia los distingue.
+- **Todo lo demás funciona con el total**: «🏗️ Crear los 168 municipios» (solo los que falten,
+  atómico, con Entradas `restauracion` y auditoría), «🗺️ Simular 168 municipios» (crea los que
+  falten y genera entradas/salidas ficticias en los 168), «🧹 Limpiar inventario de los 168
+  municipios» (confirmación `LIMPIAR 168 MUNICIPIOS`, copia cifrada verificada y transacción
+  única en el servidor; si uno tiene día cerrado o fiado, no se limpia ninguno) e Importar
+  valores, Traspasos, POS y Movimientos por almacén, igual que antes pero con 168 destinos.
+- **🗑️ Eliminar municipios** (nuevo, justo después de «🧹 Limpiar inventario…», solo
+  ADMINISTRADOR): elimina en bloque los almacenes municipales que existan. Si tienen
+  existencias o movimientos, hay que elegir un almacén no municipal de destino (nada se pierde);
+  si no hay ninguno, se bloquea («crea primero otro almacén»). Nunca deja la base sin almacenes.
+  Tras limpiar los municipios quedan vacíos y se pueden eliminar sin destino, y después volver a
+  crearlos con «🏗️ Crear los 168 municipios». Cada eliminación queda en Entradas (origen
+  `municipal`) y en la auditoría. Confirmación: `ELIMINAR N MUNICIPIOS`.
+- **Interfaz para 168**: filtro por provincia en Almacenes (16 grupos), selector de almacén
+  agrupado por provincia en la barra superior y en Venta rápida, resúmenes por provincia en los
+  modales de Crear/Limpiar/Eliminar (ya no se listan 168 filas), e iconos por provincia para el
+  resto de Cuba (Pinar del Río conserva sus iconos temáticos por municipio).
+- Pruebas: `test_pinar_municipios.mjs`, `test_demo_municipios.mjs`, `test_migracion_pinar.py`,
+  `test_limpieza_municipios.py` y `test_limpieza_cliente.mjs` actualizadas a 168, nueva
+  `test_eliminar_municipios.mjs` (permisos, destino, bloque sin almacenes y recreación) y
+  `smoke_web.mjs` en verde (88/88). Service worker `novagest-v54`.
+
 ## NovaGest v1.1.0 «Nebula» · revisión 2026-11-09 · Play Store y experiencia Top 1
 
 ### App Android (v1.1.0 · versionCode 7)

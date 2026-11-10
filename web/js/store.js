@@ -8,19 +8,191 @@ import {
 } from "./calc.js";
 
 const PRICE_FIELDS = ["precioVentaUsd", "precioVenta2Usd", "precioCostoUsd", "comisionCup"];
-// Solo se utiliza al inicializar una base nueva; no modifica almacenes existentes.
-const PINAR_MUNICIPALITIES = [
-  ["PINAR DEL RÍO", "PRI"], ["CONSOLACIÓN DEL SUR", "CON"],
-  ["SAN LUIS", "SLU"], ["SAN JUAN Y MARTÍNEZ", "SJM"],
-  ["GUANE", "GUA"], ["MANTUA", "MAN"], ["MINAS DE MATAHAMBRE", "MIN"],
-  ["VIÑALES", "VIN"], ["LA PALMA", "LAP"], ["LOS PALACIOS", "LOS"],
-  ["SANDINO", "SAN"],
+// Todos los municipios de Cuba (168: 167 en 15 provincias + Isla de la Juventud).
+// Solo se utiliza al inicializar una base nueva o al crear los que falten; no modifica
+// almacenes existentes. Formato: [provincia, municipio, código corto].
+// Pinar del Río va primero y conserva sus códigos históricos (PRI, CON, …) para no
+// romper bases ya creadas. «San Luis» existe en Pinar del Río y en Santiago de Cuba:
+// el de Santiago se crea como «SAN LUIS, SANTIAGO DE CUBA» para que el nombre sea único.
+export const CUBA_MUNICIPALITIES = [
+  ["Pinar del Río", "PINAR DEL RÍO", "PRI"],
+  ["Pinar del Río", "CONSOLACIÓN DEL SUR", "CON"],
+  ["Pinar del Río", "SAN LUIS", "SLU"],
+  ["Pinar del Río", "SAN JUAN Y MARTÍNEZ", "SJM"],
+  ["Pinar del Río", "GUANE", "GUA"],
+  ["Pinar del Río", "MANTUA", "MAN"],
+  ["Pinar del Río", "MINAS DE MATAHAMBRE", "MIN"],
+  ["Pinar del Río", "VIÑALES", "VIN"],
+  ["Pinar del Río", "LA PALMA", "LAP"],
+  ["Pinar del Río", "LOS PALACIOS", "LOS"],
+  ["Pinar del Río", "SANDINO", "SAN"],
+  ["Artemisa", "ARTEMISA", "ART"],
+  ["Artemisa", "ALQUÍZAR", "ALQ"],
+  ["Artemisa", "BAUTA", "BAU"],
+  ["Artemisa", "CAIMITO", "CAI"],
+  ["Artemisa", "GUANAJAY", "GUAA"],
+  ["Artemisa", "GÜIRA DE MELENA", "GUI"],
+  ["Artemisa", "MARIEL", "MAR"],
+  ["Artemisa", "SAN ANTONIO DE LOS BAÑOS", "SAD"],
+  ["Artemisa", "BAHÍA HONDA", "BAH"],
+  ["Artemisa", "SAN CRISTÓBAL", "SANA"],
+  ["Artemisa", "CANDELARIA", "CAN"],
+  ["La Habana", "ARROYO NARANJO", "ARR"],
+  ["La Habana", "BOYEROS", "BOY"],
+  ["La Habana", "CENTRO HABANA", "CEN"],
+  ["La Habana", "CERRO", "CER"],
+  ["La Habana", "COTORRO", "COT"],
+  ["La Habana", "DIEZ DE OCTUBRE", "DIE"],
+  ["La Habana", "GUANABACOA", "GUAL"],
+  ["La Habana", "HABANA DEL ESTE", "HAB"],
+  ["La Habana", "HABANA VIEJA", "HABL"],
+  ["La Habana", "LA LISA", "LAL"],
+  ["La Habana", "MARIANAO", "MARL"],
+  ["La Habana", "PLAYA", "PLA"],
+  ["La Habana", "PLAZA DE LA REVOLUCIÓN", "PDL"],
+  ["La Habana", "REGLA", "REG"],
+  ["La Habana", "SAN MIGUEL DEL PADRÓN", "SMD"],
+  ["Mayabeque", "BATABANÓ", "BAT"],
+  ["Mayabeque", "BEJUCAL", "BEJ"],
+  ["Mayabeque", "GÜINES", "GUIM"],
+  ["Mayabeque", "JARUCO", "JAR"],
+  ["Mayabeque", "MADRUGA", "MAD"],
+  ["Mayabeque", "MELENA DEL SUR", "MEL"],
+  ["Mayabeque", "NUEVA PAZ", "NUE"],
+  ["Mayabeque", "QUIVICÁN", "QUI"],
+  ["Mayabeque", "SAN JOSÉ DE LAS LAJAS", "SJD"],
+  ["Mayabeque", "SAN NICOLÁS DE BARI", "SND"],
+  ["Mayabeque", "SANTA CRUZ DEL NORTE", "SCD"],
+  ["Matanzas", "CALIMETE", "CAL"],
+  ["Matanzas", "CÁRDENAS", "CAR"],
+  ["Matanzas", "CIÉNAGA DE ZAPATA", "CIE"],
+  ["Matanzas", "COLÓN", "COL"],
+  ["Matanzas", "JAGÜEY GRANDE", "JAG"],
+  ["Matanzas", "JOVELLANOS", "JOV"],
+  ["Matanzas", "LIMONAR", "LIM"],
+  ["Matanzas", "LOS ARABOS", "LOSM"],
+  ["Matanzas", "MARTÍ", "MARM"],
+  ["Matanzas", "MATANZAS", "MAT"],
+  ["Matanzas", "PEDRO BETANCOURT", "PED"],
+  ["Matanzas", "PERICO", "PER"],
+  ["Matanzas", "UNIÓN DE REYES", "UNI"],
+  ["Villa Clara", "CAIBARIÉN", "CAIV"],
+  ["Villa Clara", "CAMAJUANÍ", "CAM"],
+  ["Villa Clara", "CIFUENTES", "CIF"],
+  ["Villa Clara", "CORRALILLO", "COR"],
+  ["Villa Clara", "ENCRUCIJADA", "ENC"],
+  ["Villa Clara", "MANICARAGUA", "MANV"],
+  ["Villa Clara", "PLACETAS", "PLAV"],
+  ["Villa Clara", "QUEMADO DE GÜINES", "QUE"],
+  ["Villa Clara", "RANCHUELO", "RAN"],
+  ["Villa Clara", "REMEDIOS", "REM"],
+  ["Villa Clara", "SAGUA LA GRANDE", "SAG"],
+  ["Villa Clara", "SANTA CLARA", "SANV"],
+  ["Villa Clara", "SANTO DOMINGO", "SANT"],
+  ["Cienfuegos", "ABREUS", "ABR"],
+  ["Cienfuegos", "AGUADA DE PASAJEROS", "AGU"],
+  ["Cienfuegos", "CIENFUEGOS", "CIEC"],
+  ["Cienfuegos", "CRUCES", "CRU"],
+  ["Cienfuegos", "CUMANAYAGUA", "CUM"],
+  ["Cienfuegos", "PALMIRA", "PAL"],
+  ["Cienfuegos", "RODAS", "ROD"],
+  ["Cienfuegos", "SANTA ISABEL DE LAS LAJAS", "SID"],
+  ["Sancti Spíritus", "CABAIGUÁN", "CAB"],
+  ["Sancti Spíritus", "FOMENTO", "FOM"],
+  ["Sancti Spíritus", "JATIBONICO", "JAT"],
+  ["Sancti Spíritus", "LA SIERPE", "LAS"],
+  ["Sancti Spíritus", "SANCTI SPÍRITUS", "SANS"],
+  ["Sancti Spíritus", "TAGUASCO", "TAG"],
+  ["Sancti Spíritus", "TRINIDAD", "TRI"],
+  ["Sancti Spíritus", "YAGUAJAY", "YAG"],
+  ["Ciego de Ávila", "CIRO REDONDO", "CIR"],
+  ["Ciego de Ávila", "BARAGUÁ", "BAR"],
+  ["Ciego de Ávila", "BOLIVIA", "BOL"],
+  ["Ciego de Ávila", "CHAMBAS", "CHA"],
+  ["Ciego de Ávila", "CIEGO DE ÁVILA", "CDA"],
+  ["Ciego de Ávila", "FLORENCIA", "FLO"],
+  ["Ciego de Ávila", "MAJAGUA", "MAJ"],
+  ["Ciego de Ávila", "MORÓN", "MOR"],
+  ["Ciego de Ávila", "PRIMERO DE ENERO", "PDE"],
+  ["Ciego de Ávila", "VENEZUELA", "VEN"],
+  ["Camagüey", "CAMAGÜEY", "CAMC"],
+  ["Camagüey", "CARLOS MANUEL DE CÉSPEDES", "CMD"],
+  ["Camagüey", "ESMERALDA", "ESM"],
+  ["Camagüey", "FLORIDA", "FLOC"],
+  ["Camagüey", "GUAIMARO", "GUAC"],
+  ["Camagüey", "JIMAGUAYÚ", "JIM"],
+  ["Camagüey", "MINAS", "MINC"],
+  ["Camagüey", "NAJASA", "NAJ"],
+  ["Camagüey", "NUEVITAS", "NUEC"],
+  ["Camagüey", "SANTA CRUZ DEL SUR", "SANC"],
+  ["Camagüey", "SIBANICÚ", "SIB"],
+  ["Camagüey", "SIERRA DE CUBITAS", "SIE"],
+  ["Camagüey", "VERTIENTES", "VER"],
+  ["Las Tunas", "AMANCIO RODRÍGUEZ", "AMA"],
+  ["Las Tunas", "COLOMBIA", "COLL"],
+  ["Las Tunas", "JESÚS MENÉNDEZ", "JES"],
+  ["Las Tunas", "JOBABO", "JOB"],
+  ["Las Tunas", "LAS TUNAS", "LASL"],
+  ["Las Tunas", "MAJIBACOA", "MAJL"],
+  ["Las Tunas", "MANATÍ", "MANL"],
+  ["Las Tunas", "PUERTO PADRE", "PUE"],
+  ["Holguín", "ANTILLA", "ANT"],
+  ["Holguín", "BÁGUANOS", "BAG"],
+  ["Holguín", "BANES", "BAN"],
+  ["Holguín", "CACOCUM", "CAC"],
+  ["Holguín", "CALIXTO GARCÍA", "CALH"],
+  ["Holguín", "CUETO", "CUE"],
+  ["Holguín", "FRANK PAÍS", "FRA"],
+  ["Holguín", "GIBARA", "GIB"],
+  ["Holguín", "HOLGUÍN", "HOL"],
+  ["Holguín", "MAYARÍ", "MAY"],
+  ["Holguín", "MOA", "MOA"],
+  ["Holguín", "RAFAEL FREYRE", "RAF"],
+  ["Holguín", "SAGUA DE TÁNAMO", "SDT"],
+  ["Holguín", "URBANO NORIS", "URB"],
+  ["Granma", "BARTOLOMÉ MASÓ", "BARG"],
+  ["Granma", "BAYAMO", "BAY"],
+  ["Granma", "BUEY ARRIBA", "BUE"],
+  ["Granma", "CAMPECHUELA", "CAMG"],
+  ["Granma", "CAUTO CRISTO", "CAU"],
+  ["Granma", "GUISA", "GUIG"],
+  ["Granma", "JIGUANÍ", "JIG"],
+  ["Granma", "MANZANILLO", "MANG"],
+  ["Granma", "MEDIA LUNA", "MED"],
+  ["Granma", "NIQUERO", "NIQ"],
+  ["Granma", "PILÓN", "PIL"],
+  ["Granma", "RÍO CAUTO", "RIO"],
+  ["Granma", "YARA", "YAR"],
+  ["Santiago de Cuba", "CONTRAMAESTRE", "CONS"],
+  ["Santiago de Cuba", "GUAMÁ", "GUAS"],
+  ["Santiago de Cuba", "JULIO ANTONIO MELLA", "JUL"],
+  ["Santiago de Cuba", "PALMA SORIANO", "PALS"],
+  ["Santiago de Cuba", "SAN LUIS", "SANL"],
+  ["Santiago de Cuba", "SANTIAGO DE CUBA", "SDC"],
+  ["Santiago de Cuba", "SEGUNDO FRENTE", "SEG"],
+  ["Santiago de Cuba", "SONGO LA MAYA", "SON"],
+  ["Santiago de Cuba", "TERCER FRENTE", "TER"],
+  ["Guantánamo", "BARACOA", "BARA"],
+  ["Guantánamo", "CAIMANERA", "CAIG"],
+  ["Guantánamo", "EL SALVADOR", "ELS"],
+  ["Guantánamo", "GUANTÁNAMO", "GUAG"],
+  ["Guantánamo", "IMÍAS", "IMI"],
+  ["Guantánamo", "MAISÍ", "MAI"],
+  ["Guantánamo", "MANUEL TAMES", "MANU"],
+  ["Guantánamo", "NICETO PÉREZ", "NIC"],
+  ["Guantánamo", "SAN ANTONIO DEL SUR", "SANG"],
+  ["Guantánamo", "YATERAS", "YAT"],
+  ["Isla de la Juventud", "ISLA DE LA JUVENTUD", "ISL"],
 ];
-// Icono temático por municipio (decorativo): cada uno remite a lo que evoca el lugar.
+export const CUBA_PROVINCES = [...new Set(CUBA_MUNICIPALITIES.map(([prov]) => prov))];
+export const TOTAL_MUNICIPIOS = CUBA_MUNICIPALITIES.length; // 168
+// Compatibilidad: los 11 de Pinar del Río, en el mismo orden de siempre.
+const PINAR_MUNICIPALITIES = CUBA_MUNICIPALITIES.filter(([prov]) => prov === "Pinar del Río").map(([, name, code]) => [name, code]);
+// Icono temático por municipio de Pinar del Río (decorativo): cada uno remite a lo que evoca el lugar.
 const MUNICIPALITY_ICONS = [
   ["PINAR DEL RIO", "🏛️"],        // capital de la provincia
   ["CONSOLACION", "🏭"],          // tradición azucarera
-  ["SAN LUIS", "🍂"],             // tierra de tabaco
+  ["SAN LUIS", "🍂"],             // tierra de tabaco (Pinar del Río)
   ["SAN JUAN Y MARTINEZ", "🌿"],  // Vuelta Abajo, tabaco fino
   ["GUANE", "🌾"],
   ["MANTUA", "🌽"],
@@ -30,12 +202,62 @@ const MUNICIPALITY_ICONS = [
   ["LOS PALACIOS", "🏰"],         // su nombre
   ["SANDINO", "🎖️"],              // en recuerdo del General de Hombres Libres
 ];
-/** Icono temático del almacén (municipio de Pinar del Río o 🏬 por defecto). */
-export function warehouseIcon(name) {
-  const key = normName(String(name || "")).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
+// Icono por provincia para el resto de Cuba (decorativo, agrupa visualmente).
+const PROVINCE_ICONS = [
+  ["PINAR DEL RIO", "🏛️"], ["ARTEMISA", "🌾"], ["LA HABANA", "🏙️"], ["MAYABEQUE", "🌺"],
+  ["MATANZAS", "🌊"], ["VILLA CLARA", "⭐"], ["CIENFUEGOS", "⚓"], ["SANCTI SPIRITUS", "🏰"],
+  ["CIEGO DE AVILA", "🌻"], ["CAMAGUEY", "🐄"], ["LAS TUNAS", "🌵"], ["HOLGUIN", "🏔️"],
+  ["GRANMA", "🚂"], ["SANTIAGO DE CUBA", "🔥"], ["GUANTANAMO", "🌴"], ["ISLA DE LA JUVENTUD", "🏝️"],
+];
+/** Provincia declarada en la ubicación («MUNICIPIO, Provincia») o "" si no consta. */
+export function warehouseProvince(location) {
+  const loc = String(location || "");
+  const idx = loc.lastIndexOf(",");
+  return idx >= 0 ? loc.slice(idx + 1).trim() : "";
+}
+/** Clave normalizada de un nombre municipal: sin «ALMACÉN», sin «(CENTRAL)» y sin
+ *  el sufijo de provincia («SAN LUIS, SANTIAGO DE CUBA» → «SAN LUIS»). */
+export function municipalityKey(name) {
+  let key = normName(String(name || "")).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
+  if (key.includes(",")) key = key.split(",")[0].trim();
+  key = key.replace(/\s*\([^)]*\)$/, "").trim();
+  return key;
+}
+/** ¿Un almacén (nombre + ubicación) corresponde al municipio (provincia, nombre)? */
+export function matchesMunicipality(warehouse, province, name) {
+  const key = municipalityKey(warehouse?.name);
+  const expected = municipalityKey(name);
+  const alias = expected === "CONSOLACION DEL SUR" && key === "CONSOLACION";
+  const aliasLajas = expected === "SANTA ISABEL DE LAS LAJAS" && key === "LAJAS";
+  const aliasAmancio = expected === "AMANCIO RODRIGUEZ" && key === "AMANCIO";
+  if (!(key === expected || alias || aliasLajas || aliasAmancio)) return false;
+  const provKey = normName(warehouseProvince(warehouse?.location));
+  const expectedProv = normName(province);
+  if (provKey === expectedProv) return true;
+  // Sin provincia declarada: solo vale si el nombre no está duplicado en Cuba
+  // (San Luis sí lo está: sin provincia se entiende el de Pinar del Río, el histórico).
+  if (provKey) return false;
+  const duplicated = CUBA_MUNICIPALITIES.filter(([, n]) => municipalityKey(n) === expected).length > 1;
+  return !duplicated || expectedProv === "PINAR DEL RIO";
+}
+/** Nombre con el que se crea el almacén de un municipio (único en la lista). */
+export function municipalWarehouseName(province, name) {
+  const duplicated = CUBA_MUNICIPALITIES.filter(([, n]) => municipalityKey(n) === municipalityKey(name)).length > 1;
+  return duplicated && normName(province) !== "PINAR DEL RIO" ? `${name}, ${province.toUpperCase()}` : name;
+}
+/** Icono temático del almacén (municipio o provincia de Cuba, o 🏬 por defecto). */
+export function warehouseIcon(name, location) {
+  const key = municipalityKey(name);
   if (!key) return "🏬";
-  if (key.includes("PINAR DEL RIO")) return "🏛️";
-  for (const [k, ico] of MUNICIPALITY_ICONS) if (key.includes(k)) return ico;
+  const prov = normName(warehouseProvince(location) || String(location || ""));
+  // San Luis de Santiago no es el de Pinar: usa el icono de su provincia.
+  const isSantiagoSanLuis = key === "SAN LUIS" && (prov === "SANTIAGO DE CUBA" || key.includes("SANTIAGO"));
+  if (!isSantiagoSanLuis) {
+    if (key.includes("PINAR DEL RIO")) return "🏛️";
+    for (const [k, ico] of MUNICIPALITY_ICONS) if (key.includes(k)) return ico;
+  }
+  if (prov) for (const [k, ico] of PROVINCE_ICONS) if (prov.includes(k) || k.includes(prov)) return ico;
+  for (const [k, ico] of PROVINCE_ICONS) if (key.includes(k)) return ico;
   return "🏬";
 }
 export const WAREHOUSE_KINDS = { CREACION: "Almacén creado", VALORES: "Valores importados", TRASPASO: "Traspaso", AJUSTE: "Ajuste", ELIMINACION: "Almacén eliminado", DESHACER: "Deshacer", LIMPIEZA: "Inventario limpiado" };
@@ -424,9 +646,9 @@ class Store {
     const admin = { id: s.session?.id, username: s.session?.username || "admin", displayName: s.session?.displayName || "Administrador" };
     const now = Date.now();
     const byName = {};
-    s.warehouses = PINAR_MUNICIPALITIES.map(([name, code], index) => ({
-      id: index === 0 ? WAREHOUSE_DEFAULT_ID : uid("w"), name, code,
-      location: `${name}, Pinar del Río`,
+    s.warehouses = CUBA_MUNICIPALITIES.map(([province, name, code], index) => ({
+      id: index === 0 ? WAREHOUSE_DEFAULT_ID : uid("w"), name: municipalWarehouseName(province, name), code,
+      location: `${name}, ${province}`,
       notes: index === 0 ? `Inventario histórico de ${SEED.source}.` : "Sin inventario inicial; importe los valores de este municipio.",
       active: true, isDefault: index === 0, createdAt: now, createdBy: admin.displayName, deletedAt: null,
     }));
@@ -559,56 +781,66 @@ class Store {
 
   /** Qué municipios faltan (o están duplicados), sin mutar nada. Para el botón de crear. */
   missingMunicipalities() {
-    const key = (name) => normName(name).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
     const active = this.warehousesActive().filter((w) => w.active !== false);
     const missing = [], duplicates = [];
-    for (const [name] of PINAR_MUNICIPALITIES) {
-      const expected = key(name);
-      const matches = active.filter((w) => key(w.name) === expected || (expected === "CONSOLACION DEL SUR" && key(w.name) === "CONSOLACION"));
+    for (const [province, name] of CUBA_MUNICIPALITIES) {
+      const matches = active.filter((w) => matchesMunicipality(w, province, name));
       if (matches.length === 0) missing.push(name);
-      else if (matches.length > 1) duplicates.push({ name, count: matches.length });
+      else if (matches.length > 1) duplicates.push({ name: `${name}, ${province}`, count: matches.length });
     }
     return { missing, duplicates };
   }
 
   municipalWarehouses() {
-    const key = (name) => normName(name).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
     const all = this.warehousesActive().filter((w) => w.active !== false);
     const warehouses = [];
-    for (const [name] of PINAR_MUNICIPALITIES) {
-      const expected = key(name);
-      const matches = all.filter((w) => key(w.name) === expected || (expected === "CONSOLACION DEL SUR" && key(w.name) === "CONSOLACION"));
-      if (matches.length !== 1) return { error: `Se necesita exactamente un almacén activo para ${name}; revisa los nombres antes de continuar.` };
+    for (const [province, name] of CUBA_MUNICIPALITIES) {
+      const matches = all.filter((w) => matchesMunicipality(w, province, name));
+      if (matches.length !== 1) return { error: `Se necesita exactamente un almacén activo para ${name}, ${province}; revisa los nombres antes de continuar.` };
       warehouses.push(matches[0]);
     }
     return { warehouses };
   }
 
+  /** Almacenes municipales que existen (aunque falten otros o haya duplicados).
+   *  Para «Eliminar municipios»: no exige que estén los 168. */
+  existingMunicipalWarehouses() {
+    const active = this.warehousesActive().filter((w) => w.active !== false);
+    const seen = new Set();
+    const warehouses = [];
+    for (const [province, name] of CUBA_MUNICIPALITIES) {
+      for (const w of active) {
+        if (seen.has(w.id)) continue;
+        if (matchesMunicipality(w, province, name)) { seen.add(w.id); warehouses.push(w); }
+      }
+    }
+    return warehouses;
+  }
+
   /** Igual que municipalWarehouses, pero crea los almacenes municipales que falten (existencia cero). Atómico: valida todo antes de tocar nada. */
   ensureMunicipalWarehouses(origin = "simulacion") {
-    const key = (name) => normName(name).replace(/^ALMACEN\s+/, "").replace(/\s*\(CENTRAL\)$/, "").trim();
     const active = this.warehousesActive().filter((w) => w.active !== false);
     // Primera pasada: comprobar cuántos coinciden por municipio; no se muta nada todavía.
-    const plan = PINAR_MUNICIPALITIES.map(([name, code]) => {
-      const expected = key(name);
-      const matches = active.filter((w) => key(w.name) === expected || (expected === "CONSOLACION DEL SUR" && key(w.name) === "CONSOLACION"));
-      return { name, code, matches };
-    });
-    for (const { name, matches } of plan)
+    const plan = CUBA_MUNICIPALITIES.map(([province, name, code]) => ({
+      province, name, code,
+      matches: active.filter((w) => matchesMunicipality(w, province, name)),
+    }));
+    for (const { name, province, matches } of plan)
       if (matches.length > 1)
-        return { error: `Hay ${matches.length} almacenes activos reconocidos como ${name}; deja exactamente uno antes de continuar.` };
+        return { error: `Hay ${matches.length} almacenes activos reconocidos como ${name}, ${province}; deja exactamente uno antes de continuar.` };
     // Segunda pasada: con la garantía de unicidad, crear los que falten.
     const who = this.state.session?.displayName || "sistema";
     const now = Date.now();
     const warehouses = [], created = [];
-    for (const { name, code, matches } of plan) {
+    for (const { province, name, code, matches } of plan) {
       if (matches.length === 1) { warehouses.push(matches[0]); continue; }
       const restaurar = origin === "restaurar";
+      const whName = municipalWarehouseName(province, name);
       const w = {
-        id: uid("w"), name, code, location: `${name}, Pinar del Río`,
+        id: uid("w"), name: whName, code, location: `${name}, ${province}`,
         notes: restaurar
-          ? "Restaurado con el botón «Crear los 11 municipios». Importa los valores reales de este municipio cuando corresponda."
-          : "Creado por la simulación de 11 municipios. Inventario ficticio; importa los valores reales cuando corresponda.",
+          ? `Restaurado con el botón «Crear los ${TOTAL_MUNICIPIOS} municipios». Importa los valores reales de este municipio cuando corresponda.`
+          : `Creado por la simulación de ${TOTAL_MUNICIPIOS} municipios. Inventario ficticio; importa los valores reales cuando corresponda.`,
         active: true, isDefault: false, createdAt: now, createdBy: who, deletedAt: null,
       };
       this.state.warehouses.push(w);
@@ -621,16 +853,95 @@ class Store {
       this.logEntry({
         warehouseId: w.id, kind: "CREACION", source: origin === "restaurar" ? "restauracion" : "simulacion",
         summary: origin === "restaurar"
-          ? `Almacén «${name}» restaurado con el botón Crear los 11 municipios`
-          : `Almacén «${name}» creado por la simulación de 11 municipios`,
+          ? `Almacén «${whName}» restaurado con el botón Crear los ${TOTAL_MUNICIPIOS} municipios`
+          : `Almacén «${whName}» creado por la simulación de ${TOTAL_MUNICIPIOS} municipios`,
         counts: {},
       });
-      this.audit("CREATE", "warehouse", name, w.id);
+      this.audit("CREATE", "warehouse", whName, w.id);
       warehouses.push(w);
-      created.push(name);
+      created.push(whName);
     }
     if (created.length) this.emit();
     return { warehouses, created };
+  }
+
+  /** Elimina en bloque los almacenes municipales que existan (🗑️ Eliminar municipios).
+   *  Solo ADMINISTRADOR. Si alguno tiene existencias o movimientos, hay que indicar
+   *  un almacén de destino no municipal al que pasen; si no hay ninguno, se bloquea.
+   *  Nunca deja la base sin almacenes. Es la contrapartida de «Crear los 168 municipios»:
+   *  tras limpiar (🧹) los municipios quedan vacíos y se pueden eliminar sin destino. */
+  deleteMunicipalWarehouses(moveTo = null) {
+    if (this.state.session?.role !== "ADMINISTRADOR") return { error: "Solo un administrador puede eliminar los municipios en bloque." };
+    const targets = this.existingMunicipalWarehouses();
+    if (!targets.length) return { error: "No hay almacenes municipales para eliminar." };
+    const targetIds = new Set(targets.map((w) => w.id));
+    const remaining = this.warehousesActive().filter((w) => !targetIds.has(w.id));
+    if (!remaining.length) return { error: "No quedaría ningún almacén. Crea primero otro almacén no municipal o elimina los municipios de uno en uno." };
+    // Contenido total a mover (existencias + movimientos, papelera incluida).
+    let hasStock = false, movs = 0;
+    for (const w of targets) {
+      const c = this.warehouseDeletionContents(w.id);
+      hasStock = hasStock || c.hasStock;
+      movs += c.movements.length;
+    }
+    const target = moveTo ? this.warehouseById(moveTo) : null;
+    if ((hasStock || movs) && (!target || target.deletedAt || targetIds.has(target.id))) {
+      return {
+        error: "Los municipios todavía tienen existencias o movimientos. Elige a qué almacén no municipal moverlos, o limpia primero los municipios.",
+        needsTarget: true, movimientos: movs,
+        options: remaining.map((o) => ({ id: o.id, name: o.name })),
+      };
+    }
+    const who = this.state.session?.displayName || "sistema";
+    const now = Date.now();
+    let movedProducts = 0;
+    // Mover existencias y movimientos al destino, si lo hay.
+    if (hasStock || movs) {
+      for (const w of targets) {
+        const c = this.warehouseDeletionContents(w.id);
+        for (const p of this.state.products) {
+          const si = Number(p.stocksInicial?.[w.id] || 0);
+          const s = Number(p.stocks?.[w.id] || 0);
+          p.stocks = p.stocks || {};
+          p.stocksInicial = p.stocksInicial || {};
+          if (si || s) {
+            p.stocksInicial[target.id] = round2((Number(p.stocksInicial[target.id]) || 0) + si);
+            p.stocks[target.id] = round2((Number(p.stocks[target.id]) || 0) + s);
+            movedProducts++;
+          }
+          delete p.stocks[w.id];
+          delete p.stocksInicial[w.id];
+        }
+        c.movements.forEach((m) => { m.warehouseId = target.id; });
+      }
+      this.state.products.forEach((p) => this.recalcProduct(p.id));
+    } else {
+      // Sin contenido: solo retirar las claves de existencias de los eliminados.
+      for (const w of targets) for (const p of this.state.products) {
+        if (p.stocks) delete p.stocks[w.id];
+        if (p.stocksInicial) delete p.stocksInicial[w.id];
+      }
+    }
+    const hadDefault = targets.some((w) => w.isDefault);
+    for (const w of targets) {
+      w.deletedAt = now;
+      w.deletedBy = who;
+      w.active = false;
+      if (w.isDefault) w.isDefault = false;
+      this.logEntry({
+        warehouseId: w.id, kind: "ELIMINACION", source: "municipal", warehouseName: w.name,
+        summary: `Almacén municipal «${w.name}» eliminado en bloque${target ? `; sus existencias y movimientos pasaron a «${target.name}»` : ""}`,
+        counts: { destino: target?.name || "" },
+      });
+      this.audit("DELETE", "warehouse", w.name, w.id);
+    }
+    if (hadDefault && remaining.length) remaining[0].isDefault = true;
+    if (!this.warehouseById(this.warehouseId) || this.warehouseById(this.warehouseId).deletedAt || targetIds.has(this.warehouseId)) {
+      this.warehouseId = (target?.id || remaining[0].id);
+      try { localStorage.setItem(WAREHOUSE, this.warehouseId); } catch {}
+    }
+    this.emit();
+    return { ok: true, deleted: targets.length, names: targets.map((w) => w.name), movedProducts, movimientos: movs, destino: target?.name || "" };
   }
 
   async clearWarehouse(warehouseId, municipalityIds = null) {
@@ -642,7 +953,7 @@ class Store {
     this.saving = true; // también pausa la sincronización periódica durante la operación
     try {
       const body = municipalityIds
-        ? { municipalityIds, version: this.version, confirmation: "LIMPIAR 11 MUNICIPIOS" }
+        ? { municipalityIds, version: this.version, confirmation: `LIMPIAR ${municipalityIds.length} MUNICIPIOS` }
         : { warehouseId, version: this.version, confirmation: "LIMPIAR" };
       const r = await api("/warehouses/clear", { method: "POST", timeout: 120000, body });
       if (!r.ok) return { error: r.status === 0 ? "No se recibió respuesta. La limpieza podría haberse realizado; recargue y verifique antes de reintentar." : r.error };
@@ -1751,7 +2062,7 @@ class Store {
     return { ok: true, from: from.name, to: to.name, qty: q };
   }
 
-  /** Crea un lote separado y claramente ficticio para los once municipios, sin editar datos existentes. */
+  /** Crea un lote separado y claramente ficticio para los 168 municipios de Cuba, sin editar datos existentes. */
   populateMunicipalDemo() {
     if (!can(this.state.session?.role, "VALUES_IMPORT") || !can(this.state.session?.role, "MOVEMENT_CREATE"))
       return { error: "Tu rol no puede crear esta demostración." };
