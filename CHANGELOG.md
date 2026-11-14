@@ -1,3 +1,20 @@
+## NovaGest · revisión 2026-11-14 · Municipios de Cuba: borrado permanente al reiniciar y restablecimiento de contraseña de administrador
+
+### Almacenes: municipios borrados dejan de resucitar al iniciar el Web
+- **Falla**: al reiniciar el servidor, `migrate_state()` (`server/novagest_server.py:1229`) ejecutaba `add_cuba_municipalities()` y recreaba los municipios que el administrador había borrado, porque el borrado es *soft-delete* (`deletedAt`) y la función solo descartaba los almacenes activos (`server/novagest_server.py:1178` antes del cambio). Como el alta de municipios se hace desde el cliente (`seed()` → `PUT /api/state`), la tabla `schema_migrations` nunca anotaba `cuba_municipios_2026_1`, así que el resucitado se repetía en cada arranque: borrábamos los municipios y al iniciar la Web volvían a aparecer.
+- **Fix**: `add_cuba_municipalities()` (`server/novagest_server.py:1186`) ahora da por existente cualquier almacén con forma de municipal (`location` o `code`, nuevo helper `_es_registro_municipal` en `server/novagest_server.py:1170`), activo o borrado: un municipio eliminado por el usuario se queda eliminado hasta que se vuelva a crear con «🏗️ Crear los 168 municipios»; un huérfano borrado de versión previa (solo nombre, sin ubicación ni código) no bloquea la creación del almacén oficial en una migración inicial.
+- Comportamiento intacto: la base nunca se queda sin almacenes (`ensure_warehouses` añade «ALMACÉN PRINCIPAL` si no queda ninguno activo) y «Eliminar municipios» sigue exigiendo destino para existencias/movimientos o limpieza previa.
+
+### Seguridad: recuperar el usuario `admin` (contraseña olvidada)
+- Nueva herramienta de operador `tools/reset_password.py`: restablece la contraseña de un usuario directamente en la base de datos (`data/novagest.db` o `data/cuadre.db`, misma regla que el servidor), valida la política de contraseñas del servidor, limpia fallos de login y anota la operación en la cadena de auditoría. Se usa cuando no se recuerda ni la contraseña ni la respuesta de la pregunta de recuperación (`POST /api/recover`).
+  - `DATA_DIR=/ruta/a/data python3 tools/reset_password.py --user admin --interactive` (contraseña oculta)
+  - `NOVAGEST_ADMIN_PW='...' python3 tools/reset_password.py --user admin --password-stdin`
+
+### Pruebas (verdes)
+- `python3 tools/test_migracion_pinar.py` (migración inicial, conservación de existencias, no-resucitado post-borrado y atomicidad).
+- `node tools/test_eliminar_municipios.mjs`, `node tools/test_pinar_municipios.mjs`, `node tools/test_demo_municipios.mjs`, `node tools/test_almacenes.mjs` (permisos, destino, bloque sin almacenes y recreación de los 168).
+- Reproducción del bug del resucitado (borrado + reinicio de servidor + comprobación de que no vuelve) verificada y descartada tras el fix.
+
 ## NovaGest · revisión 2026-11-14 · Inspección completa y plan Top 1 (documentación)
 
 ### Documentación
