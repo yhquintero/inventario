@@ -2231,7 +2231,7 @@ class Store {
   }
 
   /** Crea un lote separado y claramente ficticio para los 168 municipios de Cuba, sin editar datos existentes. */
-  populateMunicipalDemo() {
+  async populateMunicipalDemo({ onProgress } = {}) {
     if (!can(this.state.session?.role, "VALUES_IMPORT") || !can(this.state.session?.role, "MOVEMENT_CREATE"))
       return { error: "Tu rol no puede crear esta demostración." };
     if (this.closedErr(todayISO())) return this.closedErr(todayISO());
@@ -2261,10 +2261,13 @@ class Store {
     const now = Date.now(), date = todayISO(), who = this.state.session?.displayName || "sistema";
     const batch = uid("demomun"), products = [], movements = [];
     let sequence = 0;
+    const total = originals.length || 1;
     for (const [i, original] of originals.entries()) {
       const name = `[SIMULADO] ${original.name}`;
-      if (this.state.products.some((p) => normName(p.name) === normName(name)))
+      if (this.state.products.some((p) => normName(p.name) === normName(name))) {
+        if (onProgress) onProgress(100, `Ya existe ${name}`);
         return { error: `Ya existe el producto ${name}; revisa la demostración anterior.` };
+      }
       const p = { id: uid("p"), name, category: original.category || "General", stocks: {}, stocksInicial: {},
         stockInicial: 0, stockActual: 0, precioVentaUsd: Number(original.precioVentaUsd) || 0,
         precioVenta2Usd: Number(original.precioVenta2Usd) || 0, precioCostoUsd: Number(original.precioCostoUsd) || 0,
@@ -2288,17 +2291,22 @@ class Store {
         movements.push({ ...base, id: uid("m"), type: "SALIDA", quantity: outgoing, stockInicial: incoming, stockFinal: remaining, createdAt: now + sequence++ });
       }
       products.push(p);
+      if (onProgress) onProgress(Math.round(((i + 1) / total) * 100), `Generando «${p.name}»…`, i + 1, total);
+      await new Promise((r) => setTimeout(r, 0));
     }
     // Toda validación y la preparación se hacen antes de tocar el estado compartido.
     this.state.products.push(...products);
     this.state.movements.unshift(...movements);
     this.audit("DEMO", "warehouse", `SIMULADO · ${warehouses.length} municipios, ${products.length} productos y ${movements.length} movimientos ficticios`, batch);
     this.emit();
+    if (onProgress) onProgress(100, "✔ Listo", total, total);
     return { ok: true, warehouses: warehouses.length, products: products.length, movements: movements.length, createdMunicipalities: selection.created?.length || 0 };
   }
 
-  /** Datos ficticios: reutiliza el catálogo, nunca modifica el principal ni existencias previas. */
-  populateDemoWarehouses() {
+  /** Datos ficticios: reutiliza el catálogo, nunca modifica el principal ni existencias previas.
+   *  Es asíncrono para no bloquear la interfaz: se cede el control al navegador entre
+   *  almacén y almacén y se informa del progreso con `onProgress(pct, texto)`. */
+  async populateDemoWarehouses({ onProgress } = {}) {
     if (!can(this.state.session?.role, "VALUES_IMPORT")) return { error: "Tu rol no puede importar valores." };
     const source = this.defaultWarehouse();
     if (!source) return { error: "No hay almacén principal." };
@@ -2306,22 +2314,31 @@ class Store {
     const used = new Set(this.state.movements.filter((m) => m.productId && m.warehouseId)
       .map((m) => `${m.warehouseId}\u0000${m.productId}`));
     let changed = 0, warehouses = 0;
-    for (const w of this.warehousesActive()) {
-      if (w.id === source.id) continue;
+    const targets = this.warehousesActive().filter((w) => w.id !== source.id);
+    const total = targets.length || 1;
+    let i = 0;
+    for (const w of targets) {
       const rows = products.filter((p) => !used.has(`${w.id}\u0000${p.id}`) &&
         !Number(p.stocks?.[w.id] || 0) && !Number(p.stocksInicial?.[w.id] || 0))
-        .map((p, i) => {
+        .map((p, j) => {
           const base = this.stockIn(p, source.id);
           // Cantidades simuladas, no representan mercancía física.
-          return { name: p.name, stock: base > 0 ? Math.max(1, Math.min(25, Math.ceil(base / 2))) : 1 + (i % 8) };
+          return { name: p.name, stock: base > 0 ? Math.max(1, Math.min(25, Math.ceil(base / 2))) : 1 + (j % 8) };
         });
-      if (!rows.length) continue;
-      const rep = this.applyWarehouseImport({ warehouseId: w.id, rows, mode: "completar",
-        source: "DEMOSTRACIÓN", note: "Existencias ficticias; no usar como inventario real" });
-      if (rep.error) return rep;
-      changed += rep.existencias || 0;
-      if (rep.entryId) warehouses++;
+      if (rows.length) {
+        const rep = this.applyWarehouseImport({ warehouseId: w.id, rows, mode: "completar",
+          source: "DEMOSTRACIÓN", note: "Existencias ficticias; no usar como inventario real",
+          quiet: true, skipRecalc: true });
+        if (rep.error) { if (onProgress) onProgress(100, `Error en «${w.name}»`, i, total); this.emit(); return rep; }
+        changed += rep.existencias || 0;
+        if (rep.entryId) warehouses++;
+      }
+      i++;
+      if (onProgress) onProgress(Math.round((i / total) * 100), `Llenando «${w.name}»…`, i, total);
+      // Cede el control al navegador para que la barra de progreso se pinte.
+      await new Promise((r) => setTimeout(r, 0));
     }
+    this.emit();
     return { ok: true, changed, warehouses };
   }
 
@@ -2329,7 +2346,7 @@ class Store {
    * Importa valores al almacén elegido.
    * mode = "sobrescribir" (por defecto) | "completar" (solo rellena lo vacío).
    */
-  applyWarehouseImport({ warehouseId, rows, mode = "sobrescribir", source = "pegado", note = "", fileName = "" }) {
+  applyWarehouseImport({ warehouseId, rows, mode = "sobrescribir", source = "pegado", note = "", fileName = "", quiet = false }) {
     if (!can(this.state.session?.role, "VALUES_IMPORT")) return { error: "Tu rol no puede importar valores." };
     const w = this.warehouseById(warehouseId);
     if (!w || w.deletedAt) return { error: "Elige el almacén al que entran los valores." };
@@ -2401,7 +2418,7 @@ class Store {
         rep.actualizados++;
       }
     }
-    if (!rep.items.length) { rep.sinCambios = true; return rep; }
+    if (!rep.items.length) { rep.sinCambios = true; if (!quiet) this.emit(); return rep; }
     this.state.products.sort((a, b) => a.name.localeCompare(b.name, "es"));
     const entry = this.logEntry({
       warehouseId: w.id, kind: "VALORES", source: fileName ? `${source} · ${fileName}` : source, userName: who,
@@ -2411,7 +2428,7 @@ class Store {
     });
     rep.entryId = entry.id;
     this.audit("IMPORT", "warehouse", `Valores a «${w.name}»: ${rep.items.length} cambios (${rep.creados} productos nuevos)`, w.id);
-    this.emit();
+    if (!quiet) this.emit();
     return rep;
   }
 

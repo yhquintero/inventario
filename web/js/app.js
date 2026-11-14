@@ -222,6 +222,7 @@ function navTo(route) {
   if (ui.route !== route) { ui.q = ""; ui.filter = route === "inventory" ? "AQUI" : "TODOS"; ui.cat = "TODAS"; }
   ui.route = route;
   ui.drawer = false;
+  ui.modal = null;   // navegar cierra cualquier modal abierto
   if (location.hash !== "#" + route) history.replaceState(null, "", "#" + route);
   render();
 }
@@ -1120,8 +1121,11 @@ function maybeNotifyAlerts() {
   if (visto === firma) return;
   const urgentes = lista.filter((a) => a.severity === "alta").length;
   setTimeout(() => {
+    if (ui.route !== "home") return;   // solo avisar en el Panel
     toast(`🔔 ${urgentes} producto(s) se agotan: revisa la reposición`, "warn");
     announce(`Aviso de reposición: ${urgentes} producto(s) urgente(s). ${alertsSummary(lista).text}`);
+    // El aviso sale también como modal, para que no pase desapercibido.
+    if (!ui.modal) { ui.modal = alertsModalMarkup(lista); render(); }
   }, 700);
 }
 
@@ -4113,6 +4117,52 @@ function modal(title, body, id, extra = "") {
   ui.modal = `<div class="modal-back" data-act="close-modal"><form class="modal" id="${id}" role="dialog" aria-modal="true" ${extra}><div class="modal-h"><div class="h2">${title}</div><button type="button" class="icon-btn" data-act="close-modal" aria-label="Cerrar">✕</button></div>${body}</form></div>`;
 }
 
+/**
+ * Modal de progreso futurista. Devuelve una función `actualizar(pct, texto, pasoActivo)`
+ * para mover la barra y el porcentaje. La operación pesada se ejecuta en trozos
+ * cediendo el control entre pasos, así la interfaz no se bloquea.
+ */
+function abrirProgreso(titulo, pasos) {
+  const htmlPasos = (pasos || []).map((p, i) => `<div class="progress-step-item" data-step="${i}">${esc(p)}</div>`).join("");
+  ui.modal = `<div class="modal-back progress-back" id="progressBack"><div class="modal progress-modal" role="dialog" aria-modal="true" aria-labelledby="progressTitle">
+    <div class="card-h"><span class="k" id="progressTitle">${esc(titulo)}</span></div>
+    <div class="progress-futurista">
+      <div class="progress-ring">
+        <svg viewBox="0 0 120 120"><defs><linearGradient id="progressGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14b8a6"/><stop offset="1" stop-color="#38bdf8"/></linearGradient></defs>
+        <circle class="progress-track" cx="60" cy="60" r="52"></circle>
+        <circle class="progress-fill" cx="60" cy="60" r="52" style="--p:0"></circle></svg>
+        <div class="progress-pct" id="progressPct">0%</div>
+      </div>
+      <div class="progress-step" id="progressStep">Preparando…</div>
+      <div class="progress-bar"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-steps" id="progressSteps">${htmlPasos}</div>
+    </div>
+  </div></div>`;
+  render();
+  return (pct, texto, pasoActivo) => {
+    const n = Math.max(0, Math.min(100, Math.round(pct)));
+    const pctEl = document.getElementById("progressPct");
+    const fillEl = document.getElementById("progressFill");
+    const ringEl = document.querySelector("#progressBack .progress-fill");
+    const stepEl = document.getElementById("progressStep");
+    if (pctEl) pctEl.textContent = `${n}%`;
+    if (fillEl) fillEl.style.width = `${n}%`;
+    if (ringEl) ringEl.style.setProperty("--p", n);
+    if (stepEl && texto) stepEl.textContent = texto;
+    if (typeof pasoActivo === "number") {
+      document.querySelectorAll("#progressSteps .progress-step-item").forEach((el, i) => {
+        el.classList.toggle("done", i < pasoActivo);
+        el.classList.toggle("active", i === pasoActivo);
+      });
+    }
+  };
+}
+
+function cerrarProgreso() {
+  ui.modal = null;
+  render();
+}
+
 function productModal(p = null, presetBarcode = "") {
   const x = p || { name: "", stockInicial: 0, precioVentaUsd: 0, precioVenta2Usd: 0, precioCostoUsd: 0, comisionCup: 0, minStock: 1, category: "General", observaciones: "", barcode: presetBarcode };
   const cats = Object.keys(CATEGORIES);
@@ -5448,8 +5498,13 @@ function onClick(e) {
   else if (act === "pinar-import-selected") importPinarSelected();
   else if (act === "wh-demo") {
     if (!allowed("VALUES_IMPORT")) return toast("Tu rol no puede importar valores.", "err");
-    confirmModal("<b>Datos de demostración, no mercancía real.</b> Se generarán cantidades ficticias del catálogo compartido en todos los almacenes salvo el principal. Se omitirán existencias y movimientos ya registrados; las cifras afectarán los totales y permitirán ventas. Haz una copia antes de continuar. ¿Deseas aplicarlo?", () => {
-      const r = store.populateDemoWarehouses();
+    confirmModal("<b>Datos de demostración, no mercancía real.</b> Se generarán cantidades ficticias del catálogo compartido en todos los almacenes salvo el principal. Se omitirán existencias y movimientos ya registrados; las cifras afectarán los totales y permitirán ventas. Haz una copia antes de continuar. ¿Deseas aplicarlo?", async () => {
+      const total = store.warehousesActive().filter((w) => w.id !== store.defaultWarehouse()?.id).length;
+      const actualizar = abrirProgreso("🧪 Llenando con datos de prueba", Array.from({ length: total }, (_, i) => `Almacén ${i + 1} de ${total}`));
+      const r = await store.populateDemoWarehouses({ onProgress: actualizar });
+      actualizar(100, r.error ? `Error: ${r.error}` : `✔ ${r.changed} existencias en ${r.warehouses} almacenes`, total, total);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      cerrarProgreso();
       if (r.error) return toast(r.error, "err");
       toast(`Demostración: ${r.changed} existencias en ${r.warehouses} almacenes. Revisa Entradas.`, "ok");
       render();
@@ -5469,8 +5524,14 @@ function onClick(e) {
   }
   else if (act === "wh-municipal-demo") {
     if (!allowed("VALUES_IMPORT") || !allowed("MOVEMENT_CREATE")) return toast("Tu rol no puede crear esta demostración.", "err");
-    confirmModal(`<b>SIMULACIÓN: no es inventario real.</b> Se crearán los almacenes municipales que falten (los ${TOTAL_MUNICIPIOS} municipios de Cuba que aún no existan), hasta 16 productos separados con el prefijo [SIMULADO] y entradas y salidas ficticias en todos ellos, incluido Pinar del Río. No se reemplazan los productos ni movimientos existentes.<br><br><b>Atención:</b> se guardarán en esta base y afectarán existencias, informes y disponibilidad de venta. Úsalo solo en una base de pruebas y haz una copia antes. Los precios son referencias del catálogo, no precios actuales. Las divisas se consultan aparte en Monedas.<br><br>¿Deseas crear esta simulación?`, () => {
-      const r = store.populateMunicipalDemo();
+    confirmModal(`<b>SIMULACIÓN: no es inventario real.</b> Se crearán los almacenes municipales que falten (los ${TOTAL_MUNICIPIOS} municipios de Cuba que aún no existan), hasta 16 productos separados con el prefijo [SIMULADO] y entradas y salidas ficticias en todos ellos, incluido Pinar del Río. No se reemplazan los productos ni movimientos existentes.<br><br><b>Atención:</b> se guardarán en esta base y afectarán existencias, informes y disponibilidad de venta. Úsalo solo en una base de pruebas y haz una copia antes. Los precios son referencias del catálogo, no precios actuales. Las divisas se consultan aparte en Monedas.<br><br>¿Deseas crear esta simulación?`, async () => {
+      const productos = store.activeProducts().filter((p) => p.name && !p.demoMunicipios && !/^\[SIMULADO\]/i.test(p.name));
+      const total = Math.min(16, productos.length) || 1;
+      const actualizar = abrirProgreso("🗺️ Simulando 168 municipios", Array.from({ length: total }, (_, i) => `Producto ${i + 1} de ${total}`));
+      const r = await store.populateMunicipalDemo({ onProgress: actualizar });
+      actualizar(100, r.error ? `Error: ${r.error}` : `✔ ${r.products} productos y ${r.movements} movimientos en ${r.warehouses} municipios`, total, total);
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      cerrarProgreso();
       if (r.error) return toast(r.error, "err");
       toast(`SIMULADO: ${r.products} productos y ${r.movements} movimientos en ${r.warehouses} municipios${r.createdMunicipalities ? ` · ${r.createdMunicipalities} almacenes municipales creados` : ""}.`, "ok");
       render();

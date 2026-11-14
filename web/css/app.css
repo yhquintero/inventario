@@ -1014,3 +1014,20 @@ html[data-texto="grande"] body, html[data-texto="muy-grande"] body { zoom: var(-
 .table-wrap::-webkit-scrollbar, .rail::-webkit-scrollbar, .hbar-scroll::-webkit-scrollbar { height: 10px; width: 10px; }
 .table-wrap::-webkit-scrollbar-thumb, .rail::-webkit-scrollbar-thumb, .hbar-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; }
 .table-wrap::-webkit-scrollbar-track, .rail::-webkit-scrollbar-track, .hbar-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Modal de progreso futurista */
+.progress-modal { max-width: 420px; text-align: center; }
+.progress-futurista { padding: 6px 4px 10px; }
+.progress-ring { position: relative; width: 132px; height: 132px; margin: 6px auto 14px; }
+.progress-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.progress-ring .progress-track { fill: none; stroke: var(--line, #2a2a3a); stroke-width: 8; }
+.progress-ring .progress-fill { fill: none; stroke: url(#progressGrad); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 327; stroke-dashoffset: calc(327 - (327 * var(--p, 0) / 100)); transition: stroke-dashoffset .3s ease, stroke .3s ease; filter: drop-shadow(0 0 6px rgba(20,184,166,.6)); }
+.progress-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; letter-spacing: -1px; background: linear-gradient(135deg, #14b8a6, #38bdf8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.progress-step { font-size: .95rem; font-weight: 600; margin-bottom: 12px; min-height: 1.2em; }
+.progress-bar { height: 6px; border-radius: 99px; background: var(--line, #2a2a3a); overflow: hidden; margin-bottom: 12px; }
+.progress-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #14b8a6, #38bdf8, #a78bfa); background-size: 200% 100%; animation: progressShimmer 1.6s linear infinite; transition: width .25s ease; }
+@keyframes progressShimmer { 0% { background-position: 0% 0; } 100% { background-position: 200% 0; } }
+.progress-steps { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; color: var(--muted, #8a8a9a); max-height: 120px; overflow: auto; text-align: left; }
+.progress-step-item { padding: 2px 0; opacity: .5; transition: opacity .2s, color .2s; }
+.progress-step-item.active { opacity: 1; color: var(--fg, #e2e8f0); font-weight: 600; }
+.progress-step-item.done { opacity: .7; text-decoration: line-through; }

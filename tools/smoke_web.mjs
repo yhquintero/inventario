@@ -653,7 +653,7 @@ test("Simulación municipal pide confirmación y crea los municipios que falten"
   }
 });
 
-test("Simulación confirmada se identifica en la aplicación y cubre los 168 municipios de Cuba", () => {
+await atest("Simulación confirmada se identifica en la aplicación y cubre los 168 municipios de Cuba", async () => {
   const original = { products: store.state.products, movements: store.state.movements, warehouses: store.state.warehouses, audit: store.state.audit, warehouseEntries: store.state.warehouseEntries };
   try {
     store.state.products = structuredClone(original.products);
@@ -664,6 +664,7 @@ test("Simulación confirmada se identifica en la aplicación y cubre los 168 mun
     go("warehouses");
     clickMatching("act", { act: "wh-municipal-demo" });
     clickMatching("act", { act: "confirm-yes" });
+    await new Promise((r) => setTimeout(r, 400));
     assert.equal(new Set(store.state.movements.filter((m) => m.demoMunicipios).map((m) => m.warehouseId)).size, 168);
     assert.match(app.innerHTML, /Datos SIMULADOS presentes/);
     const html = go("movements");
