@@ -1,3 +1,22 @@
+## NovaGest · revisión 2026-11-14 · Inspección completa y plan Top 1 (documentación)
+
+### Documentación
+- **Nueva `docs/INSPECCION_TOP1_2026-11.md`**: inspección completa del proyecto (servidor, Web, Android,
+  Keygen, CI/CD, seguridad y empaquetado) con un listado priorizado de cambios para alcanzar el nivel Top 1.
+  Cinco bloqueantes (API 36 de Google Play, `venv/` versionado, `fallbackToDestructiveMigration` de Room,
+  HTML sin escapar en `financiero.js` y `security.txt`/`LICENSE_SECRET` sin cerrar), nueve de alto impacto,
+  diez de nivel medio y ocho diferenciadores de producto, con plan de ejecución en cuatro olas.
+- Cada afirmación va con su evidencia: `fichero:línea` y el comando que la verificó (anexo §6 con el
+  resultado real de las 16 suites Node y las 20 suites Python, `bandit`, `ruff`, `pip-audit` y la prueba de
+  carga). No se cambia código en esta entrada: es el diagnóstico y la lista de trabajo.
+
+### Hallazgos que afectan a pruebas y CI ya existentes (detallados en el informe)
+- `tools/test_carga.py` **mide PBKDF2, no el estado**: su umbral de `p95 < 1500 ms` depende del número de
+  núcleos de la máquina (falla en 2 vCPU, pasa con poco margen en el runner de 4). Pendiente de separar en
+  coste de hash y latencia real de escritura.
+- **13 de las 57 pruebas de `tools/` no se ejecutan en el CI** (las de divisas, elTOQUE, limpieza y migración
+  de municipios y las de gráficos de tasas).
+
 ## NovaGest · revisión 2026-11-10 · Todos los municipios de Cuba (168) y Eliminar municipios
 
 ### Almacenes: de los 11 de Pinar del Río a los 168 de Cuba
