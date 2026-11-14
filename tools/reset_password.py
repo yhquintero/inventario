@@ -39,6 +39,10 @@ os.environ["DATA_DIR"] = args.data_dir
 sys.path.insert(0, str(os.path.join(os.path.dirname(__file__), "..", "server")))
 import novagest_server as s  # noqa: E402
 
+# Asegura que existan las tablas (users, fails, audit…) en la base apuntada por
+# DATA_DIR. init_db() es idempotente: CREATE TABLE IF NOT EXISTS, no borra nada.
+s.init_db()
+
 
 def leer_password():
     if args.password is not None:
