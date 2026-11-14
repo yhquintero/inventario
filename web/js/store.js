@@ -314,6 +314,95 @@ function emptyState() {
 }
 const SHARED = ["products", "movements", "cuadres", "audit", "rates", "priceHistory", "weekly", "excelDailyReports", "settings", "warehouses", "warehouseEntries", "customers", "credits", "fichas", "ipvControls", "surveys"];
 
+/* ------------------------------------------------------------------
+ * Tamaño del estado que viaja al servidor.
+ *
+ * El estado completo (productos con la existencia de cada almacén + el
+ * historial de entradas con el detalle de cada cambio) crece con el uso:
+ * con 168 municipios y 262 productos llegó a pasar de 12 MB y el servidor
+ * rechazaba el guardado con 413, así que se perdían los cambios (por
+ * ejemplo, al eliminar los municipios) y al recargar volvía todo.
+ *
+ * Por eso, antes de enviar, se limpia lo que ya no sirve y se recorta el
+ * historial: el estado se mantiene dentro del tamaño que el servidor acepta.
+ * ------------------------------------------------------------------ */
+
+/** Presupuesto del historial de entradas (Entradas), en bytes aproximados. */
+export const ENTRIES_BUDGET = 2 * 1024 * 1024;
+
+/** Tamaño aproximado en bytes de un valor serializable. */
+export function jsonSize(value) {
+  try { return JSON.stringify(value)?.length * 2 || 0; } catch { return 0; }
+}
+
+/** Tamaño aproximado de una entrada del historial (rápido: no serializa). */
+function tamanoEntrada(entry) {
+  const items = Array.isArray(entry?.items) ? entry.items.length : 0;
+  return 300 + items * 220;
+}
+
+/** Quita de los productos las existencias de almacenes ya borrados: no sirven
+ *  para nada más y son el mayor peso muerto del estado. */
+export function limpiarExistenciasMuertas(state) {
+  const almacenes = state?.warehouses;
+  const productos = state?.products;
+  if (!Array.isArray(almacenes) || !Array.isArray(productos)) return false;
+  const muertos = new Set(almacenes.filter((w) => w?.deletedAt).map((w) => String(w.id)));
+  if (!muertos.size) return false;
+  let changed = false;
+  for (const p of productos) {
+    if (!p || typeof p !== "object") continue;
+    for (const campo of ["stocks", "stocksInicial"]) {
+      const mapa = p[campo];
+      if (!mapa || typeof mapa !== "object") continue;
+      for (const id of Object.keys(mapa)) {
+        if (muertos.has(id)) { delete mapa[id]; changed = true; }
+      }
+    }
+  }
+  return changed;
+}
+
+/**
+ * Recorta el historial de entradas para que no crezca sin límite.
+ *
+ * El presupuesto se reparte: primero los registros (qué pasó y cuándo) y, con
+ * lo que quede, el detalle (items) de las entradas más recientes, que es lo que
+ * permite deshacer. Si ni así cabe, se descartan las entradas más antiguas.
+ *
+ * Las entradas invalidadas por una limpieza (`invalidatedAt`) no se tocan: el
+ * servidor las protege y rechazaría el guardado si cambian.
+ */
+export function recortarEntradas(entries, presupuesto = ENTRIES_BUDGET) {
+  const lista = Array.isArray(entries) ? entries.slice() : [];
+  if (!lista.length) return lista;
+  const costeRegistro = 300;                              // el registro en sí
+  const costeDetalle = (e) => (Array.isArray(e?.items) ? e.items.length : 0) * 220;
+  // El detalle de las entradas ya deshechas no sirve para nada: se va primero.
+  for (const e of lista) {
+    if (e?.undoneAt && Array.isArray(e.items) && e.items.length) {
+      e.items = [];
+      e.detalleRecortado = true;
+    }
+  }
+  let disponible = presupuesto - lista.length * costeRegistro;
+  // Si ni los registros caben, se descartan las entradas más antiguas.
+  while (lista.length > 1 && disponible < 0) {
+    const vieja = lista.pop();
+    disponible += costeRegistro + costeDetalle(vieja);
+  }
+  // El detalle se reparte de la entrada más reciente a la más antigua.
+  for (const e of lista) {
+    const d = costeDetalle(e);
+    if (!d) continue;
+    if (disponible >= d) { disponible -= d; continue; }
+    if (e.invalidatedAt) continue;   // protegida por el servidor
+    e.items = [];
+    e.detalleRecortado = true;
+  }
+  return lista;
+}
+
 class Store {
   constructor() {
     this.state = emptyState();
@@ -349,6 +438,12 @@ class Store {
   shared() {
     const o = {};
     for (const k of SHARED) o[k] = this.state[k];
+    // Lo que viaja al servidor va limpio: sin existencias de almacenes borrados
+    // y con el historial de entradas dentro de su presupuesto de tamaño. Si el
+    // estado pasara del límite del servidor, el guardado se rechazaría (413) y
+    // los cambios se perderían al recargar.
+    limpiarExistenciasMuertas(o);
+    o.warehouseEntries = recortarEntradas(o.warehouseEntries);
     return o;
   }
 
@@ -453,7 +548,13 @@ class Store {
     this.dirty = false;
     this.setSync("saving");
     const payload = this.shared();
-    const r = await api("/state", { method: "PUT", body: { version: this.version, state: payload } });
+    let r = await api("/state", { method: "PUT", body: { version: this.version, state: payload } });
+    if (r.status === 413) {
+      // El estado no cabía en el servidor: se recorta más y se reintenta una vez.
+      const compacto = this.shared();
+      compacto.warehouseEntries = recortarEntradas(compacto.warehouseEntries, 400 * 1024);
+      r = await api("/state", { method: "PUT", body: { version: this.version, state: compacto } });
+    }
     this.saving = false;
     if (r.ok) {
       this.version = r.version;
@@ -474,6 +575,17 @@ class Store {
       return false;
     }
     if (r.status === 409) { await this.resolveConflict(); return false; }
+    if (r.status === 413) {
+      // El estado no cabe en el servidor: NO se recarga (el trabajo de este equipo
+      // se conserva en la cola local) y se avisa con claridad.
+      this.dirty = true;
+      writePending(localStorage, this.shared());
+      this.setSync("error");
+      this.onNotice("El estado de la base es demasiado grande para guardarlo en el servidor. "
+        + "Los cambios quedan guardados en este equipo; recorta el historial de entradas (Entradas) "
+        + "o limpia los almacenes que no uses y vuelve a guardar.", "error");
+      return false;
+    }
     this.setSync("error");
     // 403 permiso, 423 día cerrado: se recarga la versión del servidor
     this.onNotice(r.error, "error");
@@ -1988,7 +2100,9 @@ class Store {
       userName: data.userName || this.state.session?.displayName || "sistema", undoneAt: null,
     };
     this.state.warehouseEntries.unshift(e);
+    // El historial no crece sin límite: se recorta por tamaño (ver recortarEntradas).
     if (this.state.warehouseEntries.length > 2000) this.state.warehouseEntries.length = 2000;
+    this.state.warehouseEntries = recortarEntradas(this.state.warehouseEntries);
     return e;
   }
 

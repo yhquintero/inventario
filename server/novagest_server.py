@@ -38,8 +38,10 @@ TRUST_PROXY = os.environ.get("TRUST_PROXY", "1") == "1"
 IDLE = int(os.environ.get("SESSION_IDLE_MIN", "20")) * 60
 MAXAGE = int(os.environ.get("SESSION_MAX_HOURS", "12")) * 3600
 # Límites de tamaño de las peticiones (S-11). El estado es el único que crece de verdad.
-MAX_BODY = int(os.environ.get("MAX_BODY_MB", "30")) * 1024 * 1024
-MAX_STATE = int(os.environ.get("MAX_STATE_MB", "12")) * 1024 * 1024
+# El estado se recorta antes de guardarse (compactar_estado), así que 32 MB de tope
+# dan de sobra para una base con 168 municipios y cientos de productos.
+MAX_BODY = int(os.environ.get("MAX_BODY_MB", "48")) * 1024 * 1024
+MAX_STATE = int(os.environ.get("MAX_STATE_MB", "32")) * 1024 * 1024
 GZIP_MIN = 1024  # por debajo de esto comprimir no compensa
 BACKUP_HOUR = int(os.environ.get("BACKUP_HOUR", "2"))
 BACKUP_KEEP = int(os.environ.get("BACKUP_KEEP", "30"))
@@ -1076,6 +1078,86 @@ PINAR_MUNICIPALITIES = tuple((n, c) for prov, n, c in CUBA_MUNICIPALITIES if pro
 PINAR_MIGRATION = "pinar_municipios_2026_1"
 CUBA_MIGRATION = "cuba_municipios_2026_1"
 
+# Presupuesto del historial de entradas (Entradas) que se guarda en el estado.
+# El detalle de cada entrada (items) pesa: con 168 municipios y 262 productos el
+# historial llegó a 9 MB. Se recorta lo más antiguo para que el estado quepa en
+# el límite de tamaño del servidor (MAX_STATE) y los cambios se puedan guardar.
+ENTRIES_BUDGET = int(os.environ.get("ENTRIES_BUDGET_MB", "2")) * 1024 * 1024
+
+
+def _tamano_json(valor):
+    try:
+        return len(json.dumps(valor, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _tamano_entrada(entrada):
+    """Tamaño aproximado de una entrada del historial (rápido: no serializa)."""
+    items = entrada.get("items") if isinstance(entrada, dict) else None
+    return 300 + (len(items) * 220 if isinstance(items, list) else 0)
+
+
+def compactar_estado(st):
+    """Deja el estado dentro de un tamaño que el servidor puede guardar.
+
+    - Quita de los productos las existencias de almacenes ya borrados: no sirven
+      para nada más y son el mayor peso muerto del estado.
+    - Recorta el historial de entradas: primero el detalle de las entradas ya
+      deshechas (su detalle no permite deshacer nada más) y luego el de las más
+      antiguas; si aun así no cabe, descarta las entradas más antiguas (se
+      conserva el registro de qué pasó y cuándo, se pierde el detalle fino).
+
+    Es la contraparte del recorte que hace el cliente (web/js/store.js).
+    """
+    if not isinstance(st, dict):
+        return st
+    almacenes = st.get("warehouses")
+    productos = st.get("products")
+    if isinstance(almacenes, list) and isinstance(productos, list):
+        muertos = {str(w.get("id")) for w in almacenes if isinstance(w, dict) and w.get("deletedAt")}
+        if muertos:
+            for p in productos:
+                if not isinstance(p, dict):
+                    continue
+                for campo in ("stocks", "stocksInicial"):
+                    mapa = p.get(campo)
+                    if not isinstance(mapa, dict):
+                        continue
+                    for clave in [k for k in mapa if str(k) in muertos]:
+                        del mapa[clave]
+    entradas = st.get("warehouseEntries")
+    if isinstance(entradas, list) and len(entradas) > 1:
+        # El presupuesto se reparte: primero los registros (qué pasó y cuándo) y,
+        # con lo que quede, el detalle (items) de las entradas más recientes, que
+        # es lo que permite deshacer. Si ni así cabe, se descartan las más antiguas.
+        for e in entradas:
+            if isinstance(e, dict) and e.get("undoneAt") and e.get("items"):
+                e["items"] = []
+                e["detalleRecortado"] = True
+        disponible = ENTRIES_BUDGET - len(entradas) * 300
+        while len(entradas) > 1 and disponible < 0:
+            vieja = entradas.pop()
+            disponible += 300 + _tamano_entrada(vieja)
+        for e in entradas:
+            if not isinstance(e, dict):
+                continue
+            items = e.get("items")
+            d = len(items) * 220 if isinstance(items, list) else 0
+            if not d:
+                continue
+            if disponible >= d:
+                disponible -= d
+                continue
+            # Las invalidadas por una limpieza no se tocan: validate_change las
+            # protege y rechazaría el guardado si cambian.
+            if e.get("invalidatedAt"):
+                continue
+            e["items"] = []
+            e["detalleRecortado"] = True
+        st["warehouseEntries"] = entradas
+    return st
+
 
 def ensure_warehouses(st):
     """Convierte datos antiguos sin inventar ni redistribuir existencias."""
@@ -1241,6 +1323,12 @@ def migrate_state():
         st, changed = ensure_warehouses(json.loads(r["data"]))
         if not isinstance(st, dict):
             raise ValueError("El estado guardado no es un objeto; no se puede migrar.")
+        # El estado se deja dentro de un tamaño que el servidor puede volver a
+        # guardar: si no, el cliente no podría enviar ningún cambio (413) y
+        # todo se perdería al recargar.
+        if len(r["data"]) > ENTRIES_BUDGET * 2:
+            compactar_estado(st)
+            changed = True
         # Migración de Cuba (168): una sola vez por base. Las bases que ya traían los
         # 11 de Pinar del Río conservan esos almacenes y solo reciben los 157 que faltan.
         done = q("SELECT 1 FROM schema_migrations WHERE name=?", (CUBA_MIGRATION,), one=True)
@@ -2384,7 +2472,11 @@ def state_version(h, u, _):
 
 @route("PUT", "/api/state")
 def state_put(h, u, _):
-    b = h.body(max_bytes=MAX_STATE)
+    try:
+        b = h.body(max_bytes=MAX_STATE)
+    except PayloadTooLarge:
+        return h.err(413, f"El estado de la base es demasiado grande para guardarlo (máximo {MAX_STATE // (1024 * 1024)} MB). "
+                          "Limpia los almacenes que no uses o recorta el historial de entradas (Copias → estado).")
     with _lock:
         r = q("SELECT * FROM app_state WHERE id=1", one=True)
         if int(b.get("version", -1)) != r["version"]:
@@ -2397,6 +2489,12 @@ def state_put(h, u, _):
             for k in ("warehouses", "warehouseEntries", "excelDailyReports", "customers", "credits", "fichas", "ipvControls", "surveys"):
                 if k not in new:
                     new[k] = old.get(k)
+        # El estado se guarda limpio: sin existencias de almacenes ya borrados y
+        # con el historial de entradas dentro de su presupuesto. Sin esto el estado
+        # crece sin límite y el guardado acaba rechazándose por tamaño (413), con
+        # lo que los cambios se pierden al recargar.
+        if isinstance(new, dict):
+            compactar_estado(new)
         if r["data"] is None:
             if u["role"] not in ADMINS: return h.err(403, "Solo un administrador puede inicializar los datos.")
         else:

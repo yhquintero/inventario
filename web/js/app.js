@@ -3616,7 +3616,7 @@ function warehouseEntriesPanel() {
           <td class="hint">${new Date(e.ts).toLocaleString("es-CU")}</td>
           <td><span class="tag ${WH_KIND_TAG[e.kind] || "mov"}">${WH_KIND[e.kind] || e.kind}</span></td>
           <td>${esc(e.warehouseName || "")}</td>
-          <td>${hl(e.summary)}${e.undoneAt ? ` <span class="tag salida">DESHECHA</span>` : ""}${e.invalidatedAt ? ` <span class="tag salida" title="${esc(e.invalidatedReason || "Limpieza de almacén")}">NO SE PUEDE DESHACER</span>` : ""}</td>
+          <td>${hl(e.summary)}${e.undoneAt ? ` <span class="tag salida">DESHECHA</span>` : ""}${e.invalidatedAt ? ` <span class="tag salida" title="${esc(e.invalidatedReason || "Limpieza de almacén")}">NO SE PUEDE DESHACER</span>` : ""}${e.detalleRecortado ? ` <span class="tag mov" title="El detalle antiguo ya no se guarda para que el estado quepa en el servidor">DETALLE RECORTADO</span>` : ""}</td>
           <td>${esc(e.userName || "")}</td>
           <td class="mono r">${(e.items || []).length || ""}</td>
           <td class="actions">
@@ -3626,6 +3626,7 @@ function warehouseEntriesPanel() {
         </tr>
         ${ui.whDetail === e.id ? `<tr><td colspan="7"><div class="wh-detail">
           ${(e.items || []).slice(0, 200).map((it) => `<div class="cline"><span>${esc(it.productName)} · ${fieldLabel(it.field)}${it.warehouseName ? ` · ${esc(it.warehouseName)}` : ""}</span><b class="mono">${fmtVal(it.old)} → ${fmtVal(it.new)}</b></div>`).join("")}
+          ${e.detalleRecortado ? `<p class="hint">El detalle de esta entrada antigua ya no se guarda (el historial se recorta para que la base quepa en el servidor). El registro de qué pasó y cuándo se conserva.</p>` : ""}
           ${e.counts && Object.keys(e.counts).length ? `<p class="hint">${Object.entries(e.counts).map(([k, v]) => `${k}: ${v}`).join(" · ")}</p>` : ""}
         </div></td></tr>` : ""}`).join("") || `<tr><td colspan="7" class="empty">Sin entradas registradas todavía.</td></tr>`}</tbody>
     </table></div>`;

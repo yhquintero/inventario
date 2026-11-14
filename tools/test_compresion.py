@@ -106,9 +106,10 @@ ok("maybe_gzip respeta al cliente que no acepta gzip", Respuesta("").maybe_gzip(
 ok("accepts_gzip entiende la cabecera", Respuesta("br, gzip;q=0.8").accepts_gzip() and not Respuesta("br").accepts_gzip())
 
 print("\nLímites de tamaño")
-ok("el límite general es de 30 MB por defecto", m.MAX_BODY == 30 * 1024 * 1024, str(m.MAX_BODY))
-ok("el estado tiene su propio límite menor", m.MAX_STATE == 12 * 1024 * 1024, str(m.MAX_STATE))
+ok("el límite general es de 48 MB por defecto", m.MAX_BODY == 48 * 1024 * 1024, str(m.MAX_BODY))
+ok("el estado tiene su propio límite menor", m.MAX_STATE == 32 * 1024 * 1024, str(m.MAX_STATE))
 ok("el estado cabe en el límite general", m.MAX_STATE < m.MAX_BODY)
+ok("el presupuesto del historial de entradas es de 2 MB", m.ENTRIES_BUDGET == 2 * 1024 * 1024, str(m.ENTRIES_BUDGET))
 
 cuerpo = json.dumps({"version": 1, "state": {"products": []}}).encode()
 
@@ -137,7 +138,23 @@ try:
 except m.PayloadTooLarge:
     ok("el límite general se aplica sin pasar max_bytes", True)
 
+print("\nRecorte del estado (para que quepa en el servidor)")
+estado = {
+    "warehouses": [{"id": "w1", "name": "VIVO"}, {"id": "w2", "name": "BORRADO", "deletedAt": 1}],
+    "products": [{"id": "p1", "stocks": {"w1": 3, "w2": 7}, "stocksInicial": {"w1": 3, "w2": 7}}],
+    "warehouseEntries": [
+        {"id": f"e{i}", "kind": "VALORES", "items": [{"productId": "p1", "field": "stock", "old": i, "new": i + 1}] * 200}
+        for i in range(300)
+    ],
+}
+m.compactar_estado(estado)
+ok("las existencias de almacenes borrados se eliminan", estado["products"][0]["stocks"] == {"w1": 3}, str(estado["products"][0]["stocks"]))
+ok("las existencias iniciales de almacenes borrados se eliminan", estado["products"][0]["stocksInicial"] == {"w1": 3})
+peso = len(json.dumps(estado, ensure_ascii=False).encode("utf-8"))
+ok("el historial se recorta hasta su presupuesto", peso <= m.ENTRIES_BUDGET * 1.5, f"{peso} bytes")
+ok("se conserva alguna entrada del historial", len(estado["warehouseEntries"]) >= 1)
+
 print(f"\n{pruebas - fallos}/{pruebas} comprobaciones correctas")
 if fallos:
     sys.exit(1)
-print("Compresión y límites del servidor correctos\n")
+print("Compresión, límites y recorte del estado correctos\n")

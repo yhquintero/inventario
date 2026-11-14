@@ -4,6 +4,9 @@
    v54: todos los municipios de Cuba (168) en Almacenes, botón 🗑️ Eliminar municipios tras Limpiar, filtro por provincia y selectores agrupados.
    v55: sin municipios de Cuba, la barra de Almacenes oculta 🧪 Llenar con datos de prueba, 🗺️ Simular 168 municipios
          y 🧹 Limpiar inventario de los 168 municipios; 🗑️ Eliminar municipios borra los 168 de Cuba sin dejar la base sin almacenes.
+   v56: el estado que se envía al servidor se recorta (sin existencias de almacenes borrados y con el historial
+         de entradas dentro de su presupuesto): la base volvía a pasar de 12 MB y el servidor rechazaba el
+         guardado con 413, así que todo cambio se perdía al recargar (al eliminar los municipios volvían a aparecer).
    v31: modo mostrador para la tablet (W-08) y módulo nuevo kiosk.js.
    v30: alertas de reposición predictivas (W-03) y módulo nuevo alerts.js.
    v29: auditoría encadenada: la pantalla de Seguridad enseña la huella de cada línea y el
@@ -31,7 +34,7 @@
    v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos.
    v41: la barra de pestañas de #finanzas queda fija debajo de la topbar también con JS
         (position: fixed dinámico), por si el sticky de CSS falla con cachés viejas. */
-const CACHE = "novagest-v55";
+const CACHE = "novagest-v56";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js",
