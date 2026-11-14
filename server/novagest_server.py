@@ -1173,13 +1173,32 @@ def _matches_municipality(warehouse, province, name):
     return not duplicated or expected_prov == "PINAR DEL RIO"
 
 
+def _es_registro_municipal(w):
+    """¿Un almacén es un registro municipal del catálogo de Cuba?
+
+    Los almacenes creados por el módulo de almacenes siempre llevan `location`
+    (`«Municipio, Provincia»`) y `code`. Un huérfano borrado de una versión previa
+    (solo nombre, p. ej. «ALMACÉN MANTUA», sin ubicación ni código) no se trata
+    como municipio: no impide que la migración cree el almacén oficial del
+    municipio, pero un municipio que el administrador eliminó sí se conserva
+    borrado y nunca resucita al reiniciar.
+    """
+    return isinstance(w, dict) and bool(w.get("location") or w.get("code"))
+
+
 def add_cuba_municipalities(st):
-    """Añade solo municipios ausentes. Nunca asigna mercancía a los nuevos."""
-    active = [w for w in st["warehouses"] if isinstance(w, dict) and not w.get("deletedAt")]
+    """Añade solo municipios ausentes. Nunca asigna mercancía a los nuevos.
+
+    Un almacén municipal que el administrador eliminó (tiene deletedAt) se da
+    por existente: nunca se resucita automáticamente al reiniciar el servidor,
+    así que un municipio borrado se queda borrado hasta que alguien lo vuelva a
+    crear con «Crear los 168 municipios».
+    """
+    conocidos = [w for w in st["warehouses"] if _es_registro_municipal(w)]
     timestamp = now() * 1000
     created = []
     for province, name, code in CUBA_MUNICIPALITIES:
-        if any(_matches_municipality(w, province, name) for w in active):
+        if any(_matches_municipality(w, province, name) for w in conocidos):
             continue
         wh_name = _municipal_warehouse_name(province, name)
         wid = "w_" + secrets.token_hex(12)
@@ -1188,7 +1207,7 @@ def add_cuba_municipalities(st):
              "active": True, "isDefault": False, "createdAt": timestamp,
              "createdBy": "sistema", "deletedAt": None}
         st["warehouses"].append(w)
-        active.append(w)
+        conocidos.append(w)
         st["warehouseEntries"].append({
             "id": "e_" + secrets.token_hex(12), "ts": timestamp,
             "date": dt.date.today().isoformat(), "warehouseId": wid, "warehouseName": wh_name,
