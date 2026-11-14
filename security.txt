@@ -1,0 +1,6 @@
+Contacto: security@yhquintero.github.io
+Preferido: https://github.com/yhquintero/inventario/security/policy
+Agradecimiento: Se agrende el reporte responsable de vulnerabilidades.
+Política: No abra issues públicos para vulnerabilidades de seguridad.
+          Use el canal privado de GitHub Security Advisories o escriba al contacto de arriba.
+Actualizado: 2026-11-13

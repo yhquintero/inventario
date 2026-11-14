@@ -19,12 +19,12 @@ val keystoreProps = Properties().apply {
 
 android {
     namespace = "com.novagest.inventario"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.novagest.inventario"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 7
         versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -66,7 +66,7 @@ android {
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
     lint {
         disable += "NullSafeMutableLiveData"
-        abortOnError = false
+        abortOnError = true
     }
 }
 

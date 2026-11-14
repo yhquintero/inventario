@@ -12,6 +12,7 @@
 | D | `D-WCAG22.md` | Evaluador de accesibilidad (informe VPAT/ACR) | Sesión manual firmada (plantilla §2) + test automático 7/7 |
 | E | `E-ISO27701.md` | Misma certificadora que A (extensión) | Plazos/canales firmados con asesoría + A certificado |
 | Legal | `../REVISION_LEGAL.md` | Abogado de la jurisdicción | Tabla de firma de ese documento |
+| Secretos | `../ACTA_ROTACION_SECRETOS_2026-11.md` | Administrador del sistema + Titular del negocio | Acta firmada + variables de entorno actualizadas |
 
 ## 1. Firmas (rellenar a mano; no escribir datos por otra persona)
 | Ruta | Nombre y cargo | Fecha | Firma |
@@ -21,6 +22,7 @@
 | C Pentest contratado (empresa/fecha) |  |  | [COMPLETAR: firma C] |
 | D Sesión manual realizada |  |  | [COMPLETAR: firma D] |
 | E Retención y RoPA aprobados |  |  | [COMPLETAR: firma E] |
+| Secretos Rotación 1 (2026-11) |  |  | [COMPLETAR: firma Secretos] |
 
 ## 2. Plantillas de registro (copiar, fechar y firmar cada vez)
 **Sesión manual WCAG (D)** — Fecha: ___ · Evaluador: ___ · Dispositivo/lector: ___

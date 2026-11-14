@@ -1,3 +1,16 @@
+## NovaGest · revisión 2026-11-13 · Perfeccionamiento y seguridad: targetSdk 36, venv/ fuera de git, XSS en financiero.js y security.txt
+
+### Seguridad: bloqueantes P0 cerrados (configuración)
+- **targetSdk 35 → 36** (`app/build.gradle.kts`): Google Play exige API 36 para actualizaciones desde 31-08-2026. Se actualizó `compileSdk = 36`, `targetSdk = 36` y se encendió `lint` con `abortOnError = true` (antes `false`, no protegía de nada).
+- **`venv/` fuera de git** (`.gitignore`): se eliminó el entorno virtual de Windows (932 ficheros, 21 MB, incluido `_rust.pyd` de 7 MB) del control de versiones con `git rm --cached -r venv`. Se documentó `python3 -m venv venv && pip install -r requirements.txt`.
+- **Escape HTML en `financiero.js`** (`web/js/financiero.js`): se aplicó `esc()` a `titulo` en `chartCard`, a `r.error` en el libro mayor y a los valores `value=""` de los inputs del QR de cobro. Cierre del bloqueante P0-4 (XSS).
+- **`security.txt`** (nuevo): archivo de política de seguridad con contacto real y canal privado de divulgación (cierre parcial de P0-5).
+
+### Pendiente de pruebas/compilar (requiere intervención humana)
+- Verificar `./gradlew assembleRelease` con API 36 en emulador Android 16 (bloqueante P0-1 restante).
+- Migraciones Room versionadas (bloqueante P0-3).
+- Mover `LICENSE_SECRET` y `BACKUP_KEY` a variables de entorno del servidor (bloqueante P0-5 restante).
+
 ## NovaGest · revisión 2026-11-13 · Almacenes: los botones municipales se ocultan sin municipios, se pueden eliminar los 168 y el estado vuelve a caber en el servidor
 
 ### Falla: los municipios eliminados volvían a aparecer al recargar (F5)

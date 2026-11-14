@@ -14,7 +14,7 @@ import { qrcode } from "../vendor/qrcode.mjs";
 let R = document; // raíz activa: document en la página propia o el contenedor al montarse en la app
 const $ = (s, r = R) => (r || R).querySelector(s);
 const $$ = (s, r = R) => [...(r || R).querySelectorAll(s)];
-const esc = (t) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const esc = (t) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const fmt = (n) => (n === null || n === undefined || Number.isNaN(n) ? "—" : Number(n).toLocaleString("es", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const toast = (m) => { const t = $("#finToast"); if (!t) return; t.textContent = m; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2600); };
 setUnauthorizedHandler(() => { location.href = "./index.html"; });
@@ -151,7 +151,7 @@ function chartCard(titulo, datos, opts = {}) {
   const wrap = document.createElement("div");
   wrap.className = "card fin-chart-wrap";
   wrap.innerHTML = `<div class="fin-chart-bar">
-      <strong>${titulo}</strong>
+      <strong>${esc(titulo)}</strong>
       <select class="sel-tipo">${tipos.map((t) => `<option ${t === (opts.tipo || "bar") ? "selected" : ""}>${t}</option>`).join("")}</select>
       <input type="color" class="sel-color" value="${opts.color || COLORES[0]}" title="Color" />
     </div><canvas class="fin-chart" id="${id}"></canvas>`;
@@ -308,7 +308,7 @@ async function loadCuentasT() {
       { key: "debe", label: "Debe", num: 1 }, { key: "haber", label: "Haber", num: 1 }, { key: "saldo", label: "Saldo", num: 1, render: (f) => `${fmt(f.saldo)} ${f.saldo_normal === "DEUDOR" ? "Dr" : "Cr"}` }],
       t.cuentas, { debe: t.cuadre.debe, haber: t.cuadre.haber });
   const lm = async () => { const r = await api("/fin/libro-mayor" + qs({ cuenta: $("#lmCuenta").value }));
-    $("#lmTabla").innerHTML = r.error ? r.error : tabla(
+    $("#lmTabla").innerHTML = r.error ? `<div class="card fin-error">${esc(r.error)}</div>` : tabla(
       [{ key: "fecha", label: "Fecha" }, { key: "descripcion", label: "Descripción" }, { key: "debe", label: "Debe", num: 1 }, { key: "haber", label: "Haber", num: 1 }, { key: "saldo", label: "Saldo", num: 1 }],
       r.lineas, { debe: r.lineas.reduce((a, l) => a + l.debe, 0), haber: r.lineas.reduce((a, l) => a + l.haber, 0), saldo: r.saldo_final }); };
   $("#lmCuenta").onchange = lm; lm();
@@ -375,9 +375,9 @@ async function loadQr() {
   const el = $("#tab-qr");
   const cfg = await api("/fin/qr");
   el.innerHTML = `<div class="card fin-form"><h2>Datos de cobro</h2>
-      <div class="fila"><label>Titular <input id="qTit" value="${cfg.config.titular || ""}" /></label><label>Banco <input id="qBan" value="${cfg.config.banco || ""}" /></label></div>
-      <div class="fila"><label>Número de cuenta <input id="qCta" value="${cfg.config.cuenta || ""}" /></label><label>Moneda <input id="qMon" value="${cfg.config.moneda || "USD"}" /></label></div>
-      <div class="fila"><label>Referencia <input id="qRef" value="${cfg.config.referencia || ""}" /></label><label>Monto a cobrar <input id="qMonto" type="number" step="0.01" placeholder="0.00" /></label></div>
+      <div class="fila"><label>Titular <input id="qTit" value="${esc(cfg.config.titular || "")}" /></label><label>Banco <input id="qBan" value="${esc(cfg.config.banco || "")}" /></label></div>
+      <div class="fila"><label>Número de cuenta <input id="qCta" value="${esc(cfg.config.cuenta || "")}" /></label><label>Moneda <input id="qMon" value="${esc(cfg.config.moneda || "USD")}" /></label></div>
+      <div class="fila"><label>Referencia <input id="qRef" value="${esc(cfg.config.referencia || "")}" /></label><label>Monto a cobrar <input id="qMonto" type="number" step="0.01" placeholder="0.00" /></label></div>
       <div><button class="fin-btn primary" id="qGuardar">Guardar datos</button> <button class="fin-btn" id="qGenerar">Generar QR</button></div>
     </div>
     <div class="card fin-qr" id="qVista" style="display:none"><div id="qCanvas"></div><p id="qTexto"></p><button class="fin-btn ghost" id="qDescargar">Descargar QR</button></div>`;

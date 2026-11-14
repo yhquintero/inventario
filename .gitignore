@@ -20,6 +20,7 @@ app/release/
 node_modules/
 .venv/
 .venv-media/
+venv/
 __pycache__/
 *.pyc
 .DS_Store
