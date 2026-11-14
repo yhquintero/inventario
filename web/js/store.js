@@ -865,9 +865,54 @@ class Store {
     return { warehouses, created };
   }
 
+  /** ¿Quedan almacenes municipales de Cuba en la base? */
+  hasMunicipalWarehouses() {
+    return this.existingMunicipalWarehouses().length > 0;
+  }
+
+  /** ¿Es este almacén un municipio de Cuba? */
+  isMunicipalWarehouse(warehouse) {
+    return CUBA_MUNICIPALITIES.some(([province, name]) => matchesMunicipality(warehouse, province, name));
+  }
+
+  /** Crea (o reutiliza) un almacén no municipal donde apoyar la mercancía.
+   *  El servidor hace lo mismo cuando una base se queda sin almacenes: la base
+   *  nunca puede quedar sin un almacén. Nunca reutiliza un municipio. */
+  ensureDefaultWarehouse() {
+    const warehouses = this.state.warehouses || (this.state.warehouses = []);
+    // Un almacén no municipal ya activo sirve tal cual.
+    const reutilizable = warehouses.find((w) => !w.deletedAt && w.active !== false && !this.isMunicipalWarehouse(w));
+    if (reutilizable) return reutilizable;
+    // El id por defecto puede estar ocupado por un municipio (p. ej. «PINAR DEL RÍO»),
+    // así que se usa uno libre si hace falta.
+    const ocupado = warehouses.some((w) => w.id === WAREHOUSE_DEFAULT_ID);
+    const w = {
+      id: ocupado ? uid("w") : WAREHOUSE_DEFAULT_ID,
+      name: "ALMACÉN PRINCIPAL", code: "PRI", location: "",
+      notes: "Creado automáticamente al eliminar los municipios de Cuba.",
+      active: true, isDefault: true, createdAt: Date.now(),
+      createdBy: this.state.session?.displayName || "sistema", deletedAt: null,
+    };
+    warehouses.push(w);
+    for (const p of this.state.products) {
+      p.stocks = p.stocks || {};
+      p.stocksInicial = p.stocksInicial || {};
+      if (p.stocks[w.id] === undefined) p.stocks[w.id] = 0;
+      if (p.stocksInicial[w.id] === undefined) p.stocksInicial[w.id] = 0;
+    }
+    this.logEntry({
+      warehouseId: w.id, kind: "CREACION", source: "municipal",
+      summary: `Almacén «${w.name}» creado para recoger lo que quedara al eliminar los municipios`,
+      counts: {},
+    });
+    this.audit("CREATE", "warehouse", w.name, w.id);
+    return w;
+  }
+
   /** Elimina en bloque los almacenes municipales que existan (🗑️ Eliminar municipios).
    *  Solo ADMINISTRADOR. Si alguno tiene existencias o movimientos, hay que indicar
-   *  un almacén de destino no municipal al que pasen; si no hay ninguno, se bloquea.
+   *  un almacén de destino no municipal al que pasen; si no hay ninguno, se crea el
+   *  almacén principal por defecto para que nada se pierda y la base no quede vacía.
    *  Nunca deja la base sin almacenes. Es la contrapartida de «Crear los 168 municipios»:
    *  tras limpiar (🧹) los municipios quedan vacíos y se pueden eliminar sin destino. */
   deleteMunicipalWarehouses(moveTo = null) {
@@ -876,7 +921,6 @@ class Store {
     if (!targets.length) return { error: "No hay almacenes municipales para eliminar." };
     const targetIds = new Set(targets.map((w) => w.id));
     const remaining = this.warehousesActive().filter((w) => !targetIds.has(w.id));
-    if (!remaining.length) return { error: "No quedaría ningún almacén. Crea primero otro almacén no municipal o elimina los municipios de uno en uno." };
     // Contenido total a mover (existencias + movimientos, papelera incluida).
     let hasStock = false, movs = 0;
     for (const w of targets) {
@@ -884,8 +928,17 @@ class Store {
       hasStock = hasStock || c.hasStock;
       movs += c.movements.length;
     }
-    const target = moveTo ? this.warehouseById(moveTo) : null;
-    if ((hasStock || movs) && (!target || target.deletedAt || targetIds.has(target.id))) {
+    let target = moveTo ? this.warehouseById(moveTo) : null;
+    if (target && (target.deletedAt || targetIds.has(target.id))) target = null;
+    // Si los municipios son los únicos almacenes, se crea el principal por defecto
+    // (como hace el servidor): así se pueden eliminar TODOS los municipios de Cuba
+    // sin quedarse sin almacén y sin perder existencias ni movimientos.
+    if (!remaining.length) {
+      const porDefecto = this.ensureDefaultWarehouse();
+      remaining.push(porDefecto);
+      if (!target) target = porDefecto;
+    }
+    if ((hasStock || movs) && !target) {
       return {
         error: "Los municipios todavía tienen existencias o movimientos. Elige a qué almacén no municipal moverlos, o limpia primero los municipios.",
         needsTarget: true, movimientos: movs,
@@ -941,7 +994,7 @@ class Store {
       try { localStorage.setItem(WAREHOUSE, this.warehouseId); } catch {}
     }
     this.emit();
-    return { ok: true, deleted: targets.length, names: targets.map((w) => w.name), movedProducts, movimientos: movs, destino: target?.name || "" };
+    return { ok: true, deleted: targets.length, names: targets.map((w) => w.name), movedProducts, movimientos: movs, destino: target?.name || "", destinoId: target?.id || "" };
   }
 
   async clearWarehouse(warehouseId, municipalityIds = null) {

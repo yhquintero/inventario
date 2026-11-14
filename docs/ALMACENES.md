@@ -203,17 +203,34 @@ Para aprobar se debe escribir **ELIMINAR N MUNICIPIOS**.
 
 - Si los municipios **todavía tienen existencias o movimientos** (papelera incluida),
   hay que elegir un almacén **no municipal** de destino: todo pasa allí y nada se
-  pierde. Si no hay ninguno, se bloquea: crea primero otro almacén o limpia antes
-  los municipios.
+  pierde. Si no hay ninguno, se crea **ALMACÉN PRINCIPAL** automáticamente y ese
+  recibe todo: así se pueden eliminar **los 168 municipios de Cuba** aunque sean los
+  únicos almacenes de la base.
 - Si están **vacíos** (por ejemplo, tras 🧹 Limpiar), se eliminan sin destino.
 - **Nunca deja la base sin almacenes**: si los municipales fueran todos los que hay,
-  se bloquea con el aviso de crear otro primero.
+  se crea el almacén principal por defecto (igual que hace el servidor al detectar
+  una base sin almacenes).
 - Cada eliminación queda en **Entradas** (origen `municipal`) y en la auditoría
   (acción `DELETE`, entidad `warehouse`). Después se pueden volver a crear con
   **🏗️ Crear los 168 municipios**.
 - El flujo completo recomendado es: **🧹 Limpiar** → **🗑️ Eliminar** → trabajar sin
   municipios → **🏗️ Crear** cuando se necesiten de nuevo. Eliminar de uno en uno
   desde cada tarjeta sigue funcionando igual (con permiso de almacén).
+
+### Los botones que se ocultan cuando no hay municipios
+
+En **Almacenes**, si la base **no tiene ningún municipio de Cuba** (porque se
+eliminaron todos), la barra deja de ofrecer las acciones que solo aplican a ellos:
+
+| Botón | Sin municipios | Por qué |
+|---|---|---|
+| **🧪 Llenar con datos de prueba** | oculto | los datos de demostración se generan sobre los almacenes municipales |
+| **🗺️ Simular 168 municipios** | oculto | primero hay que crearlos con **🏗️ Crear los 168 municipios** (vacíos) y después simularlos |
+| **🧹 Limpiar inventario de los 168 municipios** | oculto | no hay municipios que limpiar |
+| **🗑️ Eliminar N municipios** | oculto | no queda ningún municipio que eliminar |
+| **🏗️ Crear los 168 municipios** | visible | es la forma de volver a tenerlos |
+
+En cuanto se crea o se restaura un municipio, los tres botones vuelven a aparecer.
 
 ## 2. Almacén en uso
 

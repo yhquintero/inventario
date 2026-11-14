@@ -628,12 +628,14 @@ test("Informes compara el período con el anterior (W-06)", () => {
 });
 
 test("Simulación municipal pide confirmación y crea los municipios que falten", () => {
-  const original = { products: structuredClone(store.state.products), movements: structuredClone(store.state.movements), warehouses: structuredClone(store.state.warehouses), audit: structuredClone(store.state.audit), warehouseEntries: structuredClone(store.state.warehouseEntries) };
-  // Quitamos GUANE para comprobar que el botón lo vuelve a crear en lugar de fallar.
-  const idx = store.state.warehouses.findIndex((w) => /^GUANE$/i.test(w.name));
-  if (idx >= 0) store.state.warehouses.splice(idx, 1);
-  const before = JSON.stringify(store.shared());
+  const original = structuredClone(store.state);
   try {
+    // Con los 168 municipios de Cuba creados, el botón está disponible.
+    store.seed();
+    // Quitamos GUANE para comprobar que el botón lo vuelve a crear en lugar de fallar.
+    const idx = store.state.warehouses.findIndex((w) => /^GUANE$/i.test(w.name));
+    if (idx >= 0) store.state.warehouses.splice(idx, 1);
+    const before = JSON.stringify(store.shared());
     const html = go("warehouses");
     assert.match(html, /Simular 168 municipios/);
     clickMatching("act", { act: "wh-municipal-demo" });
@@ -680,8 +682,10 @@ test("Crear los 168 municipios de Cuba: botón visible solo si faltan, con icono
     const html = go("warehouses");
     assert.match(html, /Crear los 168 municipios/);
     assert.match(html, /🏬 ＋ Nuevo almacén/, "los botones llevan iconos");
-    assert.match(html, /🗺️ Simular 168 municipios/);
-    assert.match(html, /🧹 Limpiar inventario de los 168 municipios/);
+    // Sin municipios, las acciones que solo aplican a los municipios se ocultan.
+    assert.doesNotMatch(html, /🧪 Llenar con datos de prueba/, "sin municipios no hay datos de prueba");
+    assert.doesNotMatch(html, /🗺️ Simular 168 municipios/, "sin municipios no se simula");
+    assert.doesNotMatch(html, /🧹 Limpiar inventario de los 168 municipios/, "sin municipios no hay nada que limpiar");
     assert.doesNotMatch(html, /wh-municipal-delete/, "sin municipios no hay botón de eliminar");
     clickMatching("act", { act: "wh-municipal-create" });
     assert.match(app.innerHTML, /Crear los almacenes municipales de Cuba/);
@@ -856,6 +860,13 @@ test("Eliminar municipios: botón 🗑️ tras Limpiar, solo Administrador, pide
     assert.ok(done.ok && done.deleted === 168, "elimina los 168 en bloque");
     assert.deepEqual(store.warehousesActive().map((w) => w.name), ["ALMACÉN CENTRAL"]);
     assert.equal(store.missingMunicipalities().missing.length, 168, "tras eliminar, faltan los 168 y se pueden volver a crear");
+    // Sin municipios, los botones de demostración y limpieza desaparecen.
+    const html = go("warehouses");
+    assert.doesNotMatch(html, /🧪 Llenar con datos de prueba/, "sin municipios no hay datos de prueba");
+    assert.doesNotMatch(html, /🗺️ Simular 168 municipios/, "sin municipios no se simula");
+    assert.doesNotMatch(html, /🧹 Limpiar inventario de los 168 municipios/, "sin municipios no hay nada que limpiar");
+    assert.doesNotMatch(html, /data-act="wh-municipal-delete"/, "sin municipios no hay botón de eliminar");
+    assert.match(html, /🏗️ Crear los 168 municipios/, "se puede volver a crearlos");
   } finally { Object.assign(store.state, saved); store.state.session = session; go("warehouses"); }
 });
 

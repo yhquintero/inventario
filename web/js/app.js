@@ -3660,6 +3660,9 @@ function warehousesView() {
   const entradas = (store.state.warehouseEntries || []).length;
   const missingCount = store.missingMunicipalities().missing.length || 0;
   const municipalCount = store.existingMunicipalWarehouses().length;
+  // Sin municipios de Cuba en la base no tienen sentido estas acciones:
+  // se ocultan para que la barra no ofrezca lo que ya no aplica.
+  const hayMunicipios = municipalCount > 0;
   const visibleStats = ui.whProvince ? stats.filter(({ w }) => provinceOfWarehouse(w) === ui.whProvince) : stats;
   const provincesPresent = [...CUBA_PROVINCES, "Otros almacenes"].filter((prov) => whs.some((w) => provinceOfWarehouse(w) === prov));
   return `
@@ -3672,8 +3675,9 @@ function warehousesView() {
         ${canEdit ? `<button class="btn" data-act="wh-new">🏬 ＋ Nuevo almacén</button>` : ""}
         ${canEdit && whs.length > 1 && active ? `<button class="btn ghost" data-wh-tr="${active.id}">🚚 ⇄ Traspaso</button>` : ""}
         ${canEdit && missingCount > 0 ? `<button class="btn gold" data-act="wh-municipal-create">🏗️ Crear ${missingCount === TOTAL_MUNICIPIOS ? `los ${TOTAL_MUNICIPIOS} municipios` : `${missingCount} municipio${missingCount > 1 ? "s" : ""}`}</button>` : ""}
-        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button><button class="btn ghost" data-act="wh-demo">🧪 Llenar con datos de prueba</button><button class="btn ghost" data-act="wh-municipal-demo">🗺️ Simular ${TOTAL_MUNICIPIOS} municipios</button>` : ""}
-        ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost danger-t" data-act="wh-municipal-clear">🧹 Limpiar inventario de los ${TOTAL_MUNICIPIOS} municipios</button>` : ""}
+        ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button>` : ""}
+        ${canImport && hayMunicipios ? `<button class="btn ghost" data-act="wh-demo">🧪 Llenar con datos de prueba</button><button class="btn ghost" data-act="wh-municipal-demo">🗺️ Simular ${TOTAL_MUNICIPIOS} municipios</button>` : ""}
+        ${store.state.session?.role === "ADMINISTRADOR" && hayMunicipios ? `<button class="btn ghost danger-t" data-act="wh-municipal-clear">🧹 Limpiar inventario de los ${TOTAL_MUNICIPIOS} municipios</button>` : ""}
         ${store.state.session?.role === "ADMINISTRADOR" && municipalCount > 0 ? `<button class="btn ghost danger-t" data-act="wh-municipal-delete">🗑️ Eliminar ${municipalCount} municipios</button>` : ""}
       </div>
     </div>
@@ -3790,12 +3794,12 @@ function whMunicipalDeleteFlow() {
     <p>Se eliminarán los <b>${targets.length} almacenes municipales</b> que existen (todos los municipios de Cuba presentes, agrupados por provincia):</p>
     <ul>${rows}</ul>
     ${needsTarget
-      ? `<p><b>⚠ Todavía tienen existencias o movimientos</b> (${movs} movimientos, incluida la papelera). Elige a qué almacén <b>no municipal</b> pasan antes de eliminarlos: nada se pierde. Si no hay ninguno, crea uno primero o limpia antes los municipios (🧹).</p>
-         ${remaining.length ? `<label>Mover todo a<select name="moveTo">${remaining.map((o) => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></label>` : `<p class="banner">No hay almacén de destino: crea primero otro almacén no municipal.</p>`}`
+      ? `<p><b>⚠ Todavía tienen existencias o movimientos</b> (${movs} movimientos, incluida la papelera). Elige a qué almacén <b>no municipal</b> pasan antes de eliminarlos: nada se pierde. Si no hay ninguno, se creará ALMACÉN PRINCIPAL para recibirlos; también puedes limpiar antes los municipios (🧹).</p>
+         ${remaining.length ? `<label>Mover todo a<select name="moveTo">${remaining.map((o) => `<option value="${o.id}">${esc(o.name)}</option>`).join("")}</select></label>` : `<p class="banner info">No hay ningún almacén no municipal: se creará <b>ALMACÉN PRINCIPAL</b> para recibirlo todo. La base nunca se queda sin almacén.</p>`}`
       : `<p>No tienen existencias ni movimientos (por ejemplo, tras <b>🧹 Limpiar inventario</b>): se eliminan sin destino. Después podrás volver a crearlos con <b>🏗️ Crear los ${TOTAL_MUNICIPIOS} municipios</b>.</p>`}
     <p>Los demás almacenes y el catálogo compartido se conservan. Cada eliminación queda en <b>Entradas</b> y en la auditoría. Esta operación es irreversible desde la aplicación.</p>
     <label>Escriba ELIMINAR ${targets.length} MUNICIPIOS para confirmar<input name="confirmation" required autocomplete="off"></label>
-    <div class="row mt14"><button class="btn danger" ${needsTarget && !remaining.length ? "disabled" : ""}>Eliminar ${targets.length} municipios</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whMunicipalDeleteForm");
+    <div class="row mt14"><button class="btn danger">Eliminar ${targets.length} municipios</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "whMunicipalDeleteForm");
   render();
 }
 

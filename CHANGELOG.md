@@ -1,3 +1,33 @@
+## NovaGest · revisión 2026-11-13 · Almacenes: los botones municipales se ocultan sin municipios y se pueden eliminar los 168
+
+### Almacenes: sin municipios, la barra deja de ofrecer acciones que no aplican
+- **Petición**: al eliminar los municipios, seguían apareciendo **🧪 Llenar con datos de prueba**,
+  **🗺️ Simular 168 municipios** y **🧹 Limpiar inventario de los 168 municipios**, aunque no quedara
+  ningún municipio en la base (los datos de demostración y la limpieza solo tienen sentido sobre municipios).
+- **Fix** (`web/js/app.js`): la barra de **Almacenes** calcula `existingMunicipalWarehouses()` y, cuando
+  no queda ningún municipio de Cuba, oculta 🧪, 🗺️ y 🧹. **🏗️ Crear los 168 municipios** queda visible
+  (es la forma de volver a tenerlos) y los tres botones reaparecen en cuanto se crea o restaura uno.
+  🗑️ **Eliminar N municipios** ya se ocultaba solo cuando no había ninguno.
+
+### Almacenes: se pueden eliminar los municipios de Cuba completos
+- **Falla**: `deleteMunicipalWarehouses()` (`web/js/store.js`) se negaba a borrar los municipios si eran
+  los **únicos** almacenes de la base («No quedaría ningún almacén»), así que no se podían eliminar los 168
+  de Cuba de una vez: había que dejar antes un almacén no municipal.
+- **Fix**: si no queda ningún almacén no municipal, se crea **ALMACÉN PRINCIPAL** (nuevo helper
+  `ensureDefaultWarehouse()`; nunca reutiliza un municipio ni el id `w_principal`, que en la semilla
+  pertenece a «PINAR DEL RÍO») y ese recibe las existencias y los movimientos: nada se pierde y la base
+  nunca queda sin almacenes, igual que hace el servidor (`ensure_warehouses`). El aviso del modal explica
+  que se creará ese almacén y el botón de eliminar ya no queda deshabilitado.
+- El resultado del borrado ahora incluye `destinoId` para poder comprobar a dónde fue la mercancía.
+
+### Pruebas (verdes)
+- `node tools/test_eliminar_municipios.mjs` (permisos, borrado de los 168 sin destino previo con creación
+  del almacén principal, destino explícito, recreación y que nada se pierde).
+- `node tools/smoke_web.mjs` (88 comprobaciones): los botones 🧪/🗺️/🧹 se ocultan sin municipios y
+  reaparecen con ellos.
+- `node tools/test_almacenes.mjs`, `node tools/test_pinar_municipios.mjs`, `node tools/test_demo_municipios.mjs`,
+  `node tools/test_limpieza_cliente.mjs`, `node tools/test_excel_sources.mjs`, `python3 tools/test_migracion_pinar.py`.
+
 ## NovaGest · revisión 2026-11-14 · Municipios de Cuba: borrado permanente al reiniciar y restablecimiento de contraseña de administrador
 
 ### Almacenes: municipios borrados dejan de resucitar al iniciar el Web
