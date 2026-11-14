@@ -1149,10 +1149,8 @@ def compactar_estado(st):
             if disponible >= d:
                 disponible -= d
                 continue
-            # Las invalidadas por una limpieza no se tocan: validate_change las
-            # protege y rechazaría el guardado si cambian.
-            if e.get("invalidatedAt"):
-                continue
+            # El detalle de una entrada invalidada por una limpieza no sirve para
+            # nada (no se puede deshacer) y es el mayor peso del estado: se recorta.
             e["items"] = []
             e["detalleRecortado"] = True
         st["warehouseEntries"] = entradas
@@ -1365,6 +1363,19 @@ def core_changed(old, new):
     return any(previous[key] != current.get(key) for key in previous)
 
 
+def comparable_cleaned(rec):
+    """Lo que no puede cambiar en un registro que ya fue limpiado.
+
+    El detalle (`items`) y la marca de recorte (`detalleRecortado`) sí pueden:
+    el servidor recorta el historial para que el estado quepa en el tamaño que
+    acepta, y el detalle de una entrada que ya no se puede deshacer no sirve
+    para nada. Todo lo demás tiene que seguir igual.
+    """
+    if not isinstance(rec, dict):
+        return rec
+    return {k: v for k, v in rec.items() if k not in ("items", "detalleRecortado")}
+
+
 def validate_change(old, new, role, closed):
     """Devuelve (código HTTP, mensaje) si el cambio no está permitido, o None."""
     if not isinstance(new, dict): return 400, "Estado inválido."
@@ -1374,7 +1385,10 @@ def validate_change(old, new, role, closed):
         previous = by_id(old.get(section))
         current = by_id(new.get(section))
         for rid, record in previous.items():
-            if record.get(marker) and current.get(rid) != record:
+            if not record.get(marker):
+                continue
+            ahora = current.get(rid)
+            if ahora is None or comparable_cleaned(ahora) != comparable_cleaned(record):
                 return 409, "Esta versión intenta restaurar datos limpiados. Recargue la aplicación y revise los cambios pendientes."
     old_products = by_id(old.get("products"))
     for rid, product in by_id(new.get("products")).items():

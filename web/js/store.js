@@ -370,8 +370,8 @@ export function limpiarExistenciasMuertas(state) {
  * lo que quede, el detalle (items) de las entradas más recientes, que es lo que
  * permite deshacer. Si ni así cabe, se descartan las entradas más antiguas.
  *
- * Las entradas invalidadas por una limpieza (`invalidatedAt`) no se tocan: el
- * servidor las protege y rechazaría el guardado si cambian.
+ * El detalle de las entradas invalidadas por una limpieza se recorta siempre:
+ * no se pueden deshacer y son el mayor peso del estado.
  */
 export function recortarEntradas(entries, presupuesto = ENTRIES_BUDGET) {
   const lista = Array.isArray(entries) ? entries.slice() : [];
@@ -396,7 +396,8 @@ export function recortarEntradas(entries, presupuesto = ENTRIES_BUDGET) {
     const d = costeDetalle(e);
     if (!d) continue;
     if (disponible >= d) { disponible -= d; continue; }
-    if (e.invalidatedAt) continue;   // protegida por el servidor
+    // El detalle de una entrada invalidada por una limpieza no sirve para nada
+    // (no se puede deshacer) y es el mayor peso del estado: se recorta.
     e.items = [];
     e.detalleRecortado = true;
   }

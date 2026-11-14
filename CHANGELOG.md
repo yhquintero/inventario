@@ -1,4 +1,31 @@
-## NovaGest · revisión 2026-11-13 · Almacenes: los botones municipales se ocultan sin municipios y se pueden eliminar los 168
+## NovaGest · revisión 2026-11-13 · Almacenes: los botones municipales se ocultan sin municipios, se pueden eliminar los 168 y el estado vuelve a caber en el servidor
+
+### Falla: los municipios eliminados volvían a aparecer al recargar (F5)
+- **Falla**: al eliminar los municipios en la Web y recargar (F5), los 168 seguían ahí. El log del
+  servidor lo explicaba: **todos** los `PUT /api/state` acababan en **413 (petición demasiado
+  grande)**. El estado había crecido hasta **14,2 MB** (el tope de `MAX_STATE_MB` era 12 MB) porque
+  el historial de entradas (Entradas) guardaba el detalle de cada cambio: 203 entradas de
+  «🗺️ Simular 168 municipios» con 262 productos cada una = **8,9 MB** y 53 010 renglones de detalle.
+  Como el guardado se rechazaba, **ningún cambio se guardaba**: la eliminación se veía en pantalla
+  (memoria del navegador) pero al recargar volvía el estado viejo del servidor.
+- **Fix (cliente)**: `web/js/store.js` recorta el estado antes de enviarlo (`shared()`):
+  - `limpiarExistenciasMuertas()`: quita de los productos las existencias de almacenes ya borrados.
+  - `recortarEntradas()`: reparte el presupuesto del historial (2 MB) — primero los registros (qué
+    pasó y cuándo) y, con lo que quede, el detalle de las entradas más recientes (lo que permite
+    deshacer). El detalle de las entradas que una limpieza ya invalidó se recorta siempre, porque no
+    se pueden deshacer. La entrada queda marcada con **DETALLE RECORTADO**.
+  - La base real pasa de **14,2 MB a 5,9 MB**: el guardado vuelve a entrar en el tope y el cambio se
+    guarda (funciona con el servidor actual, sin reiniciarlo).
+- **Fix (servidor)**: `server/novagest_server.py`
+  - `compactar_estado()`: el mismo recorte al guardar (y al arrancar, si el estado guardado quedó
+    grande), para que el estado no vuelva a crecer sin límite.
+  - La protección de los datos limpiados (`validate_change`) se mantiene, pero ahora compara el
+    registro **sin el detalle** (`comparable_cleaned()`): lo que no puede cambiar es la marca de
+    limpieza, no el detalle que el propio servidor recorta.
+  - Topes con holgura: `MAX_STATE_MB` 12 → **32** y `MAX_BODY_MB` 30 → **48** (`ENTRIES_BUDGET_MB`
+    nuevo, 2 MB). El 413 del estado ahora explica qué hacer.
+- **No se pierde el trabajo**: si aun así el estado no cabe, la Web **no recarga** (eso borraba los
+  cambios locales): los guarda en la cola local, lo avisa y reintenta con el historial más recortado.
 
 ### Almacenes: sin municipios, la barra deja de ofrecer acciones que no aplican
 - **Petición**: al eliminar los municipios, seguían apareciendo **🧪 Llenar con datos de prueba**,
@@ -21,12 +48,18 @@
 - El resultado del borrado ahora incluye `destinoId` para poder comprobar a dónde fue la mercancía.
 
 ### Pruebas (verdes)
+- `node tools/test_eliminar_municipios_persiste.mjs` (**nuevo**): levanta el servidor real contra una
+  copia de la base, elimina los municipios y comprueba que **siguen eliminados tras recargar** y que el
+  estado guardado cabe.
+- `node tools/test_estado_compactado.mjs` (**nuevo**) y `python3 tools/test_estado_tamano.py` (**nuevo**):
+  el estado que se envía cabe en lo que el servidor acepta.
 - `node tools/test_eliminar_municipios.mjs` (permisos, borrado de los 168 sin destino previo con creación
   del almacén principal, destino explícito, recreación y que nada se pierde).
 - `node tools/smoke_web.mjs` (88 comprobaciones): los botones 🧪/🗺️/🧹 se ocultan sin municipios y
   reaparecen con ellos.
 - `node tools/test_almacenes.mjs`, `node tools/test_pinar_municipios.mjs`, `node tools/test_demo_municipios.mjs`,
-  `node tools/test_limpieza_cliente.mjs`, `node tools/test_excel_sources.mjs`, `python3 tools/test_migracion_pinar.py`.
+  `node tools/test_limpieza_cliente.mjs`, `node tools/test_excel_sources.mjs`, `python3 tools/test_compresion.py`
+  (26 comprobaciones), `python3 tools/test_migracion_pinar.py`.
 
 ## NovaGest · revisión 2026-11-14 · Municipios de Cuba: borrado permanente al reiniciar y restablecimiento de contraseña de administrador
 

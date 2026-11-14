@@ -53,7 +53,7 @@ Colombia, México, Argentina y EE. UU. (CCPA/CPRA); datos tratados: inventario, 
 - **Path traversal**: `static()` valida `realpath` dentro de `web/`.
 - **Auditoría**: cadena hash (SHA-256 por línea, verificable), anclajes y sello de tiempo opcional.
 - **Backups**: cifrados con Fernet (AES-128-CBC + HMAC), rotación 30 días, verificación de restaurabilidad.
-- **Tamaño de petición**: límite 30 MB (`MAX_BODY_MB`).
+- **Tamaño de petición**: límite 48 MB (`MAX_BODY_MB`); el estado compartido tiene su propio tope (`MAX_STATE_MB`, 32 MB) y se recorta antes de guardarse.
 - **Android**: `EncryptedSharedPreferences` (AES256-SIV/GCM) para sesión y licencia; `cleartextTrafficPermitted="false"`; HTTPS obligatorio en release.
 - **Dependencias servidor**: solo `cryptography` y `openpyxl` (superficie mínima).
 

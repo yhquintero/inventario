@@ -198,18 +198,35 @@ Los dos límites de tamaño se ajustan sin tocar el código:
 
 | Variable | Por defecto | Para qué |
 |---|---|---|
-| `MAX_STATE_MB` | `12` | Tamaño máximo del cuerpo que se acepta al guardar el estado (`PUT /api/state`) |
-| `MAX_BODY_MB` | `30` | Tope general del resto de peticiones |
+| `MAX_STATE_MB` | `32` | Tamaño máximo del cuerpo que se acepta al guardar el estado (`PUT /api/state`) |
+| `MAX_BODY_MB` | `48` | Tope general del resto de peticiones |
+| `ENTRIES_BUDGET_MB` | `2` | Presupuesto del historial de entradas (Entradas) que se guarda en el estado |
 
 ```bash
 # Ejemplo: servidor con muchos años de historial y fotos de productos
-MAX_STATE_MB=24 MAX_BODY_MB=40 python3 server/novagest_server.py
+MAX_STATE_MB=64 MAX_BODY_MB=80 ENTRIES_BUDGET_MB=4 python3 server/novagest_server.py
 ```
 
 Si una petición se pasa del tope, el servidor responde **413** con un mensaje que dice el
-máximo permitido; la app no se queda «colgada» esperando. Subir el límite es la última opción:
-antes conviene vaciar la papelera, archivar años anteriores o mover las fotos a un almacén
-externo.
+máximo permitido; la app no se queda «colgada» esperando.
+
+### El estado se recorta solo
+
+El estado que guarda la app (productos con la existencia de cada almacén + el historial de
+entradas con el detalle de cada cambio) crece con el uso. Para que nunca vuelva a pasar del
+tope y a perder cambios, **antes de enviarse se recorta**:
+
+- se quitan de los productos las existencias de almacenes ya borrados;
+- el historial de entradas reparte su presupuesto: primero los registros (qué pasó y
+  cuándo) y, con lo que quede, el detalle de las entradas más recientes (lo que permite
+  deshacer). El detalle de las entradas que una limpieza ya invalidó se recorta siempre,
+  porque no se pueden deshacer.
+
+Cuando se recorta, la entrada queda marcada con **DETALLE RECORTADO** en la pantalla de
+Entradas: se conserva el registro de qué pasó, pero no el detalle fino de cada cambio.
+
+Subir el límite es la última opción: antes conviene vaciar la papelera, archivar años
+anteriores o mover las fotos a un almacén externo.
 
 ## Producción
 
