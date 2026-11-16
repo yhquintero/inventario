@@ -1,6 +1,21 @@
 package com.novagest.inventario.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -179,3 +194,39 @@ fun EmptyState(text: String, icon: ImageVector? = null) {
         Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
+/**
+ * Botón flotante único para volver arriba en listas largas (una sola flecha hacia arriba).
+ */
+@Composable
+fun ScrollToTopFab(
+    listState: LazyListState,
+    modifier: Modifier = Modifier,
+    minIndex: Int = 2
+) {
+    val scope = rememberCoroutineScope()
+    val visible by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex >= minIndex || listState.firstVisibleItemScrollOffset > 360
+        }
+    }
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn() + scaleIn(),
+        exit = fadeOut() + scaleOut()
+    ) {
+        SmallFloatingActionButton(
+            onClick = { scope.launch { listState.animateScrollToItem(0) } },
+            shape = CircleShape,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.KeyboardArrowUp,
+                contentDescription = "Volver arriba"
+            )
+        }
+    }
+}
+

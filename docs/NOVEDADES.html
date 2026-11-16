@@ -43,6 +43,7 @@
   .intro { font-size: 15px; color: var(--muted); }
   .older { text-align:center; color: var(--muted); font-size: 14px; margin-top: 18px; }
   footer { max-width: 880px; margin: 0 auto 40px; padding: 0 20px; color: var(--muted); font-size: 13px; display:flex; gap:14px; flex-wrap:wrap; justify-content: space-between; }
+  .btn-subir { position:fixed; right:18px; bottom:18px; width:44px; height:44px; border-radius:50%; display:grid; place-items:center; background:linear-gradient(135deg, #06b6d4, #4338ca); color:#fff; text-decoration:none; font:800 20px/1 system-ui, sans-serif; box-shadow:0 6px 20px #1e1b4b55; border:1px solid #ffffff44; }
   @media (prefers-color-scheme: dark) {
     :root { --ink:#e8e9f6; --muted:#a6a8c2; --line:#2b2d47; --soft:#14152a; --paper:#1b1c34; }
     .card li b, .card li strong { color:#fff; }
@@ -52,14 +53,14 @@
     html, body { background:#fff; }
     header.top { background:#fff; color:#111; border-bottom: 2px solid var(--brand); }
     header.top p, header.top nav a { color:#333; }
-    header.top nav, .older { display:none; }
+    header.top nav, .older, .btn-subir { display:none; }
     .card { box-shadow:none; break-inside: avoid; }
   }
 </style>
 </head>
 <body>
 <a class="skip" href="#novedades">Saltar al contenido</a>
-<header class="top">
+<header class="top" id="inicio">
   <div class="wrap">
     <div class="brand">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10m-4-12 9-4"/></svg>
@@ -244,5 +245,6 @@
   <span>NovaGest · Gestiona. Crece. Avanza.</span>
   <span>Generado desde CHANGELOG.md por tools/build_novedades.py</span>
 </footer>
+<a class="btn-subir" href="#inicio" aria-label="Volver arriba" title="Volver arriba">↑</a>
 </body>
 </html>

@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.AlertDialog
@@ -55,6 +57,7 @@ import com.novagest.inventario.domain.model.RolePermissions
 import com.novagest.inventario.ui.components.ChipRow
 import com.novagest.inventario.domain.model.SaleCenter
 import com.novagest.inventario.domain.model.UserAccount
+import com.novagest.inventario.ui.components.ScrollToTopFab
 import com.novagest.inventario.ui.components.SearchField
 import com.novagest.inventario.util.Dates
 import com.novagest.inventario.util.Money
@@ -169,8 +172,16 @@ fun MovementsScreen(user: UserAccount, vm: MovementViewModel = hiltViewModel()) 
             (q.isBlank() || it.productName.contains(q, true) || it.center.name.contains(q, true))
     }
 
+    val listState = rememberLazyListState()
+
     Scaffold(floatingActionButton = {
-        if (canCreate) FloatingActionButton(onClick = { open = true }) { Icon(Icons.Outlined.Add, "Registrar") }
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            ScrollToTopFab(listState = listState, minIndex = 4)
+            if (canCreate) FloatingActionButton(onClick = { open = true }) { Icon(Icons.Outlined.Add, "Registrar") }
+        }
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
             SearchField(q, { q = it }, "Buscar por producto o centro")
@@ -183,7 +194,7 @@ fun MovementsScreen(user: UserAccount, vm: MovementViewModel = hiltViewModel()) 
             )
             vm.message?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 8.dp)) }
             // Espacio al final para que el botón flotante no tape el último movimiento.
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp)) {
+            LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 128.dp)) {
                 items(filtered, key = { it.id }) { m ->
                     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                         Text("${m.type.name} · ${m.productName}", style = MaterialTheme.typography.titleMedium)

@@ -7,7 +7,7 @@ personales y con avisos útiles cuando falta la licencia o las copias.
 
 Uso:  python3 tools/test_salud_servidor.py     (código de salida 0 = correcto)
 """
-import gzip, json, os, pathlib, subprocess, sys, tempfile, time, urllib.request
+import gzip, json, os, pathlib, subprocess, sys, tempfile, time, urllib.error, urllib.request
 
 ROOT = pathlib.Path(__file__).parent.parent
 PORT = 18195
@@ -119,6 +119,25 @@ try:
     ok("se anuncia Vary: Accept-Encoding", "Accept-Encoding" in (cab.get("Vary") or ""), str(cab.get("Vary")))
     cab3, _ = pedir("/api/health")
     ok("las respuestas pequeñas de la API no se comprimen", cab3.get("Content-Encoding") is None)
+
+    print("\nCaché condicional ETag y HEAD")
+    etag = cab.get("ETag")
+    ok("los activos estáticos emiten ETag débil", isinstance(etag, str) and etag.startswith('W/"'), str(etag))
+    ok("envía cabecera X-Permitted-Cross-Domain-Policies: none", cab.get("X-Permitted-Cross-Domain-Policies") == "none")
+    req304 = urllib.request.Request(BASE + "/css/app.css", headers={"If-None-Match": etag})
+    try:
+        with urllib.request.urlopen(req304, timeout=10) as r304:
+            cod304 = r304.status
+    except urllib.error.HTTPError as e:
+        cod304 = e.code
+    ok("If-None-Match coincidente responde 304 Not Modified", cod304 == 304, str(cod304))
+    req_head = urllib.request.Request(BASE + "/api/health", method="HEAD")
+    with urllib.request.urlopen(req_head, timeout=10) as rhead:
+        ok("HEAD /api/health responde 200 sin cuerpo", rhead.status == 200 and rhead.read() == b"")
+    req_head_static = urllib.request.Request(BASE + "/css/app.css", method="HEAD")
+    with urllib.request.urlopen(req_head_static, timeout=10) as rheads:
+        ok("HEAD /css/app.css responde 200 con ETag y sin cuerpo", rheads.status == 200 and rheads.headers.get("ETag") == etag and rheads.read() == b"")
+    ok("incluye métrica walBytes de SQLite", isinstance(salud.get("walBytes"), int) and salud["walBytes"] >= 0)
 finally:
     proc.terminate()
     try:

@@ -5,14 +5,25 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +52,7 @@ import com.novagest.inventario.domain.usecase.CuadreCalculator
 import com.novagest.inventario.ui.components.GradientLinearProgress
 import com.novagest.inventario.ui.components.KpiCard
 import com.novagest.inventario.ui.components.SalesLineChart
+import com.novagest.inventario.ui.components.ScrollToTopFab
 import com.novagest.inventario.ui.components.SectionTitle
 import com.novagest.inventario.util.Dates
 import com.novagest.inventario.util.Money
@@ -117,12 +129,55 @@ fun HomeScreen(user: UserAccount, vm: HomeViewModel = hiltViewModel()) {
         else -> "Buenas noches"
     }
 
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            Text("$saludo, ${user.displayName.split(" ").first()}", style = MaterialTheme.typography.headlineMedium)
-            Text("Hoy es ${Dates.formatLong(today)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Inventario · Venta · Caja · Análisis", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelLarge)
-        }
+    val listState = rememberLazyListState()
+
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                val bannerShape = RoundedCornerShape(20.dp)
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(bannerShape)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
+                                )
+                            )
+                        )
+                        .border(
+                            1.dp,
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)
+                                )
+                            ),
+                            bannerShape
+                        )
+                        .padding(16.dp)
+                ) {
+                    Column {
+                        Text(
+                            "NOVAGEST · NEBULA",
+                            color = MaterialTheme.colorScheme.secondary,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text("$saludo, ${user.displayName.split(" ").first()}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                        Text("Hoy es ${Dates.formatLong(today)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(4.dp))
+                        Text("Inventario · Venta · Caja · Análisis", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 KpiCard("Ventas de hoy", Money.usd(ventas), "${Money.qty(unidades)} uds.", Modifier.weight(1f), MaterialTheme.colorScheme.tertiary, icon = Icons.Outlined.PointOfSale)
@@ -198,5 +253,10 @@ fun HomeScreen(user: UserAccount, vm: HomeViewModel = hiltViewModel()) {
                 Text("${Money.qty(m.quantity)} · ${Money.usd(m.importeUsd)} · ${m.center.name} · ${Dates.format(m.dateEpoch)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+        ScrollToTopFab(
+            listState = listState,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+        )
     }
 }

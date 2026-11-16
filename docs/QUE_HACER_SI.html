@@ -36,17 +36,19 @@
   footer.guide { border-top: 1px solid var(--line); margin-top: 3mm; padding-top: 2.4px; font-size: 7.2pt; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
   .howto { width: 210mm; margin: 8mm auto 0; font-size: 9pt; color: var(--muted); }
   .howto b { color: var(--ink); }
+  .btn-subir { position: fixed; right: 16px; bottom: 16px; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: #fff; text-decoration: none; font: 700 16pt/1 system-ui, sans-serif; box-shadow: 0 4px 14px #0003; }
   @media print {
     html, body { background: #fff; font-size: 8pt; }
     .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
     .howto { display: none; }
+    .btn-subir { display: none; }
     a { color: inherit; text-decoration: none; }
     .caso { break-inside: avoid; }
   }
   @page { size: A4; margin: 9mm 8mm; }
 </style>
 </head>
-<body>
+<body id="inicio">
 
 <p class="howto no-print">Guía de <b>una página</b> para imprimir y pegar junto a la caja: <span class="kbd">Ctrl</span> + <span class="kbd">P</span> → <b>A4</b>, márgenes <b>predeterminados</b>, <b>una página</b>. Esta franja no sale en el papel. Manual completo: <a href="MANUAL_USUARIO.html">MANUAL_USUARIO.html</a>.</p>
 
@@ -238,5 +240,6 @@
 </article>
 </main>
 
+<a class="btn-subir" href="#inicio" aria-label="Volver arriba" title="Volver arriba">↑</a>
 </body>
 </html>
