@@ -327,7 +327,8 @@ function shell(body) {
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema: ${esc(themeLabel(store.state.settings.theme))}" aria-label="Cambiar tema (ahora: ${esc(themeLabel(store.state.settings.theme))})">${themeIcon(store.state.settings.theme)}</button>
         </div>
-        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${store.state.products.some((p) => p.demoMunicipios && !p.deletedAt) || store.state.movements.some((m) => m.demoMunicipios && !m.deletedAt) ? `<div class="banner info" role="status"><b>Datos SIMULADOS presentes.</b> Productos y movimientos marcados son ficticios, afectan existencias e informes y no representan mercancía real.</div>` : ""}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</div>
+        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${store.state.products.some((p) => p.demoMunicipios && !p.deletedAt) || store.state.movements.some((m) => m.demoMunicipios && !m.deletedAt) ? `<div class="banner info" role="status"><b>Datos SIMULADOS presentes.</b> Productos y movimientos marcados son ficticios, afectan existencias e informes y no representan mercancía real.</div>` : ""}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
+        <button type="button" class="scroll-top-btn" id="scrollTopBtn" data-act="scroll-top" title="Volver arriba" aria-label="Volver arriba" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
       </section>
     </div>
     ${consentBanner()}
@@ -749,19 +750,19 @@ function loginView() {
             ${ui.question ? `<p class="hint">${esc(ui.question)}</p><label>Respuesta<input name="answer" required /></label><label>Nueva contraseña<input name="newpass" type="password" required autocomplete="new-password" /></label>
               ${ui.recNeed2fa ? `<label>Código de verificación (app autenticadora)<input name="code" inputmode="numeric" autocomplete="one-time-code" required /></label>` : ""}` : ""}
             <button class="btn full mt16">${ui.question ? "Restablecer" : "Buscar pregunta"}</button>
-            <button type="button" class="btn ghost full" data-act="back-login" class="mt8">Volver</button>
+            <button type="button" class="btn ghost full mt8" data-act="back-login">Volver</button>
           ` : ui.pending2fa ? `
             <div class="h2">Verificación en dos pasos</div>
             <p class="hint">Escribe el código de 6 dígitos de tu app autenticadora (Google Authenticator, Authy…) o uno de tus códigos de recuperación.</p>
             <label>Código<input name="code" id="code2fa" inputmode="numeric" autocomplete="one-time-code" required autofocus /></label>
             <button class="btn full mt16">Verificar</button>
-            <button type="button" class="btn ghost full" data-act="back-login" class="mt8">Cancelar</button>
+            <button type="button" class="btn ghost full mt8" data-act="back-login">Cancelar</button>
           ` : `
             <div class="h2">Entrar a la tienda</div>
             <label>Usuario<input name="username" required autocomplete="username" /></label>
             <label>Contraseña<input name="password" type="password" required autocomplete="current-password" /></label>
             <button class="btn full mt16">Entrar</button>
-            <button type="button" class="btn ghost full" data-act="recover" class="mt8">Olvidé mi contraseña</button>
+            <button type="button" class="btn ghost full mt8" data-act="recover">Olvidé mi contraseña</button>
           `}
           <div id="loginErr">${ui.loginErr ? `<div class="error">${esc(ui.loginErr)}</div>` : ""}</div>
           <p class="hint secure-note">🔒 Conexión ${location.protocol === "https:" ? "cifrada (HTTPS)" : "sin cifrar — usa HTTPS en producción"} · Licencia verificada primero</p>
@@ -1880,7 +1881,7 @@ function reportsView() {
       ${kpi("Δ precio / venta", usd(sum("diff")), "precio registrado − importe real", sum("diff") ? "gold" : "green")}
     </div>
     ${valid ? compareCard(periodComparison(from, to, warehouseId), sum) : ""}
-    <div class="card table-wrap flush sticky-data-wrap reports-table-scroll" id="printArea" class="mt14">
+    <div class="card table-wrap flush sticky-data-wrap reports-table-scroll mt14" id="printArea">
       <div class="card-h pad"><span class="k">INVENTARIO · ${periodLabel}</span><span class="hint">Existencia de apertura, movimientos y cierre calculados para el período</span></div>
       <table><thead><tr><th class="num">Nº</th><th>PRODUCTOS</th><th class="r">STOCK APERTURA</th><th class="r">VENTAS</th><th class="r">ENTRADAS</th><th class="r">SALIDAS</th><th class="r">STOCK CALCULADO</th><th class="r">STOCK CIERRE</th><th class="r">IMP. LISTA</th><th class="r">IMP. REAL</th><th class="r">COSTO</th><th class="r">UTILIDAD BRUTA</th></tr></thead>
         <tbody>${rows.map((row, index) => `<tr class="${row.stockDiff ? "warn-row" : ""}"><td class="num mono">${index + 1}</td><td>${hl(row.p.name)}</td><td class="mono r">${qty(row.opening)}</td><td class="mono r">${qty(row.v)}</td><td class="mono r">${qty(row.e)}</td><td class="mono r">${qty(row.s)}</td><td class="mono r">${qty(row.calc)}</td><td class="mono r">${qty(row.closing)}</td><td class="mono r">${usd(row.orig)}</td><td class="mono r">${usd(row.real)}</td><td class="mono r">${usd(row.cost)}</td><td class="mono r">${usd(row.profit)}</td></tr>`).join("") || `<tr><td colspan="12" class="empty">Sin existencias ni movimientos en el período.</td></tr>`}</tbody>
@@ -3953,7 +3954,7 @@ function importValuesView() {
           <button class="chip" data-iv-selonly="sobrescribe">Marcar los que sobrescriben (${sum.sobrescribe})</button>
         </div>
         <div class="row">
-          <input class="sel" id="ivSearch" placeholder="Filtrar filas…" value="${esc(iv.q)}" class="mnw180">
+          <input class="sel mnw180" id="ivSearch" placeholder="Filtrar filas…" value="${esc(iv.q)}">
           <button class="btn ghost small" data-act="iv-refresh" data-tip="Recalcula los estados después de editar la tabla">↻ Estado</button>
         </div>
       </div>
@@ -4130,11 +4131,11 @@ function abrirProgreso(titulo, pasos) {
       <div class="progress-ring">
         <svg viewBox="0 0 120 120"><defs><linearGradient id="progressGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14b8a6"/><stop offset="1" stop-color="#38bdf8"/></linearGradient></defs>
         <circle class="progress-track" cx="60" cy="60" r="52"></circle>
-        <circle class="progress-fill" cx="60" cy="60" r="52" style="--p:0"></circle></svg>
+        <circle class="progress-fill" cx="60" cy="60" r="52" data-p="0"></circle></svg>
         <div class="progress-pct" id="progressPct">0%</div>
       </div>
       <div class="progress-step" id="progressStep">Preparando…</div>
-      <div class="progress-bar"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-bar"><div class="progress-bar-fill" id="progressFill" data-w="0"></div></div>
       <div class="progress-steps" id="progressSteps">${htmlPasos}</div>
     </div>
   </div></div>`;
@@ -4187,7 +4188,7 @@ function productModal(p = null, presetBarcode = "") {
     ${p && whList.length > 1 ? `<p class="hint">Existencias: ${whList.map((w) => `${esc(w.code || w.name)} <b>${qty(store.stockIn(p, w.id))}</b>`).join(" · ")} · total <b>${qty(p.stockActual)}</b></p>` : ""}
     ${p ? `<p class="hint">Stock actual: <b>${qty(p.stockActual)}</b>. Los cambios de precio/comisión se guardan en el historial del día.</p>` : ""}
     <div class="row mt14"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button>
-      ${p ? `<button type="button" class="btn danger" data-del-product="${p.id}" class="ml-auto">Enviar a papelera</button>` : ""}</div>`, "productForm", `data-id="${p?.id || ""}"`);
+      ${p ? `<button type="button" class="btn danger ml-auto" data-del-product="${p.id}">Enviar a papelera</button>` : ""}</div>`, "productForm", `data-id="${p?.id || ""}"`);
   ui.pendingImage = undefined;
 }
 
@@ -4217,7 +4218,7 @@ function movementModal(m = null, productId = null, prefill = {}) {
     <label>Observación <input name="notes" value="${esc(x.notes || "")}"></label>
     <p class="hint">Importe = cantidad × precio (solo VENTA). Comisión = cantidad × comisión del producto. No se permite stock negativo.</p>
     <div class="row mt14"><button class="btn">${m ? "Guardar cambios" : "Registrar"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button>
-      ${m ? `<button type="button" class="btn danger" data-del-mov="${m.id}" class="ml-auto">Enviar a papelera</button>` : ""}</div>`, "movForm", `data-id="${m?.id || ""}"`);
+      ${m ? `<button type="button" class="btn danger ml-auto" data-del-mov="${m.id}">Enviar a papelera</button>` : ""}</div>`, "movForm", `data-id="${m?.id || ""}"`);
 }
 
 function rateModal(r = null) {
@@ -4284,7 +4285,7 @@ function legalView() {
         <div class="brand-row"><img src="./public/icon-app.png" alt="" /><div><div class="eyebrow">NovaGest</div><div>Información legal</div></div></div>
         <button type="button" class="btn ghost small" data-act="legal-back">← Volver a la aplicación</button>
       </header>
-      <div class="chips" role="tablist" aria-label="Documentos legales" class="mv12">
+      <div class="chips mv12" role="tablist" aria-label="Documentos legales">
         ${LEGAL_KEYS.map((k) => `<button type="button" role="tab" aria-selected="${ui.legalDoc === k}" class="chip ${ui.legalDoc === k ? "on" : ""}" data-legal-doc="${k}">${LEGAL_DOCS[k].title}</button>`).join("")}
       </div>
       <main class="card legal-doc" id="contenido">
@@ -4385,7 +4386,7 @@ function fichaDetail(f) {
 function fichaEditor() {
   const e = ui.fichaEdit;
   const products = store.activeProducts();
-  return `<form class="card" id="fichaForm" class="mb14">
+  return `<form class="card mb14" id="fichaForm">
     <div class="card-h"><span class="k">${e.id ? `Editar ficha v${e.version || ""}` : "Nueva ficha de costo"}</span><span class="tag mov">${e.id ? "Borrador" : "Nueva"}</span></div>
     <div class="form-grid">
       <label class="span-2">Producto o servicio
@@ -4839,6 +4840,13 @@ function bindLogin() {
 
 function bindApp() {
   ensureClicks();
+  const contentScroller = $("#contenido");
+  const scrollTopBtn = $("#scrollTopBtn");
+  if (contentScroller && scrollTopBtn) {
+    const syncScrollTopBtn = () => { scrollTopBtn.hidden = (contentScroller.scrollTop || 0) < 260; };
+    contentScroller.addEventListener("scroll", syncScrollTopBtn, { passive: true });
+    syncScrollTopBtn();
+  }
   $("#rateChartSource")?.addEventListener("change", (e) => { ui.rateChartSource = e.target.value; render(); });
   $("#rateChartMode")?.addEventListener("change", (e) => { ui.rateChartMode = e.target.value === "changes" ? "changes" : "daily"; render(); });
   $("#dashboardRange")?.addEventListener("change", (e) => { ui.dashboardRange = e.target.value; render(); });
@@ -5524,13 +5532,12 @@ function onClick(e) {
   }
   else if (act === "wh-municipal-demo") {
     if (!allowed("VALUES_IMPORT") || !allowed("MOVEMENT_CREATE")) return toast("Tu rol no puede crear esta demostración.", "err");
-    confirmModal(`<b>SIMULACIÓN: no es inventario real.</b> Se crearán los almacenes municipales que falten (los ${TOTAL_MUNICIPIOS} municipios de Cuba que aún no existan), hasta 16 productos separados con el prefijo [SIMULADO] y entradas y salidas ficticias en todos ellos, incluido Pinar del Río. No se reemplazan los productos ni movimientos existentes.<br><br><b>Atención:</b> se guardarán en esta base y afectarán existencias, informes y disponibilidad de venta. Úsalo solo en una base de pruebas y haz una copia antes. Los precios son referencias del catálogo, no precios actuales. Las divisas se consultan aparte en Monedas.<br><br>¿Deseas crear esta simulación?`, async () => {
+    confirmModal(`<b>SIMULACIÓN: no es inventario real.</b> Se crearán los almacenes municipales que falten (los ${TOTAL_MUNICIPIOS} municipios de Cuba que aún no existan), hasta 16 productos separados con el prefijo [SIMULADO] y entradas y salidas ficticias en todos ellos, incluido Pinar del Río. No se reemplazan los productos ni movimientos existentes.<br><br><b>Atención:</b> se guardarán en esta base y afectarán existencias, informes y disponibilidad de venta. Úsalo solo en una base de pruebas y haz una copia antes. Los precios son referencias del catálogo, no precios actuales. Las divisas se consultan aparte en Monedas.<br><br>¿Deseas crear esta simulación?`, () => {
       const productos = store.activeProducts().filter((p) => p.name && !p.demoMunicipios && !/^\[SIMULADO\]/i.test(p.name));
       const total = Math.min(16, productos.length) || 1;
       const actualizar = abrirProgreso("🗺️ Simulando 168 municipios", Array.from({ length: total }, (_, i) => `Producto ${i + 1} de ${total}`));
-      const r = await store.populateMunicipalDemo({ onProgress: actualizar });
+      const r = store.populateMunicipalDemo({ onProgress: actualizar });
       actualizar(100, r.error ? `Error: ${r.error}` : `✔ ${r.products} productos y ${r.movements} movimientos en ${r.warehouses} municipios`, total, total);
-      await new Promise((resolve) => setTimeout(resolve, 700));
       cerrarProgreso();
       if (r.error) return toast(r.error, "err");
       toast(`SIMULADO: ${r.products} productos y ${r.movements} movimientos en ${r.warehouses} municipios${r.createdMunicipalities ? ` · ${r.createdMunicipalities} almacenes municipales creados` : ""}.`, "ok");
@@ -5756,6 +5763,12 @@ function onClick(e) {
   else if (act === "export-customers") exportCustomers();
   else if (act === "export-credits") exportCredits();
   else if (act === "tour") startTour();
+  else if (act === "scroll-top") {
+    const sc = $("#contenido");
+    if (sc && sc.scrollTo) sc.scrollTo({ top: 0, behavior: "smooth" });
+    else if (sc) sc.scrollTop = 0;
+    window.scrollTo?.({ top: 0, behavior: "smooth" });
+  }
   else if (act === "drawer") { ui.drawer = !ui.drawer; render(); }
   else if (act === "clear-q") { ui.q = ""; render(); $("#globalSearch")?.focus(); }
   else if (act === "clear-date") { ui.movDate = ""; render(); }

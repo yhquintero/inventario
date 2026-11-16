@@ -12,7 +12,7 @@
 🌐 [Español](../../README.md) · [English](README_en.md) · [Português](README_pt-BR.md) · [Français](README_fr.md) · [Italiano](README_it.md) · [Deutsch](README_de.md) · [Русский](README_ru.md) · **简体中文**
 
 [![CI](https://github.com/yhquintero/inventario/actions/workflows/ci.yml/badge.svg)](https://github.com/yhquintero/inventario/actions/workflows/ci.yml)
-[![版本](https://img.shields.io/badge/%E7%89%88%E6%9C%AC-1.0.0-4f46e5?style=flat-square)](../../CHANGELOG.md)
+[![版本](https://img.shields.io/badge/%E7%89%88%E6%9C%AC-1.1.0-4f46e5?style=flat-square)](../../CHANGELOG.md)
 [![平台](https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-Web%20%C2%B7%20Android%20%C2%B7%20%E6%9C%8D%E5%8A%A1%E5%99%A8-1e1b4b?style=flat-square)](#-包含内容)
 [![PWA](https://img.shields.io/badge/PWA-%E7%A6%BB%E7%BA%BF%E5%8F%AF%E7%94%A8-059669?style=flat-square)](#-常见问题)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](#-快速开始)
@@ -347,6 +347,6 @@ venv/      供离线 Windows 使用的 Python 库（参见 venv/README.md）
 
 <div align="center">
 
-<sub><b>NovaGest</b> · 管理。成长。前进。 · © 2026 yhquintero · <a href="#novagest">返回顶部 ⬆</a></sub>
+<sub><b>NovaGest</b> · 管理。成长。前进。 · © 2026 yhquintero · <a href="#novagest">返回顶部 ↑</a></sub>
 
 </div>

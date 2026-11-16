@@ -3,53 +3,60 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NovaGest · Inventario, ventas y cuadre diario para tu tienda</title>
-<meta name="description" content="Inventario multialmacén, venta rápida, fiados, cuadre diario e indicadores IPV en una Web instalable y una app Android que comparten el mismo estado. Sin conexión y sin nube obligatoria." />
-<meta name="theme-color" content="#312e81" />
+<title>NovaGest · Inventario, ventas, caja y contabilidad sin nube obligatoria</title>
+<meta name="description" content="Sistema comercial offline-first: inventario multialmacén, venta rápida, fiados, cuadre diario, análisis IPV y contabilidad en Web instalable, app Android y servidor propio." />
+<meta name="theme-color" content="#0d112b" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="NovaGest" />
-<meta property="og:title" content="NovaGest · Inventario, ventas y cuadre diario para tu tienda" />
-<meta property="og:description" content="Inventario multialmacén, punto de venta, fiados, cuadre diario e indicadores IPV. Web instalable + app Android, mismo estado, funciona sin conexión." />
+<meta property="og:title" content="NovaGest · Inventario, ventas, caja y contabilidad sin nube obligatoria" />
+<meta property="og:description" content="Inventario multialmacén, punto de venta, fiados, cuadre diario, análisis IPV y partida doble. Web instalable + app Android + servidor propio; funciona sin conexión." />
 <meta property="og:image" content="https://yhquintero.github.io/inventario/assets/social-preview.png" />
 <meta property="og:image:secure_url" content="https://yhquintero.github.io/inventario/assets/social-preview.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1280" />
 <meta property="og:image:height" content="640" />
-<meta property="og:image:alt" content="NovaGest: Inventario, Venta y Cuadre — Web, Android y sin conexión" />
+<meta property="og:image:alt" content="NovaGest Edición Nebula: Inventario, Venta, Cuadre y Contabilidad en Web y Android" />
 <meta name="twitter:image" content="https://yhquintero.github.io/inventario/assets/social-preview.png" />
 <link rel="canonical" href="https://yhquintero.github.io/inventario/" />
 <meta property="og:locale" content="es_ES" />
 <meta name="twitter:card" content="summary_large_image" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23312e81'/%3E%3Cpath d='M32 14l14 7v22l-14 7-14-7V21z' fill='none' stroke='%23a7f3d0' stroke-width='3.5' stroke-linejoin='round'/%3E%3Cpath d='M18 21l14 7 14-7M32 28v22' fill='none' stroke='%2334d399' stroke-width='3.5' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%230d112b'/%3E%3Cpath d='M32 13l15 8v22l-15 8-15-8V21z' fill='none' stroke='%2322d3ee' stroke-width='3.5' stroke-linejoin='round'/%3E%3Cpath d='M17 21l15 8 15-8M32 29v22' fill='none' stroke='%2334d399' stroke-width='3.5' stroke-linejoin='round'/%3E%3C/svg%3E" />
 <style>
   :root {
     --brand: #312e81;
+    --brand-bright: #4f46e5;
     --brand-soft: #eef2ff;
+    --cyan: #0891b2;
     --accent: #047857;
     --accent-soft: #ecfdf5;
+    --violet: #6d28d9;
     --gold: #b45309;
     --bg: #ffffff;
-    --surface: #f6f7fb;
-    --ink: #14142b;
-    --muted: #56566f;
-    --line: #e3e4ee;
-    --shadow: 0 1px 2px rgba(20, 20, 43, .06), 0 12px 32px rgba(20, 20, 43, .08);
-    --radius: 16px;
-    --max: 1120px;
+    --surface: #f4f6fc;
+    --ink: #0f1329;
+    --muted: #4e5470;
+    --line: #dfe3f2;
+    --shadow: 0 1px 2px rgba(15, 19, 41, .06), 0 14px 36px rgba(15, 19, 41, .09);
+    --glow: 0 0 0 1px rgba(34, 211, 238, .22), 0 18px 44px rgba(13, 17, 43, .26);
+    --radius: 18px;
+    --max: 1140px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --brand: #a5b4fc;
-      --brand-soft: #1e1b4b;
+      --brand: #818cf8;
+      --brand-bright: #6366f1;
+      --brand-soft: #171a3b;
+      --cyan: #22d3ee;
       --accent: #34d399;
-      --accent-soft: #052e26;
+      --accent-soft: #062f28;
+      --violet: #a78bfa;
       --gold: #fbbf24;
-      --bg: #0d0d18;
-      --surface: #151524;
-      --ink: #f3f4ff;
-      --muted: #a9a9c2;
-      --line: #262640;
-      --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 12px 32px rgba(0, 0, 0, .45);
+      --bg: #080b1c;
+      --surface: #101530;
+      --ink: #f3f5ff;
+      --muted: #a6aed0;
+      --line: #232b52;
+      --shadow: 0 2px 4px rgba(0, 0, 0, .55), 0 16px 40px rgba(0, 0, 0, .5);
     }
   }
   * { box-sizing: border-box; }
@@ -63,148 +70,231 @@
   }
   a { color: var(--brand); text-underline-offset: 3px; }
   a:hover { text-decoration-thickness: 2px; }
-  :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  :focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; border-radius: 6px; }
   img { max-width: 100%; height: auto; display: block; }
-  h1, h2, h3 { line-height: 1.2; letter-spacing: -.02em; margin: 0 0 .5em; }
-  h1 { font-size: clamp(2rem, 5vw, 3.15rem); font-weight: 800; }
-  h2 { font-size: clamp(1.5rem, 3.2vw, 2.1rem); font-weight: 750; }
-  h3 { font-size: 1.08rem; font-weight: 700; }
+  h1, h2, h3 { line-height: 1.18; letter-spacing: -.022em; margin: 0 0 .5em; }
+  h1 { font-size: clamp(2.05rem, 4.9vw, 3.25rem); font-weight: 850; }
+  h2 { font-size: clamp(1.5rem, 3.2vw, 2.15rem); font-weight: 800; }
+  h3 { font-size: 1.08rem; font-weight: 750; }
   p { margin: 0 0 1em; }
   .wrap { width: min(100% - 2.5rem, var(--max)); margin-inline: auto; }
   .skip {
     position: absolute; left: -9999px; top: 0;
-    background: var(--brand); color: #fff; padding: .7rem 1.1rem; border-radius: 0 0 10px 0; z-index: 10;
+    background: #0d112b; color: #fff; padding: .7rem 1.1rem; border-radius: 0 0 10px 0; z-index: 20;
   }
   .skip:focus { left: 0; }
+  .sr-only { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
-  /* Cabecera */
+  /* Cabecera cyber-glass */
   header.site {
-    position: sticky; top: 0; z-index: 5;
-    background: var(--bg);
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 12;
+    background: rgba(10, 14, 36, .90);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(34, 211, 238, .22);
   }
   .bar { display: flex; align-items: center; gap: 1rem; min-height: 66px; }
-  .marca { display: flex; align-items: center; gap: .6rem; font-weight: 800; letter-spacing: -.01em; color: var(--ink); text-decoration: none; font-size: 1.05rem; }
-  .marca svg { width: 30px; height: 30px; flex: none; }
-  .bar nav { margin-left: auto; display: flex; align-items: center; gap: 1.25rem; }
-  .bar nav a { text-decoration: none; font-size: .94rem; font-weight: 600; color: var(--muted); padding: .25rem 0; border-bottom: 2px solid transparent; }
-  .bar nav a:hover { color: var(--ink); border-bottom-color: var(--accent); }
-  @media (max-width: 720px) { .bar nav a.oculto { display: none; } }
+  .marca {
+    display: flex; align-items: center; gap: .6rem; font-weight: 850;
+    letter-spacing: -.01em; color: #f4f6ff; text-decoration: none; font-size: 1.08rem;
+  }
+  .marca svg { width: 32px; height: 32px; flex: none; }
+  .marca .tag-edicion {
+    font-size: .7rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase;
+    color: #22d3ee; border: 1px solid rgba(34, 211, 238, .4); border-radius: 999px; padding: .1rem .5rem;
+  }
+  .bar nav { margin-left: auto; display: flex; align-items: center; gap: 1.15rem; }
+  .bar nav a {
+    text-decoration: none; font-size: .92rem; font-weight: 600;
+    color: #c7cef0; padding: .28rem 0; border-bottom: 2px solid transparent;
+  }
+  .bar nav a:hover { color: #ffffff; border-bottom-color: #22d3ee; }
+  @media (max-width: 820px) { .bar nav a.oculto { display: none; } }
 
   /* Botones */
-  .acciones { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.6rem; }
+  .acciones { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.65rem; }
   .btn {
     display: inline-flex; align-items: center; gap: .5rem;
-    padding: .8rem 1.25rem; border-radius: 999px; font-weight: 700; font-size: .95rem;
-    text-decoration: none; border: 1.5px solid transparent; transition: transform .15s ease, box-shadow .15s ease;
+    padding: .82rem 1.3rem; border-radius: 999px; font-weight: 750; font-size: .95rem;
+    text-decoration: none; border: 1.5px solid transparent;
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
   }
-  .btn:hover { transform: translateY(-1px); }
-  .btn.primario { background: var(--brand); color: #fff; box-shadow: var(--shadow); }
+  .btn:hover { transform: translateY(-1.5px); text-decoration: none; }
+  .btn.primario {
+    background: linear-gradient(135deg, #06b6d4, #4f46e5 60%, #7c3aed);
+    color: #fff; box-shadow: 0 8px 26px rgba(79, 70, 229, .38);
+  }
   .btn.secundario { background: var(--bg); color: var(--ink); border-color: var(--line); }
-  .btn.secundario:hover { border-color: var(--accent); }
-
-  /* Portada */
-  .hero { padding: clamp(2.5rem, 6vw, 4.5rem) 0 clamp(2rem, 5vw, 3.5rem); }
-  .hero .grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(1.5rem, 4vw, 3.5rem); align-items: center; }
-  .etiqueta {
-    display: inline-flex; align-items: center; gap: .5rem; margin-bottom: 1rem;
-    background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: .8rem;
-    letter-spacing: .06em; text-transform: uppercase; padding: .4rem .8rem; border-radius: 999px;
+  .btn.secundario:hover { border-color: var(--cyan); }
+  .hero .btn.secundario {
+    background: rgba(255, 255, 255, .07); color: #f4f6ff;
+    border-color: rgba(165, 180, 252, .34);
   }
-  .lead { font-size: clamp(1.02rem, 2vw, 1.18rem); color: var(--muted); max-width: 34em; }
-  .portada { border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--line); overflow: hidden; }
-  @media (max-width: 900px) { .hero .grid { grid-template-columns: 1fr; } }
+  .hero .btn.secundario:hover { border-color: #22d3ee; background: rgba(34, 211, 238, .12); }
 
-  /* Franja de datos */
-  .datos { border-block: 1px solid var(--line); background: var(--surface); padding: 1.5rem 0; }
-  .datos ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; text-align: center; }
-  .datos strong { display: block; font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; }
-  .datos span { font-size: .86rem; color: var(--muted); }
-  @media (max-width: 720px) { .datos ul { grid-template-columns: repeat(2, 1fr); } }
+  /* Portada futurista Nebula */
+  .hero {
+    position: relative; overflow: hidden;
+    background:
+      radial-gradient(900px 440px at 88% 14%, rgba(139, 92, 246, .34), transparent 65%),
+      radial-gradient(760px 420px at 10% 90%, rgba(34, 211, 238, .25), transparent 62%),
+      linear-gradient(160deg, #070a1c 0%, #12173d 52%, #0a0e26 100%);
+    color: #f4f6ff;
+    padding: clamp(2.8rem, 6.5vw, 4.8rem) 0 clamp(2.4rem, 5.5vw, 4rem);
+    border-bottom: 1px solid rgba(34, 211, 238, .24);
+  }
+  .hero .grid { display: grid; grid-template-columns: 1.04fr .96fr; gap: clamp(1.6rem, 4vw, 3.2rem); align-items: center; }
+  .etiqueta {
+    display: inline-flex; align-items: center; gap: .5rem; margin-bottom: 1.05rem;
+    background: rgba(34, 211, 238, .13); color: #67e8f9; border: 1px solid rgba(34, 211, 238, .35);
+    font-weight: 750; font-size: .78rem; letter-spacing: .07em; text-transform: uppercase;
+    padding: .4rem .85rem; border-radius: 999px;
+  }
+  .hero h1 span {
+    background: linear-gradient(92deg, #67e8f9 0%, #a5b4fc 52%, #34d399 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero .lead { font-size: clamp(1.02rem, 1.9vw, 1.16rem); color: #cbd2f6; max-width: 35em; }
+  .hero .lead strong { color: #ffffff; }
+  .insignias { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.25rem; }
+  .insignias span {
+    font-size: .8rem; font-weight: 650; color: #d8defc;
+    background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 999px; padding: .26rem .72rem;
+  }
+  .portada { border-radius: var(--radius); box-shadow: var(--glow); border: 1px solid rgba(34, 211, 238, .35); overflow: hidden; }
+  @media (max-width: 920px) { .hero .grid { grid-template-columns: 1fr; } }
 
-  /* Secciones */
-  section { padding: clamp(2.5rem, 5.5vw, 4rem) 0; }
-  .introduccion { max-width: 46em; color: var(--muted); }
+  /* Franja de telemetría */
+  .datos { border-bottom: 1px solid var(--line); background: var(--surface); padding: 1.55rem 0; }
+  .datos ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.15rem; text-align: center; }
+  .datos strong { display: block; font-size: 1.45rem; font-weight: 850; letter-spacing: -.02em; color: var(--brand); }
+  .datos span { font-size: .85rem; color: var(--muted); }
+  @media (max-width: 820px) { .datos ul { grid-template-columns: repeat(2, 1fr); } }
+
+  /* Secciones y tarjetas */
+  section { padding: clamp(2.6rem, 5.5vw, 4.2rem) 0; }
+  .banda { background: var(--surface); border-block: 1px solid var(--line); }
+  .introduccion { max-width: 48em; color: var(--muted); }
   .rejilla { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; margin-top: 2rem; }
   @media (max-width: 900px) { .rejilla { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 620px) { .rejilla { grid-template-columns: 1fr; } }
   .tarjeta {
     background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
     padding: 1.35rem 1.4rem; box-shadow: var(--shadow);
+    transition: transform .16s ease, border-color .16s ease;
   }
-  .tarjeta h3 { display: flex; align-items: center; gap: .55rem; margin-bottom: .4rem; }
-  .tarjeta .icono { font-size: 1.15rem; line-height: 1; }
+  .tarjeta:hover { transform: translateY(-2px); border-color: var(--cyan); }
+  .tarjeta h3 { display: flex; align-items: center; gap: .55rem; margin-bottom: .42rem; }
+  .tarjeta .icono { font-size: 1.18rem; line-height: 1; }
   .tarjeta p { margin: 0; color: var(--muted); font-size: .95rem; }
 
-  /* Capturas */
-  .capturas { background: var(--surface); border-block: 1px solid var(--line); }
-  .galeria { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem; }
-  .galeria-hero { margin: 2rem 0 0; }
-  .galeria-hero img { width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); box-shadow: var(--shadow); }
-  .galeria-hero figcaption { font-size: .85rem; color: var(--muted); margin-top: .55rem; text-align: center; }
+  /* Visor interactivo y capturas */
+  .visor-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.6rem 0 1rem; }
+  .visor-tab {
+    appearance: none; background: var(--bg); color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px; padding: .48rem .95rem;
+    font: inherit; font-size: .88rem; font-weight: 700; cursor: pointer;
+  }
+  .visor-tab[aria-selected="true"] {
+    background: linear-gradient(135deg, #0891b2, #4f46e5); color: #fff; border-color: transparent;
+  }
+  .galeria-hero { margin: 1.2rem 0 0; }
+  .galeria-hero img { width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .galeria-hero figcaption { font-size: .86rem; color: var(--muted); margin-top: .55rem; text-align: center; }
+  .galeria { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.6rem; }
   @media (max-width: 860px) { .galeria { grid-template-columns: 1fr; } }
   figure { margin: 0; }
   figure img { border-radius: 12px; border: 1px solid var(--line); box-shadow: var(--shadow); }
-  figcaption { font-size: .85rem; color: var(--muted); margin-top: .55rem; }
+  figcaption { font-size: .85rem; color: var(--muted); margin-top: .5rem; }
+  .movil-showcase { margin-top: 2rem; }
 
-  /* Vídeo */
+  /* Arquitectura y Acerca de */
+  .acerca-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 1.4rem; margin-top: 1.8rem; align-items: start; }
+  @media (max-width: 860px) { .acerca-grid { grid-template-columns: 1fr; } }
+  .ficha-dl { margin: 0; display: grid; gap: .7rem; }
+  .ficha-dl div { padding-bottom: .65rem; border-bottom: 1px solid var(--line); }
+  .ficha-dl div:last-child { border-bottom: 0; padding-bottom: 0; }
+  .ficha-dl dt { font-size: .78rem; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; color: var(--cyan); }
+  .ficha-dl dd { margin: .18rem 0 0; font-size: .94rem; color: var(--ink); }
+
+  /* Vídeo y carrusel */
   .video-caja { margin-top: 1.75rem; }
   .video-caja video {
     width: 100%; height: auto; display: block; border-radius: var(--radius);
-    border: 1px solid var(--line); box-shadow: var(--shadow); background: #000;
+    border: 1px solid var(--line); box-shadow: var(--shadow); background: #060918;
   }
   .video-pie { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
-  /* G-01 · corte vertical de 30 s: se muestra en tamaño de móvil, sin ocupar media página. */
-  .video-vertical { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; margin-top: 2rem;
-    background: rgba(129, 122, 255, .08); border: 1px solid rgba(129, 122, 255, .28); border-radius: 16px; padding: 1.25rem; }
-  .video-vertical video { width: 100%; max-width: 260px; border-radius: 14px; background: #080a1a; }
+  .video-vertical {
+    display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; margin-top: 1.75rem;
+    background: color-mix(in srgb, var(--brand-soft) 65%, var(--bg));
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 1.25rem;
+  }
+  .video-vertical video { width: 100%; max-width: 250px; border-radius: 14px; background: #080a1a; }
   .video-vertical div { flex: 1 1 320px; }
-  /* Carrusel de redes (G-03) */
-  .carrusel { display: flex; gap: 1rem; overflow-x: auto; margin-top: 1.75rem; padding-bottom: .75rem; scroll-snap-type: x mandatory; }
+  .carrusel { display: flex; gap: 1rem; overflow-x: auto; margin-top: 1.6rem; padding-bottom: .75rem; scroll-snap-type: x mandatory; }
   .carrusel figure { flex: 0 0 auto; width: 216px; margin: 0; scroll-snap-align: start; }
-  .carrusel img { width: 100%; height: auto; border-radius: 12px; display: block; background: #080a1a; }
-  .carrusel figcaption { font-size: .82rem; color: var(--gris); margin-top: .45rem; }
+  .carrusel img { width: 100%; height: auto; border-radius: 12px; background: #080a1a; }
+  .carrusel figcaption { font-size: .82rem; color: var(--muted); margin-top: .45rem; }
 
   /* Pasos */
-  .pasos { counter-reset: paso; display: grid; gap: 1.1rem; margin-top: 2rem; }
+  .pasos { counter-reset: paso; display: grid; gap: 1.1rem; margin-top: 2rem; padding: 0; list-style: none; }
   .paso { position: relative; padding-left: 3.2rem; }
   .paso::before {
     counter-increment: paso; content: counter(paso);
     position: absolute; left: 0; top: .1rem;
     width: 2.2rem; height: 2.2rem; border-radius: 50%;
     display: grid; place-items: center;
-    background: var(--brand); color: #fff; font-weight: 800; font-size: .95rem;
+    background: linear-gradient(135deg, #0891b2, #4f46e5); color: #fff; font-weight: 800; font-size: .95rem;
   }
   .paso h3 { margin-bottom: .25rem; }
   .paso p { color: var(--muted); margin-bottom: .5rem; }
   pre {
-    background: #14142b; color: #e6e6f5; padding: .85rem 1rem; border-radius: 10px;
-    overflow-x: auto; font-size: .86rem; line-height: 1.55; margin: .4rem 0 0;
+    background: #0b0f26; color: #e6e9ff; padding: .85rem 1rem; border-radius: 12px;
+    border: 1px solid rgba(99, 102, 241, .3); overflow-x: auto; font-size: .86rem; line-height: 1.55; margin: .4rem 0 0;
     font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
   }
   code { font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace; font-size: .92em; }
-  p code, li code { background: var(--surface); border: 1px solid var(--line); padding: .05rem .3rem; border-radius: 5px; }
+  p code, li code { background: var(--surface); border: 1px solid var(--line); padding: .05rem .32rem; border-radius: 5px; }
 
   /* Tabla de roles */
   .tabla-caja { overflow-x: auto; margin-top: 1.75rem; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
   table { border-collapse: collapse; width: 100%; font-size: .93rem; background: var(--bg); }
-  th, td { text-align: left; padding: .7rem .9rem; border-bottom: 1px solid var(--line); vertical-align: top; }
-  thead th { background: var(--surface); font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-  tbody tr:last-child td { border-bottom: 0; }
-  td.si { color: var(--accent); font-weight: 700; }
+  th, td { text-align: left; padding: .72rem .92rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { background: var(--surface); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
+  td.si { color: var(--accent); font-weight: 750; }
   td.no { color: var(--muted); }
 
-  /* Cierre */
-  .cierre { background: var(--brand-soft); border-top: 1px solid var(--line); }
+  /* Cierre y pie */
+  .cierre {
+    background: linear-gradient(135deg, #0b102b, #1e1b4b 60%, #112240);
+    color: #f4f6ff; border-top: 1px solid rgba(34, 211, 238, .25);
+  }
+  .cierre .introduccion { color: #c8d0f4; margin-bottom: 0; }
   .cierre .caja { display: grid; grid-template-columns: 1.4fr auto; gap: 1.5rem; align-items: center; }
+  .cierre .acciones { margin-top: 0; }
+  .cierre .btn.secundario { background: rgba(255, 255, 255, .08); color: #fff; border-color: rgba(255, 255, 255, .24); }
   @media (max-width: 760px) { .cierre .caja { grid-template-columns: 1fr; } }
 
-  footer.site { padding: 2.25rem 0 2.75rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
-  footer.site ul { list-style: none; display: flex; flex-wrap: wrap; gap: 1.1rem; padding: 0; margin: 0 0 1rem; }
+  footer.site { padding: 2.25rem 0 3rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
+  footer.site ul { list-style: none; display: flex; flex-wrap: wrap; gap: 1.05rem; padding: 0; margin: 0 0 1rem; }
   footer.site a { color: var(--muted); font-weight: 600; }
   footer.site a:hover { color: var(--ink); }
+
+  /* Único botón flotante con flecha hacia arriba */
+  .btn-subir {
+    position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 18;
+    width: 46px; height: 46px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, #06b6d4, #4f46e5);
+    color: #ffffff; text-decoration: none; font-size: 1.25rem; font-weight: 850; line-height: 1;
+    border: 1px solid rgba(255, 255, 255, .28);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .38);
+    opacity: 0; pointer-events: none; transform: translateY(10px);
+    transition: opacity .2s ease, transform .2s ease;
+  }
+  .btn-subir.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .btn-subir:hover { transform: translateY(-2px); text-decoration: none; }
 </style>
 </head>
 <body>
@@ -214,21 +304,22 @@
   <div class="wrap bar">
     <a class="marca" href="#inicio">
       <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-        <rect width="64" height="64" rx="14" fill="#312e81" />
-        <path d="M32 14l14 7v22l-14 7-14-7V21z" fill="none" stroke="#a7f3d0" stroke-width="3.5" stroke-linejoin="round" />
-        <path d="M18 21l14 7 14-7M32 28v22" fill="none" stroke="#34d399" stroke-width="3.5" stroke-linejoin="round" />
+        <rect width="64" height="64" rx="15" fill="#131942" />
+        <path d="M32 13l15 8v22l-15 8-15-8V21z" fill="none" stroke="#22d3ee" stroke-width="3.5" stroke-linejoin="round" />
+        <path d="M17 21l15 8 15-8M32 29v22" fill="none" stroke="#34d399" stroke-width="3.5" stroke-linejoin="round" />
       </svg>
       NovaGest
+      <span class="tag-edicion">Nebula v1.1</span>
     </a>
     <nav aria-label="Secciones">
       <a href="#funciones">Funciones</a>
       <a href="#financiero" class="oculto">Financiero</a>
-      <a href="#capturas" class="oculto">Capturas</a>
+      <a href="#capturas">Capturas</a>
+      <a href="#acerca" class="oculto">Acerca de</a>
       <a href="#video" class="oculto">Vídeo</a>
-      <a href="#empezar">Cómo empezar</a>
-      <a href="#roles" class="oculto">Roles</a>
+      <a href="#empezar">Empezar</a>
       <a href="MANUAL_USUARIO.html">Manual</a>
-      <a href="NOVEDADES.html">Novedades</a>
+      <a href="NOVEDADES.html" class="oculto">Novedades</a>
     </nav>
   </div>
 </header>
@@ -237,162 +328,201 @@
   <section class="hero" id="inicio">
     <div class="wrap grid">
       <div>
-        <p class="etiqueta">Inventario · Ventas · Cuadre diario · Contabilidad</p>
-        <h1>Todo tu almacén bajo control, en la Web y en el teléfono</h1>
+        <p class="etiqueta">Inventario · Punto de venta · Caja diaria · Partida doble</p>
+        <h1>Tu operación comercial en <span>tiempo real y sin nube obligatoria</span></h1>
         <p class="lead">
-          NovaGest reúne inventario multialmacén, venta rápida, fiados, cuadre diario, indicadores IPV y
-          <strong>contabilidad de partida doble con estados financieros</strong>
-          en una <strong>Web instalable</strong> y una <strong>app Android</strong> que comparten el mismo
-          estado. Funciona sin conexión y sin depender de la nube: tus datos viven en tu servidor.
+          <strong>NovaGest</strong> unifica inventario multialmacén, venta rápida con escáner, clientes y fiados,
+          cuadre diario, indicadores IPV y <strong>gestión económica-financiera</strong> en una
+          <strong>Web instalable (PWA)</strong>, una <strong>app Android en Kotlin</strong> y un
+          <strong>servidor propio</strong> con auditoría encadenada y respaldos cifrados.
         </p>
         <div class="acciones">
-          <a class="btn primario" href="MANUAL_USUARIO.html">Leer el manual</a>
-          <a class="btn secundario" href="#video">Ver el vídeo (2:26)</a>
-          <a class="btn secundario" href="https://github.com/yhquintero/inventario">Descargar el proyecto</a>
+          <a class="btn primario" href="MANUAL_USUARIO.html">Explorar manual</a>
+          <a class="btn secundario" href="#capturas">Ver pantallas reales</a>
+          <a class="btn secundario" href="#video">Vídeo (2:26)</a>
+          <a class="btn secundario" href="https://github.com/yhquintero/inventario">Repositorio GitHub</a>
+        </div>
+        <div class="insignias" aria-label="Capacidades técnicas clave">
+          <span>100 % offline-first</span>
+          <span>SQLite WAL + deltas</span>
+          <span>2FA TOTP + HTTPS</span>
+          <span>Sello RFC 3161</span>
         </div>
       </div>
       <img class="portada" src="assets/novagest-hero.png" width="1600" height="900"
-           alt="Portada de NovaGest: panel de inventario con indicadores, gráficos y accesos a las secciones de la aplicación." />
+           alt="Composición futurista Nebula de NovaGest mostrando el Panel en modo oscuro y la pantalla de Venta rápida." />
     </div>
   </section>
 
   <div class="datos">
     <div class="wrap">
       <ul>
-        <li><strong>2 apps</strong><span>Web instalable + Android</span></li>
-        <li><strong>4 roles</strong><span>Permisos por función</span></li>
-        <li><strong>Partida doble</strong><span>Contabilidad e informes</span></li>
-        <li><strong>Sin conexión</strong><span>Sigue trabajando y sincroniza</span></li>
-        <li><strong>8 idiomas</strong><span>Documentación del proyecto</span></li>
+        <li><strong>3 piezas</strong><span>Web PWA · Android · Servidor</span></li>
+        <li><strong>168 almacenes</strong><span>Multialmacén listo o a medida</span></li>
+        <li><strong>Partida doble</strong><span>Estados financieros y QR</span></li>
+        <li><strong>4 roles</strong><span>Permisos validados en servidor</span></li>
+        <li><strong>8 idiomas</strong><span>Documentación internacional</span></li>
       </ul>
     </div>
   </div>
 
   <section id="funciones">
     <div class="wrap">
-      <h2>Lo que resuelve, sin hojas de cálculo</h2>
+      <h2>Lo que resuelve cada día en el mostrador y en la oficina</h2>
       <p class="introduccion">
-        Cada sección existe porque un negocio real la necesita a diario: saber qué hay, qué se vendió,
-        quién debe y cuánto quedó en caja al cerrar.
+        Sin hojas sueltas ni números duplicados: cada venta descuenta existencias al instante, actualiza la
+        caja del turno y alimenta los informes del negocio sobre un único estado compartido.
       </p>
       <div class="rejilla">
         <article class="tarjeta">
           <h3><span class="icono" aria-hidden="true">📦</span> Inventario multialmacén</h3>
-          <p>Cada almacén conserva sus existencias y el inventario general suma todos. Importa valores desde Excel, traspasa mercancía entre almacenes y ajusta diferencias con historial y opción de deshacer.</p>
+          <p>Existencias independientes por almacén y consolidado general. Importación desde Excel, traspasos entre sedes, alertas de stock mínimo y opción de deshacer auditada.</p>
         </article>
         <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">🛒</span> Venta rápida</h3>
-          <p>Descuenta el stock del almacén en uso al instante, con escáner de códigos de barras, cobro al contado o a fiado, comisiones y domicilios calculados automáticamente.</p>
+          <h3><span class="icono" aria-hidden="true">🛒</span> Venta rápida con lector o cámara</h3>
+          <p>Búsqueda instantánea, escaneo USB/Bluetooth o cámara del teléfono, cobro en múltiples divisas, ventas al contado o al fiado, domicilios y tickets verificables por WhatsApp o Bluetooth.</p>
         </article>
         <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">🤝</span> Clientes y fiados</h3>
-          <p>Límite de crédito por cliente, cuentas por cobrar con vencimiento, estados pendiente, parcial, vencido o pagado, y abonos con historial completo.</p>
+          <h3><span class="icono" aria-hidden="true">🤝</span> Clientes y cuentas por cobrar</h3>
+          <p> Tope de crédito por cliente, alertas de vencimiento, abonos parciales con recibo y trazabilidad completa de quién autorizó cada fiado.</p>
         </article>
         <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">🧮</span> Cuadre diario</h3>
-          <p>Cierre por turnos y centros de venta: efectivo, transferencias, gastos y diferencias. El día se cierra cuando debe cerrarse y queda auditado.</p>
+          <h3><span class="icono" aria-hidden="true">🧮</span> Cuadre diario multimoneda</h3>
+          <p>Tasas del día, fondos en efectivo y transferencia, comisiones, gastos y cierre firmado. Un día cerrado queda protegido contra ediciones accidentales.</p>
         </article>
         <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">📈</span> Análisis e IPV</h3>
-          <p>Índice de productividad de ventas, comparación de períodos, mapa de calor por día de la semana y exportación a CSV para revisarlo en Excel.</p>
+          <h3><span class="icono" aria-hidden="true">📈</span> Análisis, IPV y previsión</h3>
+          <p>Tendencia diaria frente a metas, mapa de calor de 8 semanas, márgenes por categoría, fichas de costo IPV y sugerencia automática de reposición.</p>
         </article>
         <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">💰</span> Gestión económica y financiera</h3>
-          <p>Asientos contables que no cuadran no entran: el debe siempre iguala al haber. Balance de comprobación,
-             estado de resultados, balance general, cuentas T, libro mayor, márgenes, ratios e indicadores del
-             negocio, con gráficos editables y exportación a PDF, XLSX y DOCX.</p>
-        </article>
-        <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">🔐</span> Licencia y respaldos</h3>
-          <p>Licencia firmada que se verifica sin conexión, auditoría de acciones por usuario, copias diarias cifradas y panel de control en Windows.</p>
+          <h3><span class="icono" aria-hidden="true">🛡️</span> Seguridad y respaldos</h3>
+          <p> Sesiones con segundo factor TOTP, cadena de auditoría SHA-256 con sellado de tiempo RFC 3161, copias cifradas AES-GCM y licencia verificable sin internet.</p>
         </article>
       </div>
     </div>
   </section>
 
-  <section id="financiero">
+  <section class="banda" id="financiero">
     <div class="wrap">
-      <h2>Contabilidad y finanzas, dentro de la misma app</h2>
+      <h2>Gestión económica y financiera integrada</h2>
       <p class="introduccion">
-        El módulo «💰 Económico y financiero» vive en el menú de la Web (y por la misma API en el servidor y
-        la app Android). Todos los informes se calculan en tiempo real desde los asientos registrados, con
-        filtros por período, cuenta y centro de costo, y validación de cuadre: el debe siempre iguala al haber.
+        El módulo <strong>Económico y financiero</strong> trabaja en la misma aplicación Web y en la misma API
+        del servidor: ningún asiento descuadrado entra al libro y cada indicador se recalcula al instante.
       </p>
       <div class="rejilla">
         <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">🧾</span> Estados financieros en tabla</h3>
-          <p>Balance de comprobación por saldos, estado de resultados, balance general, estado del fondo de
-             inversión estatal y punto de equilibrio con su gráfico, con totales, subtotales y cuadre visible.</p>
+          <h3><span class="icono" aria-hidden="true">🧾</span> Estados contables</h3>
+          <p>Balance de comprobación, estado de resultados, balance general, fondo de inversión y punto de equilibrio con validación automática Debe = Haber.</p>
         </article>
         <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">🅣</span> Cuentas T y libro mayor</h3>
-          <p>Todas las cuentas de activos, pasivos, patrimonio, ingresos, gastos, costos, utilidad y flujo de
-             caja, con saldos deudor y acreedor y saldo acumulado movimiento a movimiento.</p>
+          <h3><span class="icono" aria-hidden="true">🅣</span> Libro mayor y cuentas T</h3>
+          <p>Activos, pasivos, patrimonio, ingresos, costos y flujo de caja con saldos deudor/acreedor y trazabilidad movimiento por movimiento.</p>
         </article>
         <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">📉</span> Márgenes y ratios</h3>
-          <p>Margen bruto, operativo, antes de impuestos y neto con fórmula explícita y evolución por período;
-             liquidez, eficiencia operativa y rentabilidad con interpretación para decidir.</p>
-        </article>
-        <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">🌐</span> Indicadores del negocio digital</h3>
-          <p>CAC, tasa de conversión, ARPU/MRR, costo de infraestructura por usuario, margen de contribución y
-             ROI: las métricas que dicen si la web, el servidor y la app rinden.</p>
-        </article>
-        <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">📊</span> Gráficos editables</h3>
-          <p>Modo claro y oscuro, degradados y animaciones suaves. Barras, líneas, áreas, circular, radar,
-             cascada, dispersión, velocímetro y mapa de calor; el usuario elige tipo, colores, rangos y series.</p>
-        </article>
-        <article class="tarjeta">
-          <h3><span class="icono" aria-hidden="true">📤</span> Exportación y QR de cobro</h3>
-          <p>Todo se exporta a PDF, XLSX y DOCX con la calidad visual de la pantalla. El QR exportable abre al
-             escanearse una página de pago con titular, banco, cuenta, monto y referencia.</p>
+          <h3><span class="icono" aria-hidden="true">📊</span> Ratios, gráficos y cobro QR</h3>
+          <p>Liquidez, rentabilidad, CAC, ARPU/MRR y ROI con 9 tipos de gráficos editables (modo claro y oscuro), exportación a PDF/XLSX/DOCX y QR de pago verificable.</p>
         </article>
       </div>
     </div>
   </section>
 
-  <section class="capturas" id="capturas">
+  <section id="capturas">
     <div class="wrap">
-      <h2>Así se ve trabajando</h2>
-      <p class="introduccion">Capturas reales de la aplicación con datos de demostración · tema claro y oscuro · NovaGest «Nebula».</p>
+      <h2>Así luce NovaGest «Nebula» trabajando</h2>
+      <p class="introduccion">Capturas tomadas directamente de la aplicación real con datos de demostración, en modo claro, modo oscuro espacial y vista móvil.</p>
+
+      <div class="visor-tabs" role="tablist" aria-label="Selector rápido de pantallas">
+        <button class="visor-tab" type="button" role="tab" aria-selected="true" data-src="assets/capturas/galeria-novagest.png" data-w="1920" data-h="1080" data-cap="NovaGest «Nebula» — las seis pantallas clave reunidas en alta definición.">Vista general (6 en 1)</button>
+        <button class="visor-tab" type="button" role="tab" aria-selected="false" data-src="assets/capturas/panel-oscuro.png" data-w="1440" data-h="900" data-cap="Panel principal en modo oscuro Nebula: ventas del día, alertas y accesos directos.">Panel oscuro</button>
+        <button class="visor-tab" type="button" role="tab" aria-selected="false" data-src="assets/capturas/venta-rapida.png" data-w="1440" data-h="900" data-cap="Venta rápida con tarjetas holográficas por categoría, lector de barras y carrito.">Venta rápida</button>
+        <button class="visor-tab" type="button" role="tab" aria-selected="false" data-src="assets/capturas/inventario.png" data-w="1440" data-h="900" data-cap="Inventario multialmacén con filtros instantáneos, costos, márgenes y exportación PDF.">Inventario</button>
+        <button class="visor-tab" type="button" role="tab" aria-selected="false" data-src="assets/capturas/cuadre-diario.png" data-w="1440" data-h="900" data-cap="Cuadre diario multimoneda con fondos, gastos, domicilios y verificación en cero.">Cuadre diario</button>
+        <button class="visor-tab" type="button" role="tab" aria-selected="false" data-src="assets/capturas/analisis-y-metas.png" data-w="1440" data-h="1060" data-cap="Análisis y metas: curva de ventas frente al objetivo, mapa de calor y rentabilidad.">Análisis y metas</button>
+      </div>
+
       <figure class="galeria-hero">
-        <img src="assets/capturas/galeria-novagest.png" width="1920" height="1080" loading="lazy"
+        <img id="visorImg" src="assets/capturas/galeria-novagest.png" width="1920" height="1080" loading="lazy"
              alt="NovaGest «Nebula»: Panel, Venta rápida, Inventario, Cuadre diario, Análisis y metas y Panel en tema oscuro." />
-        <figcaption>NovaGest «Nebula» — seis vistas reales de la interfaz, en un vistazo.</figcaption>
+        <figcaption id="visorCap">NovaGest «Nebula» — las seis pantallas clave reunidas en alta definición.</figcaption>
       </figure>
+
       <div class="galeria">
         <figure>
           <img src="assets/capturas/panel.png" width="1440" height="900" loading="lazy"
-               alt="Panel principal con indicadores de ventas, alertas de stock y accesos rápidos." />
-          <figcaption>Panel: el estado del negocio de un vistazo.</figcaption>
+               alt="Panel principal claro con indicadores de ventas, alertas de stock y accesos rápidos." />
+          <figcaption>Panel claro: métricas clave al abrir el turno.</figcaption>
         </figure>
         <figure>
           <img src="assets/capturas/venta-rapida.png" width="1440" height="900" loading="lazy"
-               alt="Pantalla de venta rápida con búsqueda de productos, carrito y total a cobrar." />
-          <figcaption>Venta rápida, con lector de códigos.</figcaption>
+               alt="Pantalla de venta rápida con búsqueda de productos, categorías ilustradas y carrito." />
+          <figcaption>Venta rápida: escáner, categorías y cobro ágil.</figcaption>
         </figure>
         <figure>
           <img src="assets/capturas/inventario.png" width="1440" height="900" loading="lazy"
-               alt="Inventario con existencias por almacén, precios, costos y categorías." />
-          <figcaption>Inventario, con existencias por almacén.</figcaption>
+               alt="Inventario con existencias por almacén, precios, costos y comisiones." />
+          <figcaption>Inventario: control por sede y catálogo global.</figcaption>
         </figure>
         <figure>
           <img src="assets/capturas/cuadre-diario.png" width="1440" height="900" loading="lazy"
-               alt="Cuadre diario con tasas, fondos y gastos; el resultado debe quedar en cero." />
-          <figcaption>Cuadre diario: tasas, fondos y gastos.</figcaption>
+               alt="Cuadre diario con tasas de cambio, fondos, gastos y resultado cuadrado en cero." />
+          <figcaption>Cuadre diario: cierre exacto al centavo.</figcaption>
         </figure>
         <figure>
           <img src="assets/capturas/analisis-y-metas.png" width="1440" height="1060" loading="lazy"
-               alt="Pantalla de análisis con gráficos de ventas, mapa de calor y metas por categoría." />
-          <figcaption>Análisis: gráficos, mapa de calor y metas.</figcaption>
+               alt="Pantalla de análisis con tendencia diaria, mapa de calor de 8 semanas y metas." />
+          <figcaption>Análisis y metas: tendencias y mapa de calor.</figcaption>
         </figure>
         <figure>
           <img src="assets/capturas/panel-oscuro.png" width="1440" height="900" loading="lazy"
-               alt="El mismo panel en modo oscuro." />
-          <figcaption>Panel, también en modo oscuro.</figcaption>
+               alt="Panel principal en modo oscuro Nebula para turnos largos con baja fatiga visual." />
+          <figcaption>Modo oscuro Nebula: contraste descansado.</figcaption>
         </figure>
+      </div>
+
+      <figure class="galeria-hero movil-showcase">
+        <img src="assets/novagest-movil.png" width="1600" height="860" loading="lazy"
+             alt="Tres teléfonos mostrando NovaGest en formato móvil: Panel claro, Venta rápida táctil y Modo oscuro Nebula." />
+        <figcaption>Experiencia móvil completa: barra táctil inferior, cámara lectora y tickets listos para WhatsApp.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="banda" id="acerca">
+    <div class="wrap">
+      <h2>Acerca de NovaGest y arquitectura soberana</h2>
+      <p class="introduccion">
+        Diseñado para tiendas, almacenes, distribuidoras y pymes que necesitan velocidad de mostrador y rigor
+        contable sin entregar su base de clientes a servicios externos ni pagar cuotas por terminal.
+      </p>
+      <div class="acerca-grid">
+        <div class="rejilla" style="margin-top:0;grid-template-columns:1fr 1fr;">
+          <article class="tarjeta">
+            <h3><span class="icono" aria-hidden="true">⚡</span> Web PWA sin marcos pesados</h3>
+            <p>HTML, CSS y JavaScript modular con Service Worker de precaché completo, IndexedDB y sincronización por deltas comprimidos.</p>
+          </article>
+          <article class="tarjeta">
+            <h3><span class="icono" aria-hidden="true">📱</span> Android nativo Kotlin</h3>
+            <p>Jetpack Compose Material 3, base local Room, lector ML Kit, impresión ESC/POS Bluetooth y sincronización en segundo plano con WorkManager.</p>
+          </article>
+          <article class="tarjeta">
+            <h3><span class="icono" aria-hidden="true">🖥️</span> Servidor Python + SQLite WAL</h3>
+            <p>Cero gestores externos que mantener: cabeceras estrictas CSP/HSTS, ETag condicional, límites anti-fuerza bruta y copias externas S3/carpeta.</p>
+          </article>
+          <article class="tarjeta">
+            <h3><span class="icono" aria-hidden="true">✅</span> Calidad verificada en CI</h3>
+            <p>Más de 40 suites automáticas de cálculo, seguridad SAST, accesibilidad WCAG AA (axe-core), carga concurrente y restauración de copias.</p>
+          </article>
+        </div>
+        <aside class="tarjeta" aria-label="Ficha técnica del proyecto">
+          <h3>Ficha del proyecto</h3>
+          <dl class="ficha-dl">
+            <div><dt>Lema oficial</dt><dd><strong>Gestiona. Crece. Avanza.</strong></dd></div>
+            <div><dt>Versión actual</dt><dd>Edición Nebula <code>v1.1.0</code> (Servidor y Android) · protocolo estable <code>v1.0</code></dd></div>
+            <div><dt>Privacidad y datos</dt><dd>100 % en el equipo del negocio; cero telemetría ni CDN de terceros</dd></div>
+            <div><dt>Requisitos mínimos</dt><dd>Python 3.10+ para el servidor · Android 8.0+ (API 26–36) para el móvil</dd></div>
+            <div><dt> Guías de bolsillo</dt><dd><a href="GUIA_MOSTRADOR.html">Guía del mostrador (2 pág.)</a> · <a href="QUE_HACER_SI.html">Qué hacer si… (1 pág.)</a></dd></div>
+          </dl>
+        </aside>
       </div>
     </div>
   </section>
@@ -401,8 +531,8 @@
     <div class="wrap">
       <h2>El producto en 2 minutos y medio</h2>
       <p class="introduccion">
-        Recorrido completo con narración: activar la licencia, configurar el negocio y sus almacenes,
-        importar la mercancía, vender, cuadrar la caja y revisar. Subtítulos en español incluidos.
+        Recorrido completo con narración en español y subtítulos integrados: activar licencia, preparar
+        almacenes, importar catálogo desde Excel, cobrar en mostrador y cerrar la caja cuadrada.
       </p>
       <div class="video-caja">
         <video controls preload="none" playsinline poster="assets/social-preview.png" width="1280" height="720">
@@ -411,8 +541,8 @@
           Tu navegador no puede reproducir el vídeo. <a href="assets/video/novagest-promo-720p.mp4">Descárgalo aquí</a>.
         </video>
         <div class="video-pie">
-          <a class="btn primario" href="assets/video/novagest-promo-720p.mp4">Descargar el vídeo (720p)</a>
-          <a class="btn secundario" href="assets/video/novagest-promo-narracion.mp3">Solo la narración (MP3)</a>
+          <a class="btn primario" href="assets/video/novagest-promo-720p.mp4">Descargar vídeo (720p)</a>
+          <a class="btn secundario" href="assets/video/novagest-promo-narracion.mp3">Narración en audio (MP3)</a>
           <a class="btn secundario" href="assets/video/novagest-promo-720p.srt">Subtítulos (.srt)</a>
         </div>
       </div>
@@ -425,44 +555,22 @@
           Tu navegador no puede reproducir el vídeo. <a href="assets/video/novagest-reel-vertical-30s.mp4">Descárgalo aquí</a>.
         </video>
         <div>
-          <h3>Corte vertical de 30 segundos</h3>
-          <p>Para <strong>estados de WhatsApp, Reels y TikTok</strong>: formato 9:16 (1080 × 1920), 30 segundos
-            exactos, con narración en español y subtítulos. Se entiende sin sonido, que es como se
-            ve la mayoría de las veces.</p>
+          <h3>Corte vertical de 30 segundos (9:16)</h3>
+          <p>Listo para <strong>estados de WhatsApp, Reels y TikTok</strong> en 1080 × 1920 con locución y subtítulos grandes para entenderse incluso en silencio.</p>
           <div class="video-pie">
-            <a class="btn primario" href="assets/video/novagest-reel-vertical-30s.mp4">Descargar el corte (9:16)</a>
+            <a class="btn primario" href="assets/video/novagest-reel-vertical-30s.mp4">Descargar corte 30 s</a>
             <a class="btn secundario" href="assets/video/novagest-reel-vertical-30s.srt">Subtítulos (.srt)</a>
-          </div>
-        </div>
-      </div>
-      <div class="video-vertical">
-        <video controls preload="none" playsinline width="1080" height="1920"
-               poster="assets/social-preview.png"
-               aria-label="Corte vertical de 15 segundos de NovaGest para TikTok, Reels y Shorts">
-          <source src="assets/video/novagest-reel-vertical-15s.mp4" type="video/mp4" />
-          <track kind="subtitles" src="assets/video/novagest-reel-vertical-15s.srt" srclang="es" label="Español" default />
-          Tu navegador no puede reproducir el vídeo. <a href="assets/video/novagest-reel-vertical-15s.mp4">Descárgalo aquí</a>.
-        </video>
-        <div>
-          <h3>Corte vertical de 15 segundos</h3>
-          <p>El mismo mensaje en <strong>15 segundos</strong>: portada, venta, cuadre y cierre. Es el
-            formato de <strong>TikTok, Reels, Shorts y estados</strong>; pesa menos de 1 MB, así que se
-            envía por WhatsApp sin comprimir y se entiende sin sonido.</p>
-          <div class="video-pie">
-            <a class="btn primario" href="assets/video/novagest-reel-vertical-15s.mp4">Descargar el corte corto</a>
-            <a class="btn secundario" href="assets/video/novagest-reel-vertical-15s.srt">Subtítulos (.srt)</a>
+            <a class="btn secundario" href="assets/video/novagest-reel-vertical-15s.mp4">Corte rápido 15 s</a>
           </div>
         </div>
       </div>
       <div class="video-vertical">
         <div>
-          <h3>Carrusel de 6 imágenes para redes</h3>
-          <p>Seis piezas de <strong>1080 × 1350</strong> (4:5, sin recorte en el muro) listas para
-            <strong>Instagram, Facebook y LinkedIn</strong>: portada, vender, cuadrar, reponer, móvil y cierre.
-            Van con los textos de la publicación y las etiquetas.</p>
+          <h3>Carrusel futurista de 6 piezas para redes</h3>
+          <p>Seis láminas <strong>1080 × 1350</strong> (4:5) generadas a partir de capturas reales para publicar en Instagram, Facebook o LinkedIn, empaquetadas con sus textos.</p>
           <div class="video-pie">
-            <a class="btn primario" href="assets/redes/novagest-carrusel-6.zip">Descargar el carrusel (ZIP)</a>
-            <a class="btn secundario" href="assets/redes/01-portada.png">Ver la portada</a>
+            <a class="btn primario" href="assets/redes/novagest-carrusel-6.zip">Descargar carrusel (ZIP)</a>
+            <a class="btn secundario" href="assets/redes/01-portada.png">Ver portada</a>
           </div>
         </div>
       </div>
@@ -477,42 +585,41 @@
     </div>
   </section>
 
-  <section id="empezar">
+  <section class="banda" id="empezar">
     <div class="wrap">
       <h2>Empezar en tres pasos</h2>
-      <p class="introduccion">Necesitas Python 3.10 o posterior. La app Android se compila aparte con Android Studio.</p>
+      <p class="introduccion">Solo necesitas Python 3.10 o superior en el equipo principal. En Windows también dispones de lanzador con panel visual.</p>
       <ol class="pasos">
         <li class="paso">
-          <h3>Arranca el servidor</h3>
-          <p>Instala las dependencias y levanta la Web junto con la API.</p>
+          <h3>Levanta el servidor y la Web</h3>
+          <p>Instala los paquetes requeridos e inicia el servicio local.</p>
           <pre><code>python3 -m pip install -r requirements.txt
 python3 server/novagest_server.py</code></pre>
         </li>
         <li class="paso">
-          <h3>Activa la licencia</h3>
-          <p>Una instalación nueva queda bloqueada hasta introducir una clave firmada.</p>
-          <pre><code>python3 tools/generate_license.py --client "Mi Tienda" --term MES</code></pre>
-          <p>Abre <code>http://localhost:8080</code>, pega la clave en la pantalla <strong>Licencia de Uso</strong> y entra con tu cuenta.</p>
+          <h3>Activa tu licencia firmada</h3>
+          <p>Genera una clave para tu negocio e introdúcela al abrir <code>http://localhost:8000</code>.</p>
+          <pre><code>python3 tools/generate_license.py --client "Mi Tienda" --term PERMANENTE</code></pre>
         </li>
         <li class="paso">
-          <h3>Suma el teléfono</h3>
-          <p>Abre la raíz del proyecto en Android Studio (JDK 17) y ejecuta la configuración <code>app</code>. En la pantalla de acceso escribe la dirección HTTPS del servidor para sincronizar; si la dejas vacía, la app trabaja en modo local.</p>
+          <h3>Conecta el móvil o trabaja sin red</h3>
+          <p>Instala la Web como aplicación desde el navegador o compila el módulo <code>app</code> en Android Studio (JDK 17) apuntando a la dirección HTTPS del servidor.</p>
         </li>
       </ol>
       <div class="acciones">
         <a class="btn primario" href="MANUAL_USUARIO.html">Manual paso a paso</a>
-        <a class="btn secundario" href="https://github.com/yhquintero/inventario#-instalación">Instalación completa en el README</a>
+        <a class="btn secundario" href="GUIA_MOSTRADOR.html">Guía imprimible de mostrador</a>
       </div>
     </div>
   </section>
 
-  <section id="roles" style="background: var(--surface); border-block: 1px solid var(--line);">
+  <section id="roles">
     <div class="wrap">
-      <h2>Cada persona, sus permisos</h2>
-      <p class="introduccion">Un solo sistema con cuatro roles. Lo que no corresponde a un rol no aparece en su pantalla, y todo queda registrado en la auditoría.</p>
+      <h2>Cada persona, sus permisos exactos</h2>
+      <p class="introduccion">Cuatro perfiles validados tanto en la interfaz como en el servidor, con registro inalterable en la auditoría.</p>
       <div class="tabla-caja">
         <table>
-          <caption class="visually-hidden" style="position:absolute;left:-9999px;">Permisos por rol en NovaGest</caption>
+          <caption class="sr-only">Permisos por rol en NovaGest</caption>
           <thead>
             <tr>
               <th scope="col">Función</th>
@@ -528,11 +635,11 @@ python3 server/novagest_server.py</code></pre>
               <td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo ver</td><td class="si">Sí</td>
             </tr>
             <tr>
-              <th scope="row">Ventas y movimientos</th>
+              <th scope="row">Venta rápida, clientes y fiados</th>
               <td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo ver</td><td class="si">Sí</td>
             </tr>
             <tr>
-              <th scope="row">Cuadre diario y cierre</th>
+              <th scope="row">Cuadre diario y cierre de turno</th>
               <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo ver</td>
             </tr>
             <tr>
@@ -540,11 +647,11 @@ python3 server/novagest_server.py</code></pre>
               <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td>
             </tr>
             <tr>
-              <th scope="row">Informes y exportaciones</th>
+              <th scope="row">Informes IPV, metas y exportaciones</th>
               <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td>
             </tr>
             <tr>
-              <th scope="row">Usuarios, licencia y auditoría</th>
+              <th scope="row">Usuarios, licencia, copias y auditoría</th>
               <td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo auditoría</td><td class="no">No</td>
             </tr>
           </tbody>
@@ -556,12 +663,12 @@ python3 server/novagest_server.py</code></pre>
   <section class="cierre">
     <div class="wrap caja">
       <div>
-        <h2>Instálalo una vez y trabaja sin conexión</h2>
-        <p class="introduccion">La Web se instala como aplicación desde el propio navegador y la app Android guarda en el teléfono: si se cae la red, se sigue vendiendo y los cambios se suben al reconectar.</p>
+        <h2>Instálalo una vez, opera siempre</h2>
+        <p class="introduccion">Si se corta la electricidad de la calle o cae el enlace de datos, tu mostrador sigue cobrando y sincroniza en cuanto vuelve la red.</p>
       </div>
-      <div class="acciones" style="margin-top: 0;">
-        <a class="btn primario" href="MANUAL_USUARIO.html">Empezar con el manual</a>
-        <a class="btn secundario" href="https://github.com/yhquintero/inventario">Ver el código</a>
+      <div class="acciones">
+        <a class="btn primario" href="MANUAL_USUARIO.html">Abrir el manual</a>
+        <a class="btn secundario" href="https://github.com/yhquintero/inventario">Ver código en GitHub</a>
       </div>
     </div>
   </section>
@@ -571,16 +678,47 @@ python3 server/novagest_server.py</code></pre>
   <div class="wrap">
     <ul>
       <li><a href="MANUAL_USUARIO.html">Manual de usuario</a></li>
-      <li><a href="#video">Vídeo de presentación</a></li>
       <li><a href="NOVEDADES.html">Novedades</a></li>
       <li><a href="GUIA_MOSTRADOR.html">Guía del mostrador</a></li>
-      <li><a href="QUE_HACER_SI.html">Qué hacer si… (una página)</a></li>
+      <li><a href="QUE_HACER_SI.html">Qué hacer si…</a></li>
+      <li><a href="#video">Vídeo de presentación</a></li>
       <li><a href="https://github.com/yhquintero/inventario/blob/main/CHANGELOG.md">Registro de cambios</a></li>
       <li><a href="https://github.com/yhquintero/inventario/blob/main/LICENSE">Licencia</a></li>
       <li><a href="https://github.com/yhquintero/inventario">Repositorio</a></li>
     </ul>
-    <p>NovaGest · Inventario, ventas, cuadre diario y gestión económica y financiera. Documentación y capturas con datos de demostración.</p>
+    <p>NovaGest · Gestiona. Crece. Avanza. Inventario multialmacén, punto de venta, cuadre diario y contabilidad sin nube obligatoria.</p>
   </div>
 </footer>
+
+<a class="btn-subir" id="btnSubir" href="#inicio" aria-label="Volver arriba" title="Volver arriba">↑</a>
+
+<script>
+(function () {
+  var btn = document.getElementById("btnSubir");
+  function syncScroll() {
+    if (!btn) return;
+    btn.classList.toggle("visible", window.scrollY > 320);
+  }
+  window.addEventListener("scroll", syncScroll, { passive: true });
+  syncScroll();
+
+  var tabs = document.querySelectorAll(".visor-tab");
+  var img = document.getElementById("visorImg");
+  var cap = document.getElementById("visorCap");
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      tabs.forEach(function (t) { t.setAttribute("aria-selected", "false"); });
+      tab.setAttribute("aria-selected", "true");
+      if (img && tab.dataset.src) {
+        img.src = tab.dataset.src;
+        img.width = Number(tab.dataset.w) || 1440;
+        img.height = Number(tab.dataset.h) || 900;
+        img.alt = tab.dataset.cap || "";
+      }
+      if (cap && tab.dataset.cap) cap.textContent = tab.dataset.cap;
+    });
+  });
+})();
+</script>
 </body>
 </html>

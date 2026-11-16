@@ -2231,7 +2231,7 @@ class Store {
   }
 
   /** Crea un lote separado y claramente ficticio para los 168 municipios de Cuba, sin editar datos existentes. */
-  async populateMunicipalDemo({ onProgress } = {}) {
+  populateMunicipalDemo({ onProgress } = {}) {
     if (!can(this.state.session?.role, "VALUES_IMPORT") || !can(this.state.session?.role, "MOVEMENT_CREATE"))
       return { error: "Tu rol no puede crear esta demostración." };
     if (this.closedErr(todayISO())) return this.closedErr(todayISO());
@@ -2292,7 +2292,6 @@ class Store {
       }
       products.push(p);
       if (onProgress) onProgress(Math.round(((i + 1) / total) * 100), `Generando «${p.name}»…`, i + 1, total);
-      await new Promise((r) => setTimeout(r, 0));
     }
     // Toda validación y la preparación se hacen antes de tocar el estado compartido.
     this.state.products.push(...products);

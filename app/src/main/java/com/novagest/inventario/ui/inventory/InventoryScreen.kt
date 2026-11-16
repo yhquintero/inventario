@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.AlertDialog
@@ -53,6 +54,7 @@ import com.novagest.inventario.domain.model.Permission
 import com.novagest.inventario.domain.model.Product
 import com.novagest.inventario.domain.model.RolePermissions
 import com.novagest.inventario.domain.model.UserAccount
+import com.novagest.inventario.ui.components.ScrollToTopFab
 import com.novagest.inventario.ui.components.SearchField
 import com.novagest.inventario.util.Money
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -91,11 +93,18 @@ fun InventoryScreen(user: UserAccount, vm: InventoryViewModel = hiltViewModel())
     val filtered = products.filter { needle.isBlank() || normalize(it.name).contains(needle) || normalize(it.category).contains(needle) || it.barcode.contains(q.trim(), true) }
     val unidades = filtered.sumOf { maxOf(0.0, it.stockActual) }
     val valor = filtered.sumOf { maxOf(0.0, it.stockActual) * it.precioVentaUsd }
+    val listState = rememberLazyListState()
 
     Scaffold(
         floatingActionButton = {
-            if (canEdit) FloatingActionButton(onClick = { creating = true; editing = Product(name = "", stockInicial = 0.0, stockActual = 0.0, precioVentaUsd = 0.0, comisionCup = 0.0) }) {
-                Icon(Icons.Outlined.Add, "Nuevo")
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                ScrollToTopFab(listState = listState, minIndex = 4)
+                if (canEdit) FloatingActionButton(onClick = { creating = true; editing = Product(name = "", stockInicial = 0.0, stockActual = 0.0, precioVentaUsd = 0.0, comisionCup = 0.0) }) {
+                    Icon(Icons.Outlined.Add, "Nuevo")
+                }
             }
         }
     ) { pad ->
@@ -107,7 +116,7 @@ fun InventoryScreen(user: UserAccount, vm: InventoryViewModel = hiltViewModel())
             )
             // contentPadding inferior: deja respirar la última tarjeta por encima del botón
             // flotante, que si no la tapaba y no se podía abrir.
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp)) {
+            LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 128.dp)) {
                 itemsIndexed(filtered, key = { _, it -> it.id }) { index, p ->
                     Card(
                         Modifier.fillMaxWidth().clickable(enabled = canEdit) { editing = p; creating = true },

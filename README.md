@@ -9,7 +9,7 @@
 **Inventario multialmacén, punto de venta, caja diaria, informes y gestión económica y financiera para tu negocio.**
 **Web instalable, aplicación Android y servidor propio — también sin conexión.**
 
-🌐 **[Sitio del proyecto](https://yhquintero.github.io/inventario/) · [Manual de usuario](docs/MANUAL_USUARIO.html) · [Guía del mostrador (2 páginas)](docs/GUIA_MOSTRADOR.html) · [Novedades](docs/NOVEDADES.html) · [Vídeo (3 min)](docs/assets/video/novagest-promo-720p.mp4)**
+🌐 **[Sitio del proyecto](https://yhquintero.github.io/inventario/) · [Manual de usuario](docs/MANUAL_USUARIO.html) · [Guía del mostrador](docs/GUIA_MOSTRADOR.html) · [Qué hacer si…](docs/QUE_HACER_SI.html) · [Novedades](docs/NOVEDADES.html) · [Vídeo (2:26)](docs/assets/video/novagest-promo-720p.mp4)**
 
 🌐 **Español** · [English](docs/readme/README_en.md) · [Português](docs/readme/README_pt-BR.md) · [Français](docs/readme/README_fr.md) · [Italiano](docs/readme/README_it.md) · [Deutsch](docs/readme/README_de.md) · [Русский](docs/readme/README_ru.md) · [简体中文](docs/readme/README_zh-CN.md)
 
@@ -45,19 +45,19 @@
 
 **NovaGest** sustituye las hojas sueltas, los cuadernos y las plantillas de Excel por una sola
 aplicación: **inventario multialmacén**, **punto de venta**, **caja diaria**, **clientes y fiados**,
-**fichas de costo** e **informes con análisis**. La interfaz Web se instala como app (PWA) y sigue
-funcionando si se cae la conexión; la app Android lleva la operación al bolsillo; y un servidor
-propio —una laptop del negocio o un equipo con dominio— mantiene a todo el equipo trabajando sobre
-el **mismo estado**, con roles, auditoría, licencia y copias cifradas.
+**fichas de costo**, **contabilidad de partida doble** e **informes con análisis**. La interfaz Web se
+instala como app (PWA) y sigue funcionando si se cae la conexión; la app Android lleva la operación al
+bolsillo; y un servidor propio —una laptop del negocio o un equipo con dominio— mantiene a todo el
+equipo trabajando sobre el **mismo estado**, con roles, auditoría encadenada, licencia y copias cifradas.
 
 | Ficha del proyecto | Detalle |
 |---|---|
-| **Qué es** | Sistema de gestión comercial (inventario, venta, caja e informes) para pequeños y medianos negocios |
+| **Qué es** | Sistema de gestión comercial y contable (inventario, venta, caja, finanzas e informes) para pequeños y medianos negocios |
 | **Para quién** | Dueños, administradores, jefes, económicos, almaceneros y cajeros |
-| **Cómo está hecho** | Python 3.10+ (servidor y API) · SQLite (datos) · Web PWA sin compilación · Kotlin + Jetpack Compose (Android) · `cryptography` (licencias y copias) |
+| **Cómo está hecho** | Python 3.10+ (servidor y API) · SQLite WAL (datos) · Web PWA sin compilación · Kotlin + Jetpack Compose API 36 (Android) · `cryptography` (licencias y copias) |
 | **Dónde corre** | Servidor propio: Windows, Linux, macOS o Docker. Sin dependencia de la nube |
 | **Cómo se usa** | Navegador instalable (Web), app Android con sincronización, o modo local en el teléfono |
-| **Estado** | Versión **1.1.0** estable · integración continua en verde (Web, servidor y Android) |
+| **Estado** | Edición **Nebula v1.1.0** estable · integración continua en verde (SAST, Web, servidor y Android) |
 | **Modelo** | Software propietario con **licencia de uso** firmada (HMAC-SHA256) y plazos de 1 día a permanente |
 
 > 📊 **Tus datos mandan.** Los libros de Excel son solo fuentes de importación y referencia: la aplicación nunca importa ni sustituye datos operativos sin mostrarte una **vista previa** y recibir tu confirmación. Una instalación nueva puede arrancar con la semilla incluida en el proyecto.
@@ -325,8 +325,8 @@ NovaGest se activa con una **clave de licencia firmada** (HMAC-SHA256, prefijo `
 
 - **Cuentas** — contraseñas PBKDF2-SHA256 (210 000 iteraciones), bloqueo de 5 minutos tras 5 intentos fallidos, verificación en dos pasos (TOTP) obligatoria por defecto para el Administrador y códigos de recuperación.
 - **Sesiones y permisos** — sesiones con caducidad por inactividad y por duración máxima, permisos validados en el servidor, cabecera anti-CSRF y límite de peticiones por IP en acceso, recuperación y solicitudes de licencia.
-- **Datos** — copias cifradas automáticas cada día con rotación, **copia externa** opcional en carpeta de red o **WebDAV** con verificación de que se puede restaurar (`BACKUP_MIRROR_DIRS`, `BACKUP_WEBDAV_URL`, regla 3-2-1), cierre de días y auditoría.
-- **Web** — cabeceras CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy` y HSTS cuando se sirve por HTTPS.
+- **Datos** — copias cifradas automáticas cada día con rotación, **copia externa** opcional en carpeta de red o **WebDAV** con verificación de que se puede restaurar (`BACKUP_MIRROR_DIRS`, `BACKUP_WEBDAV_URL`, regla 3-2-1), cierre de días, **auditoría encadenada SHA-256** y sellado de tiempo **RFC 3161**.
+- **Web y servidor** — cabeceras estrictas CSP (sin estilos ni scripts en línea), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `X-Permitted-Cross-Domain-Policies: none`, validación `ETag` (`304 Not Modified`), soporte `HEAD` y HSTS cuando se sirve por HTTPS.
 
 Los datos legales públicos (#legal) se rellenan en **Ajustes → Datos legales** — guía: [docs/GUIA_DATOS_LEGALES.md](docs/GUIA_DATOS_LEGALES.md). ¿Encontraste una vulnerabilidad? **No abras un issue público**: sigue la [política de seguridad](SECURITY.md).
 
@@ -380,11 +380,9 @@ deploy/    Docker Compose + Caddy para publicar con HTTPS y dominio propio
 docs/      Manuales, guías legales y de cumplimiento, traducciones, capturas y video
 xlsx/      Libros Excel de referencia para importar
 brand/     Logotipo de NovaGest
-venv/      Librerías de Python para Windows sin conexión (ver venv/README.md)
 ```
 
-La base de datos operativa, las copias, los certificados y las claves generadas (`data/`, `certs/`)
-se mantienen fuera del control de versiones.
+El entorno virtual de Python (`venv/`), la base de datos operativa, las copias, los certificados y las claves generadas (`data/`, `certs/`) se mantienen fuera del control de versiones.
 
 ---
 
@@ -511,6 +509,6 @@ Las mejoras y correcciones de cada versión están en [CHANGELOG.md](CHANGELOG.m
 
 <div align="center">
 
-<sub><b>NovaGest</b> · Gestiona. Crece. Avanza. · © 2026 yhquintero · <a href="#novagest">Volver arriba ⬆</a></sub>
+<sub><b>NovaGest</b> · Gestiona. Crece. Avanza. · © 2026 yhquintero · <a href="#novagest">Volver arriba ↑</a></sub>
 
 </div>

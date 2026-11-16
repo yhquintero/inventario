@@ -36,17 +36,19 @@
   code, .kbd { font-family: "Cascadia Mono", ui-monospace, Consolas, monospace; font-size: 9.5pt; background: var(--soft); border: 1px solid var(--line); border-radius: 3px; padding: 0 3px; }
   footer.guide { border-top: 1px solid var(--line); margin-top: 6mm; padding-top: 4px; font-size: 8.5pt; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
   .howto { width: 210mm; margin: 8mm auto 0; font-size: 9.5pt; color: var(--muted); }
+  .btn-subir { position: fixed; right: 16px; bottom: 16px; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: #fff; text-decoration: none; font: 700 16pt/1 system-ui, sans-serif; box-shadow: 0 4px 14px #0003; }
   @media print {
     html, body { background: #fff; font-size: 10.5pt; }
     .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
     .howto { display: none; }
+    .btn-subir { display: none; }
     .sheet + .sheet { break-before: page; }
     a { color: inherit; text-decoration: none; }
   }
   @page { size: A4; margin: 13mm 12mm; }
 </style>
 </head>
-<body>
+<body id="inicio">
 
 <p class="howto no-print">Manual completo: <a href="MANUAL_USUARIO.html">MANUAL_USUARIO.html</a>. Para imprimir: <span class="kbd">Ctrl</span> + <span class="kbd">P</span> (o <span class="kbd">⌘</span> + <span class="kbd">P</span>) y elija <b>A4</b>, márgenes <b>predeterminados</b> y <b>dos páginas</b>. Esta franja no sale en el papel.</p>
 
@@ -195,5 +197,6 @@
 </article>
 </main>
 
+<a class="btn-subir" href="#inicio" aria-label="Volver arriba" title="Volver arriba">↑</a>
 </body>
 </html>

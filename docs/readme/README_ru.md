@@ -12,7 +12,7 @@
 🌐 [Español](../../README.md) · [English](README_en.md) · [Português](README_pt-BR.md) · [Français](README_fr.md) · [Italiano](README_it.md) · [Deutsch](README_de.md) · **Русский** · [简体中文](README_zh-CN.md)
 
 [![CI](https://github.com/yhquintero/inventario/actions/workflows/ci.yml/badge.svg)](https://github.com/yhquintero/inventario/actions/workflows/ci.yml)
-[![Версия](https://img.shields.io/badge/%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F-1.0.0-4f46e5?style=flat-square)](../../CHANGELOG.md)
+[![Версия](https://img.shields.io/badge/%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F-1.1.0-4f46e5?style=flat-square)](../../CHANGELOG.md)
 [![Платформы](https://img.shields.io/badge/%D0%BF%D0%BB%D0%B0%D1%82%D1%84%D0%BE%D1%80%D0%BC%D1%8B-Web%20%C2%B7%20Android%20%C2%B7%20%D0%A1%D0%B5%D1%80%D0%B2%D0%B5%D1%80-1e1b4b?style=flat-square)](#-что-входит-в-состав)
 [![PWA](https://img.shields.io/badge/PWA-%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D0%B5%D1%82%20%D0%BE%D1%84%D0%BB%D0%B0%D0%B9%D0%BD-059669?style=flat-square)](#-частые-вопросы)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](#-быстрый-старт)
@@ -347,6 +347,6 @@ venv/      Библиотеки Python для Windows без интернета 
 
 <div align="center">
 
-<sub><b>NovaGest</b> · Управляйте. Растите. Двигайтесь вперёд. · © 2026 yhquintero · <a href="#novagest">Наверх ⬆</a></sub>
+<sub><b>NovaGest</b> · Управляйте. Растите. Двигайтесь вперёд. · © 2026 yhquintero · <a href="#novagest">Наверх ↑</a></sub>
 
 </div>

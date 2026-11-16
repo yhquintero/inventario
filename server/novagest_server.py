@@ -1459,6 +1459,7 @@ class Api(BaseHTTPRequestHandler):
         self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header("Permissions-Policy", "geolocation=(), microphone=(), camera=(self)")
+        self.send_header("X-Permitted-Cross-Domain-Policies", "none")
         self.send_header("Content-Security-Policy", CSP)
         self.send_header("Vary", "Accept-Encoding")
         if self.secure(): self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
@@ -1466,19 +1467,23 @@ class Api(BaseHTTPRequestHandler):
     def accepts_gzip(self):
         return "gzip" in (self.headers.get("Accept-Encoding") or "").lower()
 
-    def send_json(self, code, obj, cookies=()):
+    def send_json(self, code, obj, cookies=(), extra_headers=None):
         body = json.dumps(obj, ensure_ascii=False).encode()
         encoded = self.maybe_gzip(body)
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         for c in cookies: self.send_header("Set-Cookie", c)
+        if extra_headers:
+            for hk, hv in extra_headers.items():
+                self.send_header(hk, str(hv))
         self.headers_common()
         if encoded is not None:
             self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(encoded if encoded is not None else body)))
         self.end_headers()
-        self.wfile.write(encoded if encoded is not None else body)
+        if getattr(self, "command", "GET") != "HEAD":
+            self.wfile.write(encoded if encoded is not None else body)
 
     def send_bytes(self, code, datos, tipo, nombre=None):
         """Respuesta binaria (token de sellado de tiempo, S-13)."""
@@ -1490,7 +1495,8 @@ class Api(BaseHTTPRequestHandler):
         self.headers_common()
         self.send_header("Content-Length", str(len(datos)))
         self.end_headers()
-        self.wfile.write(datos)
+        if getattr(self, "command", "GET") != "HEAD":
+            self.wfile.write(datos)
 
     def maybe_gzip(self, body, min_bytes=GZIP_MIN):
         """Comprime si el cliente lo acepta y el cuerpo lo justifica (S-11)."""
@@ -1539,6 +1545,7 @@ class Api(BaseHTTPRequestHandler):
         return s
 
     # ---------- enrutado
+    def do_HEAD(self): self.route("HEAD")
     def do_GET(self): self.route("GET")
     def do_POST(self): self.route("POST")
     def do_PUT(self): self.route("PUT")
@@ -1550,32 +1557,33 @@ class Api(BaseHTTPRequestHandler):
         if path == "/api/exchange/diviza":
             path = "/api/exchange/divisa"
         if not path.startswith("/api/"):
-            return self.static(path) if method == "GET" else self.err(405, "Método no permitido")
+            return self.static(path, head_only=(method == "HEAD")) if method in ("GET", "HEAD") else self.err(405, "Método no permitido")
+        effective_method = "GET" if method == "HEAD" else method
         # --- LICENCIA DE USO: verificación obligatoria siempre primero ---
         if path not in LICENSE_EXEMPT and not path.startswith("/api/license/"):
             lic = check_license_active()
             if not lic["valid"]:
                 return self.send_json(402, {"error": "Licencia no válida o expirada. Active una licencia para continuar.", "licenseError": True, "reason": lic.get("reason", ""), "code": "LICENSE_REQUIRED"})
         # CSRF: toda petición que modifica exige la cabecera X-CP (un formulario de otro sitio no puede ponerla)
-        if method != "GET" and self.headers.get("X-CP") != "1":
+        if effective_method != "GET" and self.headers.get("X-CP") != "1":
             return self.err(403, "Falta cabecera anti-CSRF")
         # Límite de peticiones por IP: rutas sensibles tienen su propio tope (RATE_LIMITS)
         # y el resto de mutaciones (POST/PUT/DELETE) lleva un tope por defecto (H8, auditoría 2026).
-        limit = RATE_LIMITS.get((method, path)) or ((int(os.environ.get("RATE_MUT_MAX", "120")), 60) if method != "GET" else None)
+        limit = RATE_LIMITS.get((effective_method, path)) or ((int(os.environ.get("RATE_MUT_MAX", "120")), 60) if effective_method != "GET" else None)
         if limit:
             max_hits, window = limit
-            k = f"{method} {path}|{self.ip()}"
+            k = f"{effective_method} {path}|{self.ip()}"
             t = now()
             row = q("SELECT hits FROM rate_hits WHERE k=?", (k,), one=True)
             hits = [x for x in (json.loads(row["hits"]) if row else []) if t - x < window]
             if len(hits) >= max_hits:
                 retry = max(1, window - (t - hits[0]))
-                self.send_json(429, {"error": f"Demasiadas peticiones. Espera {retry} s."})
+                self.send_json(429, {"error": f"Demasiadas peticiones. Espera {retry} s."}, extra_headers={"Retry-After": retry})
                 return
             hits.append(t)
             q("INSERT OR REPLACE INTO rate_hits(k,hits) VALUES(?,?)", (k, json.dumps(hits)))
         try:
-            h = ROUTES.get((method, path)) or ROUTES.get((method, re.sub(r"/[\w\-.]+$", "/:id", path)))
+            h = ROUTES.get((effective_method, path)) or ROUTES.get((effective_method, re.sub(r"/[\w\-.]+$", "/:id", path)))
             if not h: return self.err(404, "No encontrado")
             ident = path.rsplit("/", 1)[-1]
             h(self, ident)
@@ -1587,14 +1595,25 @@ class Api(BaseHTTPRequestHandler):
             print("ERROR", method, path, repr(e), flush=True)
             self.err(500, "Error interno")
 
-    def static(self, path):
+    def static(self, path, head_only=False):
         if path in ("", "/"): path = "/index.html"
         full = os.path.realpath(os.path.join(WEB, path.lstrip("/")))
         # /.well-known/ es la única ruta oculta pública permitida (security.txt)
         oculta_ok = path == "/.well-known/security.txt"
         if not full.startswith(os.path.realpath(WEB) + os.sep) or ("/." in path and not oculta_ok) or not os.path.isfile(full):
             return self.err(404, "No encontrado")
-        data = open(full, "rb").read()
+        st = os.stat(full)
+        etag = f'W/"{st.st_size:x}-{st.st_mtime_ns:x}"'
+        inm = self.headers.get("If-None-Match") or ""
+        if etag in [t.strip() for t in inm.split(",") if t.strip()]:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "no-cache")
+            self.headers_common()
+            self.end_headers()
+            return
+        with open(full, "rb") as fh:
+            data = fh.read()
         mime = MIME.get(os.path.splitext(full)[1], "application/octet-stream")
         # S-11: los archivos de texto (JS, CSS, HTML, JSON, SVG) viajan comprimidos.
         compressible = any(t in mime for t in ("javascript", "json", "html", "css", "svg", "text/"))
@@ -1602,11 +1621,13 @@ class Api(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", mime)
         self.send_header("Cache-Control", "no-cache")
+        self.send_header("ETag", etag)
         self.headers_common()
         if encoded is not None: self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(encoded if encoded is not None else data)))
         self.end_headers()
-        self.wfile.write(encoded if encoded is not None else data)
+        if not head_only:
+            self.wfile.write(encoded if encoded is not None else data)
 
     def log_message(self, fmt, *args):
         # HTTPServer pasa códigos HTTPStatus (no cadenas) en algunos send_error;
@@ -1643,7 +1664,7 @@ def route(method, path, need=True, roles=None):
                 # entrar, ver sus datos, cambiar contraseña y activar el 2FA.
                 if REQUIRE_ADMIN_TOTP and u["role"] == "ADMINISTRADOR" and not u["totp_enabled"]:
                     req_path = urlparse(h.path).path
-                    is_state_read = req_path == "/api/state" and h.command == "GET"
+                    is_state_read = req_path == "/api/state" and h.command in ("GET", "HEAD")
                     if req_path not in TOTP_GRACE_PATHS and not is_state_read:
                         return h.err(403, "Tu rol (Administrador) exige activar la verificación en dos pasos. Hazlo en Ajustes → Seguridad.")
             return fn(h, u, ident)
@@ -2091,6 +2112,7 @@ def health(h, u, _):
     disco = disk_health()
     licencia = license_health()
     bd_bytes = os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0
+    wal_bytes = os.path.getsize(DB_PATH + "-wal") if os.path.exists(DB_PATH + "-wal") else 0
     avisos = []
     if not lic["valid"]:
         avisos.append("licencia")
@@ -2114,6 +2136,7 @@ def health(h, u, _):
             "uptimeSegundos": int(time.time() - STARTED_AT),
             "latenciaMs": latencia,
             "bdBytes": bd_bytes,
+            "walBytes": wal_bytes,
             "copias": copias,
             "diasCerrados": cerrados,
             "sesionesActivas": conectados,

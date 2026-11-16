@@ -33,15 +33,16 @@
    v14: aviso de activación explícita; ya no se ofrece una prueba automática.
    v15: botón de WhatsApp activado solo con la autorización y tipografía común a todos los módulos.
    v41: la barra de pestañas de #finanzas queda fija debajo de la topbar también con JS
-        (position: fixed dinámico), por si el sticky de CSS falla con cachés viejas. */
-const CACHE = "novagest-v57";
+        (position: fixed dinámico), por si el sticky de CSS falla con cachés viejas.
+   v58: interfaz Nebula futurista, botón único de volver arriba y precache completo con financiero. */
+const CACHE = "novagest-v58";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js",
   "./js/monthly.js", "./js/search.js", "./js/forecast.js", "./js/margin.js", "./js/rate-chart.js",
   "./js/theme.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
   "./js/excel-import.js", "./js/license.js", "./js/seed-data.js",
-  "./financiero.html", "./fin-pago.html", "./css/financiero.css", "./js/financiero.js",
+  "./financiero.html", "./fin-pago.html", "./css/financiero.css", "./js/financiero.js", "./js/fin-pago.js",
   "./vendor/qrcode.mjs",
   "./public/icon-app.png", "./public/icon-192.png", "./public/icon-512.png",
 ];

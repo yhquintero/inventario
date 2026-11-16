@@ -1031,3 +1031,41 @@ html[data-texto="grande"] body, html[data-texto="muy-grande"] body { zoom: var(-
 .progress-step-item { padding: 2px 0; opacity: .5; transition: opacity .2s, color .2s; }
 .progress-step-item.active { opacity: 1; color: var(--fg, #e2e8f0); font-weight: 600; }
 .progress-step-item.done { opacity: .7; text-decoration: line-through; }
+
+/* Botón único de volver arriba (una sola flecha apuntando hacia arriba) */
+.scroll-top-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 35;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--neon-cyan) 42%, var(--line));
+  background: linear-gradient(135deg, var(--primary), var(--neon-cyan));
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 26px rgba(23, 16, 57, .28), 0 0 16px rgba(6, 182, 212, .26);
+  transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+}
+.scroll-top-btn[hidden] { display: none !important; }
+.scroll-top-btn:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(87, 75, 224, .38), 0 0 22px rgba(34, 211, 238, .42); }
+.scroll-top-btn:focus-visible { outline: 3px solid var(--neon-cyan); outline-offset: 3px; }
+@media (max-width: 860px) { .scroll-top-btn { right: 18px; bottom: 138px; width: 42px; height: 42px; } }
+@media print { .scroll-top-btn { display: none !important; } }
+
+/* Acabado Nebula futurista sutil en tarjetas y barra lateral */
+[data-theme="dark"] .card {
+  background: linear-gradient(165deg, rgba(16, 22, 54, .95), rgba(11, 15, 38, .98));
+  border-color: rgba(143, 134, 255, .18);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .48), inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+[data-theme="dark"] .topbar {
+  background: rgba(14, 19, 48, .84);
+  border-bottom-color: rgba(34, 211, 238, .16);
+}
+.rail {
+  box-shadow: inset -1px 0 0 rgba(34, 211, 238, .12);
+}
+

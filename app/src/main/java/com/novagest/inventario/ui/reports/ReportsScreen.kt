@@ -3,6 +3,7 @@ package com.novagest.inventario.ui.reports
 import android.app.DatePickerDialog
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +13,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +49,7 @@ import com.novagest.inventario.ui.components.GradientBarChart
 import com.novagest.inventario.ui.components.HeatCellUi
 import com.novagest.inventario.ui.components.HeatmapCalendar
 import com.novagest.inventario.ui.components.KpiCard
+import com.novagest.inventario.ui.components.ScrollToTopFab
 import com.novagest.inventario.ui.components.SectionTitle
 import com.novagest.inventario.util.Dates
 import com.novagest.inventario.util.Money
@@ -162,7 +166,10 @@ fun ReportsScreen(user: UserAccount, vm: ReportsViewModel = hiltViewModel()) {
     val deltaText = deltaPct?.let { (if (it >= 0) "▲ " else "▼ ") + String.format("%.1f", abs(it)) + " % vs. período anterior" }
     val deltaColor = if (deltaPct != null && deltaPct < 0.0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
 
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val listState = rememberLazyListState()
+
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             Text("Reportes e informes", style = MaterialTheme.typography.headlineMedium)
             ChipRow(
@@ -340,6 +347,11 @@ fun ReportsScreen(user: UserAccount, vm: ReportsViewModel = hiltViewModel()) {
                 if (row.comisionesCup != 0.0) Text("Comisiones históricas ${Money.cup(row.comisionesCup)}")
             }
         }
+    }
+        ScrollToTopFab(
+            listState = listState,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+        )
     }
 }
 

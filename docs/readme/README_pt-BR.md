@@ -12,7 +12,7 @@
 🌐 [Español](../../README.md) · [English](README_en.md) · **Português** · [Français](README_fr.md) · [Italiano](README_it.md) · [Deutsch](README_de.md) · [Русский](README_ru.md) · [简体中文](README_zh-CN.md)
 
 [![CI](https://github.com/yhquintero/inventario/actions/workflows/ci.yml/badge.svg)](https://github.com/yhquintero/inventario/actions/workflows/ci.yml)
-[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.0.0-4f46e5?style=flat-square)](../../CHANGELOG.md)
+[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.1.0-4f46e5?style=flat-square)](../../CHANGELOG.md)
 [![Plataformas](https://img.shields.io/badge/plataformas-Web%20%C2%B7%20Android%20%C2%B7%20Servidor-1e1b4b?style=flat-square)](#-o-que-está-incluído)
 [![PWA](https://img.shields.io/badge/PWA-funciona%20sem%20conex%C3%A3o-059669?style=flat-square)](#-perguntas-frequentes)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](#-início-rápido)
@@ -347,6 +347,6 @@ As melhorias e correções de cada versão estão no [CHANGELOG.md](../../CHANGE
 
 <div align="center">
 
-<sub><b>NovaGest</b> · Gerencie. Cresça. Avance. · © 2026 yhquintero · <a href="#novagest">Voltar ao topo ⬆</a></sub>
+<sub><b>NovaGest</b> · Gerencie. Cresça. Avance. · © 2026 yhquintero · <a href="#novagest">Voltar ao topo ↑</a></sub>
 
 </div>

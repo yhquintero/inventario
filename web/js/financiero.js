@@ -73,7 +73,7 @@ function tabla(cols, filas, total) {
   const head = cols.map((c) => `<th class="${c.num ? "num" : ""}">${c.label}</th>`).join("");
   const body = filas.map((f) => `<tr>${cols.map((c) => `<td class="${c.num ? "num" : ""}">${c.render ? c.render(f) : (f[c.key] ?? "")}</td>`).join("")}</tr>`).join("");
   const foot = total ? `<tr class="total">${cols.map((c) => `<td class="${c.num ? "num" : ""}">${c.num ? fmt(total[c.key]) : (c.key === cols[0].key ? "TOTAL" : "")}</td>`).join("")}</tr>` : "";
-  return `<div class="card" style="overflow:auto"><table class="fin-tabla"><thead><tr class="fin-tabla-header">${head}</tr></thead><tbody>${body}${foot}</tbody></table></div>`;
+  return `<div class="card fin-table-scroll"><table class="fin-tabla"><thead><tr class="fin-tabla-header">${head}</tr></thead><tbody>${body}${foot}</tbody></table></div>`;
 }
 
 /* ---------------- gráficos canvas editables ---------------- */
@@ -380,7 +380,7 @@ async function loadQr() {
       <div class="fila"><label>Referencia <input id="qRef" value="${esc(cfg.config.referencia || "")}" /></label><label>Monto a cobrar <input id="qMonto" type="number" step="0.01" placeholder="0.00" /></label></div>
       <div><button class="fin-btn primary" id="qGuardar">Guardar datos</button> <button class="fin-btn" id="qGenerar">Generar QR</button></div>
     </div>
-    <div class="card fin-qr" id="qVista" style="display:none"><div id="qCanvas"></div><p id="qTexto"></p><button class="fin-btn ghost" id="qDescargar">Descargar QR</button></div>`;
+    <div class="card fin-qr fin-hidden" id="qVista"><div id="qCanvas"></div><p id="qTexto"></p><button class="fin-btn ghost" id="qDescargar">Descargar QR</button></div>`;
   $("#qGuardar").onclick = async () => { const r = await api("/fin/qr", { method: "PUT", body: { titular: $("#qTit").value, banco: $("#qBan").value, cuenta: $("#qCta").value, moneda: $("#qMon").value, referencia: $("#qRef").value } }); r.error ? toast(r.error) : toast("Datos guardados"); };
   $("#qGenerar").onclick = async () => {
     const r = await api("/fin/qr/pago?monto=" + encodeURIComponent($("#qMonto").value || ""));
@@ -392,7 +392,7 @@ async function loadQr() {
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (qr.isDark(y, x)) ctx.fillRect((x + 4) * size, (y + 4) * size, size, size);
     $("#qCanvas").innerHTML = ""; $("#qCanvas").appendChild(canvas);
     $("#qTexto").textContent = `Pagar ${r.datos.monto ? fmt(r.datos.monto) + " " + r.datos.moneda : ""} a ${r.datos.titular} · ${r.datos.banco} · cuenta ${r.datos.cuenta} · ref ${r.datos.referencia}`;
-    $("#qVista").style.display = "grid";
+    $("#qVista").classList.remove("fin-hidden");
     $("#qDescargar").onclick = () => { const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = "cobro-qr.png"; a.click(); };
     toast("QR generado: al escanearlo se abre la pantalla de pago");
   };
@@ -463,4 +463,13 @@ export function montarFinanzas(root) {
 // Página independiente (financiero.html, body.fin-body): solo ahí se auto-monta.
 // Dentro de la app (#finanzas) lo monta app.js con montarFinanzas(#fin-root).
 const esPaginaPropia = typeof document !== "undefined" && !!document.body && String(document.body.className || "").includes("fin-body");
-if (esPaginaPropia) montarFinanzas(document.getElementById("fin-root"));
+if (esPaginaPropia) {
+  montarFinanzas(document.getElementById("fin-root"));
+  const btnTop = document.getElementById("finScrollTop");
+  if (btnTop && typeof window !== "undefined") {
+    const syncTop = () => { btnTop.hidden = (window.scrollY || 0) < 260; };
+    window.addEventListener("scroll", syncTop, { passive: true });
+    btnTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+    syncTop();
+  }
+}
