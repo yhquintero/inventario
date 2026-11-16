@@ -4,6 +4,7 @@ Guía completa para poner en marcha NovaGest: servidor y aplicación Web, Window
 **Panel de Control Visual**, Docker con dominio propio y aplicación Android. El resumen está en el
 [README](../README.md#-inicio-rápido).
 
+- [Instalador de Windows (S-04)](#instalador-de-windows-s-04)
 - [Servidor y aplicación Web](#servidor-y-aplicación-web)
 - [Primera activación](#primera-activación)
 - [Despliegue con HTTPS](#despliegue-con-https)
@@ -12,6 +13,67 @@ Guía completa para poner en marcha NovaGest: servidor y aplicación Web, Window
   - [Docker con dominio propio](#docker-con-dominio-propio)
 - [Android](#android)
 - [Producción](#producción)
+
+## Instalador de Windows (S-04)
+
+En un equipo limpio (sin Python, sin nada instalado) basta **doble clic en `deploy\instalar.bat`**:
+
+1. **Doble clic en `deploy\instalar.bat`** — abre PowerShell con permisos de usuario (no pide
+   administrador: todo se instala para el usuario actual).
+2. **Espera a los cinco pasos** — el instalador avanza por consola y termina con
+   `Instalación terminada.`
+3. **Se abre el navegador** en `http://localhost:8080` con NovaGest en marcha.
+
+Si el equipo bloquea scripts firmados, también se puede lanzar desde una ventana abierta con
+clic derecho → *Abrir aquí*:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\instalar-novagest.ps1
+```
+
+**Qué hace cada paso**
+
+| Paso | Qué comprueba o crea |
+|---|---|
+| 1 · Python | Busca Python 3.10+ en el `PATH` y en las carpetas habituales de Windows. Si no lo hay, instala el oficial de python.org para el usuario actual. El SHA-256 se contrasta con [`deploy/python-hashes.txt`](../deploy/python-hashes.txt); sin entrada, se calcula y se imprime en consola. |
+| 2 · Entorno | Crea `venv\` e instala `requirements.txt` dentro (aíslo del Python del sistema). |
+| 3 · Accesos directos | Escritorio → **NovaGest**; Menú Inicio → **NovaGest**, **NovaGest (consola)** y **Desinstalar NovaGest**. |
+| 4 · Arranque | Registra NovaGest en la carpeta **Inicio** de Windows, para que al entrar en la sesión esté sirviendo. |
+| 5 · Arranque | Lanza el servidor en segundo plano, espera a que escuche (máx. 60 s) y abre el navegador. |
+
+**Parámetros útiles**
+
+```powershell
+# Puerto distinto de 8080, sin abrir el navegador
+powershell -ExecutionPolicy Bypass -File deploy\instalar-novagest.ps1 -Puerto 9090 -SinNavegador
+
+# Solo crear el entorno y las dependencias (para preparar una carpeta)
+powershell -ExecutionPolicy Bypass -File deploy\instalar-novagest.ps1 -SoloDependencias
+
+# No registrar el arranque al iniciar la sesión
+powershell -ExecutionPolicy Bypass -File deploy\instalar-novagest.ps1 -SinArranque
+
+# Desinstalar (quita accesos, arranque y venv; NO toca data\)
+powershell -ExecutionPolicy Bypass -File deploy\instalar-novagest.ps1 -Desinstalar
+```
+
+**Archivos de `deploy/`**
+
+| Archivo | Para qué sirve |
+|---|---|
+| `instalar.bat` | Instalador de doble clic (empaqueta el paso anterior). |
+| `instalar-novagest.ps1` | Instalador y desinstalador con parámetros. |
+| `arrancar-novagest.ps1` | Lanzador que usan los accesos directos y el arranque de sesión. |
+| `iniciar-servidor.ps1` | Arranque en consola visible (desarrollo y diagnóstico). |
+| `python-hashes.txt` | SHA-256 esperados de los instaladores de Python (verificación de la descarga). |
+
+El instalador es **idempotente**: volver a ejecutarlo solo actualiza dependencias y accesos
+directos. Nunca borra `data\` (datos, copias, licencia). Si el puerto 8080 ya lo ocupa otro
+programa, el lanzador no lo detiene: cambia de puerto con `-Puerto`.
+
+> **Comprobación automática:** `python3 tools/test_instalador.py` revisa los guiones, el BOM
+> UTF-8, los marcadores de instalación y este manual; `tools/test_panel_control.ps1` añade, en
+> el CI, el analizador de sintaxis de PowerShell sobre los mismos guiones.
 
 ## Servidor y aplicación Web
 

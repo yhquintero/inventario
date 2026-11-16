@@ -23,6 +23,14 @@ with tempfile.TemporaryDirectory(prefix='ng-batch-clear-') as tmp:
              'movements': [{'id': f'm{i}', 'warehouseId': wid, 'productId': 'p', 'date': '2026-11-01',
                             'quantity': 1, 'type': 'ENTRADA'} for i, wid in enumerate(ids + ['extra'])],
              'warehouseEntries': [], 'credits': [], 'audit': []}
+    # Dos productos de demostración: al limpiar, uno se queda sin nada en ningún
+    # almacén activo (debe retirarse) y el otro conserva existencias (no se toca).
+    state['products'].append({'id': 'psim', 'name': '[SIMULADO] ARROZ DE PRUEBA', 'demoMunicipios': 'lote',
+                              'stocks': {wid: 4 for wid in ids}, 'stocksInicial': {wid: 4 for wid in ids},
+                              'stockActual': 168 * 4, 'stockInicial': 168 * 4, 'deletedAt': None})
+    state['products'].append({'id': 'pvivo', 'name': '[SIMULADO] VIVO', 'demoMunicipios': 'lote',
+                              'stocks': {'extra': 3}, 'stocksInicial': {'extra': 3},
+                              'stockActual': 3, 'stockInicial': 3, 'deletedAt': None})
     s.q('UPDATE app_state SET version=1,data=? WHERE id=1', (json.dumps(state),))
     s.index_state_changes(state, 1)
     admin = {'id': 1, 'username': 'admin', 'display_name': 'Admin', 'role': 'ADMINISTRADOR', 'totp_enabled': 1}
@@ -79,6 +87,17 @@ with tempfile.TemporaryDirectory(prefix='ng-batch-clear-') as tmp:
     assert final['movements'][-1] == state['movements'][-1]
     assert all(m.get('warehouseCleared') for m in final['movements'][:168])
     assert len([e for e in final['warehouseEntries'] if e['kind'] == 'LIMPIEZA' and e['date']]) == 168
+    # Lo simulado huérfano se retira para que no vuelva la banda «Datos SIMULADOS presentes.».
+    psim = next(p for p in final['products'] if p['id'] == 'psim')
+    assert psim.get('deletedAt'), 'el producto simulado sin nada vivo se retira al limpiar'
+    assert psim.get('deletedReason') == 'simulado-retirado'
+    assert all(psim['stocks'][wid] == 0 for wid in ids)
+    # El que sigue con existencias en un almacén activo NO se retira.
+    pvivo = next(p for p in final['products'] if p['id'] == 'pvivo')
+    assert not pvivo.get('deletedAt'), 'lo simulado con existencias reales en un almacén activo se conserva'
+    assert pvivo['stocks']['extra'] == 3
+    # Los productos reales no llevan ninguna marca de retiro.
+    assert not final['products'][0].get('deletedAt')
     assert s.verificar_auditoria()['ok']
     assert s.validate_change(final, final, 'ADMINISTRADOR', set()) is None
     assert call()[0] == 409

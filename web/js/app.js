@@ -97,6 +97,8 @@ let ui = {
   dashboardRange: "7d", dashboardMetric: "sales", dashboardType: "line",
   dashboardCompare: (() => { try { return localStorage.getItem("novagest.dashboardCompare") === "1"; } catch { return false; } })(),
   drawer: false, recover: false, question: null, cuadreDate: null, weekDate: null, movDate: "", sort: "name",
+  /** Filas de Movimientos pintadas en pantalla; el resto se añaden con «Mostrar más». */
+  movLimit: 250,
   histTab: "precios", rateChartRange: "all", rateChartSource: "all", rateChartMode: "daily", rateChartCurrencies: ["USD", "EUR", "MLC"],
   whTab: "almacenes", whKind: "TODOS", whFilter: "", whProvince: "", whDetail: null, pdfWarehouseId: null, iv: null, whMunicipalClearIds: null, whMunicipalDeleteIds: null,
   license: {
@@ -166,10 +168,15 @@ function setBusy(busy, label = "") {
   if (busy && label) announce(`${label}…`);
 }
 
-function toast(msg, kind = "") {
+/**
+ * Muestra un aviso. `repintar = false` deja el aviso en `ui.toast` SIN pintar:
+ * sirve cuando justo después va a haber un `render()` por otro camino (p. ej.
+ * `saveSettings({ theme })` emite y repinta), para no pintar dos veces seguidas.
+ */
+function toast(msg, kind = "", repintar = true) {
   announce(msg);
   ui.toast = { msg, kind };
-  render();
+  if (repintar) render();
   clearTimeout(toast._t);
   toast._t = setTimeout(() => { ui.toast = null; render(); }, 3200);
 }
@@ -214,6 +221,21 @@ function setTexto(size) {
   ui.textSize = writeTextSize(safeStorage(), size);
   applyTextSize(document, ui.textSize);
   render();
+}
+
+/**
+ * Interruptor de tema de 3 modos (Automático · Claro · Oscuro) para las pantallas previas al
+ * acceso: la licencia y el login. Allí no existe la barra superior, pero el usuario debe poder
+ * elegir el tema antes de entrar (requisito: ver la app en claro/oscuro/Automático ya en la
+ * pantalla de acceso, siguiendo el sistema en vivo cuando está en «Automático»).
+ */
+function temaPreAcceso() {
+  const actual = store.state.settings.theme || "system";
+  const mods = [["system", "◐", "Automático"], ["light", "☀", "Claro"], ["dark", "☾", "Oscuro"]];
+  return `<div class="login-theme" role="group" aria-label="Tema de la interfaz">` +
+    mods.map(([id, ico, lbl]) =>
+      `<button type="button" class="login-theme-btn${actual === id ? " on" : ""}" data-theme-set="${id}" aria-pressed="${actual === id}" title="${lbl}${id === "system" ? " (sigue al sistema)" : ""}">${ico}<span>${lbl}</span></button>`).join("") +
+    `</div>` + (ui.toast ? `<div class="toast ${ui.toast.kind}" role="status" aria-live="polite">${esc(ui.toast.msg)}</div>` : "");
 }
 
 function navTo(route) {
@@ -284,6 +306,30 @@ function kioskBarMarkup() {
   </div>`;
 }
 
+/**
+ * ¿Siguen vivos datos simulados?
+ *
+ * Solo enciende la banda si hay productos/movimientos `demoMunicipios` SIN borrar
+ * que sigan en un almacén ACTIVO: lo que quede en un almacén ya eliminado no
+ * representa nada y no debe avisar. Es la contrapartida de `store.retirarSimulados`.
+ */
+function hasSimulatedData() {
+  const activos = new Set(store.warehousesActive().map((w) => w.id));
+  const conExistencias = store.state.products.some((p) => p.demoMunicipios && !p.deletedAt &&
+    [...Object.keys(p.stocks || {}), ...Object.keys(p.stocksInicial || {})]
+      .some((wid) => activos.has(wid) && (Number(p.stocks?.[wid]) !== 0 || Number(p.stocksInicial?.[wid]) !== 0)));
+  if (conExistencias) return true;
+  return store.state.movements.some((m) => m.demoMunicipios && !m.deletedAt && !m.warehouseCleared &&
+    activos.has(store.warehouseOf(m)));
+}
+
+/** Entradas de demostración que siguen pendientes: sin deshacer ni invalidar y en un almacén activo. */
+function demoEntriesLive() {
+  const activos = new Set(store.warehousesActive().map((w) => w.id));
+  return (store.state.warehouseEntries || [])
+    .some((e) => e.source === "DEMOSTRACIÓN" && !e.undoneAt && !e.invalidatedAt && activos.has(e.warehouseId));
+}
+
 function shell(body) {
   const u = store.state.session;
   const items = Object.entries(routes).filter(([, r]) => allowed(r.perm) && !r.hidden);
@@ -327,7 +373,7 @@ function shell(body) {
           <button class="btn ghost small" data-act="tour" aria-label="Ver la guía de uso">?</button>
           <button class="btn ghost small" data-act="theme" title="Tema: ${esc(themeLabel(store.state.settings.theme))}" aria-label="Cambiar tema (ahora: ${esc(themeLabel(store.state.settings.theme))})">${themeIcon(store.state.settings.theme)}</button>
         </div>
-        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${store.state.products.some((p) => p.demoMunicipios && !p.deletedAt) || store.state.movements.some((m) => m.demoMunicipios && !m.deletedAt) ? `<div class="banner info" role="status"><b>Datos SIMULADOS presentes.</b> Productos y movimientos marcados son ficticios, afectan existencias e informes y no representan mercancía real.</div>` : ""}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
+        <main class="content dashboard-page" id="contenido">${kioskBarMarkup()}${hasSimulatedData() ? `<div class="banner info" role="status"><b>Datos SIMULADOS presentes.</b> Productos y movimientos marcados son ficticios, afectan existencias e informes y no representan mercancía real.</div>` : ""}${u.role === "ADMINISTRADOR" && !u.totpEnabled ? `<div class="banner" role="alert">🔐 Tu cuenta es Administrador y aún no tiene verificación en dos pasos. Actívala en <a href="#settings" data-nav="settings">Ajustes → Seguridad</a>; el servidor puede exigirla (REQUIRE_ADMIN_TOTP) y bloquear el resto de acciones hasta activarla.</div>` : ""}${body}${legalFooter(ui.legalData || {})}</main>
         <button type="button" class="scroll-top-btn" id="scrollTopBtn" data-act="scroll-top" title="Volver arriba" aria-label="Volver arriba" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
       </section>
     </div>
@@ -669,6 +715,7 @@ function licenseView() {
   const expText = st?.valid ? (days === -1 ? "Permanente" : `${days} días restantes · expira ${LicenseManager.fmtDate(st.expiresAt)}`) : "";
   return `
     <div class="login-wrap license-wrap">
+      ${temaPreAcceso()}
       <div class="login-hero">
         <div class="eyebrow">🔐 Licencia de Uso · NovaGest v${APP_VERSION}</div>
         <h1>Acceso protegido<br>por licencia</h1>
@@ -726,6 +773,7 @@ function loginView() {
   const expiring = LicenseManager.isExpiringSoon(ui.license.status);
   return `
     <div class="login-wrap">
+      ${temaPreAcceso()}
       <div class="login-hero">
         <div class="eyebrow">Gestión comercial · Web y Android</div>
         <h1>Gestiona. Crece.<br>Avanza.</h1>
@@ -1057,13 +1105,19 @@ function diasDeCobertura() {
  * **cuándo** se agota cada producto, no solo que está bajo.
  */
 function alertasReposicion() {
+  // Memoria por revisión: el Panel, la barra superior y la tarjeta llaman a esto
+  // varias veces en el mismo render y recalcularlo cada vez costaba O(P + M) × 3.
+  const clave = `${store._rev}|${store.activeWarehouseId()}|${todayISO()}|${diasDeCobertura()}`;
+  if (alertasReposicion._clave === clave) return alertasReposicion._lista;
   const lista = stockAlerts(store.activeProducts(), store.activeMovements(), {
     today: todayISO(),
     days: 30,
     cover: diasDeCobertura(),
     warehouseId: store.activeWarehouseId(),
   });
-  return sortAlerts(lista);
+  alertasReposicion._clave = clave;
+  alertasReposicion._lista = sortAlerts(lista);
+  return alertasReposicion._lista;
 }
 
 /** Aviso de reposición del Panel: lo urgente con su fecha y cuánto reponer. */
@@ -1368,6 +1422,10 @@ function movementViewRows() {
 
 function movementsView() {
   const list = movementViewRows();
+  // Con miles de movimientos pintar todo el <tbody> bloqueaba el navegador: se
+  // muestran los primeros y el resto se añade con «Mostrar más». Los totales,
+  // el resumen y las exportaciones siguen usando la lista COMPLETA.
+  const visibles = list.slice(0, Math.max(50, Number(ui.movLimit) || 250));
   const movementSubtitle = `${list.length} movimientos · ${ui.movDate ? formatDate(ui.movDate) : "todas las fechas"}${ui.filter !== "TODOS" ? ` · ${ui.filter}` : ""}`;
   const canC = allowed("MOVEMENT_CREATE"), canE = allowed("MOVEMENT_EDIT");
   const ventas = list.filter((m) => m.type === "VENTA");
@@ -1386,7 +1444,7 @@ function movementsView() {
       <table>
         <thead><tr><th class="num">Nº</th><th>Fecha</th><th>PRODUCTO</th><th>MOVIMIENTO</th><th class="r">CANT.</th><th class="r">PRECIO</th><th class="r">IMPORTE</th><th>TIPO</th><th>ALMACÉN</th><th class="r">COMISIÓN</th><th class="r">DOMICILIO</th><th class="r">STOCK</th><th>Obs.</th><th></th></tr></thead>
         <tbody>
-          ${list.map((m, i) => `
+          ${visibles.map((m, i) => `
             <tr>
               <td class="num mono">${i + 1}</td>
               <td>${formatDate(m.date)}</td>
@@ -1406,6 +1464,7 @@ function movementsView() {
         </tbody>
       </table>
     </div>
+    ${list.length > visibles.length ? `<div class="row center mt8"><button class="btn ghost" data-act="mov-more">Mostrar más (${visibles.length} de ${list.length})</button><button class="btn ghost small" data-act="mov-all">Ver todos (${list.length})</button></div>` : ""}
     ${canC ? `<button class="fab" data-act="new-movement">+</button>` : ""}`;
 }
 
@@ -3687,7 +3746,7 @@ function warehousesView() {
         ${store.state.session?.role === "ADMINISTRADOR" && municipalCount > 0 ? `<button class="btn ghost danger-t" data-act="wh-municipal-delete">🗑️ Eliminar ${municipalCount} municipios</button>` : ""}
       </div>
     </div>
-    ${(store.state.warehouseEntries || []).some((e) => e.source === "DEMOSTRACIÓN" && !e.undoneAt) ? `<div class="banner info">Hay existencias de demostración ficticias en uno o más almacenes. No representan mercancía real. Revise Entradas antes de operar.</div>` : ""}
+    ${demoEntriesLive() ? `<div class="banner info">Hay existencias de demostración ficticias en uno o más almacenes. No representan mercancía real. Revise Entradas antes de operar.</div>` : ""}
     <div class="kpis">
       ${kpi("Almacenes", whs.length, canEdit ? "Crea tantos como necesites" : "Solo lectura", "teal")}
       ${kpi("Ítems con existencia", tot.items, `De ${store.activeProducts().length} productos`, "blue")}
@@ -4498,7 +4557,7 @@ function render() {
     ensureClicks();
     return;
   }
-  if (!store.state.session) { app.innerHTML = loginView(); bindLogin(); return; }
+  if (!store.state.session) { app.innerHTML = loginView(); bindLogin(); ensureClicks(); return; }
   if (store.clearConflictPending) {
     const avisoCola = store.clearConflictSnapshot
       ? '<p class="banner">No se pudo guardar la cola en el navegador. Descárguela antes de cerrar o recargar esta página.</p>'
@@ -4719,7 +4778,7 @@ function runAct(a) {
   else if (a === "new-movement") { movementModal(); render(); }
   else if (a === "new-warehouse") { warehouseModal(); ui.route = "warehouses"; render(); }
   else if (a === "import-values") { const st = ivState(); st.warehouseId = store.activeWarehouseId(); ui.route = "importValues"; render(); }
-  else if (a === "theme") { store.saveSettings({ theme: nextTheme(store.state.settings.theme) }); toast(`Tema: ${themeLabel(store.state.settings.theme)}`, "ok"); }
+  else if (a === "theme") { const sig = nextTheme(store.state.settings.theme); toast(`Tema: ${themeLabel(sig)}`, "ok", false); store.saveSettings({ theme: sig }); }
 }
 
 document.addEventListener("keydown", (e) => {
@@ -4888,6 +4947,7 @@ function bindApp() {
   const search = $("#globalSearch");
   search?.addEventListener("input", (e) => {
     ui.q = e.target.value;
+    ui.movLimit = 250;
     clearTimeout(bindApp._t);
     bindApp._t = setTimeout(render, 150);
   });
@@ -4895,7 +4955,7 @@ function bindApp() {
   $("#posDate")?.addEventListener("change", (e) => (ui.posDate = e.target.value));
   $("#posCenter")?.addEventListener("change", (e) => (ui.posCenter = e.target.value));
   $("#posDom")?.addEventListener("change", (e) => (ui.posDom = Number(e.target.value) || 0));
-  $("#posWh")?.addEventListener("change", (e) => { store.setActiveWarehouse(e.target.value); ui.cart = []; render(); });
+  $("#posWh")?.addEventListener("change", (e) => { ui.cart = []; if (!store.setActiveWarehouse(e.target.value)) render(); });
   $("#posPayment")?.addEventListener("change", (e) => { ui.posPayment = e.target.value; render(); });
   $("#posCustomer")?.addEventListener("change", (e) => { ui.posCustomer = e.target.value; });
   $("#posDue")?.addEventListener("change", (e) => { ui.posDue = e.target.value; });
@@ -4927,7 +4987,7 @@ function bindApp() {
     if (record) record.selected = e.target.checked;
     novaImportModal(); render();
   }));
-  $("#whSel")?.addEventListener("change", (e) => { store.setActiveWarehouse(e.target.value); ui.cart = []; render(); });
+  $("#whSel")?.addEventListener("change", (e) => { ui.cart = []; if (!store.setActiveWarehouse(e.target.value)) render(); });
   $("#whFilterSel")?.addEventListener("change", (e) => { ui.whFilter = e.target.value; render(); });
   $("#whProvinceSel")?.addEventListener("change", (e) => { ui.whProvince = e.target.value; render(); });
   $("#xlsxFile")?.addEventListener("change", (e) => e.target.files[0] && handleExcel(e.target.files[0]));
@@ -4939,7 +4999,7 @@ function bindApp() {
   }
   $("#catFilter")?.addEventListener("change", (e) => { ui.cat = e.target.value; render(); });
   $("#sortSel")?.addEventListener("change", (e) => { ui.sort = e.target.value; render(); });
-  $("#movDate")?.addEventListener("change", (e) => { ui.movDate = e.target.value; render(); });
+  $("#movDate")?.addEventListener("change", (e) => { ui.movDate = e.target.value; ui.movLimit = 250; render(); });
   // W-22 · previsión de compra: cobertura, plazo y "ver todo"
   $("#fcCobertura")?.addEventListener("change", (e) => { ui.forecastCobertura = Number(e.target.value) || 14; render(); });
   $("#fcPlazo")?.addEventListener("change", (e) => {
@@ -5265,7 +5325,7 @@ function result(r, okMsg) { r?.error ? toast(r.error, "err") : toast(okMsg, "ok"
 
 function onClick(e) {
   const openerBefore = document.activeElement;
-  const t = e.target.closest("[data-rate-range],[data-rate-currency],[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-clear],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last],[data-fc-order],[data-mg-hist]");
+  const t = e.target.closest("[data-rate-range],[data-rate-currency],[data-add-cart],[data-poscat],[data-cart-inc],[data-cart-dec],[data-act],[data-nav],[data-filter],[data-period],[data-edit-product],[data-toggle-user],[data-del-product],[data-quick-mov],[data-edit-mov],[data-del-mov],[data-restore-product],[data-purge-product],[data-restore-mov],[data-purge-mov],[data-edit-rate],[data-del-rate],[data-cdate],[data-wdate],[data-htab],[data-htab-go],[data-goto-cuadre],[data-edit-user],[data-reset2fa],[data-audit-tab],[data-kill-session],[data-bk-dl],[data-bk-restore],[data-wh-tab],[data-wh-kind],[data-wh-filter],[data-wh-use],[data-wh-edit],[data-wh-del],[data-wh-clear],[data-wh-tr],[data-wh-imp],[data-wh-entry],[data-wh-undo],[data-wh-export],[data-wh-pdf],[data-iv-wh],[data-iv-src],[data-iv-delrow],[data-iv-selonly],[data-iv-confirm],[data-send-wh],[data-lic-term],[data-lic-tab],[data-lic-tab-go],[data-lic-filter],[data-lic-msg],[data-lic-key],[data-lic-status],[data-lic-req-del],[data-cust-tab],[data-consent],[data-consent-open],[data-legal-doc],[data-edit-customer],[data-del-customer],[data-credit-for],[data-pay-credit],[data-del-credit],[data-ticket-mov],[data-ticket-last],[data-fc-order],[data-mg-hist],[data-theme-set]");
   if (!t) return;
   const d = t.dataset;
   const act = d.act;
@@ -5282,6 +5342,11 @@ function onClick(e) {
     return;
   }
   if (t.tagName === "A" && !d.nav) e.preventDefault();
+  if (d.themeSet) {
+    const sig = ["system", "light", "dark"].includes(d.themeSet) ? d.themeSet : "system";
+    toast(`Tema: ${themeLabel(sig)}`, "ok", false);
+    return store.saveSettings({ theme: sig });
+  }
   if (d.rateRange) { ui.rateChartRange = d.rateRange; return render(); }
   if (d.rateCurrency && RATE_CHART_CURRENCIES.includes(d.rateCurrency)) {
     ui.rateChartCurrencies = ui.rateChartCurrencies.includes(d.rateCurrency) ? ui.rateChartCurrencies.filter((c) => c !== d.rateCurrency) : [...ui.rateChartCurrencies, d.rateCurrency];
@@ -5292,7 +5357,7 @@ function onClick(e) {
   if (d.cartInc) { const it = ui.cart[+d.cartInc]; const p = store.state.products.find((x) => x.id === it.productId); const have = store.stockIn(p, store.activeWarehouseId()); if (it.qty + 1 > have) return toast(`Solo hay ${qty(have)} en «${store.warehouseName(store.activeWarehouseId())}».`, "err"); it.qty++; return render(); }
   if (d.cartDec) { const it = ui.cart[+d.cartDec]; it.qty--; if (it.qty <= 0) ui.cart.splice(+d.cartDec, 1); return render(); }
   if (d.nav) { e.preventDefault(); navTo(d.nav); }
-  else if (d.filter) { ui.filter = d.filter; render(); }
+  else if (d.filter) { ui.filter = d.filter; ui.movLimit = 250; render(); }
   else if (d.period) { ui.period = d.period; render(); }
   else if (d.cdate) { ui.cuadreDate = d.cdate; render(); }
   else if (d.wdate) { ui.weekDate = d.wdate; render(); }
@@ -5301,7 +5366,7 @@ function onClick(e) {
   else if (d.whTab) { ui.whTab = d.whTab; ui.whDetail = null; render(); }
   else if (d.whKind) { ui.whKind = d.whKind; render(); }
   else if (d.whFilter) { ui.whFilter = ui.whFilter === d.whFilter ? "" : d.whFilter; render(); }
-  else if (d.whUse) { store.setActiveWarehouse(d.whUse); ui.cat = "TODAS"; ui.filter = "AQUI"; navTo("inventory"); }
+  else if (d.whUse) { store.setActiveWarehouse(d.whUse, { silent: true }); ui.cat = "TODAS"; ui.filter = "AQUI"; navTo("inventory"); }
   else if (d.whEdit) { warehouseModal(store.warehouseById(d.whEdit)); render(); }
   else if (d.whDel) whDeleteFlow(d.whDel);
   else if (d.whClear) whClearFlow(d.whClear);
@@ -5770,9 +5835,11 @@ function onClick(e) {
     window.scrollTo?.({ top: 0, behavior: "smooth" });
   }
   else if (act === "drawer") { ui.drawer = !ui.drawer; render(); }
-  else if (act === "clear-q") { ui.q = ""; render(); $("#globalSearch")?.focus(); }
-  else if (act === "clear-date") { ui.movDate = ""; render(); }
-  else if (act === "theme") { store.saveSettings({ theme: nextTheme(store.state.settings.theme) }); toast(`Tema: ${themeLabel(store.state.settings.theme)}`, "ok"); }
+  else if (act === "clear-q") { ui.q = ""; ui.movLimit = 250; render(); $("#globalSearch")?.focus(); }
+  else if (act === "clear-date") { ui.movDate = ""; ui.movLimit = 250; render(); }
+  else if (act === "mov-more") { ui.movLimit = (Number(ui.movLimit) || 250) + 250; render(); }
+  else if (act === "mov-all") { ui.movLimit = Number.MAX_SAFE_INTEGER; render(); }
+  else if (act === "theme") { const sig = nextTheme(store.state.settings.theme); toast(`Tema: ${themeLabel(sig)}`, "ok", false); store.saveSettings({ theme: sig }); }
   else if (act === "recover") { ui.recover = true; render(); }
   else if (act === "back-login") { ui.recover = false; ui.question = null; ui.recNeed2fa = false; ui.pending2fa = null; ui.loginErr = null; render(); }
   else if (act === "new-product") { productModal(null); render(); }

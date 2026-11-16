@@ -9,6 +9,10 @@
  *  - en la página independiente financiero.html (con su cabecera propia).
  */
 import { api, setUnauthorizedHandler } from "./api.js";
+import {
+  applyTheme as aplicarTemaDoc, nextTheme, normalizeTheme, resolveTheme, systemPrefersDark,
+  themeIcon, themeLabel, watchSystemTheme,
+} from "./theme.js";
 import { qrcode } from "../vendor/qrcode.mjs";
 
 let R = document; // raíz activa: document en la página propia o el contenedor al montarse en la app
@@ -17,20 +21,53 @@ const $$ = (s, r = R) => [...(r || R).querySelectorAll(s)];
 const esc = (t) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const fmt = (n) => (n === null || n === undefined || Number.isNaN(n) ? "—" : Number(n).toLocaleString("es", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const toast = (m) => { const t = $("#finToast"); if (!t) return; t.textContent = m; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2600); };
+const repintarCanvasesFin = () => {
+  if (typeof document === "undefined") return;
+  document.querySelectorAll?.("canvas.fin-chart").forEach((cv) => cv._finPaint?.());
+};
 setUnauthorizedHandler(() => { location.href = "./index.html"; });
 
-/* Botón de tema: solo existe en la cabecera de la página independiente. */
+/* Botón de tema: solo existe en la cabecera de la página independiente (financiero.html).
+ * Comparte clave (`novagest.theme`) y los 3 modos (Automático, Claro, Oscuro) con toda la app. */
 (() => {
   const b = document.getElementById?.("btnTema");
-  const cl = document.documentElement?.classList;
-  if (!b || !cl) return; // montado dentro de la app (o DOM de prueba): el tema lo gestiona app.js
-  const apply = () => { const d = cl.toggle("dark"); b.textContent = d ? "☀ Claro" : "☾ Oscuro"; try { localStorage.setItem("fin-tema", d ? "dark" : "light"); } catch {} };
-  try {
-    if (localStorage.getItem("fin-tema") === "dark" || (!localStorage.getItem("fin-tema") && matchMedia("(prefers-color-scheme: dark)").matches)) cl.add("dark");
-  } catch {}
-  b.textContent = cl.contains("dark") ? "☀ Claro" : "☾ Oscuro";
-  b.onclick = apply;
+  if (!b || typeof document === "undefined") return; // montado dentro de la app (o DOM de prueba): el tema lo gestiona app.js
+  const leerPref = () => {
+    try { return normalizeTheme(localStorage.getItem("novagest.theme") || localStorage.getItem("fin-tema") || "system"); }
+    catch { return "system"; }
+  };
+  const pintar = () => {
+    const pref = leerPref();
+    const res = resolveTheme(pref, typeof window !== "undefined" && systemPrefersDark(window));
+    aplicarTemaDoc(document, res);
+    b.textContent = `${themeIcon(pref)} ${pref === "system" ? "Automático" : themeLabel(pref)}`;
+    b.title = `Tema: ${themeLabel(pref)} (clic para cambiar)`;
+    repintarCanvasesFin();
+  };
+  b.onclick = () => {
+    const sig = nextTheme(leerPref());
+    try { localStorage.setItem("novagest.theme", sig); localStorage.removeItem("fin-tema"); } catch {}
+    pintar();
+    toast(`Tema: ${themeLabel(sig)}`);
+  };
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+    watchSystemTheme(window.matchMedia("(prefers-color-scheme: dark)"), () => {
+      if (leerPref() === "system") pintar();
+    });
+  }
+  pintar();
 })();
+if (typeof MutationObserver === "function" && typeof document !== "undefined" && document.documentElement) {
+  new MutationObserver(() => repintarCanvasesFin()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+}
+
+/**
+ * Pestaña de `#finanzas` que se está viendo. Cualquier repintado de la app (cambio de tema,
+ * cambio de almacén, aviso…) vuelve a montar el módulo con `montarFinanzas`, y sin esto se
+ * perdía y se volvía siempre al Panel.
+ */
+let tabActiva = "panel";
+const TABS = ["panel", "asientos", "cuentas", "informes", "cuentasT", "margenes", "indicadores", "qr"];
 
 /* Esqueleto de la UI (sin cabecera: al vivir dentro de la app, la cabecera es la de la app). */
 const ESQUELETO = `
@@ -448,15 +485,19 @@ function fijarTabsEnApp(root) {
 export function montarFinanzas(root) {
   R = root;
   root.innerHTML = ESQUELETO;
+  if (!TABS.includes(tabActiva)) tabActiva = "panel";
+  $$("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tabActiva));
+  $$(".fin-tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + tabActiva));
   fijarTabsEnApp(root);
   $$("#tabs button").forEach((b) => (b.onclick = () => {
+    tabActiva = b.dataset.tab;
     $$("#tabs button").forEach((x) => x.classList.toggle("active", x === b));
     $$(".fin-tab").forEach((t) => t.classList.toggle("active", t.id === "tab-" + b.dataset.tab));
     loadTab(b.dataset.tab);
   }));
   $("#btnAplicar").onclick = () => loadTab($("#tabs button.active").dataset.tab);
   $$(".fin-export button").forEach((b) => (b.onclick = () => exportar(b.dataset.exp)));
-  cargarFiltros().then(() => loadTab("panel"));
+  cargarFiltros().then(() => loadTab(tabActiva));
 }
 
 // Página independiente (financiero.html): solo se monta ahí si existe su contenedor.

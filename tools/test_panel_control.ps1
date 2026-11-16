@@ -121,6 +121,10 @@ $panel     = Join-Path $raiz 'server/panel-control.ps1'
 $iniciador = Join-Path $raiz 'server/iniciar-https.ps1'
 $generador = Join-Path $raiz 'tools/iniciar-generador-https.ps1'
 $delegado  = Join-Path $raiz 'tools/iniciar-generador.ps1'
+$instalador = Join-Path $raiz 'deploy/instalar-novagest.ps1'
+$lanzador  = Join-Path $raiz 'deploy/arrancar-novagest.ps1'
+$consola   = Join-Path $raiz 'deploy/iniciar-servidor.ps1'
+$guionesS04 = @($instalador, $lanzador, $consola)
 $enWindows = ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT)
 
 Write-Host ''
@@ -129,7 +133,7 @@ Write-Host ''
 
 # ---------------------------------------------------------------- 1) sintaxis
 Write-Host '  Sintaxis (analizador de PowerShell)' -ForegroundColor Cyan
-foreach ($ruta in @($panel, $iniciador, $generador, $delegado)) {
+foreach ($ruta in (@($panel, $iniciador, $generador, $delegado) + $guionesS04)) {
     $nombre = Split-Path -Leaf $ruta
     if (-not (Test-Path -LiteralPath $ruta)) {
         Probar "$nombre existe" $false
@@ -157,7 +161,7 @@ foreach ($ruta in @($panel, $iniciador, $generador, $delegado)) {
 # --------------------------------------------------------------------- 2) BOM
 Write-Host ''
 Write-Host '  Codificación UTF-8 con BOM (acentos correctos en Windows PowerShell 5.1)' -ForegroundColor Cyan
-foreach ($ruta in @($panel, $iniciador, $generador)) {
+foreach ($ruta in (@($panel, $iniciador, $generador) + $guionesS04)) {
     $nombre = Split-Path -Leaf $ruta
     if (-not (Test-Path -LiteralPath $ruta)) { continue }
     try {

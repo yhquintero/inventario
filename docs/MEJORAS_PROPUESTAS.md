@@ -152,6 +152,10 @@ existe y qué se puede entregar sin tocar lo que funciona?*
 | A-25 | **Márgenes en el móvil**: ver el margen por producto y el aviso de los que van bajo el objetivo | W-23 ya calcula todo en la Web; el dueño está en el mostrador con el teléfono | `ui/reports`, `data/sync` | 🟠 | ⏳ | La lista ordena de peor a mejor, muestra margen, ganancia y precio para el objetivo, y respeta el objetivo de Ajustes |
 | W-27 | **Utilidad neta**: restar los **gastos del cuadre** (comisiones, domicilios, gastos y combos) en Análisis y en el informe mensual | Hoy la ganancia es **bruta** y la pantalla lo dice con letra pequeña; el dueño pregunta «¿y los gastos?» | `web/js/monthly.js`, `analyticsView`, `calc.js` | 🔴 | ⏳ | El mes muestra venta, costo, gastos y **utilidad neta**, con la misma cifra en pantalla, PDF y CSV |
 | D-14 | **Cartel A4 de precios y mínimos** imprimible desde Inventario (hermano de D-13) | El estante necesita el precio y el mínimo a la vista; hoy se imprime la tabla entera o nada | `docs/`, `inventoryView` (`@media print`) | 🟢 | ⏱️ | Sale una página por almacén, con categoría, precio, mínimo y fecha, sin menús ni botones |
+| W-31 | **Trocear `app.js` en módulos por pantalla** (`web/js/views/*.js`) sin cambiar el comportamiento | `app.js` pasa de 6.000 líneas: cualquier pantalla obliga a reabrir el fichero entero y a temer romper otra que no se tocó | `web/js/app.js`, `web/js/views/` | 🟠 | 🧱 | Cada pantalla vive en su módulo con sus pruebas, ninguna funcionalidad cambia de comportamiento y el tamaño del paquete no sube |
+| S-18 | **Esquema versionado del estado compartido** con migraciones puras al cargar | Hoy cada cambio de forma se improvisa al cargar: una base antigua puede quedarse a medias sin que nadie lo note hasta que falla una pantalla | `web/js/store.js`, `server/novagest_server.py` | 🔴 | ⏳ | El estado lleva `schemaVersion`, las migraciones se prueban con una base anterior y el servidor rechaza una versión que no entiende |
+| W-32 | **Atajos de teclado en el punto de venta** (F2 buscar, F4 cobrar, Esc vaciar la cesta) | En el mostrador la mano está en el lector y en el teclado numérico; hoy cada acción exige soltarlo y buscar el ratón | `web/js/app.js`, `web/index.html` | 🟢 | ⏱️ | F2 abre la búsqueda, F4 el cobro, Esc vacía la cesta y la lista de atajos se ve en la ayuda sin escribir dentro de los campos |
+| D-15 | **Manual vivo ligado a la versión instalada** (índice en la ayuda interna y en los cambios) | El manual está fuera del producto y se desincroniza: quien instala una versión nueva no sabe qué cambió ni dónde mirar | `docs/`, `web/js/app.js` (`Ayuda`) | 🟢 | ⏱️ | La ayuda interna enlaza con el manual de la versión instalada, el CI comprueba que los enlaces existen y cada release actualiza el índice |
 
 ### B · Medio plazo · completar la operación diaria (1-2 meses)
 
@@ -163,6 +167,12 @@ existe y qué se puede entregar sin tocar lo que funciona?*
 | S-15 | **Retención de copias con política** (diarias/semanales/mensuales) y **aviso si la última copia tiene más de 48 h** | Hoy se guarda una copia automática al día y nada poda ni avisa; el disco se llena o el respaldo lleva una semana roto | `server/novagest_server.py`, `/api/health` | 🟠 | ⏱️ | El titular ve en **Copias** cuántas hay y de qué fechas, la poda respeta la política y `/health` avisa cuando la última copia es vieja |
 | A-21 | **Devolución rápida desde el ticket** en el móvil: buscar la venta por su código de verificación y devolver | Es el caso más común tras una cola: el cliente vuelve con el papel y hay que buscar la venta a mano | `ui/movements`, `data/repository` | 🟠 | ⏳ | Con el código del ticket se abre la venta, se devuelve total o parcial y el stock se corrige con nota y usuario |
 | S-16 | **Aviso al titular** (correo o webhook) cuando hay intentos fallidos de acceso, copia externa fallida o licencia por vencer | Los avisos ya existen en `/health` y en la auditoría, pero nadie los mira si no abre la pantalla | `server/`, `docs/INSTALACION.md` | 🟠 | ⏳ | Un administrador configura el destino, se prueba con un botón y llega el aviso con el mismo texto que muestra la app |
+| W-33 | **Edad de las cuentas por cobrar** por tramos (0-30, 31-60, 61-90 y más de 90 días) | El total por cobrar no distingue a quien debe desde hace un mes de a quien le vendió ayer, y el cobro se hace a ciegas | `web/js/calc.js`, `customersView` | 🔴 | ⏳ | Los fiados se agrupan por tramo con total y orden de cobro, y el mismo desglose aparece en pantalla, en el PDF y en el CSV |
+| W-34 | **Flujo de caja a 30 días** con entradas y salidas previstas (cobros, compras y gastos) | El saldo de hoy no anticipa la quincena: sin ver lo que entra y lo que sale, la compra se decide mirando solo lo que hay en caja | `web/js/forecast.js`, `web/js/monthly.js` | 🟠 | 🧱 | Se ve la proyección día a día, avisa cuando el saldo baja de cero, permite corregir lo previsto y se exporta a CSV |
+| W-35 | **Traspaso entre almacenes con escáner** (origen, destino, códigos y resumen antes de confirmar) | El traspaso se teclea uno por uno; equivocarse de origen deja las dos existencias mal y nadie lo ve hasta el siguiente conteo | `web/js/app.js`, `web/js/store.js` | 🟠 | ⏳ | Se eligen origen y destino, se leen los códigos con lector o cámara, se revisa el resumen y al confirmar el total no cambia |
+| A-24 | **Sincronización en segundo plano con WorkManager** y aviso persistente de cambios sin subir | Si el usuario cierra la aplicación con la cola llena, sus ventas esperan a que alguien la vuelva a abrir y el aviso desaparece con ella | `data/sync/`, `AndroidManifest.xml` | 🟠 | ⏳ | Con la app cerrada la cola se sube en cuanto hay red, la insignia sigue siendo cierta y un reinicio del teléfono no pierde nada |
+| S-19 | **Bloqueo progresivo tras intentos fallidos y segundo factor obligatorio para administradores** | Un diccionario contra la contraseña de un administrador no tiene coste hoy, y la auditoría solo se lee después del daño | `server/novagest_server.py`, `web/js/app.js` | 🔴 | ⏳ | Tras cinco fallos el acceso se retarda y queda auditado, y una opción del servidor exige 2FA a todo administrador antes de entrar |
+| W-37 | **Presupuesto de rendimiento en las pruebas** (cambio de almacén y pintado del Panel) | Los cuellos de botella de dibujo no hacen fallar ninguna prueba: solo los nota el usuario el día que hay 168 almacenes y miles de movimientos | `tools/`, `web/js/store.js` | 🟢 | ⏱️ | Una prueba sintética con 168 almacenes y 5.000 movimientos mide cambiar de almacén y pintar el Panel y falla si se pasa del presupuesto |
 
 ### C · Largo plazo · crecer sin romper (trimestre)
 
@@ -173,6 +183,11 @@ existe y qué se puede entregar sin tocar lo que funciona?*
 | W-30 | **Consolidado de almacenes**: una vista que suma existencias y ventas de todos los almacenes y compara | Los almacenes existen y se traspasa entre ellos, pero no hay una foto conjunta para decidir | `web/js/app.js`, `store.js` | 🟠 | ⏳ | Se ve existencia y valor por almacén y el total, con exportación y sin cambiar el almacén en uso |
 | S-17 | **Segundo equipo en la misma red con sesión propia** (hoy es un servidor y varios clientes del navegador) | Dos cajas y un despacho necesitan entrar a la vez sin compartir usuario | `server/`, `docs/INSTALACION.md` | 🟠 | 🧱 | Dos equipos trabajan a la vez con usuarios distintos, cada uno con su sesión, y la auditoría dice quién hizo qué desde dónde |
 | G-04 | **Clip vertical de 6 s** para el estado de WhatsApp y para que el cliente lo reenvíe | El reel de 15 s ya existe; un corte de 6 s cabe en un estado y se comparte sin pensarlo | `tools/build_reel_vertical.py` | 🟢 | ⏱️ | Tres tramos (marca → vender → cierre), con subtítulos, menos de 1 MB y `.srt` al lado |
+| W-36 | **Lotes y búsqueda en Auditoría y Papelera** siguiendo el patrón ya usado en Movimientos | Auditoría y Papelera siguen pintando todos los renglones; con el tiempo acumulado la pantalla se congela igual que se congelaba Movimientos | `web/js/app.js` (`auditView`, `trashView`) | 🟠 | ⏱️ | Ambas pantallas muestran un lote con botón de cargar más, conservan totales y exportación completa y no se bloquean con diez mil filas |
+| S-20 | **Descarga incremental del estado** con `ETag` y aviso de cambio por equipo | Cada equipo baja el estado entero al abrir, aunque solo haya cambiado un movimiento; en una red lenta eso se nota en cada arranque | `server/novagest_server.py`, `web/js/store.js` | 🟠 | 🧱 | Un arranque sin cambios responde 304 sin cuerpo, uno con cambios baja solo lo nuevo y una prueba de integración lo comprueba |
+| A-26 | **Desbloqueo con huella o PIN del sistema** antes de mostrar ventas y saldos | El teléfono en el mostrador, con la sesión abierta, enseña el dinero del día y el saldo de los clientes a cualquiera que lo coja | `ui/`, `data/` | 🟠 | ⏳ | Al volver de segundo plano pide huella o PIN con opción de volver atrás, y no lo pide en la primera apertura del día |
+| S-02 | **Restauración probada en CI con aviso** si la última copia deja de abrirse | Una copia que nunca se restaura no es copia: la prueba existe pero no corre sola ni avisa el día que deja de pasar | `tools/`, `.github/workflows/ci.yml` | 🟠 | ⏱️ | El CI restaura una copia real en una base vacía en cada ejecución y el panel de salud avisa cuando la última restauración falló |
+| S-22 | **Exportación verificable de la auditoría** (CSV con su hash final y comando de comprobación) | La cadena se comprueba en pantalla, pero el auditor se lleva un documento y no puede rehacer la comprobación por fuera sin el servidor | `server/novagest_server.py`, `web/js/app.js` | 🟠 | ⏳ | Se descarga la auditoría con su hash final, el archivo trae las columnas para recalcular la cadena y un comando documentado la verifica |
 
 ### Descartadas por ahora (y por qué)
 
@@ -183,12 +198,23 @@ existe y qué se puede entregar sin tocar lo que funciona?*
 | **Multi-idioma de la interfaz** | El manual en inglés (D-08) tiene sentido para abrir mercado; traducir la app entera antes de tener clientes fuera es esfuerzo sin retorno |
 | **Facturación electrónica / impuestos** | Depende de la jurisdicción y de un certificado; el producto se define como gestión, no como sistema fiscal (ver `docs/CUMPLIMIENTO.md`) |
 | **Microservicios o base de datos externa** | El servidor actual (Python + SQLite, un solo archivo) instala en un equipo modesto y se respalda copiando un archivo: es una ventaja, no una limitación |
+| **Firma digital avanzada para facturas** | El producto se define como gestión, no como emisor fiscal; depende de una autoridad de certificación y de jurisdicción, igual que la facturación electrónica |
+| **Multisede con jerarquía de almacenes y permisos por sitio** | Hoy la red de tiendas se cubre con un servidor por negocio; una jerarquía global obligaría a repensar licencias, copias y auditoría antes de tener ese cliente |
+| **Asistente de reordenación con modelos externos** | W-22 y W-23 ya calculan la reposición y el margen con los datos del propio negocio; mandar ventas a un modelo fuera es coste y riesgo sin mejora probada |
 
 ### Orden recomendado
 
 **S-04** (cierra el plan) → **A-22** (aprovecha A-20 y quita tecleo) → **W-27** (la pregunta que
 siempre aparece) → **W-26** (etiquetas) → **W-24** (devoluciones) → **W-25** (proveedores) →
-**A-25** → **W-28** → **S-15** → **A-21** → **S-16** → **W-30** → **W-29** → **A-23** → **S-17** → **G-04**.
+**A-25** → **W-28** → **S-15** → **A-21** → **S-16** → **W-33** → **S-19** → **S-02** →
+**W-35** → **W-34** → **A-24** → **W-31** → **S-18** → **W-32** → **D-15** → **W-37** →
+**W-30** → **W-29** → **A-23** → **S-17** → **W-36** → **S-20** → **A-26** → **S-22** → **G-04**.
+
+**Dominios que cubre la cuarta ola:** arquitectura (**W-31**, **S-18**), UX y punto de venta
+(**W-32**, **W-35**, **A-22**), inventario y almacenes (**W-30**, **W-35**, **D-14**), contabilidad
+y finanzas (**W-27**, **W-33**, **W-34**), seguridad y auditoría (**S-19**, **S-22**, **S-13**),
+rendimiento (**W-37**, **W-36**, **S-20**), Android (**A-24**, **A-26**, **A-23**) y pruebas y
+operaciones (**S-02**, **S-15**, **S-16**, **D-15**).
 
 ## Cómo se supervisa
 
