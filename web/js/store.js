@@ -413,6 +413,10 @@ class Store {
     this.saving = false;
     this.dirty = false;
     this.ready = false;
+    /** Contador de mutaciones: invalida los derivados en memoria (`_derived`). */
+    this._rev = 0;
+    /** Derivados (índices y estadísticas) válidos mientras `_rev` y los arrays de origen no cambien. */
+    this._cache = null;
     this.onNotice = () => {};
     this.idleMinutes = 20;
     this.sync = "ok"; // ok | saving | offline | error
@@ -432,8 +436,54 @@ class Store {
 
   /** Notifica a la interfaz y programa el guardado en el servidor. */
   emit(save = true) {
+    this._rev++;
     if (save && this.ready && this.state.session) this.scheduleSave();
     this.listeners.forEach((fn) => fn(this.state));
+  }
+
+  /**
+   * Índices derivados en memoria (almacenes por id, activos, existencias…).
+   *
+   * Se reutilizan entre llamadas para que cambiar de almacén no vuelva a costar
+   * O(P + M × W). Se invalidan con tres señales baratas (O(1)):
+   *   · `_rev`, que sube en cada `emit`;
+   *   · la identidad de los arrays de origen, que cubre los reemplazos
+   *     `this.state.x = filtro(...)` aunque algún camino no llegue a `emit`;
+   *   · su longitud, que cubre `push`/`unshift`/`splice` (no cambian la identidad).
+   * Las mutaciones in-place que no cambian ninguno de los tres (p. ej. marcar
+   * `w.deletedAt` antes de recalcular) suben `_rev` a mano en el sitio exacto.
+   */
+  _derived() {
+    const s = this.state;
+    const c = this._cache;
+    const listo = (arr) => (Array.isArray(arr) ? arr : []);
+    const nW = listo(s.warehouses).length, nP = listo(s.products).length;
+    const nM = listo(s.movements).length, nE = listo(s.warehouseEntries).length;
+    if (c && c.rev === this._rev
+      && c.srcWarehouses === s.warehouses && c.nWarehouses === nW
+      && c.srcProducts === s.products && c.nProducts === nP
+      && c.srcMovements === s.movements && c.nMovements === nM
+      && c.srcEntries === s.warehouseEntries && c.nEntries === nE) return c;
+    const warehouses = listo(s.warehouses);
+    const byId = new Map();
+    for (const w of warehouses) byId.set(w.id, w);
+    const activeWarehouses = warehouses.filter((w) => !w.deletedAt);
+    const defaultWh = activeWarehouses.find((w) => w.isDefault) || activeWarehouses[0] || null;
+    const cache = {
+      rev: this._rev,
+      srcWarehouses: s.warehouses, nWarehouses: nW,
+      srcProducts: s.products, nProducts: nP,
+      srcMovements: s.movements, nMovements: nM,
+      srcEntries: s.warehouseEntries, nEntries: nE,
+      byId, activeWarehouses, defaultWh,
+      defaultId: defaultWh?.id || WAREHOUSE_DEFAULT_ID,
+      activeProducts: listo(s.products).filter((p) => !p.deletedAt),
+      activeMovements: listo(s.movements).filter((m) => !m.deletedAt),
+      entries: listo(s.warehouseEntries),
+      allStats: null,
+    };
+    this._cache = cache;
+    return cache;
   }
 
   shared() {
@@ -480,6 +530,7 @@ class Store {
     if (tocados) {
       this.ensureWarehouses();
       for (const p of this.state.products || []) this.recalcProduct(p.id);
+      this._rev++;
     }
     return tocados;
   }
@@ -492,6 +543,7 @@ class Store {
     this.version = r.version;
     this.closedDays = r.closedDays || this.closedDays;
     if (this.ensureWarehouses()) for (const p of this.state.products) this.recalcProduct(p.id);
+    this._rev++;
   }
 
   /**
@@ -1061,43 +1113,49 @@ class Store {
     const who = this.state.session?.displayName || "sistema";
     const now = Date.now();
     let movedProducts = 0;
-    // Mover existencias y movimientos al destino, si lo hay.
-    if (hasStock || movs) {
-      for (const w of targets) {
-        const c = this.warehouseDeletionContents(w.id);
-        for (const p of this.state.products) {
-          const si = Number(p.stocksInicial?.[w.id] || 0);
-          const s = Number(p.stocks?.[w.id] || 0);
-          p.stocks = p.stocks || {};
-          p.stocksInicial = p.stocksInicial || {};
-          if (si || s) {
-            p.stocksInicial[target.id] = round2((Number(p.stocksInicial[target.id]) || 0) + si);
-            p.stocks[target.id] = round2((Number(p.stocks[target.id]) || 0) + s);
-            movedProducts++;
-          }
-          delete p.stocks[w.id];
-          delete p.stocksInicial[w.id];
-        }
-        c.movements.forEach((m) => { m.warehouseId = target.id; });
-      }
-      this.state.products.forEach((p) => this.recalcProduct(p.id));
-    } else {
-      // Sin contenido: solo retirar las claves de existencias de los eliminados.
-      for (const w of targets) for (const p of this.state.products) {
-        if (p.stocks) delete p.stocks[w.id];
-        if (p.stocksInicial) delete p.stocksInicial[w.id];
-      }
-    }
+    // 1) Se marcan borrados ANTES de repartir: así el recálculo ya no reparte nada a ellos.
     const hadDefault = targets.some((w) => w.isDefault);
     for (const w of targets) {
       w.deletedAt = now;
       w.deletedBy = who;
       w.active = false;
       if (w.isDefault) w.isDefault = false;
+    }
+    this._rev++; // los `deletedAt` anteriores son in-place: refresca el índice de almacenes
+    // 2) Existencias: las REALES pasan al destino y las simuladas no; las claves de los
+    //    eliminados se retiran siempre (también cuando no hay nada que mover).
+    let huboContenido = hasStock || movs;
+    for (const w of targets) {
+      for (const p of this.state.products) {
+        const si = Number(p.stocksInicial?.[w.id] || 0);
+        const s = Number(p.stocks?.[w.id] || 0);
+        p.stocks = p.stocks || {};
+        p.stocksInicial = p.stocksInicial || {};
+        if (si || s) huboContenido = true;
+        if ((si || s) && target && !p.demoMunicipios) {
+          p.stocksInicial[target.id] = round2((Number(p.stocksInicial[target.id]) || 0) + si);
+          p.stocks[target.id] = round2((Number(p.stocks[target.id]) || 0) + s);
+          movedProducts++;
+        }
+        delete p.stocks[w.id];
+        delete p.stocksInicial[w.id];
+      }
+    }
+    // 3) Movimientos REALES al destino (papelera incluida); los simulados no se arrastran.
+    if (target) {
+      for (const m of this.state.movements) {
+        if (m.warehouseCleared || m.demoMunicipios) continue;
+        if (targetIds.has(this.warehouseOf(m))) m.warehouseId = target.id;
+      }
+    }
+    // 4) Simulación huérfana → retirada: movimientos, productos y entradas de demostración.
+    const retirado = this.retirarSimulados([...targetIds]);
+    if (huboContenido || retirado.movimientos || retirado.productos) this.state.products.forEach((p) => this.recalcProduct(p.id));
+    for (const w of targets) {
       this.logEntry({
         warehouseId: w.id, kind: "ELIMINACION", source: "municipal", warehouseName: w.name,
-        summary: `Almacén municipal «${w.name}» eliminado en bloque${target ? `; sus existencias y movimientos pasaron a «${target.name}»` : ""}`,
-        counts: { destino: target?.name || "" },
+        summary: `Almacén municipal «${w.name}» eliminado en bloque${target && movedProducts ? `; sus existencias reales pasaron a «${target.name}»` : ""}${retirado.productos || retirado.movimientos ? `; simulación retirada` : ""}`,
+        counts: { destino: target?.name || "", simulados: retirado.productos + retirado.movimientos },
       });
       this.audit("DELETE", "warehouse", w.name, w.id);
     }
@@ -1107,7 +1165,7 @@ class Store {
       try { localStorage.setItem(WAREHOUSE, this.warehouseId); } catch {}
     }
     this.emit();
-    return { ok: true, deleted: targets.length, names: targets.map((w) => w.name), movedProducts, movimientos: movs, destino: target?.name || "", destinoId: target?.id || "" };
+    return { ok: true, deleted: targets.length, names: targets.map((w) => w.name), movedProducts, movimientos: movs, destino: target?.name || "", destinoId: target?.id || "", simulados: retirado };
   }
 
   async clearWarehouse(warehouseId, municipalityIds = null) {
@@ -1133,6 +1191,9 @@ class Store {
         return { error: "La limpieza se completó, pero no se pudo actualizar la pantalla sin riesgo. Recargue y revise los cambios pendientes." };
       }
       this.applyServer(fresh);
+      // El servidor retira lo simulado huérfano; aquí se replica por si la base
+      // viene de una versión anterior (idempotente: no cambia nada si ya está).
+      this.retirarSimulados([]);
       this.setSync("ok");
       this.emit(false);
       return r;
@@ -1140,9 +1201,11 @@ class Store {
   }
 
   /* ================= PRODUCTOS (CRUD + papelera) ================= */
-  activeProducts() { return this.state.products.filter((p) => !p.deletedAt); }
-  trashProducts() { return this.state.products.filter((p) => p.deletedAt); }
-  activeMovements() { return this.state.movements.filter((m) => !m.deletedAt); }
+  /** Los activos vienen del índice en memoria: no se recomputan en cada llamada. */
+  activeProducts() { return this._derived().activeProducts; }
+  // Lo retirado por simulado no es papelera: ya no es inventario de nadie.
+  trashProducts() { return (Array.isArray(this.state.products) ? this.state.products : []).filter((p) => p.deletedAt && p.deletedReason !== "simulado-retirado"); }
+  activeMovements() { return this._derived().activeMovements; }
   trashMovements() { return this.state.movements.filter((m) => m.deletedAt && !m.deletedWith && !m.warehouseCleared); }
 
   /* ================= CÓDIGOS DE BARRAS ================= */
@@ -2022,30 +2085,38 @@ class Store {
   }
 
   /* ================= ALMACENES ================= */
-  warehousesActive() { return (this.state.warehouses || []).filter((w) => !w.deletedAt); }
-  warehouseById(id) { return (this.state.warehouses || []).find((w) => w.id === id) || null; }
+  /** Solo los no borrados; la lista viene del índice en memoria (O(1)). */
+  warehousesActive() { return this._derived().activeWarehouses; }
+  warehouseById(id) { return this._derived().byId.get(id) || null; }
   warehouseName(id) { return this.warehouseById(id)?.name || "Almacén eliminado"; }
-  defaultWarehouse() {
-    const list = this.warehousesActive();
-    return list.find((w) => w.isDefault) || list[0] || null;
-  }
+  defaultWarehouse() { return this._derived().defaultWh; }
   /** Almacén en uso (se recuerda en el dispositivo). */
   activeWarehouseId() {
-    const selected = this.warehouseById(this.warehouseId);
-    return (selected && !selected.deletedAt ? selected.id : null) || this.defaultWarehouse()?.id || WAREHOUSE_DEFAULT_ID;
+    const c = this._derived();
+    const selected = c.byId.get(this.warehouseId);
+    return (selected && !selected.deletedAt ? selected.id : null) || c.defaultId;
   }
   activeWarehouse() { return this.warehouseById(this.activeWarehouseId()); }
-  setActiveWarehouse(id) {
-    if (!this.warehouseById(id) || this.warehouseById(id).deletedAt) return;
+  /**
+   * Cambia el almacén activo. Devuelve `false` si el id no vale (así el llamador
+   * sabe si hay que repintar a mano) y admite `{ silent }` para cambiar de almacén
+   * sin disparar un render intermedio cuando justo después va a haber otro
+   * (p. ej. al pulsar «Ver existencias»: `navTo` pinta al final).
+   */
+  setActiveWarehouse(id, { silent = false } = {}) {
+    const w = this.warehouseById(id);
+    if (!w || w.deletedAt) return false;
     this.warehouseId = id;
     try { localStorage.setItem(WAREHOUSE, id); } catch {}
-    this.emit(false);
+    if (!silent) this.emit(false);
+    return true;
   }
   /** Almacén al que apunta un movimiento (los anteriores al módulo usan el principal). */
   warehouseOf(m) {
     const id = m?.warehouseId;
-    if (id && this.warehouseById(id)) return id;
-    return this.defaultWarehouse()?.id || WAREHOUSE_DEFAULT_ID;
+    const c = this._derived();
+    if (id && c.byId.has(id)) return id;
+    return c.defaultId;
   }
   stockIn(product, warehouseId) { return Number(product?.stocks?.[warehouseId] || 0); }
   stockTotal(product) { return round2(Object.values(product?.stocks || {}).reduce((a, v) => a + (Number(v) || 0), 0)); }
@@ -2073,22 +2144,60 @@ class Store {
     }
     return { ok: true };
   }
+  /**
+   * Indicadores de UN almacén.
+   *
+   * Todo el mundo comparte la misma pasada (`_allWarehouseStats`): antes cada
+   * llamada recorría productos y movimientos, y con 168 almacenes eso era
+   * O(W² × M) en cada render. Ahora la primera llamada cuesta O(P + M + E) y el
+   * resto son accesos al mapa.
+   */
   warehouseStats(w) {
-    const prods = this.activeProducts();
-    let items = 0, unidades = 0, valor = 0, costo = 0, bajo = 0;
-    for (const p of prods) {
-      const s = this.stockIn(p, w.id);
-      if (s !== 0) items++;
-      if (s > 0) {
-        unidades += s;
-        valor += s * (Number(p.precioVentaUsd) || 0);
-        costo += s * (Number(p.precioCostoUsd) || 0);
-        if (s <= (Number(p.minStock) || 0)) bajo++;
+    const st = w ? this._allWarehouseStats().get(w.id) : null;
+    if (st) return st;
+    return { items: 0, unidades: 0, valor: 0, costo: 0, bajo: 0, movs: 0, entradas: 0, last: null };
+  }
+
+  /** Estadísticas de TODOS los almacenes en una sola pasada. Se guarda por revisión. */
+  _allWarehouseStats() {
+    const c = this._derived();
+    if (c.allStats) return c.allStats;
+    const map = new Map();
+    const vacio = () => ({ items: 0, unidades: 0, valor: 0, costo: 0, bajo: 0, movs: 0, entradas: 0, last: null });
+    const get = (id) => { let st = map.get(id); if (!st) { st = vacio(); map.set(id, st); } return st; };
+    for (const w of c.activeWarehouses) get(w.id);
+    // Existencias por almacén (los almacenes borrados también cuentan, como antes).
+    for (const p of c.activeProducts) {
+      const stocks = p.stocks || {};
+      for (const wid of Object.keys(stocks)) {
+        const s = Number(stocks[wid]) || 0;
+        const st = get(wid);
+        if (s !== 0) st.items++;
+        if (s > 0) {
+          st.unidades += s;
+          st.valor += s * (Number(p.precioVentaUsd) || 0);
+          st.costo += s * (Number(p.precioCostoUsd) || 0);
+          if (s <= (Number(p.minStock) || 0)) st.bajo++;
+        }
       }
     }
-    const movs = this.activeMovements().filter((m) => this.warehouseOf(m) === w.id).length;
-    const entries = (this.state.warehouseEntries || []).filter((e) => e.warehouseId === w.id);
-    return { items, unidades: round2(unidades), valor: round2(valor), costo: round2(costo), bajo, movs, entradas: entries.length, last: entries[0] || null };
+    const byId = c.byId, defaultId = c.defaultId;
+    for (const m of c.activeMovements) {
+      const wid = m.warehouseId;
+      get(wid && byId.has(wid) ? wid : defaultId).movs++;
+    }
+    for (const e of c.entries) {
+      const st = get(e.warehouseId);
+      st.entradas++;
+      if (!st.last) st.last = e; // el historial va de más reciente a más antiguo
+    }
+    for (const st of map.values()) {
+      st.unidades = round2(st.unidades);
+      st.valor = round2(st.valor);
+      st.costo = round2(st.costo);
+    }
+    c.allStats = map;
+    return map;
   }
   /** Registra una entrada en el historial de almacenes. */
   logEntry(data) {
@@ -2141,12 +2250,84 @@ class Store {
     return { ok: true, id: w.id };
   }
 
-  /** Incluye papelera y saldos iniciales, pero no las marcas de movimientos limpiados. */
+  /**
+   * Qué queda en un almacén y hay que tratar al eliminarlo.
+   *
+   * `hasStock` y `movements` son solo datos REALES: lo simulado (`demoMunicipios`)
+   * no se arrastra a otro almacén, se retira (ver `retirarSimulados`), así que no
+   * exige elegir destino. Lo simulado se devuelve aparte para poder contarlo.
+   * Incluye papelera y saldos iniciales, pero no las marcas de movimientos limpiados.
+   */
   warehouseDeletionContents(id) {
+    const movimientos = this.state.movements.filter((m) => !m.warehouseCleared && this.warehouseOf(m) === id);
+    let stockReal = false, stockSimulado = false;
+    for (const p of this.state.products) {
+      if (Number(p.stocks?.[id] || 0) === 0 && Number(p.stocksInicial?.[id] || 0) === 0) continue;
+      if (p.demoMunicipios) stockSimulado = true; else stockReal = true;
+    }
     return {
-      hasStock: this.state.products.some((p) => Number(p.stocks?.[id] || 0) !== 0 || Number(p.stocksInicial?.[id] || 0) !== 0),
-      movements: this.state.movements.filter((m) => !m.warehouseCleared && this.warehouseOf(m) === id),
+      hasStock: stockReal,
+      movements: movimientos.filter((m) => !m.demoMunicipios),
+      simulatedMovements: movimientos.filter((m) => !!m.demoMunicipios),
+      hasSimulatedStock: stockSimulado,
     };
+  }
+
+  /**
+   * Retira lo simulado que ha quedado huérfano al borrar (o limpiar) almacenes.
+   *
+   * · Los movimientos `demoMunicipios` de un almacén BORRADO van a la papelera
+   *   (`deletedWith: "warehouse"`): la ficción no se arrastra al almacén principal.
+   * · Los productos `demoMunicipios` sin existencias ni movimientos en ningún
+   *   almacén ACTIVO se retiran (`deletedReason: "simulado-retirado"`) y no aparecen
+   *   en la Papelera.
+   * · Las entradas `DEMOSTRACIÓN` de almacenes ya no activos se marcan `undoneAt`;
+   *   las que ya tienen `invalidatedAt` (marca intocable del servidor) no se tocan.
+   *
+   * Así desaparecen las banderas «Datos SIMULADOS presentes.» y «DEMOSTRACIÓN».
+   * Devuelve cuánto se retiró de cada tipo.
+   */
+  retirarSimulados(warehouseIds = []) {
+    const borrados = new Set([...warehouseIds].filter(Boolean));
+    const ahora = Date.now();
+    const r = { movimientos: 0, productos: 0, entradas: 0 };
+    // 1) Movimientos simulados de los almacenes borrados: a la papelera, no al destino.
+    if (borrados.size) {
+      for (const m of this.state.movements) {
+        if (!m?.demoMunicipios || m.warehouseCleared) continue;
+        if (!borrados.has(m.warehouseId)) continue;
+        if (!m.deletedAt) { m.deletedAt = ahora; r.movimientos++; }
+        if (!m.deletedWith) m.deletedWith = "warehouse"; // fuera de la Papelera también
+        m.updatedAt = ahora;
+      }
+    }
+    // 2) Productos simulados sin nada vivo en un almacén activo.
+    const activos = new Set(this.warehousesActive().map((w) => w.id));
+    const prodConMovs = new Set();
+    for (const m of this.state.movements) {
+      if (m.deletedAt || m.warehouseCleared || !m.productId) continue;
+      if (activos.has(this.warehouseOf(m))) prodConMovs.add(m.productId);
+    }
+    for (const p of this.state.products) {
+      if (!p?.demoMunicipios || p.deletedAt) continue;
+      const conStock = [...Object.keys(p.stocks || {}), ...Object.keys(p.stocksInicial || {})]
+        .some((wid) => activos.has(wid) && (Number(p.stocks?.[wid]) !== 0 || Number(p.stocksInicial?.[wid]) !== 0));
+      if (conStock || prodConMovs.has(p.id)) continue;
+      p.deletedAt = ahora;
+      p.deletedReason = "simulado-retirado";
+      p.deletedBy = this.state.session?.displayName || "sistema";
+      p.updatedAt = ahora;
+      r.productos++;
+    }
+    // 3) Entradas de demostración de almacenes que ya no existen como activos.
+    for (const e of this.state.warehouseEntries || []) {
+      if (e?.source !== "DEMOSTRACIÓN" || e.undoneAt || e.invalidatedAt) continue;
+      if (activos.has(e.warehouseId)) continue;
+      e.undoneAt = ahora;
+      e.undoneBy = `${this.state.session?.displayName || "sistema"} (almacén eliminado)`;
+      r.entradas++;
+    }
+    return r;
   }
 
   /** Elimina un almacén. Si tiene existencias hay que indicar a cuál se mueven. */
@@ -2156,10 +2337,11 @@ class Store {
     if (!w || w.deletedAt) return { error: "Almacén no encontrado." };
     const others = this.warehousesActive().filter((x) => x.id !== id);
     if (!others.length) return { error: "Es el único almacén. Crea otro antes de eliminarlo." };
-    const { hasStock, movements: movementsToMove } = this.warehouseDeletionContents(id);
+    const { hasStock, movements: movementsToMove, simulatedMovements, hasSimulatedStock } = this.warehouseDeletionContents(id);
     const movs = movementsToMove.length;
     const target = moveTo ? this.warehouseById(moveTo) : null;
     let moved = 0;
+    // Solo los datos REALES exigen destino: la simulación se retira, no se traslada.
     if ((hasStock || movs) && (!target || target.deletedAt || target.id === id)) {
       return { error: `«${w.name}» todavía tiene existencias o movimientos. Elige a qué almacén moverlos.`, needsTarget: true, options: others.map((o) => ({ id: o.id, name: o.name })), movimientos: movs };
     }
@@ -2167,36 +2349,42 @@ class Store {
     w.deletedAt = Date.now();
     w.deletedBy = this.state.session?.displayName || "sistema";
     w.active = false;
-    if (hasStock || movs) {
-      for (const p of this.state.products) {
-        const si = Number(p.stocksInicial?.[id] || 0);
-        const s = Number(p.stocks?.[id] || 0);
-        p.stocks = p.stocks || {};
-        p.stocksInicial = p.stocksInicial || {};
-        if (si || s) {
-          p.stocksInicial[target.id] = round2((Number(p.stocksInicial[target.id]) || 0) + si);
-          p.stocks[target.id] = round2((Number(p.stocks[target.id]) || 0) + s);
-          moved++;
-        }
-        delete p.stocks[id];
-        delete p.stocksInicial[id];
+    this._rev++; // `deletedAt` es in-place: hay que invalidar el índice antes de recalcular
+    const huboContenido = hasStock || movs || hasSimulatedStock || simulatedMovements.length > 0;
+    for (const p of this.state.products) {
+      const si = Number(p.stocksInicial?.[id] || 0);
+      const s = Number(p.stocks?.[id] || 0);
+      p.stocks = p.stocks || {};
+      p.stocksInicial = p.stocksInicial || {};
+      // Las existencias REALES pasan al destino; las simuladas no: se retiran.
+      if ((si || s) && target && !p.demoMunicipios) {
+        p.stocksInicial[target.id] = round2((Number(p.stocksInicial[target.id]) || 0) + si);
+        p.stocks[target.id] = round2((Number(p.stocks[target.id]) || 0) + s);
+        moved++;
       }
-      movementsToMove.forEach((m) => { m.warehouseId = target.id; });
-      this.state.products.forEach((p) => this.recalcProduct(p.id));
+      delete p.stocks[id];
+      delete p.stocksInicial[id];
     }
+    if (target) movementsToMove.forEach((m) => { m.warehouseId = target.id; });
+    const retirado = this.retirarSimulados([id]);
+    if (huboContenido || retirado.movimientos || retirado.productos) this.state.products.forEach((p) => this.recalcProduct(p.id));
     if (w.isDefault) { w.isDefault = false; others[0].isDefault = true; }
     if (this.warehouseId === id || !this.warehouseById(this.warehouseId) || this.warehouseById(this.warehouseId).deletedAt) {
       this.warehouseId = others[0].id;
       try { localStorage.setItem(WAREHOUSE, this.warehouseId); } catch {}
     }
+    const detalle = [
+      target && (moved || movs) ? `${moved} productos y ${movs} movimientos pasaron a «${target.name}»` : "",
+      retirado.productos || retirado.movimientos ? `simulación retirada: ${retirado.productos} producto(s), ${retirado.movimientos} movimiento(s)` : "",
+    ].filter(Boolean).join("; ");
     this.logEntry({
       warehouseId: id, kind: "ELIMINACION", source: "manual", warehouseName: w.name,
-      summary: `Almacén «${w.name}» eliminado${target ? `; ${moved} productos y ${movs} movimientos pasaron a «${target.name}»` : ""}`,
-      counts: { productos: moved, movimientos: movs, destino: target?.name || "" },
+      summary: `Almacén «${w.name}» eliminado${detalle ? `; ${detalle}` : ""}`,
+      counts: { productos: moved, movimientos: movs, destino: target?.name || "", simulados: retirado.productos + retirado.movimientos },
     });
     this.audit("DELETE", "warehouse", w.name, id);
     this.emit();
-    return { ok: true, moved, movimientos: movs };
+    return { ok: true, moved, movimientos: movs, simulados: retirado };
   }
 
   /** Traspaso de existencia entre almacenes (no es venta ni salida: no toca el cuadre). */

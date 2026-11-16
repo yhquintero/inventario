@@ -1,22 +1,31 @@
+﻿#==============================================================================
+# NovaGest — arranque en consola del servidor (desarrollo y diagnóstico)
+# S-04 · la instalación de verdad está en deploy\instalar-novagest.ps1
 #==============================================================================
-# NovaGest — Instalador y arrancador de servidor para Windows
-# S-04 · Instalador de Windows con el entorno incluido
-#==============================================================================
-# Uso: powershell -ExecutionPolicy Bypass -File deploy\iniciar-servidor.ps1
+# Uso: powershell -ExecutionPolicy Bypass -File deploy\iniciar-servidor.ps1 [-Puerto 8080]
 #
 # Qué hace:
-#   1. Verifica/instala Python 3.10+ si falta
+#   1. Busca Python 3.10+ (prefiere el venv creado por el instalador)
 #   2. Crea entorno virtual (venv) si no existe
 #   3. Instala dependencias de requirements.txt
-#   4. Lanza el servidor NovaGest en http://localhost:8080
-#   5. Crea acceso directo en menú Inicio (opcional)
+#   4. Lanza el servidor NovaGest en consola visible hasta pulsar Ctrl+C
+#
+# Para instalar en un equipo limpio (accesos directos, arranque al iniciar
+# sesión y navegador) usa instalar.bat o instalar-novagest.ps1.
 #==============================================================================
+
+#Requires -Version 5.1
+[CmdletBinding()]
+param(
+    [ValidateRange(1, 65535)]
+    [int]$Puerto = 8080
+)
 
 $ErrorActionPreference = "Stop"
 $PROYECTO = "NovaGest"
-$PUERTO = 8080
+$PUERTO = $Puerto
 $PYTHON_MIN_VERSION = "3.10"
-$CARPETA_RAIZ = (Get-Location).Path
+$CARPETA_RAIZ = Split-Path -Parent $PSScriptRoot
 $CARPETA_VENV = Join-Path $CARPETA_RAIZ "venv"
 $REQUIREMENTS = Join-Path $CARPETA_RAIZ "requirements.txt"
 $SERVIDOR = Join-Path $CARPETA_RAIZ "server\novagest_server.py"
@@ -77,6 +86,10 @@ Write-Host "Dependencias instaladas." -ForegroundColor Green
 #------------------------------------------------------------------------------
 $PYTHON = Join-Path $CARPETA_VENV "Scripts\python.exe"
 if (-not (Test-Path $PYTHON)) { $PYTHON = Join-Path $CARPETA_VENV "bin\python" }
+if (-not (Test-Path $PYTHON)) { Write-Host "ERROR: falta venv. Ejecuta deploy\instalar-novagest.ps1 primero." -ForegroundColor Red; exit 1 }
+
+# El servidor lee el puerto de la variable de entorno PORT.
+$env:PORT = [string]$PUERTO
 
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host "  Iniciando NovaGest en http://localhost:$PUERTO" -ForegroundColor Cyan

@@ -1,15 +1,16 @@
 /**
  * Pruebas del tema y del tamaño de letra (A-18) — sin navegador.
  *
- * El DOM se simula con un objeto mínimo (`documentElement` con `dataset` y `style`), así que se
- * comprueba también que la aplicación del tema y del zoom hace lo que dice.
+ * El DOM se simula con un objeto mínimo (`documentElement` con `dataset`, `classList` y `style`,
+ * más un `<meta name="theme-color">`), así que se comprueba también que la aplicación del tema y
+ * del zoom hace lo que dice: `data-theme`, clase `.dark`, `color-scheme` y la barra del navegador.
  *
  * Uso: node tools/test_tema.mjs
  */
 import {
-  TEXT_KEY, THEMES, THEME_ORDER, TEXT_SIZES, normalizeTheme, resolveTheme, themeLabel, themeIcon,
-  nextTheme, normalizeTextSize, resolveTextSize, textSizeOptions, readTextSize, writeTextSize,
-  applyTheme, applyTextSize, watchSystemTheme, systemPrefersDark,
+  TEXT_KEY, THEMES, THEME_ORDER, THEME_COLORS, TEXT_SIZES, normalizeTheme, resolveTheme, themeLabel,
+  themeIcon, nextTheme, normalizeTextSize, resolveTextSize, textSizeOptions, readTextSize,
+  writeTextSize, applyTheme, applyTextSize, watchSystemTheme, systemPrefersDark, themeMetaColor,
 } from "../web/js/theme.js";
 
 let fallos = 0;
@@ -28,8 +29,27 @@ function igual(nombre, esperado, real) {
   ok(nombre, Object.is(esperado, real), `esperado ${esperado}, recibido ${real}`);
 }
 
-function docFalso() {
-  return { documentElement: { dataset: {}, style: { valores: {}, setProperty(k, v) { this.valores[k] = v; } } } };
+/** Documento falso con lo justo para `applyTheme`/`applyTextSize`, incluido el `<meta name="theme-color">`. */
+function docFalso({ meta = true } = {}) {
+  const el = {
+    dataset: {},
+    _clase: new Set(),
+    style: { valores: {}, setProperty(k, v) { this.valores[k] = v; } },
+  };
+  el.classList = {
+    toggle(nombre, fuerza) {
+      const poner = fuerza === undefined ? !el._clase.has(nombre) : !!fuerza;
+      if (poner) el._clase.add(nombre); else el._clase.delete(nombre);
+      return poner;
+    },
+    contains: (nombre) => el._clase.has(nombre),
+  };
+  const etiqueta = meta ? { content: "", setAttribute(k, v) { if (k === "content") this.content = v; } } : null;
+  return {
+    documentElement: el,
+    meta: etiqueta,
+    querySelector: (sel) => (etiqueta && sel === 'meta[name="theme-color"]' ? etiqueta : null),
+  };
 }
 
 function storageFalso(inicial = {}) {
@@ -104,6 +124,32 @@ igual("y la variable del zoom", "1.16", doc.documentElement.style.valores["--tex
 igual("normal vuelve a 1", "1", (applyTextSize(doc, "normal"), doc.documentElement.style.valores["--texto-zoom"]));
 ok("sin documento no explota", applyTheme(undefined, "dark") === "dark" && applyTextSize(null, "grande").key === "grande");
 ok("un documento sin style tampoco", applyTextSize({ documentElement: { dataset: {} } }, "grande").key === "grande");
+
+console.log("\nTodo lo que arrastra el tema (barra, controles y clase .dark)");
+igual("color de barra en oscuro", "#0e1330", themeMetaColor("dark"));
+igual("color de barra en claro", "#f4f6ff", themeMetaColor("light"));
+igual("un valor raro cae en el claro", "#f4f6ff", themeMetaColor("neón"));
+igual("el oscuro publicado", "#0e1330", THEME_COLORS.dark);
+igual("el claro publicado", "#f4f6ff", THEME_COLORS.light);
+const docTema = docFalso();
+applyTheme(docTema, "dark");
+igual("theme-color sigue al oscuro", "#0e1330", docTema.meta.content);
+igual("color-scheme queda en oscuro (controles nativos)", "dark", docTema.documentElement.style.valores["color-scheme"]);
+igual("se añade la clase .dark", true, docTema.documentElement._clase.has("dark"));
+igual("y el atributo data-theme", "dark", docTema.documentElement.dataset.theme);
+applyTheme(docTema, "light");
+igual("theme-color vuelve al claro", "#f4f6ff", docTema.meta.content);
+igual("color-scheme queda en claro", "light", docTema.documentElement.style.valores["color-scheme"]);
+igual("se quita la clase .dark", false, docTema.documentElement._clase.has("dark"));
+// Documentos mínimos: no tienen meta, ni dataset, ni classList, ni style.
+const precario = { documentElement: { style: { setProperty() {} } } };
+igual("sin meta ni dataset ni classList no explota", "dark", applyTheme(precario, "dark"));
+const soloDataset = { documentElement: { dataset: {} } };
+igual("sin querySelector tampoco", "light", applyTheme(soloDataset, "light"));
+const sinQuery = { documentElement: { dataset: {}, style: { setProperty() {} } } };
+igual("querySelector que no es función", "dark", applyTheme(sinQuery, "dark"));
+const metaRota = { documentElement: { dataset: {}, style: { setProperty() {} } }, querySelector: () => ({}) };
+igual("meta sin setAttribute no rompe", "dark", applyTheme(metaRota, "dark"));
 
 console.log("\nAvisos del sistema (cambio en vivo)");
 let recibido = null;

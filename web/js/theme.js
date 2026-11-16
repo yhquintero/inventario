@@ -98,11 +98,28 @@ export function writeTextSize(storage, size) {
   return key;
 }
 
-/** Pinta el tema en el documento (`<html data-theme="dark">`). */
+/** Colores de la barra del navegador/sistema (`<meta name="theme-color">`) por tema resuelto. */
+export const THEME_COLORS = {
+  light: "#f4f6ff",
+  dark: "#0e1330",
+};
+
+/** Color de barra del navegador para el tema resuelto (`light` o `dark`). */
+export function themeMetaColor(resolvedTheme) {
+  return resolvedTheme === "dark" ? THEME_COLORS.dark : THEME_COLORS.light;
+}
+
+/** Pinta el tema en el documento (`<html data-theme="dark">`, clase `.dark`, `color-scheme` y `<meta name="theme-color">`). */
 export function applyTheme(doc, theme) {
-  if (!doc?.documentElement) return theme;
-  doc.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
-  return doc.documentElement.dataset.theme;
+  const resolved = theme === "dark" ? "dark" : "light";
+  const el = doc?.documentElement;
+  if (!el) return resolved;
+  if (el.dataset) el.dataset.theme = resolved;
+  if (el.classList && typeof el.classList.toggle === "function") el.classList.toggle("dark", resolved === "dark");
+  if (el.style && typeof el.style.setProperty === "function") el.style.setProperty("color-scheme", resolved);
+  const meta = typeof doc.querySelector === "function" ? doc.querySelector('meta[name="theme-color"]') : null;
+  if (meta && typeof meta.setAttribute === "function") meta.setAttribute("content", themeMetaColor(resolved));
+  return resolved;
 }
 
 /** Pinta el tamaño de letra (`<html data-texto="grande">` y la variable del zoom). */

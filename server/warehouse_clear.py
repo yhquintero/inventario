@@ -97,6 +97,32 @@ def prepare(state, warehouse_id, closed, timestamp_ms, user, operation_id):
          if isinstance(m, dict) and str(m.get("id")) in selected_ids else m)
         for m in movements
     ]
+    # Lo simulado que queda sin nada en un almacén activo se retira: si no, la aplicación
+    # seguiría avisando de «Datos SIMULADOS presentes.» después de limpiar. Solo se tocan
+    # productos marcados como demostración y sin borrar; lo real nunca se modifica aquí.
+    activos = {w.get("id") for w in active}
+    prod_con_movs = {
+        m.get("productId") for m in original["movements"]
+        if isinstance(m, dict) and not m.get("deletedAt") and not m.get("warehouseCleared")
+        and ((m.get("warehouseId") if m.get("warehouseId") in ids else (default or {}).get("id")) in activos)
+    }
+    retirados = 0
+    for p in original["products"]:
+        if not isinstance(p, dict) or not p.get("demoMunicipios") or p.get("deletedAt"):
+            continue
+        claves = set(p["stocks"]) | set(p["stocksInicial"])
+        con_existencias = any(
+            wid in activos and (_number(p["stocks"].get(wid)) != 0 or _number(p["stocksInicial"].get(wid)) != 0)
+            for wid in claves
+        )
+        if con_existencias or p.get("id") in prod_con_movs:
+            continue
+        previous = max(_number(p.get("updatedAt")), _number(p.get("createdAt")))
+        p["deletedAt"] = timestamp_ms
+        p["deletedReason"] = "simulado-retirado"
+        p["updatedAt"] = max(timestamp_ms, previous + 1)
+        retirados += 1
+
     entries = original.get("warehouseEntries") or []
     if not isinstance(entries, list):
         raise ClearError(409, "El historial de almacenes no es válido.")

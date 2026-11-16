@@ -1,0 +1,13 @@
+# SHA-256 de los instaladores oficiales de Python que descarga
+# deploy\instalar-novagest.ps1 (S-04).
+#
+# Formato (una línea por archivo, dos espacios entre campos):
+#   <SHA-256 en hexadecimal>  <nombre-del-archivo>
+#
+# Cómo obtener el hash en Windows, antes de confiar en un archivo:
+#   certutil -hashfile python-3.12.8-amd64.exe SHA256
+# y en https://www.python.org/downloads/ se publica el del instalador oficial.
+#
+# Mientras un archivo no tenga su línea aquí, el instalador NO lo rechaza: calcula
+# el SHA-256, lo escribe en la consola y lo deja registrado para que se pueda fijar.
+# Rellenar esta lista es lo que convierte la descarga en una descarga verificada.

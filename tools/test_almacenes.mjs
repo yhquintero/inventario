@@ -26,7 +26,7 @@ const mem = new Map();
 globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 
 const { store } = await import(pathToFileURL(join(tmp, "store.js")).href);
-const { summarizeRows, parseValuesText, classifyValueRow, WAREHOUSE_DEFAULT_ID } = await import(pathToFileURL(join(tmp, "calc.js")).href);
+const { summarizeRows, parseValuesText, classifyValueRow, WAREHOUSE_DEFAULT_ID, todayISO } = await import(pathToFileURL(join(tmp, "calc.js")).href);
 
 let ok = 0, fail = 0;
 const test = (name, fn) => {
@@ -269,6 +269,94 @@ test("no se ignoran movimientos reales en papelera ni saldos iniciales", () => {
   store.state.movements = store.state.movements.filter((m) => m.id !== "papelera");
   store.state.products[0].stocksInicial[id] = 3;
   assert.equal(store.deleteWarehouse(id).needsTarget, true);
+});
+
+/* ---------- 6. Datos simulados: se retiran, no se arrastran ---------- */
+test("un almacén que solo tiene simulación se borra sin destino y todo se retira", () => {
+  const creacion = store.saveWarehouse({ name: "MUNICIPIO SIMULADO" });
+  assert.equal(creacion.ok, true);
+  const wid = creacion.id;
+  const sim = {
+    id: "p-sim", name: "[SIMULADO] ARROZ DE PRUEBA", demoMunicipios: "lote-1",
+    stocks: { [wid]: 12 }, stocksInicial: { [wid]: 12 }, stockActual: 12, stockInicial: 12,
+    precioVentaUsd: 10, precioCostoUsd: 5, minStock: 0, deletedAt: null,
+  };
+  const real = store.state.products[0];
+  store.state.products.push(sim);
+  real.stocks = { ...(real.stocks || {}), [wid]: 7 };
+  real.stocksInicial = { ...(real.stocksInicial || {}), [wid]: 7 };
+  store.state.movements.push({
+    id: "m-sim", warehouseId: wid, productId: sim.id, productName: sim.name,
+    type: "ENTRADA", quantity: 12, date: todayISO(), demoMunicipios: "lote-1", deletedAt: null, createdAt: 1,
+  });
+  store.state.warehouseEntries.unshift({
+    id: "e-sim", ts: Date.now(), warehouseId: wid, kind: "CREACION", source: "DEMOSTRACIÓN",
+    summary: "Existencias ficticias", items: [{ productId: sim.id }], undoneAt: null,
+  });
+  const invalidada = {
+    id: "e-sim-inv", ts: Date.now(), warehouseId: wid, kind: "CREACION", source: "DEMOSTRACIÓN",
+    summary: "Ya invalidada por el servidor", items: [], undoneAt: null, invalidatedAt: 123,
+  };
+  store.state.warehouseEntries.unshift(invalidada);
+  const entradaInvalidada = structuredClone(invalidada);
+
+  // Tiene existencias REALES (7 del producto real): sí hace falta destino.
+  const sinDestino = store.deleteWarehouse(wid);
+  assert.equal(sinDestino.needsTarget, true, "los datos reales siguen exigiendo destino");
+
+  // Ahora se vacía lo real y solo queda la simulación.
+  store.state.products.forEach((p) => { delete p.stocks[wid]; delete p.stocksInicial[wid]; });
+  store.state.movements = store.state.movements.filter((m) => !(m.demoMunicipios && m.warehouseId === wid));
+  store.state.movements.push({
+    id: "m-sim2", warehouseId: wid, productId: sim.id, productName: sim.name,
+    type: "ENTRADA", quantity: 12, date: todayISO(), demoMunicipios: "lote-1", deletedAt: null, createdAt: 2,
+  });
+  const r = store.deleteWarehouse(wid);
+  assert.equal(r.ok, true, r.error);
+  assert.equal(r.needsTarget, undefined, "la simulación sola no pide destino");
+  assert.equal(r.simulados.movimientos, 1, "el movimiento simulado se retira");
+  assert.ok(r.simulados.productos >= 1, "el producto simulado huérfano se retira");
+
+  const mov = store.state.movements.find((m) => m.id === "m-sim2");
+  assert.ok(mov.deletedAt, "el movimiento simulado queda en la papelera");
+  assert.equal(mov.deletedWith, "warehouse");
+  const prod = store.state.products.find((p) => p.id === "p-sim");
+  assert.ok(prod.deletedAt, "el producto simulado se retira");
+  assert.equal(prod.deletedReason, "simulado-retirado");
+  assert.ok(!store.trashProducts().some((p) => p.id === "p-sim"), "no aparece en la Papelera");
+  assert.equal(prod.stocks[wid], undefined, "sus existencias no se arrastran a otro almacén");
+  const entrada = store.state.warehouseEntries.find((e) => e.id === "e-sim");
+  assert.ok(entrada.undoneAt, "la entrada de demostración se deshace al borrar el almacén");
+  assert.deepEqual(store.state.warehouseEntries.find((e) => e.id === "e-sim-inv"), entradaInvalidada,
+    "una entrada con invalidatedAt jamás se toca");
+  assert.ok(store.state.products.find((p) => p.id === real.id).stocks[wid] === undefined);
+});
+
+test("los datos reales de un almacén borrado siguen pasando al destino", () => {
+  const creacion = store.saveWarehouse({ name: "DEPÓSITO REAL" });
+  const origen = creacion.id;
+  const destino = store.warehousesActive().find((w) => w.id !== origen);
+  const panel = store.state.products.find((p) => p.name === "PANEL SOLAR 500W");
+  store.state.products.forEach((p) => {
+    p.stocks = p.stocks || {}; p.stocksInicial = p.stocksInicial || {};
+    p.stocks[origen] = 0; p.stocksInicial[origen] = 0;
+  });
+  store.state.movements.push({
+    id: "m-real", warehouseId: origen, productId: panel.id, productName: panel.name,
+    type: "ENTRADA", quantity: 9, date: "2026-01-05", deletedAt: null, createdAt: 3,
+  });
+  store.recalcProduct(panel.id);
+  store.setStockIn(panel, origen, 9);
+  const antes = store.stockTotal(panel);
+  const enDestino = store.stockIn(panel, destino.id);
+  const r = store.deleteWarehouse(origen, destino.id);
+  assert.equal(r.ok, true, r.error);
+  assert.equal(r.moved, 1, "el producto real se traslada");
+  assert.equal(store.stockIn(panel, destino.id), enDestino + 9, "la existencia real llega al destino");
+  assert.equal(store.stockTotal(panel), antes, "nada se pierde");
+  const mov = store.state.movements.find((m) => m.id === "m-real");
+  assert.equal(mov.warehouseId, destino.id, "el movimiento real también se reubica");
+  assert.ok(!mov.deletedAt, "lo real no se retira");
 });
 
 console.log(`\n${ok} pruebas correctas, ${fail} fallidas\n`);

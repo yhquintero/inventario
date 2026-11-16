@@ -80,4 +80,55 @@ assert.equal(JSON.stringify(store.shared()), before);
 store.state.warehouses.pop();
 store.state.session.role = "ALMACENERO";
 assert.equal(store.populateMunicipalDemo().warehouses, 168, "alias municipales y permisos de almacenero");
+
+/* -------- Eliminar los 168 municipios: la simulación no deja rastro -------- */
+store.seed();
+store.state.session.role = "ADMINISTRADOR";
+assert.ok(store.populateMunicipalDemo().ok, "se vuelve a llenar la simulación");
+const simuladosProductos = store.state.products.filter((p) => p.demoMunicipios && !p.deletedAt).length;
+const simuladosMovimientos = store.state.movements.filter((m) => m.demoMunicipios && !m.deletedAt).length;
+assert.ok(simuladosProductos > 0 && simuladosMovimientos > 0, "hay simulación viva antes de borrar");
+// Entradas de demostración como las que crea «🧪 Llenar con datos de prueba».
+const someMunicipal = store.warehousesActive()[0];
+store.state.warehouseEntries.unshift({
+  id: "e-demo", ts: Date.now(), date: todayISO(), warehouseId: someMunicipal.id, warehouseName: someMunicipal.name,
+  kind: "VALORES", source: "DEMOSTRACIÓN", summary: "Existencias ficticias; no usar como inventario real",
+  items: [{ productId: store.state.products[0].id, field: "stock", warehouseId: someMunicipal.id, old: 0, new: 5 }],
+  userName: "Prueba", undoneAt: null,
+});
+assert.ok(store.state.warehouseEntries.some((e) => e.source === "DEMOSTRACIÓN" && !e.undoneAt), "hay entradas de demostración pendientes");
+
+const borrado = store.deleteMunicipalWarehouses(null);
+assert.ok(borrado.ok, borrado.error);
+assert.equal(borrado.deleted, 168, "se eliminan los 168");
+assert.equal(borrado.simulados.productos, simuladosProductos, "todos los productos simulados se retiran");
+assert.ok(borrado.simulados.movimientos > 0, "los movimientos simulados se retiran");
+assert.equal(borrado.destino, "ALMACÉN PRINCIPAL", "lo real pasa al principal");
+
+// Nada de simulación sigue viva: así desaparecen las banderas de la aplicación.
+assert.equal(store.state.products.filter((p) => p.demoMunicipios && !p.deletedAt).length, 0, "sin productos simulados activos");
+assert.equal(store.state.movements.filter((m) => m.demoMunicipios && !m.deletedAt).length, 0, "sin movimientos simulados activos");
+assert.equal(store.trashProducts().filter((p) => p.demoMunicipios).length, 0, "lo retirado no ensucia la Papelera");
+
+// Lo simulado no se arrastra al almacén principal.
+const principal = store.defaultWarehouse().id;
+assert.ok(!store.state.movements.some((m) => m.demoMunicipios && m.warehouseId === principal && !m.deletedAt),
+  "ningún movimiento simulado vive en el principal");
+const cemento = store.state.products.find((p) => p.name === "SACO DE CEMENTO GRIS P350");
+assert.ok(cemento && !cemento.deletedAt, "los productos reales no se tocan");
+
+// La entrada de demostración del municipio borrado queda deshecha…
+assert.ok(store.state.warehouseEntries.find((e) => e.id === "e-demo").undoneAt,
+  "la entrada de demostración del almacén borrado se deshace");
+// …y ninguna sigue pendiente en un almacén activo.
+const activos = new Set(store.warehousesActive().map((w) => w.id));
+assert.ok(!store.state.warehouseEntries.some((e) => e.source === "DEMOSTRACIÓN" && !e.undoneAt && !e.invalidatedAt && activos.has(e.warehouseId)),
+  "ninguna entrada de demostración sigue pendiente en un almacén activo");
+// …y una marca intocable del servidor jamás se muta.
+const protegida = { id: "prot", source: "DEMOSTRACIÓN", warehouseId: principal, undoneAt: null, invalidatedAt: 7, items: [] };
+store.state.warehouseEntries.unshift(protegida);
+const copia = structuredClone(protegida);
+store.retirarSimulados([principal]);
+assert.deepEqual(store.state.warehouseEntries.find((e) => e.id === "prot"), copia, "invalidatedAt es intocable");
+
 console.log("✔ Simulación municipal: 168 almacenes de Cuba, entradas y salidas diferenciadas, preservación y controles");
