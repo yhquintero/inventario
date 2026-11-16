@@ -415,8 +415,8 @@ function licenseRequestCard(st) {
 
 /* ============================ LICENCIA: PANEL DE GESTIÓN ============================ */
 /** ¿Quién puede ver y generar licencias? (ADMINISTRADOR y JEFE; borrar, solo ADMINISTRADOR) */
-const adminLicense = () => !!(store.state.session && ["ADMINISTRADOR", "JEFE"].includes(role()));
-const canDeleteLicense = () => role() === "ADMINISTRADOR";
+const adminLicense = () => !!store.state.session && allowed("LICENSE_MANAGE");
+const canDeleteLicense = () => allowed("LICENSE_DELETE");
 
 /** Carga licencias, solicitudes y equipos con una sola llamada a /api/license/info. */
 async function loadLicenseInfo(force = false) {
@@ -1476,7 +1476,7 @@ function cuadreView() {
   const t = cuadreCalc(c, dayMovs);
   const closed = store.closedDays.find((x) => x.date === date);
   const canEdit = allowed("CUADRE_EDIT") && !closed;
-  const canClose = ["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role());
+  const canClose = allowed("DAY_CLOSE");
   const f = (name, label, unit = "CUP") => `<label>${label} <small>${unit}</small><input name="${name}" type="number" step="any" value="${c[name] || 0}" ${canEdit ? "" : "readonly"}></label>`;
   const line = (l, v, cls = "") => `<div class="cline ${cls}"><span>${l}</span><b class="mono">${usd(v)}</b></div>`;
   const dates = store.state.cuadres.map((x) => x.date).sort().reverse();
@@ -1489,7 +1489,7 @@ function cuadreView() {
         <button class="btn ghost small" data-cdate="${addDays(date, 1)}">›</button>
         <span class="hint">${weekday(date)} ${formatDate(date)} ${c.imported ? "· importado del Excel" : ""}</span>
       </div>
-      <div class="row">${closed ? (role() === "ADMINISTRADOR" ? `<button class="btn ghost small" data-act="reopen-day" data-date="${date}">🔓 Reabrir día</button>` : "")
+      <div class="row">${closed ? (allowed("DAY_REOPEN") ? `<button class="btn ghost small" data-act="reopen-day" data-date="${date}">🔓 Reabrir día</button>` : "")
         : canClose ? `<button class="btn small" data-act="close-day" data-date="${date}" data-tip="Bloquea movimientos y cuadre de este día para todos">🔒 Cerrar día</button>` : ""}${c.id && canEdit ? `<button class="btn ghost small danger-t" data-act="del-cuadre" data-id="${c.id}">Eliminar cuadre</button>` : ""}<button class="btn gold small" data-act="print">Imprimir / PDF</button></div>
     </div>
     ${closed ? `<div class="banner closed">🔒 <b>Día cerrado</b> por ${esc(closed.closed_by)} el ${new Date(closed.closed_at * 1000).toLocaleString("es-CU")}${closed.note ? ` · «${esc(closed.note)}»` : ""}. Movimientos y cuadre son de solo lectura.</div>` : ""}
@@ -2107,7 +2107,7 @@ function financeView() {
 function trashView() {
   const prods = store.trashProducts().filter((p) => !ui.q || has(p.name, ui.q));
   const movs = store.trashMovements().filter((m) => !ui.q || has(m.productName, ui.q));
-  const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
+  const admin = allowed("INVENTORY_PURGE");
   const when = (ts) => new Date(ts).toLocaleString("es-CU");
   return `
     <div class="banner info">♻ Los elementos eliminados quedan aquí y pueden <b>restaurarse</b>. Mientras un producto esté en la papelera no se puede crear otro con el mismo nombre.</div>
@@ -2129,7 +2129,7 @@ function trashView() {
 
 /* ============================ USUARIOS / AUDITORÍA / COPIAS / AJUSTES ============================ */
 function usersView() {
-  const canEdit = ["ADMINISTRADOR", "JEFE"].includes(role());
+  const canEdit = allowed("USERS_EDIT");
   if (!ui.usersLoaded) { ui.usersLoaded = true; store.loadUsers().then(render); }
   const ago = (t) => (t ? new Date(t * 1000).toLocaleString("es-CU") : "—");
   return `
@@ -2265,7 +2265,7 @@ function borrarAnclaje(id) {
 function anclajesCard() {
   if (!ui.anclajes) loadAnclajes();
   const a = ui.anclajes || { rows: [], total: 0, ok: true, cargando: true };
-  const puedeBorrar = ["ADMINISTRADOR", "JEFE"].includes(role());
+  const puedeBorrar = allowed("AUDIT_ANCHOR_DELETE");
   const fecha = (t) => (t ? new Date(t * 1000).toLocaleString("es-CU") : "—");
   const roto = a.rows.filter((x) => !x.ok);
   const tsa = a.tsa || {};
@@ -2315,7 +2315,7 @@ function anclajesCard() {
 }
 
 function auditView() {
-  const canSec = ["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role());
+  const canSec = allowed("SECURITY_LOG_VIEW");
   const tab = ui.auditTab || "app";
   const tabs = canSec ? `<div class="chips mb12"><button class="chip ${tab === "app" ? "on" : ""}" data-audit-tab="app">Actividad del negocio</button><button class="chip ${tab === "sec" ? "on" : ""}" data-audit-tab="sec">Seguridad (servidor)</button><button class="chip ${tab === "prints" ? "on" : ""}" data-audit-tab="prints">Impresiones</button></div>` : "";
   if (tab === "prints" && canSec) {
@@ -2371,7 +2371,7 @@ function novedadesCard() {
 }
 
 function metricsCard() {
-  if (!allowed("AUDIT_VIEW") && role() !== "JEFE") return "";
+  if (!allowed("AUDIT_VIEW")) return "";
   if (!ui.metrics) { ui.metrics = "…"; api("/metrics").then((r) => { ui.metrics = r; render(); }).catch(() => { ui.metrics = null; }); }
   if (!ui.metrics || ui.metrics === "…") return `<div class="card mt14"><span class="k">📊 Uso local de NovaGest</span><p class="hint">Cargando métricas…</p></div>`;
   const m = ui.metrics, c = m.conteos || {};
@@ -2381,7 +2381,7 @@ function metricsCard() {
 }
 
 function backupView() {
-  const isAdmin = role() === "ADMINISTRADOR";
+  const isAdmin = allowed("BACKUP_RESTORE");
   if (!ui.backups) { ui.backups = { list: [] }; api("/backups").then((r) => { ui.backups = { list: r.backups || [], keep: r.keep, hour: r.hour }; render(); }); }
   const b = ui.backups;
   if (ui.backupExt === undefined && isAdmin) {
@@ -2458,7 +2458,7 @@ function copiaExternaCard() {
  * que no devuelve ningún dato del negocio.
  */
 function healthCard() {
-  if (!["ADMINISTRADOR", "JEFE", "ECONOMICO"].includes(role())) return "";
+  if (!allowed("HEALTH_VIEW")) return "";
   if (!ui.health) {
     ui.health = { cargando: true };
     api("/health").then((r) => { ui.health = r && r.salud ? r : { error: r?.error || "El servidor no respondió." }; render(); })
@@ -2498,8 +2498,8 @@ function healthCard() {
 
 function licenseCard() {
   const lic = ui.license.status;
-  const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
-  const canDelete = role() === "ADMINISTRADOR";
+  const admin = allowed("LICENSE_MANAGE");
+  const canDelete = allowed("LICENSE_DELETE");
   if (!ui.license.infoLoaded && admin) loadLicenseInfo();
   const counts = ui.license.counts || {};
   const pend = counts.pendiente || 0;
@@ -2584,7 +2584,7 @@ function uaName(ua = "") {
 /** Datos legales del negocio: alimentan #legal y el pie (sin inventar nada). */
 function legalCard() {
   const d = ui.legalData || {};
-  const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
+  const admin = allowed("SETTINGS_EDIT");
   if (!admin) return d.razonSocial ? `<div class="card mt14"><div class="card-h"><span class="k">Datos legales</span></div><p class="hint">${esc(d.razonSocial)} · ${esc(d.idFiscal || "")} · ${esc(d.domicilio || "")} · ${esc(d.contacto || "")}</p></div>` : "";
   const campos = LEGAL_CAMPOS.map(([k, label, ayuda]) => {
     const largo = LEGAL_CAMPOS_LARGOS.has(k);
@@ -2606,7 +2606,7 @@ function legalCard() {
 
 function settingsView() {
   const s = store.state.settings;
-  const admin = ["ADMINISTRADOR", "JEFE"].includes(role());
+  const admin = allowed("SETTINGS_EDIT");
   const dis = admin ? "" : "disabled";
   return `
     ${healthCard()}
@@ -3652,7 +3652,7 @@ function warehouseCard(w, s, active) {
       <button class="btn ghost small" data-wh-export="${w.id}">📄 CSV</button>
       <button class="btn gold small" data-wh-pdf="${w.id}">🖨️ PDF</button>
       ${canEdit ? `<button class="btn ghost small danger-t" data-wh-del="${w.id}">🗑️ Eliminar</button>` : ""}
-      ${store.state.session?.role === "ADMINISTRADOR" ? `<button class="btn ghost small danger-t" data-wh-clear="${esc(w.id)}" ${warehouseHasVisibleInventory(s) ? "" : "disabled"} title="${warehouseHasVisibleInventory(s) ? "Limpiar este almacén" : "No hay ítems, unidades, valor ni movimientos activos"}">🧹 Limpiar inventario</button>` : ""}
+      ${allowed("WAREHOUSE_CLEAR") ? `<button class="btn ghost small danger-t" data-wh-clear="${esc(w.id)}" ${warehouseHasVisibleInventory(s) ? "" : "disabled"} title="${warehouseHasVisibleInventory(s) ? "Limpiar este almacén" : "No hay ítems, unidades, valor ni movimientos activos"}">🧹 Limpiar inventario</button>` : ""}
     </div>
   </div>`;
 }
@@ -3742,8 +3742,8 @@ function warehousesView() {
         ${canEdit && missingCount > 0 ? `<button class="btn gold" data-act="wh-municipal-create">🏗️ Crear ${missingCount === TOTAL_MUNICIPIOS ? `los ${TOTAL_MUNICIPIOS} municipios` : `${missingCount} municipio${missingCount > 1 ? "s" : ""}`}</button>` : ""}
         ${canImport ? `<button class="btn gold" data-wh-imp="${active?.id || ""}">📥 Importar valores</button>` : ""}
         ${canImport && hayMunicipios ? `<button class="btn ghost" data-act="wh-demo">🧪 Llenar con datos de prueba</button><button class="btn ghost" data-act="wh-municipal-demo">🗺️ Simular ${TOTAL_MUNICIPIOS} municipios</button>` : ""}
-        ${store.state.session?.role === "ADMINISTRADOR" && hayMunicipios ? `<button class="btn ghost danger-t" data-act="wh-municipal-clear">🧹 Limpiar inventario de los ${TOTAL_MUNICIPIOS} municipios</button>` : ""}
-        ${store.state.session?.role === "ADMINISTRADOR" && municipalCount > 0 ? `<button class="btn ghost danger-t" data-act="wh-municipal-delete">🗑️ Eliminar ${municipalCount} municipios</button>` : ""}
+        ${allowed("WAREHOUSE_CLEAR") && hayMunicipios ? `<button class="btn ghost danger-t" data-act="wh-municipal-clear">🧹 Limpiar inventario de los ${TOTAL_MUNICIPIOS} municipios</button>` : ""}
+        ${allowed("WAREHOUSE_CLEAR") && municipalCount > 0 ? `<button class="btn ghost danger-t" data-act="wh-municipal-delete">🗑️ Eliminar ${municipalCount} municipios</button>` : ""}
       </div>
     </div>
     ${demoEntriesLive() ? `<div class="banner info">Hay existencias de demostración ficticias en uno o más almacenes. No representan mercancía real. Revise Entradas antes de operar.</div>` : ""}
@@ -3804,7 +3804,7 @@ function transferModal({ fromId = null, productId = null } = {}) {
 }
 
 function whClearFlow(id) {
-  if (store.state.session?.role !== "ADMINISTRADOR") return;
+  if (!allowed("WAREHOUSE_CLEAR")) return;
   const w = store.warehouseById(id);
   if (!w) return;
   const s = store.warehouseStats(w);
@@ -3819,7 +3819,7 @@ function whClearFlow(id) {
 }
 
 function whMunicipalClearFlow() {
-  if (store.state.session?.role !== "ADMINISTRADOR") return;
+  if (!allowed("WAREHOUSE_CLEAR")) return;
   const selection = store.municipalWarehouses();
   if (selection.error) return toast(selection.error, "err");
   ui.whMunicipalClearIds = selection.warehouses.map((w) => w.id);
@@ -3839,7 +3839,7 @@ function whMunicipalClearFlow() {
 }
 
 function whMunicipalDeleteFlow() {
-  if (store.state.session?.role !== "ADMINISTRADOR") return;
+  if (!allowed("WAREHOUSE_CLEAR")) return;
   const targets = store.existingMunicipalWarehouses();
   if (!targets.length) return toast("No hay almacenes municipales para eliminar.", "err");
   ui.whMunicipalDeleteIds = targets.map((w) => w.id);
@@ -5093,7 +5093,7 @@ function bindApp() {
   $("#settingsForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    if (!["ADMINISTRADOR", "JEFE"].includes(role())) { store.saveSettings({ theme: fd.get("theme") }); return toast("Tema guardado", "ok"); }
+    if (!allowed("SETTINGS_EDIT")) { store.saveSettings({ theme: fd.get("theme") }); return toast("Tema guardado", "ok"); }
     const soloG = fd.get("comisionSoloGestor") === "true";
     const changed = soloG !== !!store.state.settings.comisionSoloGestor;
     store.saveSettings({ businessName: fd.get("businessName"), defaultCupUsd: Number(fd.get("defaultCupUsd")), theme: fd.get("theme"), lowStockAlerts: fd.get("lowStockAlerts") === "true", restockCover: Math.min(365, Math.max(1, Number(fd.get("restockCover")) || 14)), leadTimeDays: Math.min(180, Math.max(0, Number(fd.get("leadTimeDays")) || 0)), margenObjetivo: objetivoMargen(fd.get("margenObjetivo")), comisionSoloGestor: soloG, goalDaily: Number(fd.get("goalDaily")) || 0, goalWeekly: Number(fd.get("goalWeekly")) || 0, sessionMinutes: Math.max(1, Number(fd.get("sessionMinutes")) || 20) });
@@ -5434,6 +5434,10 @@ function onClick(e) {
   else if (d.delCredit) confirmModal("¿Eliminar este fiado? No tiene abonos registrados.", () => result(store.deleteCredit(d.delCredit), "Fiado eliminado"));
   else if (d.editProduct) { productModal(store.state.products.find((x) => x.id === d.editProduct)); render(); }
   else if (d.quickMov) { movementModal(null, d.quickMov); render(); }
+  else if (d.purgeProduct && !allowed("INVENTORY_PURGE")) { return toast("Solo administrador o jefe pueden borrar definitivamente.", "err"); }
+  else if (d.purgeMov && !allowed("MOVEMENT_PURGE")) { return toast("Solo administrador o jefe pueden borrar definitivamente.", "err"); }
+  else if (d.delProduct && !allowed("INVENTORY_DELETE")) { return toast("Tu rol no puede enviar productos a la papelera.", "err"); }
+  else if (d.delMov && !allowed("MOVEMENT_DELETE")) { return toast("Tu rol no puede enviar movimientos a la papelera.", "err"); }
   else if (d.delProduct) {
     const p = store.state.products.find((x) => x.id === d.delProduct);
     confirmModal(`¿Enviar <b>${esc(p.name)}</b> y sus movimientos a la papelera? Podrás restaurarlo.`, () => result(store.deleteProduct(p.id), "Producto enviado a la papelera"));
@@ -5522,6 +5526,8 @@ function onClick(e) {
   else if (act === "codes-done") { ui.sec.codes = null; render(); }
   else if (act === "dl-codes") download("novagest-codigos-2fa.txt", `Códigos de recuperación de ${store.state.session.username}\n\n${ui.sec.codes.join("\n")}\n`, "text/plain");
   else if (act === "logout-all") api("/logout-all", { method: "POST" }).then(() => { ui.sec.sessions = null; toast("Otras sesiones cerradas", "ok"); });
+  else if (act === "close-day" && !allowed("DAY_CLOSE")) { return toast("Tu rol no puede cerrar el día.", "err"); }
+  else if (act === "reopen-day" && !allowed("DAY_REOPEN")) { return toast("Solo el rol ADMINISTRADOR puede reabrir un día.", "err"); }
   else if (act === "close-day") confirmModal(`¿Cerrar el día <b>${formatDate(d.date)}</b>? Nadie podrá modificar sus movimientos ni el cuadre (solo un administrador puede reabrirlo).`, () => store.closeDay(d.date).then((r) => (r.error ? toast(r.error, "err") : confetti(`<b>🔒 Día cerrado</b><span>${formatDate(d.date)}</span>`))));
   else if (act === "reopen-day") { const reason = prompt("Motivo de la reapertura (queda en la auditoría):"); if (reason) store.reopenDay(d.date, reason).then((r) => result(r, "Día reabierto")); }
   else if (act === "confirm-yes") { const fn = ui.confirm; ui.confirm = null; ui.modal = null; fn?.(); render(); }
@@ -5733,7 +5739,7 @@ function onClick(e) {
   }
   else if (act === "license-del") {
     // Eliminar una licencia (solo ADMINISTRADOR; el servidor también lo verifica)
-    if (role() !== "ADMINISTRADOR") return toast("Solo el rol ADMINISTRADOR puede eliminar licencias.", "err");
+    if (!allowed("LICENSE_DELETE")) return toast("Solo el rol ADMINISTRADOR puede eliminar licencias.", "err");
     const id = d.licDel || "";
     const l = (ui.license.info?.licenses || []).find((x) => String(x.id) === String(id));
     const label = l ? `<b>${esc(l.client_name)}</b> · ${esc(l.type)}` : `Nº ${esc(String(id))}`;
@@ -5750,7 +5756,7 @@ function onClick(e) {
   }
   else if (act === "license-del-all") {
     // Eliminar TODAS las licencias (solo ADMINISTRADOR; el servidor también lo verifica)
-    if (role() !== "ADMINISTRADOR") return toast("Solo el rol ADMINISTRADOR puede eliminar licencias.", "err");
+    if (!allowed("LICENSE_DELETE")) return toast("Solo el rol ADMINISTRADOR puede eliminar licencias.", "err");
     const n = ui.license.info?.licenses?.length || 0;
     if (!n) return toast("No hay licencias para eliminar.", "err");
     confirmModal(`¿Eliminar <b>las ${n} licencias</b> registradas? Se borrarán también las activaciones de dispositivos.<br><b>⚠ El sistema quedará SIN licencia</b> hasta que active una nueva.`, () => {

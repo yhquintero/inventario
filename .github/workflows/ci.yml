@@ -45,6 +45,7 @@ jobs:
           set -e
           bash tools/ci_paso.sh node tools/test_ipv.mjs
           bash tools/ci_paso.sh node tools/test_calc.mjs
+          bash tools/ci_paso.sh node tools/test_permisos.mjs
           bash tools/ci_paso.sh node tools/test_charts.mjs
           bash tools/ci_paso.sh node tools/test_merge.mjs
           bash tools/ci_paso.sh node tools/test_ticket.mjs

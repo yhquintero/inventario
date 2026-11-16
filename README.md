@@ -258,17 +258,35 @@ valida los mismos permisos** que la interfaz.
 |---|:--:|:--:|:--:|:--:|
 | Panel, inventario y movimientos (consulta) | ✅ | ✅ | ✅ | ✅ |
 | Crear y editar productos | ✅ | ✅ | — | ✅ |
-| Almacenes, traspasos e importar valores | ✅ | ✅ | solo ver | ✅ |
+| Enviar productos a la papelera | ✅ | ✅ | — | ✅ |
+| Papelera: borrado definitivo | ✅ | ✅ | — | — |
+| Ver almacenes y existencias | ✅ | ✅ | ✅ | ✅ |
+| Editar almacenes, traspasar e importar valores | ✅ | ✅ | — | ✅ |
+| Limpiar un almacén o los municipios (🧹) | ✅ | — | — | — |
+| Ver movimientos | ✅ | ✅ | ✅ | ✅ |
 | Vender y registrar movimientos | ✅ | ✅ | — | ✅ |
-| Editar o eliminar movimientos | ✅ | ✅ | — | ✅ |
-| Cuadre diario | ✅ | ✅ | editar | solo ver |
+| Editar movimientos y enviarlos a la papelera | ✅ | ✅ | — | ✅ |
+| Movimientos: borrado definitivo | ✅ | ✅ | — | — |
+| Cuadre diario (consulta) | ✅ | ✅ | ✅ | ✅ |
+| Editar y cerrar el cuadre | ✅ | ✅ | ✅ | — |
+| Reabrir un día cerrado | ✅ | — | — | — |
+| Historial de precios | ✅ | ✅ | ✅ | ✅ |
 | Informes, comprobación y finanzas | ✅ | ✅ | ✅ | — |
+| Tasas de cambio (Monedas) | ✅ | ✅ | ✅ | — |
 | Clientes y fiados | ✅ | ✅ | ✅ | ✅ |
 | Fichas de costo e IPV | ✅ | ✅ | ✅ | solo ver |
-| Usuarios y ajustes del negocio | ✅ | ✅ | — | — |
-| Auditoría y seguridad | ✅ | ✅ | ✅ | — |
-| Copias de seguridad | ✅ | ✅ | — | — |
-| Licencia de uso | ✅ | ✅ | — | — |
+| Usuarios | ✅ | ✅ | — | — |
+| Ajustes del negocio y datos legales | ✅ | ✅ | — | — |
+| Salud del sistema (métricas) | ✅ | ✅ | ✅ | — |
+| Auditoría, seguridad e impresiones | ✅ | ✅ | ✅ | — |
+| Copias de seguridad (crear) | ✅ | ✅ | — | — |
+| Restaurar copias, descargar y recargar Excel | ✅ | — | — | — |
+| Licencia de uso (ver y generar) | ✅ | ✅ | — | — |
+| Licencia: eliminar | ✅ | — | — | — |
+
+> El servidor valida **exactamente los mismos permisos** (`WRITE` y los `roles=` de
+> `server/novagest_server.py`), y Android replica la misma tabla. `tools/test_permisos.mjs`
+> comprueba que las tres implementaciones y estas dos tablas no se descuadren.
 
 ---
 
