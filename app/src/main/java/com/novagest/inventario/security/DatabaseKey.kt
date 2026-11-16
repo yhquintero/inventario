@@ -29,7 +29,11 @@ object DatabaseKey {
 
     private fun getOrCreateKeystoreKey(): SecretKey {
         val ks = keystore()
-        (ks.getEntry(ALIAS, null) as? KeyStore.SecretKeyEntry)?.let { return it.secretKey }
+        try {
+            (ks.getEntry(ALIAS, null) as? KeyStore.SecretKeyEntry)?.let { return it.secretKey }
+        } catch (_: Exception) {
+            runCatching { ks.deleteEntry(ALIAS) }
+        }
         val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         gen.init(
             KeyGenParameterSpec.Builder(
@@ -51,29 +55,37 @@ object DatabaseKey {
         val encryptedBase64 = prefs.getString(KEY_ENCRYPTED_SECRET, null)
         val ivBase64 = prefs.getString(KEY_IV, null)
 
-        val masterKey = getOrCreateKeystoreKey()
+        val masterKey = runCatching { getOrCreateKeystoreKey() }.getOrNull()
 
-        if (encryptedBase64 != null && ivBase64 != null) {
-            runCatching {
+        if (masterKey != null && encryptedBase64 != null && ivBase64 != null) {
+            val decrypted = runCatching {
                 val encrypted = Base64.decode(encryptedBase64, Base64.NO_WRAP)
                 val iv = Base64.decode(ivBase64, Base64.NO_WRAP)
                 val cipher = Cipher.getInstance("AES/GCM/NoPadding")
                 cipher.init(Cipher.DECRYPT_MODE, masterKey, GCMParameterSpec(128, iv))
-                return cipher.doFinal(encrypted)
+                cipher.doFinal(encrypted)
+            }.getOrNull()
+
+            if (decrypted != null) {
+                return decrypted
             }
         }
 
         // Generar nueva passphrase aleatoria de 32 bytes
         val newPassphrase = ByteArray(32).apply { SecureRandom().nextBytes(this) }
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, masterKey)
-        val iv = cipher.iv
-        val encrypted = cipher.doFinal(newPassphrase)
+        if (masterKey != null) {
+            runCatching {
+                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                cipher.init(Cipher.ENCRYPT_MODE, masterKey)
+                val iv = cipher.iv
+                val encrypted = cipher.doFinal(newPassphrase)
 
-        prefs.edit()
-            .putString(KEY_ENCRYPTED_SECRET, Base64.encodeToString(encrypted, Base64.NO_WRAP))
-            .putString(KEY_IV, Base64.encodeToString(iv, Base64.NO_WRAP))
-            .apply()
+                prefs.edit()
+                    .putString(KEY_ENCRYPTED_SECRET, Base64.encodeToString(encrypted, Base64.NO_WRAP))
+                    .putString(KEY_IV, Base64.encodeToString(iv, Base64.NO_WRAP))
+                    .apply()
+            }
+        }
 
         return newPassphrase
     }

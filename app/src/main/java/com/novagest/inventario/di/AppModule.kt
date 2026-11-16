@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import net.zetetic.database.sqlcipher.SQLiteDatabase
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import com.novagest.inventario.data.local.AppDatabase
 import com.novagest.inventario.data.local.DatabaseSeeder
@@ -31,23 +32,23 @@ object AppModule {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val passphrase = DatabaseKey.passphrase(context)
 
-        // Si existe un archivo previo inaccesible (p.ej. creado con un IV no persistente en sesiones anteriores),
-        // validamos la conexión y en caso de error eliminamos el archivo corrupto para recrearlo limpiamente.
+        // Si existe un archivo previo inaccesible (p.ej. base no cifrada previa, contraseña desincronizada o corrupta),
+        // validamos la conexión de forma limpia. En caso de error, eliminamos la base corrupta para recrearla.
         val dbFile = context.getDatabasePath("novagest.db")
         if (dbFile.exists()) {
             try {
-                val helper = SupportOpenHelperFactory(passphrase)
-                    .create(
-                        androidx.sqlite.db.SupportSQLiteOpenHelper.Configuration.builder(context)
-                            .name("novagest.db")
-                            .callback(object : androidx.sqlite.db.SupportSQLiteOpenHelper.Callback(1) {
-                                override fun onCreate(db: SupportSQLiteDatabase) {}
-                                override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
-                            })
-                            .build()
-                    )
-                helper.writableDatabase.use { it.version }
-                helper.close()
+                SQLiteDatabase.openDatabase(
+                    dbFile.absolutePath,
+                    passphrase,
+                    null,
+                    SQLiteDatabase.OPEN_READWRITE,
+                    null,
+                    null
+                ).use { db ->
+                    db.rawQuery("SELECT count(*) FROM sqlite_master", emptyArray()).use { cursor ->
+                        cursor.moveToFirst()
+                    }
+                }
             } catch (_: Exception) {
                 context.deleteDatabase("novagest.db")
             }
