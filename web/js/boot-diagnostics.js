@@ -21,7 +21,7 @@ export function recordBoot(storage, now = Date.now()) {
   }
 }
 
-function diagnosticsText(win, nav, cachesList) {
+function diagnosticsText(win, nav, cachesList, serverInfo = "Servidor: no consultado") {
   let navigation = "desconocida";
   try { navigation = win.performance?.getEntriesByType?.("navigation")?.[0]?.type || navigation; } catch {}
   let controlled = false;
@@ -37,8 +37,32 @@ function diagnosticsText(win, nav, cachesList) {
     `Tipo de carga: ${navigation}`,
     `Service worker controla la página: ${controlled ? "sí" : "no"}`,
     `Cachés NovaGest: ${cachesList.join(", ") || "ninguno"}`,
+    serverInfo,
     `Hora: ${new Date().toISOString()}`,
   ].join("\n");
+}
+
+async function serverDiagnostic(win) {
+  if (typeof win?.fetch !== "function") return "Servidor: fetch no disponible";
+  const controller = typeof win.AbortController === "function" ? new win.AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), 2500) : null;
+  try {
+    const endpoint = new URL("/api/health", win.location.href).href;
+    const response = await win.fetch(endpoint, {
+      method: "GET", cache: "no-store", credentials: "same-origin",
+      headers: { "X-CP": "1" }, signal: controller?.signal,
+    });
+    if (!response.ok) return `Servidor: API HTTP ${response.status}`;
+    const data = await response.json().catch(() => ({}));
+    const id = /^[0-9a-f]{16}$/.test(data.instanceId || "") ? data.instanceId : "no informado";
+    const uptime = Number(data.salud?.uptimeSegundos);
+    return `Servidor: API responde; arranque ${id}; uptime ${Number.isFinite(uptime) ? `${Math.max(0, Math.floor(uptime))} s` : "no informado"}`;
+  } catch (error) {
+    const cause = error?.name === "AbortError" ? "tiempo agotado" : "sin respuesta";
+    return `Servidor: ${cause}`;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 /** Muestra ayuda recuperable cuando el documento se ha cargado repetidamente. */
@@ -86,7 +110,8 @@ export function showBootLoopNotice({ storage, document: doc, window: win, naviga
       try {
         const keys = await cacheStorage?.keys?.() || [];
         const ownCaches = keys.filter((key) => key.startsWith(CACHE_PREFIX));
-        const text = diagnosticsText(win, nav, ownCaches);
+        const health = await serverDiagnostic(win);
+        const text = diagnosticsText(win, nav, ownCaches, health);
         await nav?.clipboard?.writeText?.(text);
         say(nav?.clipboard?.writeText ? "Diagnóstico copiado. No incluye datos de negocio." : text);
       } catch { say("No se pudo copiar automáticamente. Indica si se repite la URL en la pestaña o solo la interfaz."); }

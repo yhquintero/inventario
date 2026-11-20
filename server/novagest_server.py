@@ -51,6 +51,8 @@ ADMINS = {"ADMINISTRADOR", "JEFE"}
 
 # ------------------------------------------------------------------ licencia de uso
 APP_VERSION = "1.0.0"
+# Identificador efímero: correlaciona salud HTTP y registros de un mismo proceso, sin identificar al cliente.
+SERVER_INSTANCE_ID = secrets.token_hex(8)
 LICENSE_PRODUCT = os.environ.get("LICENSE_PRODUCT", "NovaGest")
 LICENSE_FILE = os.path.join(DATA, "license.key")
 LICENSE_EXEMPT = {"/api/health", "/api/license/status", "/api/license/activate", "/api/license/verify", "/api/license/request", "/api/legal"}
@@ -1727,7 +1729,7 @@ class Api(BaseHTTPRequestHandler):
             message = f"{fmt} {args!r}"
         message = str(message)
         if "/api/state/version" not in message:
-            print("[%s] %s %s" % (self.log_date_time_string(), self.ip(), message), flush=True)
+            print("[%s] boot=%s %s %s" % (self.log_date_time_string(), SERVER_INSTANCE_ID, self.ip(), message), flush=True)
 
 
 class PayloadTooLarge(Exception):
@@ -2217,7 +2219,7 @@ def health(h, u, _):
     if licencia["diasRestantes"] is not None and licencia["diasRestantes"] <= 15:
         avisos.append("licencia-vence")
     respuesta = {"ok": True, "app": "NovaGest", "version": APP_VERSION, "https": h.secure(),
-                 "time": now(), "salud": {"estado": "ok", "uptimeSegundos": int(time.time() - STARTED_AT),
+                 "instanceId": SERVER_INSTANCE_ID, "time": now(), "salud": {"estado": "ok", "uptimeSegundos": int(time.time() - STARTED_AT),
                                              "latenciaMs": latencia}}
     # La vista pública es un ping mínimo. Los detalles de licencia, actividad,
     # almacenamiento y destinos de copia quedan solo para personal administrador.
@@ -3448,7 +3450,7 @@ def main():
         if os.environ.get("REQUIRE_HTTPS", "0") == "1":
             print("REQUIRE_HTTPS=1: no se arranca sin certificado TLS.", flush=True)
             raise SystemExit(2)
-    print(f"NovaGest en {'https' if HTTPS else 'http'}://0.0.0.0:{port} · datos en {DATA}", flush=True)
+    print(f"NovaGest en {'https' if HTTPS else 'http'}://0.0.0.0:{port} · datos en {DATA} · arranque {SERVER_INSTANCE_ID}", flush=True)
     httpd.serve_forever()
 
 

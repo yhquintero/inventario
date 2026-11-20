@@ -270,6 +270,7 @@ $script:CodigoComun = {
         # Nombre del color de la paleta que corresponde al estado del servicio.
         param([string]$Estado)
         if ([string]::IsNullOrEmpty($Estado)) { return 'Gris' }
+        if ($Estado -like 'API sin confirmar*') { return 'Ambar' }
         if ($Estado -like '*fuera del panel*') { return 'Azul' }
         if ($Estado -like 'En ejecución*')     { return 'Verde' }
         if ($Estado -like 'Arrancando*')       { return 'Ambar' }
@@ -318,6 +319,61 @@ $script:CodigoComun = {
         param([int]$Puerto, $Mapa = $null)
         if ($null -eq $Mapa) { $Mapa = Get-MapaPuertos }
         return $Mapa.ContainsKey($Puerto)
+    }
+
+    function Test-NovaGestHealthPayload {
+        # Valida identidad/ID efímero; una página TCP o un servicio ajeno no cuenta como API saludable.
+        param($Payload)
+        if ($Payload -is [string]) {
+            try { $Payload = ConvertFrom-Json -InputObject $Payload -ErrorAction Stop } catch { $Payload = $null }
+        }
+        $id = if ($Payload) { [string]$Payload.instanceId } else { '' }
+        $ok = $Payload -and $Payload.ok -eq $true -and $Payload.app -eq 'NovaGest' -and $id -match '^[0-9a-f]{16}$'
+        return [pscustomobject]@{
+            Saludable = [bool]$ok
+            InstanceId = if ($ok) { $id } else { '' }
+            UptimeSegundos = if ($ok -and $null -ne $Payload.salud.uptimeSegundos) { [int]$Payload.salud.uptimeSegundos } else { -1 }
+            Detalle = if ($ok) { 'API saludable' } else { 'respuesta HTTP sin identidad NovaGest válida' }
+        }
+    }
+
+    function Get-NovaGestHealth {
+        # Probe HTTPS sin credenciales; nunca reinicia el proceso por un fallo HTTP transitorio.
+        param([int]$Puerto, [int]$TimeoutMs = 2000)
+        $respuesta = $null
+        $lector = $null
+        try {
+            $request = [System.Net.HttpWebRequest]::Create("https://localhost:$Puerto/api/health")
+            $request.Method = 'GET'
+            $request.Timeout = $TimeoutMs
+            $request.ReadWriteTimeout = $TimeoutMs
+            $request.AllowAutoRedirect = $false
+            $request.Headers.Add('X-CP', '1')
+            $respuesta = $request.GetResponse()
+            if ([int]$respuesta.StatusCode -ne 200) {
+                return [pscustomobject]@{ Saludable = $false; InstanceId = ''; UptimeSegundos = -1; Detalle = "HTTP $([int]$respuesta.StatusCode)" }
+            }
+            $streamRespuesta = $respuesta.GetResponseStream()
+            $lector = New-Object System.IO.StreamReader -ArgumentList $streamRespuesta
+            $json = $lector.ReadToEnd()
+            return (Test-NovaGestHealthPayload -Payload $json)
+        } catch [System.Net.WebException] {
+            $status = if ($_.Exception.Response) { "HTTP $([int]$_.Exception.Response.StatusCode)" } else { 'sin respuesta HTTPS' }
+            return [pscustomobject]@{ Saludable = $false; InstanceId = ''; UptimeSegundos = -1; Detalle = $status }
+        } catch {
+            return [pscustomobject]@{ Saludable = $false; InstanceId = ''; UptimeSegundos = -1; Detalle = 'error al consultar API' }
+        } finally {
+            if ($lector) { $lector.Dispose() }
+            if ($respuesta) { $respuesta.Dispose() }
+        }
+    }
+
+    function Get-RestartDelaySeconds {
+        # Espera creciente, acotada: 2 s, 5 s y 12 s para los tres reintentos.
+        param([int]$Intento)
+        if ($Intento -le 1) { return 2 }
+        if ($Intento -eq 2) { return 5 }
+        return 12
     }
 
     function Get-PidPuerto {
@@ -460,6 +516,12 @@ $script:CodigoComun = {
                 DetencionSolicitada = $false
                 Avisado             = $false
                 Reintentos          = 0
+                ReinicioPendiente   = $false
+                ReinicioDisponible  = [datetime]::MinValue
+                SaludApi            = $null
+                ApiInstanceId       = ''
+                SaludDetalle        = 'pendiente'
+                SaludProxima        = [datetime]::MinValue
                 Ocupado             = ''
                 UltimoError         = ''
                 CachePid            = 0
@@ -469,7 +531,8 @@ $script:CodigoComun = {
             }
             $c.Estados[$s.Id] = @{
                 Estado = 'Detenido'; Escucha = $false; Vivo = $false; PidLanzado = 0; PidPuerto = 0
-                Externo = $false; DelProyecto = $false; NombreProceso = ''; Ocupado = $false
+                Externo = $false; DelProyecto = $false; NombreProceso = ''; SaludApi = $null
+                ApiInstanceId = ''; SaludDetalle = 'pendiente'; Ocupado = $false
                 RutaConsola = [string]$s.RutaConsola; RutaConsolaError = [string]$s.RutaConsolaError
             }
         }
@@ -496,6 +559,8 @@ $script:CodigoComun = {
     function Iniciar-ServicioTrabajador {
         param($C, $Srv, [switch]$Silencioso)
         if (-not $Srv) { return $false }
+        $Srv.ReinicioPendiente = $false
+        $Srv.ReinicioDisponible = [datetime]::MinValue
         if (Test-ProcesoVivo $Srv.Proceso) {
             if (-not $Silencioso) { Add-MensajeTrabajador $C "$($Srv.Nombre) ya está en ejecución (PID $($Srv.PidLanzado))." }
             return $true
@@ -573,6 +638,8 @@ $script:CodigoComun = {
         # programa ajeno que ocupe el puerto nunca se toca.
         param($C, $Srv, [int]$PidConfirmado = 0, [switch]$Silencioso)
         if (-not $Srv) { return $false }
+        $Srv.ReinicioPendiente = $false
+        $Srv.ReinicioDisponible = [datetime]::MinValue
         $Srv.DetencionSolicitada = $true
         $Srv.Ocupado = 'Deteniendo…'
         try {
@@ -657,6 +724,25 @@ $script:CodigoComun = {
             if ($escucha) { $idPuerto = [int]$mapa[[int]$srv.Puerto] }
             $externo = ($escucha -and -not $vivo)
 
+            # El puerto por sí solo no acredita salud de la API. Consulta HTTPS sin credenciales
+            # cada 15 s en el trabajador; un fallo solo degrada el estado mostrado, nunca reinicia.
+            $ahoraSalud = Get-Date
+            if ($srv.Id -eq 'servidor' -and $escucha -and $ahoraSalud -ge $srv.SaludProxima) {
+                $salud = Get-NovaGestHealth -Puerto ([int]$srv.Puerto) -TimeoutMs 2000
+                if ($salud.Saludable -and $srv.ApiInstanceId -cne [string]$salud.InstanceId) {
+                    Add-MensajeTrabajador $C "API saludable; instancia de servidor $($salud.InstanceId), uptime $($salud.UptimeSegundos) s."
+                }
+                $srv.SaludApi = [bool]$salud.Saludable
+                $srv.ApiInstanceId = [string]$salud.InstanceId
+                $srv.SaludDetalle = [string]$salud.Detalle
+                $srv.SaludProxima = $ahoraSalud.AddSeconds(15)
+            } elseif ($srv.Id -eq 'servidor' -and -not $escucha) {
+                $srv.SaludApi = $null
+                $srv.ApiInstanceId = ''
+                $srv.SaludDetalle = 'sin escucha'
+                $srv.SaludProxima = [datetime]::MinValue
+            }
+
             # Proceso externo: se identifica (PID y línea de comandos) una vez por PID.
             if ($externo) {
                 if ($idPuerto -le 0) {
@@ -686,13 +772,13 @@ $script:CodigoComun = {
             if ($srv.Ocupado) {
                 $estado = [string]$srv.Ocupado
             } elseif ($vivo -and $escucha) {
-                $estado = 'En ejecución'
+                $estado = if ($srv.Id -eq 'servidor' -and $srv.SaludApi -eq $false) { 'API sin confirmar' } else { 'En ejecución' }
             } elseif ($vivo) {
                 $segundos = 0
                 if ($srv.HoraArranque) { $segundos = ((Get-Date) - $srv.HoraArranque).TotalSeconds }
                 if ($segundos -lt 25) { $estado = 'Arrancando…' } else { $estado = 'Sin respuesta' }
             } elseif ($escucha) {
-                $estado = 'En ejecución (fuera del panel)'
+                $estado = if ($srv.Id -eq 'servidor' -and $srv.SaludApi -eq $false) { 'API sin confirmar (fuera del panel)' } else { 'En ejecución (fuera del panel)' }
             } else {
                 if ($srv.PidLanzado -gt 0 -and -not $srv.DetencionSolicitada) { $caidos += $srv }
                 $srv.Proceso = $null
@@ -719,6 +805,9 @@ $script:CodigoComun = {
                 Externo          = [bool]$externo
                 DelProyecto      = [bool]($externo -and (Test-ComandoDelProyecto $srv.CacheLinea))
                 NombreProceso    = [string]$srv.CacheNombre
+                SaludApi         = $srv.SaludApi
+                ApiInstanceId    = [string]$srv.ApiInstanceId
+                SaludDetalle     = [string]$srv.SaludDetalle
                 Ocupado          = [bool]($srv.Ocupado -ne '')
                 RutaConsola      = [string]$srv.RutaConsola
                 RutaConsolaError = [string]$srv.RutaConsolaError
@@ -736,12 +825,37 @@ $script:CodigoComun = {
             if ($C.AutoReinicio) {
                 if ($srv.Reintentos -lt 3) {
                     $srv.Reintentos++
-                    Add-MensajeTrabajador $C "Reintento automático $($srv.Reintentos) de 3 para $($srv.Nombre)."
-                    [void](Iniciar-ServicioTrabajador -C $C -Srv $srv -Silencioso)
+                    $espera = Get-RestartDelaySeconds -Intento $srv.Reintentos
+                    $srv.ReinicioPendiente = $true
+                    $srv.ReinicioDisponible = (Get-Date).AddSeconds($espera)
+                    Add-MensajeTrabajador $C "Reintento automático $($srv.Reintentos) de 3 programado en $espera s para $($srv.Nombre)."
                 } else {
                     Add-MensajeTrabajador $C "No se reintenta $($srv.Nombre): se alcanzó el límite de 3 reintentos automáticos." 'Error'
                 }
             }
+        }
+
+        # Backoff en el trabajador: mantiene viva la UI y evita reintentos en ráfaga.
+        foreach ($srv in @($C.Servicios.Values)) {
+            if (-not $srv.ReinicioPendiente) { continue }
+            if (-not $C.AutoReinicio) {
+                $srv.ReinicioPendiente = $false
+                $srv.ReinicioDisponible = [datetime]::MinValue
+                Add-MensajeTrabajador $C "Reintento automático cancelado para $($srv.Nombre): la opción está desactivada."
+                continue
+            }
+            if ((Get-Date) -lt $srv.ReinicioDisponible) { continue }
+            $mapaActual = Get-MapaPuertos
+            if ($mapaActual.ContainsKey([int]$srv.Puerto)) {
+                $srv.ReinicioPendiente = $false
+                $srv.ReinicioDisponible = [datetime]::MinValue
+                Add-MensajeTrabajador $C "No se inicia otra copia de $($srv.Nombre): el puerto $($srv.Puerto) volvió a ocuparse durante la espera." 'Aviso'
+                continue
+            }
+            $srv.ReinicioPendiente = $false
+            $srv.ReinicioDisponible = [datetime]::MinValue
+            Add-MensajeTrabajador $C "Iniciando el reintento $($srv.Reintentos) para $($srv.Nombre)."
+            [void](Iniciar-ServicioTrabajador -C $C -Srv $srv -Silencioso)
         }
     }
 
@@ -1338,9 +1452,13 @@ function New-TarjetaServicio {
         $tarjeta.Controls.Add($control)
     }
 
+    $apiTooltip = New-Object System.Windows.Forms.ToolTip
+    $apiTooltip.SetToolTip($estado, 'La salud HTTP del servidor se comprueba en segundo plano.')
     $Srv.Ui = @{
         Tarjeta        = $tarjeta
         Estado         = $estado
+        ApiTooltip     = $apiTooltip
+        ApiTooltipText = ''
         Detalle        = $detalle
         BotonIniciar   = $botonIniciar
         BotonDetener   = $botonDetener
@@ -1637,6 +1755,15 @@ function Actualizar-Vista {
                 Set-SiCambia $p "$id|fondo"     $ui.Estado 'BackColor' ($script:colores["$($color)Fondo"])
                 Set-SiCambia $p "$id|texto"     $ui.Estado 'ForeColor' ($script:colores[$color])
                 Set-SiCambia $p "$id|detalle"   $ui.Detalle 'Text' $detalle
+                if ($id -eq 'servidor' -and $ui.ApiTooltip) {
+                    $saludTexto = if ($null -eq $e.SaludApi) { 'API: comprobación pendiente' }
+                        elseif ($e.SaludApi) { "API: saludable · arranque $($e.ApiInstanceId) · $($e.SaludDetalle)" }
+                        else { "API: sin confirmar ($($e.SaludDetalle)); el puerto/proceso no se reinicia por este fallo." }
+                    if ($ui.ApiTooltipText -cne $saludTexto) {
+                        $ui.ApiTooltip.SetToolTip($ui.Estado, $saludTexto)
+                        $ui.ApiTooltipText = $saludTexto
+                    }
+                }
                 Set-SiCambia $p "$id|iniciar"   $ui.BotonIniciar 'Enabled' ((-not $ocupado) -and (-not $vivo) -and (-not $escucha))
                 Set-SiCambia $p "$id|detener"   $ui.BotonDetener 'Enabled' ((-not $ocupado) -and ($vivo -or $escucha))
                 Set-SiCambia $p "$id|reiniciar" $ui.BotonReiniciar 'Enabled' ((-not $ocupado) -and ($vivo -or $escucha))

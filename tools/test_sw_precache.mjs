@@ -88,6 +88,17 @@ for (const file of files) {
 ok(`${staticChecked} imports estáticos comprobados contra SHELL`);
 ok(`${dynamicChecked} imports dinámicos comprobados en disco`);
 
+// ---------------------------------------------------------------- 4. políticas de actualización y aislamiento
+if (!/ks\.filter\(\(k\) => k\.startsWith\("novagest-v"\) && k !== CACHE\)/.test(sw)) {
+  bad("La activación debe borrar solo cachés versionadas de NovaGest, nunca las de otras apps del origen");
+} else ok("la activación conserva cachés ajenas del mismo origen");
+if (!/url\.pathname\.startsWith\("\/api\/"\)/.test(sw)) bad("La API no debe pasar por la caché del shell");
+else ok("las respuestas de API quedan fuera de la caché del shell");
+if (!/e\.respondWith\(fetch\(e\.request\)/.test(sw)) bad("Las navegaciones/recursos deben intentar red antes del fallback offline");
+else ok("shell network-first con fallback offline acotado");
+if (/location\.reload\s*\(/.test(sw)) bad("El service worker no debe forzar recargas de la página");
+else ok("el service worker no fuerza recargas automáticas");
+
 if (errors) {
   console.error(`\n${errors} problema(s): el service worker y los módulos no coinciden.\n`);
   process.exit(1);

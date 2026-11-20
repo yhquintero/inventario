@@ -65,6 +65,8 @@ jobs:
           bash tools/ci_paso.sh node tools/test_sw_precache.mjs
           bash tools/ci_paso.sh npm --prefix tools install --ignore-scripts
           bash tools/ci_paso.sh npm --prefix tools audit --audit-level=high
+          bash tools/ci_paso.sh npm --prefix tools exec -- playwright install --with-deps chromium
+          bash tools/ci_paso.sh node tools/test_boot_loop_e2e.mjs
           bash tools/ci_paso.sh node tools/test_axe.mjs
           bash tools/ci_paso.sh node tools/test_generador_ui.mjs
           bash tools/ci_paso.sh node tools/test_almacenes.mjs
@@ -124,6 +126,16 @@ jobs:
         run: python3 tools/verificar_pendientes.py
         # No bloquea: lista [COMPLETAR], firmas y casillas que solo puede
         # cerrar el titular/asesor/firma externa. Revisar la salida en cada PR.
+  panel-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Pruebas del panel en Windows PowerShell 5.1
+        shell: powershell
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/test_panel_control.ps1
+      - name: Pruebas del panel en PowerShell 7
+        shell: pwsh
+        run: pwsh -NoProfile -File tools/test_panel_control.ps1
   android:
     runs-on: ubuntu-latest
     steps:
