@@ -1,3 +1,5 @@
+import { readDocumentHistory, recordDocumentNavigation } from "./boot-diagnostics.js";
+
 const PREFIX = "novagest-v";
 const ERROR_KEY = "novagest.boot_errors";
 const HEALTH_HISTORY_KEY = "novagest.recovery_health_history";
@@ -29,8 +31,14 @@ function recordNavigation() {
   writeSessionArray(NAV_HISTORY_KEY, history);
   return entry;
 }
+let tabStorage = null;
+let sharedStorage = null;
+try { tabStorage = window.sessionStorage; } catch {}
+try { sharedStorage = window.localStorage; } catch {}
+recordDocumentNavigation({ storage: tabStorage, window });
 const currentNavigation = recordNavigation();
-navigationStatus.textContent = `Carga del documento: ${currentNavigation.type} · muestra ${readSessionArray(NAV_HISTORY_KEY).length}/8 en esta pestaña. El navegador no informa aquí quién inició la recarga.`;
+const documentHistory = readDocumentHistory(sharedStorage);
+navigationStatus.textContent = `Carga del documento: ${currentNavigation.type} · ${readSessionArray(NAV_HISTORY_KEY).length}/8 en esta pestaña · ${documentHistory.length}/24 en el mismo origen. El navegador no informa aquí quién inició la recarga.`;
 
 function appWorker(scriptURL) {
   try {
@@ -106,6 +114,7 @@ function diagnosticText() {
     if (Array.isArray(parsed)) errors = parsed.slice(-8).map((item) => `${item.kind || "error"}: ${item.name || "Error"}`);
   } catch {}
   const navHistory = readSessionArray(NAV_HISTORY_KEY).map((entry) => `${new Date(entry.at).toISOString()} ${entry.type}`).join(" | ");
+  const allTabsHistory = readDocumentHistory(sharedStorage).map((entry) => `${new Date(entry.at).toISOString()} ${entry.type} ${entry.path} pestaña-${entry.tab}`).join(" | ");
   const healthHistory = readSessionArray(HEALTH_HISTORY_KEY).map((entry) => {
     const sample = entry.instanceId ? `${entry.instanceId}/${entry.uptime}s` : "API sin respuesta";
     return `${new Date(entry.at).toISOString()} ${sample} — ${entry.summary || "muestra"}`;
@@ -115,6 +124,7 @@ function diagnosticText() {
     `URL (sin parámetros): ${safeUrl}`,
     `Tipo de carga actual: ${currentNavigation.type}`,
     `Historial de cargas de esta pestaña (máx. 8): ${navHistory || "no disponible"}`,
+    `Historial de documentos del mismo origen (máx. 24, todas las pestañas): ${allTabsHistory || "no disponible"}`,
     `Historial de salud del servidor (máx. 8 muestras): ${healthHistory || "no disponible"}`,
     `Service worker controla la página: ${Boolean(navigator.serviceWorker?.controller) ? "sí" : "no"}`,
     `Cachés NovaGest: ${(window.__ngCaches || []).join(", ") || "ninguno"}`,

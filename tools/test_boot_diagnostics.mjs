@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { BOOT_ERRORS_KEY, BOOT_HISTORY_KEY, monitorBoot, recordBoot, showBootLoopNotice } from "../web/js/boot-diagnostics.js";
+import { BOOT_ERRORS_KEY, BOOT_HISTORY_KEY, DOCUMENT_HISTORY_KEY, monitorBoot, readDocumentHistory, recordBoot, recordDocumentNavigation, showBootLoopNotice } from "../web/js/boot-diagnostics.js";
 
 function memoryStorage(initial = null) {
   const values = new Map(initial ? [[BOOT_HISTORY_KEY, JSON.stringify(initial)]] : []);
@@ -47,6 +47,7 @@ let automaticReloads = 0;
 const runtimeListeners = {};
 const fakeWindow = {
   addEventListener: (name, handler) => { runtimeListeners[name] = handler; },
+  localStorage: memoryStorage(),
   location: { href: "https://localhost:8443/index.html?token=private#home", reload: () => automaticReloads++ },
   performance: { getEntriesByType: () => [{ type: "reload" }] },
   async fetch(endpoint, options) {
@@ -88,6 +89,15 @@ assert.equal(fakeBox.removed, true);
 
 const triggered = memoryStorage([10_000, 11_000]);
 assert.equal(monitorBoot({ storage: triggered, document: fakeDocument, window: fakeWindow, navigator: fakeNavigator, cacheStorage: fakeCaches, now: 12_000 }).loop, true);
+recordDocumentNavigation({ storage: triggered, window: fakeWindow, now: 13_000 });
+recordDocumentNavigation({ storage: triggered, window: fakeWindow, now: 14_000 });
+const documentHistory = readDocumentHistory(fakeWindow.localStorage);
+assert.equal(documentHistory.length, 3, "registra cargas de index.html entre navigaciones");
+assert.ok(JSON.parse(fakeWindow.localStorage.get(DOCUMENT_HISTORY_KEY)).length <= 24, "el historial compartido tiene un límite fijo");
+assert.ok(documentHistory.every((entry) => entry.path === "/index.html" && entry.tab.length === 8));
+assert.doesNotMatch(JSON.stringify(documentHistory), /private|token=/, "el historial compartido no conserva parámetros URL");
+await click({ target: { closest: () => ({ dataset: { bootAction: "copy" } }) } });
+assert.match(messages.at(-2), /Historial de documentos del mismo origen.*index\.html/);
 runtimeListeners.error({ error: { name: "TypeError", message: "no guardar jamás este mensaje potencialmente privado" } });
 runtimeListeners.unhandledrejection({ reason: { name: "NetworkError", message: "no guardar contenido" } });
 assert.equal(JSON.parse(triggered.get(BOOT_ERRORS_KEY)).length, 2, "guarda solo metadatos mínimos de errores recientes");
