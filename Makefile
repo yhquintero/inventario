@@ -12,6 +12,7 @@ test-web:
 	$(NODE) tools/test_permisos.mjs
 	$(PYTHON) tools/test_sitio.py
 	$(NODE) tools/test_calc.mjs
+	$(NODE) tools/test_excel_sources.mjs
 	$(NODE) tools/test_merge.mjs
 	$(NODE) tools/test_ticket.mjs
 	$(NODE) tools/test_api_cookie.mjs

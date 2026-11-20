@@ -46,6 +46,26 @@ function test(name, run) {
 
 console.log("\nLibros de Excel · inventario, fechas y cuadres\n");
 
+const appSource = readFileSync(join(root, "web/js/app.js"), "utf8");
+test("Salario almaceneros usa una clave interna nueva y un permiso de edición explícito", () => {
+  assert.match(appSource, /\[\"salarioAlmaceneros\", \"Salario almaceneros\", \"WEEKLY_EDIT\"\]/);
+  assert.match(appSource, /saved\.salarioAlmaceneros == null && saved\.salarioLeo != null/);
+});
+
+test("migrar salarioLeo al guardar conserva el valor y rechaza roles sin WEEKLY_EDIT", () => {
+  const week = "2026-08-31";
+  store.applyServer({ version: 1, closedDays: [], state: { weekly: { [week]: { salarioLeo: 80 } }, audit: [] } });
+  store.state.session = { role: "ECONOMICO", displayName: "Área Económica" };
+  assert.deepEqual(store.saveWeekly(week, { salarioAlmaceneros: 95 }), { ok: true });
+  assert.equal(store.state.weekly[week].salarioAlmaceneros, 95);
+  assert.equal(store.state.weekly[week].salarioLeo, undefined);
+
+  store.state.session.role = "AUDITOR";
+  const denied = store.saveWeekly(week, { salarioAlmaceneros: 120 });
+  assert.match(denied.error, /no puede editar gastos semanales/);
+  assert.equal(store.state.weekly[week].salarioAlmaceneros, 95);
+});
+
 test("los períodos anual, personalizado y de existencias iniciales se calculan correctamente", () => {
   assert.deepEqual(periodRange("anual", "2024-02-29"), { from: "2024-01-01", to: "2024-12-31" });
   assert.deepEqual(reportPeriodRange("período", "2026-09-25", "2026-09-01", "2026-09-30"), { from: "2026-09-01", to: "2026-09-30", valid: true });
@@ -266,7 +286,8 @@ test("guardar el resumen conserva los datos semanales y respeta el permiso del r
   const result = store.saveWeeklyReferences([reference]);
   assert.deepEqual(result, { ok: true, total: 1 });
   assert.equal(store.state.weekly[reference.from].transportacion, 125);
-  assert.equal(store.state.weekly[reference.from].salarioLeo, 80);
+  assert.equal(store.state.weekly[reference.from].salarioAlmaceneros, 80);
+  assert.equal(store.state.weekly[reference.from].salarioLeo, undefined);
   assert.equal(store.state.weekly[reference.from].note, "dato manual");
   assert.equal(store.state.weekly[reference.from].excelSummary.sourceFile, reference.sourceFile);
   assert.equal(store.state.audit.at(-1).action, "IMPORT");

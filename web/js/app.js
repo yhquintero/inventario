@@ -1558,7 +1558,15 @@ function cuadreView() {
 }
 
 /* ============================ INFORME SEMANAL ============================ */
-const FIJOS = [["salarioEstibadores", "Salario estibadores"], ["salarioLeo", "Salario Leo"], ["custodio", "Custodio"], ["internet", "Internet"], ["jardineria", "Jardinería"], ["corriente", "Corriente"], ["mediosBasicos", "Medios básicos"], ["otros", "Otros"]];
+// Cada gasto declara su permiso de edición para que nuevas variables puedan
+// asignarse a perfiles concretos sin acoplarlas al nombre visible.
+const FIJOS = [
+  ["salarioEstibadores", "Salario estibadores", "WEEKLY_EDIT"],
+  ["salarioAlmaceneros", "Salario almaceneros", "WEEKLY_EDIT"],
+  ["custodio", "Custodio", "WEEKLY_EDIT"], ["internet", "Internet", "WEEKLY_EDIT"],
+  ["jardineria", "Jardinería", "WEEKLY_EDIT"], ["corriente", "Corriente", "WEEKLY_EDIT"],
+  ["mediosBasicos", "Medios básicos", "WEEKLY_EDIT"], ["otros", "Otros", "WEEKLY_EDIT"],
+];
 
 function printReportHeader(title, subtitle) {
   const business = store.state.settings.businessName || "NovaGest";
@@ -1583,7 +1591,10 @@ function weeklyData(anyDate) {
     ventas += t.venta; costo += t.costo; dom += domU; com += comU; gastosDia += t.gastos + (c?.gastosCombosUsd || 0); uds += t.unidades;
     days.push({ d, t, domU, comU, cuadrado: c ? t.cuadre === 0 : null });
   }
-  const saved = store.state.weekly[w.from] || {};
+  const savedRaw = store.state.weekly[w.from] || {};
+  // Compatibilidad con semanas anteriores a salarioAlmaceneros.
+  const saved = { ...savedRaw };
+  if (saved.salarioAlmaceneros == null && saved.salarioLeo != null) saved.salarioAlmaceneros = saved.salarioLeo;
   const fijos = FIJOS.reduce((a, [k]) => a + (Number(saved[k]) || 0), 0);
   const transp = Number(saved.transportacion) || 0;
   const variables = transp + dom + com + gastosDia;
@@ -1673,7 +1684,10 @@ function weeklyView() {
   const canEdit = allowed("WEEKLY_EDIT");
   const excelReference = r.saved.excelSummary ? weeklyExcelReferenceCard(r.saved.excelSummary) : "";
   const row = (l, v, cls = "") => `<tr class="${cls}"><td>${l}</td><td class="mono r">${usd(v)}</td></tr>`;
-  const inp = (k, l) => `<tr><td class="ind">${l}</td><td class="r">${canEdit ? `<input class="cell" name="${k}" type="number" step="any" value="${r.saved[k] || ""}" placeholder="0">` : usd(r.saved[k] || 0)}</td></tr>`;
+  const inp = (k, l, permission = "WEEKLY_EDIT") => {
+    const editable = allowed(permission);
+    return `<tr><td class="ind">${l}</td><td class="r">${editable ? `<input class="cell" name="${k}" type="number" step="any" value="${r.saved[k] || ""}" placeholder="0">` : usd(r.saved[k] || 0)}</td></tr>`;
+  };
   return `
     ${printReportHeader("Informe semanal", `${formatDate(r.w.from)} – ${formatDate(r.w.to)}`)}
     <div class="toolbar">
@@ -1698,7 +1712,7 @@ function weeklyView() {
           ${row("(−) COSTO DE VENTA", r.costo)}
           ${row("UTILIDAD BRUTA", r.bruta, "b tot")}
           ${row("(−) GASTOS FIJOS", r.fijos, "b")}
-          ${FIJOS.map(([k, l]) => inp(k, l)).join("")}
+          ${FIJOS.map(([k, l, permission]) => inp(k, l, permission)).join("")}
           ${row("(−) GASTOS VARIABLES", r.variables, "b")}
           ${inp("transportacion", "Transportación")}
           <tr><td class="ind">Domicilios</td><td class="mono r">${usd(r.dom)}</td></tr>
@@ -5135,7 +5149,8 @@ function bindApp() {
     const fd = new FormData(e.target);
     const data = {};
     for (const [k, v] of fd.entries()) data[k] = Number(v) || 0;
-    store.saveWeekly(weekRange(ui.weekDate || lastDataDate()).from, data);
+    const saved = store.saveWeekly(weekRange(ui.weekDate || lastDataDate()).from, data);
+    if (saved?.error) return toast(saved.error, "err");
     toast("Informe semanal guardado", "ok");
   });
   $("#rateForm")?.addEventListener("submit", (e) => {
