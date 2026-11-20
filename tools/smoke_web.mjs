@@ -83,11 +83,15 @@ globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), se
 // No abrir el tour visual en este DOM simulado (no crea hijos reales).
 localStorage.setItem("novagest.tour", "1");
 const fetchCalls = [];
+let forceUnauthorized = false;
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
   let sent = undefined;
   try { if (opts.body) sent = JSON.parse(opts.body); } catch { sent = opts.body; }
   fetchCalls.push({ url: u, method: (opts.method || "GET").toUpperCase(), body: sent });
+  if (forceUnauthorized && u === "/api/test-unauthorized") {
+    return { status: 401, ok: false, json: async () => ({ error: "sesión no autorizada" }) };
+  }
   let data = {};
   if (u.includes("/api/exchange/divisa")) {
     data = { ok: true, source: "https://cubadivisas.com/", date: "2026-11-08", publishedAt: "2026-11-08T18:00:00-05:00",
@@ -199,9 +203,15 @@ const atest = async (name, fn) => {
 
 /* ----------------------------- arranque de la app ----------------------------- */
 await import(pathToFileURL(join(tmp, "js/app.js")).href);
+const { api } = await import(pathToFileURL(join(tmp, "js/api.js")).href);
 const legalModule = await import(pathToFileURL(join(tmp, "js/legal.js")).href);
 await new Promise((resolve) => setImmediate(resolve)); // espera el control asíncrono de licencia
 const app = getEl("app");
+await atest("un 401 dentro de la SPA no la redirige de nuevo a index.html", async () => {
+  forceUnauthorized = true;
+  try { await api("/test-unauthorized"); } finally { forceUnauthorized = false; }
+  assert.equal(location.href, undefined, "la redirección de la página financiera independiente no debe reemplazar al manejador del Store");
+});
 store.applyServer({ version: 1, state, closedDays: [] });
 store.state.session = state.session;
 const go = (route) => { location.hash = "#" + route; if (store.emit) store.emit(false); return app.innerHTML; };

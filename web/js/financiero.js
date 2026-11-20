@@ -25,7 +25,12 @@ const repintarCanvasesFin = () => {
   if (typeof document === "undefined") return;
   document.querySelectorAll?.("canvas.fin-chart").forEach((cv) => cv._finPaint?.());
 };
-setUnauthorizedHandler(() => { location.href = "./index.html"; });
+// En la SPA app.js/Store administra una sesión vencida; instalar aquí otro manejador
+// reemplaza el del Store y puede redirigir a index.html en cada API 401, creando un bucle.
+// Solo la página financiera independiente necesita volver explícitamente a la Web.
+if (!document.getElementById("app")) {
+  setUnauthorizedHandler(() => { location.href = "./index.html"; });
+}
 
 /* Botón de tema: solo existe en la cabecera de la página independiente (financiero.html).
  * Comparte clave (`novagest.theme`) y los 3 modos (Automático, Claro, Oscuro) con toda la app. */
