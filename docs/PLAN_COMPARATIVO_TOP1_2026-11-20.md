@@ -1,8 +1,8 @@
 # NovaGest — Diagnóstico comparativo y ruta de mejora hacia excelencia
 
 **Fecha de corte:** 20 de noviembre de 2026  
-**Base inicial revisada:** `c72db55` (merge del PR #119); seguimiento actual sobre `88cba16` (merge del PR #120).
-**Rama activa de seguimiento:** `arena/f2dfdc70-inventario`
+**Base del seguimiento actual:** `a956b82` (HEAD inicial de `arena/5e1a7a3b-inventario`). Los hashes `c72db55`/`88cba16` y la rama `arena/f2dfdc70-inventario` citados en snapshots anteriores son contexto histórico, no la rama de este seguimiento.
+**Rama activa:** `arena/5e1a7a3b-inventario`
 **Propósito:** comparar el inicio del incidente reciente con el estado actual del producto y convertir los pendientes de seguridad, calidad, producto y crecimiento en un plan priorizado y medible.
 
 > **Alcance y honestidad.** “Top 1” no se puede demostrar solo con código ni con una lista de funciones. Hace falta definir un mercado y medir productos reales con usuarios, fiabilidad, velocidad y satisfacción. Este documento evalúa lo que el repositorio acredita, no asigna una posición de mercado ni supone datos de clientes que no se han medido.
@@ -24,6 +24,28 @@ NovaGest ya es una plataforma multipieza —Web/PWA, servidor Python, Android, h
 | Experiencia/operación | PWA con shell offline, recuperación del bucle, modo kiosco, accesibilidad axe y funciones comerciales amplias. | Pruebas de usabilidad con comerciantes, flujo de devoluciones/proveedores/cotizaciones e importar clientes. | **Producto funcional; falta validación de campo** |
 | Posicionamiento “Top 1” | El proyecto tiene hoja de ruta, sitio, medios y mecanismo de novedades. | Definir competidores, segmentos, métricas de producto, línea base y experimentos de mejora. | **No medido todavía** |
 | Gobierno del roadmap | Checklist y documentación técnica amplios. | Hay estados desactualizados, total mal calculado e IDs duplicados; consolidar una única fuente de verdad. | **Necesita orden** |
+
+### Seguimiento verificado en `arena/5e1a7a3b-inventario`
+
+Esta tabla separa lo implementado en el árbol actual de lo que el entorno no permitió comprobar. No equivale a una certificación de despliegue ni a una medición de mercado.
+
+| Prioridad | Cambio comprobable en esta rama | Evidencia de prueba | Límite / siguiente validación |
+|---|---|---|---|
+| Local/offline y tipografía Web | Inter Variable WOFF2 y licencia SIL OFL se sirven desde el mismo origen y entran al shell PWA; no hay CDN tipográfico. El servidor entrega MIME WOFF2. | `test_sw_precache.mjs` pasó; auditoría HTTP 10/10; smoke Web 90/90. | No simula pérdida de energía ni corrupción de caché en varios navegadores; E2E Chromium requiere instalar Playwright. |
+| Acceso LAN seguro | Instalación/documentación orientan a `https://<IP-LAN>:8443`; Android bloquea URL HTTP sin cifrar y explica HTTPS local. El server enlaza `0.0.0.0`. | `test_acceso_lan.py` verifica el bind estáticamente. | La comprobación de conectividad real quedó **SKIP** por falta de IPv4 no-loopback en el contenedor; validar en Wi-Fi/LAN real con Android y navegador. No compartir clave privada de CA. |
+| Utilidad neta mensual (W-27) | Convierte comisiones, domicilios y otros gastos CUP usando la tasa guardada en cada cuadre; agrega combos/rebajas USD; Análisis e informe/PDF usan el mismo cálculo, y hay CSV derivado del informe. | `test_informe_mensual.mjs` 79/79; `test_utilidad_neta_w27.mjs` 6/6; `smoke_web.mjs` 90/90. | Es estimación: no incluye gastos fijos ni transportación semanal; solo incorpora gastos registrados en cuadres. El informe no es liquidación fiscal. |
+| Seguridad local de BD Android | `DatabaseKey` guarda cifrada con Android Keystore la passphrase SQLCipher; prueba instrumentada comprueba persistencia/cifrado. | Código y prueba instrumentada agregados; sintaxis Python/JS y `git diff --check` pasan. | No se puede compilar/ejecutar Android aquí: Java/Gradle no están disponibles; ejecutar `assembleRelease` y androidTest en CI/emulador antes de cerrar. |
+| Regresión de navegación Web | Se amplía la prueba del bucle de arranque para identificar el iniciador de recargas antes de atribuir causa. | Cambios de prueba incorporados al árbol. | No acreditado aquí con Chromium: falta el paquete Playwright. No concluir causa raíz sin traza de navegación e iniciador. |
+
+#### Definición operativa de «acceso local»
+
+| Modo | Qué comparte | Qué pasa sin Internet | Riesgo que aún hay que probar |
+|---|---|---|---|
+| Servidor en LAN | Web y Android apuntan al mismo servidor local mediante HTTPS y una dirección LAN estable; todos ven el estado central cuando hay red local. | Puede seguir disponible aunque falle Internet, si servidor, Wi-Fi, DNS/IP y TLS locales siguen accesibles. | Probar reinicio del router/servidor, cambio de IP, certificado y resolución de conflictos con Web+Android en dos dispositivos. Una IP LAN fija o reserva DHCP y un nombre/certificado controlado reducen incidencias. |
+| Base local Android | La instalación conserva sus datos en Room en el teléfono; no comparte automáticamente con Web ni con otros teléfonos. | Las operaciones locales siguen en ese dispositivo. Los cambios no son visibles fuera hasta que la app vuelva a sincronizar. | Verificar cola, reintento, idempotencia y conflicto ante ediciones offline simultáneas; documentar qué registro gana y cómo se recupera, sin prometer sincronización perfecta hasta tener esas pruebas. |
+| Fuentes tipográficas | Web carga Inter y su licencia desde el mismo origen y shell/cache local; usa tipografía de sistema como fallback. | Si la fuente ya está en el shell o caché, la PWA no solicita CDN. Si falta un recurso, conserva alternativa tipográfica local del sistema. | Mantener prueba de instalación limpia y modo avión tras una carga inicial; comprobar el bundle/precarga en cada cambio de versión. |
+
+**Recomendación:** explicar estos dos modos con nombres diferentes en la interfaz (por ejemplo, «Servidor del negocio» y «Solo en este dispositivo»), indicar el estado de sincronización/última sincronización y no sugerir que dos bases locales se fusionan solas. Para LAN, instalar únicamente la CA pública y nunca distribuir su clave privada. La aceptación de offline requiere casos de corte, vuelta de red, duplicado de reintento y dos cambios concurrentes, no solo abrir la pantalla sin Internet.
 
 ### Lo más importante en una frase
 
@@ -106,7 +128,7 @@ NovaGest ya es una plataforma multipieza —Web/PWA, servidor Python, Android, h
 
 ## 5. Backlog completo que la documentación actual propone
 
-**Nota de lectura:** el estado “☑”/“◐”/“☐” debajo reproduce el marcador del `docs/CHECKLIST_MEJORAS.md`; no garantiza que se haya re-ejecutado la prueba hoy. “☐” significa *no acreditado en ese checklist*, no necesariamente que la función no exista. Por ejemplo, hay pruebas para W-26, A-25 y W-27 aunque sus casillas estén vacías. Hay que reconciliar esa evidencia antes de declarar todo pendiente.
+**Nota de lectura:** los estados “☑”/“◐”/“☐” reproducen el checklist, pero un marcador solo no garantiza que una prueba se haya ejecutado hoy. “☐” significa *no acreditado en ese checklist*, no necesariamente que una función no exista. En esta actualización W-27 se verificó y se marcó ✅ con sus resultados; W-26/A-25 siguen sin acreditación de aceptación completa en el checklist.
 
 ### 5.1 Bloqueantes P0 (5)
 
@@ -126,7 +148,7 @@ NovaGest ya es una plataforma multipieza —Web/PWA, servidor Python, Android, h
 | A-22 | Escaneo de código al crear/editar | ☐ | Cámara debe llenar código, detectar duplicado y permitir alternativa manual accesible. |
 | W-26 | Etiquetas de precio A4 con barras | ☐, pero existe `tools/test_etiquetas_precio_w26.mjs` | Revisar que prueba y función cubran Code 128, 24/40 etiquetas, impresión y varios almacenes; actualizar estado si pasa. |
 | A-25 | Márgenes en móvil | ☐, pero existe `tools/test_margenes_movil_a25.mjs` | Ejecutar prueba y validar lista peor→mejor, precio objetivo y configuración en dispositivo. |
-| W-27 | Utilidad neta (venta−costo−gastos) | ☐, pero existe prueba unitaria e integración W-27 | Ejecutar ambas y verificar igualdad pantalla/PDF/CSV/mes; el marcador parece atrasado. |
+| W-27 | Utilidad neta (venta−costo−gastos) | ✅ Verificado en esta revisión: `test_informe_mensual.mjs` 79/79 y `smoke_web.mjs` 90/90; la integración mensual usa `monthlyReport` en Análisis, vista imprimible/PDF y CSV | Implementado en este branch. Gastos CUP convertidos con la tasa por cuadre; no incluye gastos fijos/transportación semanal. |
 | D-14 | Cartel A4 de precios y mínimos | ☐ | Implementar impresión por almacén/categoría, una página y fecha; verificar legibilidad y paginado. |
 
 ### 5.3 Ola B — medio plazo (6)
@@ -286,7 +308,7 @@ No se propone recopilar datos personales por defecto. Primero se fijan métricas
 1. `docs/CHECKLIST_MEJORAS.md` deja P0-1, P0-2 y P0-4 sin marcar aunque el árbol actual acredita SDK 36, `venv/` fuera de Git y escapes financieros. Eso no significa que la aceptación completa esté lista: hay que cambiar texto/criterio a “validación pendiente”, no marcar verde sin pruebas.
 2. El resumen del checklist informa 83 ítems; las tablas contienen 85 filas/83 códigos únicos. W-22 y X-06 faltan del resumen y S-04/G-04 están duplicados.
 3. `docs/INSPECCION_TOP1_2026-11.md` es un snapshot del 14-11 con datos obsoletos en SDK, venv y parte de XSS. Debe mantenerse como histórico o encabezarse claramente; el estado vivo debe estar en este plan/checklist actualizado.
-4. Hay pruebas W-26/A-25/W-27 que existen aunque las casillas sigan vacías. La casilla debe apuntar a última corrida/PR, no ser la única fuente de verdad.
+4. W-27 ya tiene verificación repetida y casilla actualizada; W-26/A-25 tienen scripts existentes pero siguen sin evidencia completa de aceptación. Cada casilla debe enlazar prueba/CI y fecha, no ser la única fuente de verdad.
 5. La auditoría HTTP no se califica como “fallo del producto” si no había server activo; ejecutar en staging y guardar salida completa saneada.
 
 ---
@@ -298,3 +320,11 @@ No se propone recopilar datos personales por defecto. Primero se fijan métricas
 **Siguiente mejora recomendada:** cerrar **P0-3 Room** como proyecto dedicado, empezando por identificar los esquemas reales. Es la brecha con mayor potencial de afectar datos de clientes. En paralelo, preparar la prueba API 36 y una auditoría HTTP ejecutable. Solo después conviene priorizar animaciones o nuevas funciones de expansión.
 
 **Qué hace falta del titular/operación:** versiones antiguas de APK/AAB o copia anonimizada de las bases Room y confirmación de cuál es la versión mínima instalada en clientes. Sin eso, cualquier migración de origen sería especulativa.
+
+---
+
+## 10. Continuación de aplicación (20-11-2026)
+
+Se amplió el Dashboard, iconografía visual de categorías/productos y selector de 24 iconos para almacenes; se agregaron campos versionados de contexto/evidencia en la Ficha de Costo, sin automatizar límites legales. También se ejecutaron las suites Web/Python y pruebas de copia. Esto **no** cierra la aceptación LAN/HTTPS, Android/API36, Playwright E2E ni el expediente oficial de la Resolución 148. La evidencia detallada, fuentes de Gaceta y matriz de implementación/restantes están en [`docs/REPORTE_APLICACION_Y_FICHA_COSTOS_2026-11-20.md`](REPORTE_APLICACION_Y_FICHA_COSTOS_2026-11-20.md).
+
+**Pendientes prioritarios**: hacer visible CI remota verde por SHA; correr Chromium y Android CI/API36; efectuar prueba física con dos clientes en la misma LAN y HTTPS confiable; construir el desglose oficial 148/2023 con reglas configurables por actor/actividad/método y revisar con especialista cubano; validar UX y rendimiento en equipos reales. No afirmar ranking Top 1 ni cumplimiento legal automático antes de evidencia independiente.

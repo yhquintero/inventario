@@ -22,7 +22,11 @@ object DatabaseKey {
 
     private const val ALIAS = "novagest_db_key"
     private const val PREFS_NAME = "novagest_db_key_prefs"
+    private const val KEY_ENCRYPTED_MATERIAL = "encrypted_passphrase"
     private const val KEY_IV = "iv"
+
+    private fun prefs(context: Context) =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) // nosec AND-003: solo guarda AES-GCM ciphertext e IV; la clave vive en Android Keystore.
 
     private fun keystore(): KeyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
 
@@ -50,7 +54,9 @@ object DatabaseKey {
     /** Passphrase determinista y persistente para SQLCipher. */
     @Synchronized
     fun passphrase(context: Context): ByteArray {
-        val ivBase64 = prefs.getString(KEY_IV, null)
+        val preferences = prefs(context)
+        val encryptedBase64 = preferences.getString(KEY_ENCRYPTED_MATERIAL, null)
+        val ivBase64 = preferences.getString(KEY_IV, null)
 
         val masterKey = try { getOrCreateKeystoreKey() } catch (e: Exception) {
             throw IllegalStateException("No se puede acceder a la clave segura de esta base. No se han borrado los datos.", e)
@@ -84,7 +90,7 @@ object DatabaseKey {
                 val iv = cipher.iv
                 val encrypted = cipher.doFinal(newPassphrase)
 
-                val saved = prefs.edit()
+                val saved = preferences.edit()
                     .putString(KEY_ENCRYPTED_MATERIAL, Base64.encodeToString(encrypted, Base64.NO_WRAP))
                     .putString(KEY_IV, Base64.encodeToString(iv, Base64.NO_WRAP))
                     .commit()

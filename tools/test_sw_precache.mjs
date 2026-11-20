@@ -88,6 +88,27 @@ for (const file of files) {
 ok(`${staticChecked} imports estáticos comprobados contra SHELL`);
 ok(`${dynamicChecked} imports dinámicos comprobados en disco`);
 
+// ---------------------------------------------------------------- recursos tipográficos locales/offline
+for (const font of [
+  "./css/fonts.css",
+  "./public/fonts/inter-latin-wght-normal.woff2",
+  "./public/fonts/inter-latin-ext-wght-normal.woff2",
+  "./public/fonts/OFL.txt",
+]) {
+  if (!shell.includes(font)) bad(`La fuente/licencia debe formar parte del shell offline: ${font}`);
+  else ok(`recurso local en SHELL: ${font}`);
+}
+const appCss = readFileSync(resolve(WEB, "css/app.css"), "utf8");
+const fontsCss = readFileSync(resolve(WEB, "css/fonts.css"), "utf8");
+const appHtml = readFileSync(resolve(WEB, "index.html"), "utf8");
+if (!fontsCss.includes('font-family: "NovaGest Inter"') || !appCss.includes("--font-ui")) bad("La tipografía de marca no está declarada localmente");
+if (/fonts\.googleapis\.com|fonts\.gstatic\.com|@import\s+url/i.test(appCss + fontsCss + appHtml)) {
+  bad("La aplicación no debe depender de fuentes externas");
+} else ok("la aplicación usa fuentes locales, sin CDN tipográfico");
+if (!readFileSync(resolve(WEB, "public/fonts/OFL.txt"), "utf8").includes("SIL OPEN FONT LICENSE Version 1.1")) {
+  bad("Falta conservar la licencia SIL OFL 1.1 de la fuente distribuida");
+} else ok("la licencia SIL OFL 1.1 acompaña a la fuente");
+
 // ---------------------------------------------------------------- 4. políticas de actualización y aislamiento
 if (!/ks\.filter\(\(k\) => k\.startsWith\("novagest-v"\) && k !== CACHE\)/.test(sw)) {
   bad("La activación debe borrar solo cachés versionadas de NovaGest, nunca las de otras apps del origen");

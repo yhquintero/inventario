@@ -1,5 +1,5 @@
 import { monitorBoot } from "./boot-diagnostics.js";
-import { store, warehouseIcon, warehouseProvince, CUBA_PROVINCES, TOTAL_MUNICIPIOS } from "./store.js";
+import { store, warehouseIcon, warehouseProvince, WAREHOUSE_ICON_OPTIONS, CUBA_PROVINCES, TOTAL_MUNICIPIOS } from "./store.js";
 import { api, setLicenseErrorHandler } from "./api.js";
 import { parseLegacyCuadreGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
 import { LicenseManager } from "./license.js";
@@ -22,7 +22,7 @@ import { quickSalePlan, quickSaleLabel, quickSaleSummary } from "./quick-sale.js
 import { buildSheet, sheetFileName } from "./xlsx-export.js";
 import { alertsSummary, alertSignature, severityLabel, shouldNotify, sortAlerts, stockAlerts } from "./alerts.js";
 import { KIOSK_ACTIONS, canFullscreen, kioskClock, kioskHint, readKiosk, writeKiosk } from "./kiosk.js";
-import { monthKey, monthLabel, monthlyReport, shiftMonth, variationText } from "./monthly.js";
+import { monthKey, monthLabel, monthlyCsv, monthlyReport, shiftMonth, variationText } from "./monthly.js";
 import {
   agrupar as agruparEntradas, buscar as buscarGlobal, construirIndice, GRUPO_POR_TIPO,
   pieDeBusqueda, resaltarHTML,
@@ -150,6 +150,14 @@ const CATEGORY_ICON_MARKUP = {
   bike: `<circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="m6 17 4-8h4l4 8m-8-8 4 8h-4m1-11h3"/>`,
   bulb: `<path d="M9 18h6m-5 3h4m-5-6a7 7 0 1 1 6 0c-.7.5-1 1.2-1 2H9c0-.8-.3-1.5-1-2Z"/><path d="M12 2v1m8 7h-1M5 10H4m13-5-.7.7M7 5l-.7-.7"/>`,
   box: `<path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10m-4-12 9-4"/>`,
+  health: `<path d="M12 21s-8-4.8-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.2-8 11-8 11Z"/><path d="M8 12h2l1-2 2 4 1-2h2"/>`,
+  office: `<path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/>`,
+  sport: `<circle cx="12" cy="12" r="9"/><path d="m7 4 3 4-2 4 4 3 4-2 3 4M3 11l5 1m7-8-2 4 4 2 4-2"/>`,
+  beauty: `<path d="M12 3c-3 4-6 7-6 11a6 6 0 0 0 12 0c0-4-3-7-6-11Z"/><path d="M9 15c0 2 1 3 3 3"/>`,
+  auto: `<path d="m5 11 2-5h10l2 5 2 2v5h-2v-2H5v2H3v-5l2-2Z"/><path d="M5 11h14M6 14h.01M18 14h.01"/>`,
+  garden: `<path d="M12 21V9m0 5C7 14 4 11 4 6c5 0 8 3 8 8Zm0-3c0-5 3-8 8-8 0 5-3 8-8 8Z"/>`,
+  pets: `<path d="M8 11c1.2 0 2-1.4 2-3S9.2 5 8 5 6 6.4 6 8s.8 3 2 3Zm8 0c1.2 0 2-1.4 2-3s-.8-3-2-3-2 1.4-2 3 .8 3 2 3ZM5 15c-1.2 0-2 1-2 2s.8 2 2 2 2-1 2-2-.8-2-2-2Zm14 0c-1.2 0-2 1-2 2s.8 2 2 2 2-1 2-2-.8-2-2-2ZM12 12c-3 0-5 3-5 5 0 2 2 3 5 3s5-1 5-3c0-2-2-5-5-5Z"/>`,
+  package: `<path d="m3 7 9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7M12 11v10m-4-12 9-4"/><path d="M7 5l9 4"/>`,
 };
 function categoryIcon(category, size = 18) {
   const key = (CATEGORIES[category] || CATEGORIES.General).icon;
@@ -1838,6 +1846,7 @@ function monthlyView() {
       </div>
       <div class="row">
         <span class="hint">${esc(inf.from)} → ${esc(inf.to)}</span>
+        <button class="btn ghost small" data-act="export-monthly">⬇ CSV</button>
         <button class="btn gold small" data-act="print">🖨 PDF</button>
       </div>
     </div>
@@ -1849,10 +1858,23 @@ function monthlyView() {
       ${kpi("Ventas del mes", usd(inf.ventas.totalUsd), varTxt, varColor)}
       ${kpi("Utilidad bruta", usd(inf.utilidadUsd), `Margen ${inf.margenPct} % · costo ${usd(inf.costoUsd)}`, "blue")}
       ${kpi("Ticket promedio", usd(inf.ventas.ticketPromedio), `${inf.ventas.lineas} línea(s) de venta`, "teal")}
+      ${kpi("Utilidad neta estimada", usd(inf.utilidadNetaUsd), `Después de ${usd(inf.gastosUsd)} en gastos registrados`, inf.utilidadNetaUsd >= 0 ? "green" : "gold")}
       ${kpi("Días con venta", `${inf.ventas.dias}`, `Promedio ${usd(inf.ventas.promedioDia)} por día`, "gold")}
     </div>
     <div class="summary"><span>Mejor día <b>${inf.ventas.mejorDia ? `${formatDate(inf.ventas.mejorDia.date)} · ${usd(inf.ventas.mejorDia.totalUsd)}` : "—"}</b></span>
       <span>Caja <b>${esc(cuadresTxt)}</b></span><span>Diferencia acumulada <b>${usd(inf.caja.diferencia)}</b></span></div>
+    <div class="card mt14">
+      <div class="card-h"><span class="k">Gastos del mes y utilidad neta estimada</span><span class="hint">Gastos registrados en los cuadres del período, convertidos a USD</span></div>
+      <ul class="list">
+        <li><span>Comisiones</span><b class="mono">${usd(inf.gastosPorTipo.comisionesUsd)}</b></li>
+        <li><span>Domicilios</span><b class="mono">${usd(inf.gastosPorTipo.domiciliosUsd)}</b></li>
+        <li><span>Otros gastos (CUP)</span><b class="mono">${usd(inf.gastosPorTipo.gastosUsd)}</b></li>
+        <li><span>Gastos combos y rebajas</span><b class="mono">${usd(inf.gastosPorTipo.combosUsd)}</b></li>
+        <li><span>Total de gastos registrados</span><b class="mono">${usd(inf.gastosUsd)}</b></li>
+        <li><span>Utilidad neta estimada (ventas − costo − gastos)</span><b class="mono">${usd(inf.utilidadNetaUsd)}</b></li>
+      </ul>
+      <p class="hint mt8">No incluye gastos fijos semanales ni transportación, que se registran en el informe semanal. Es una estimación basada en los cuadres guardados.</p>
+    </div>
     <div class="card table-wrap flush mt14">
       <div class="card-h pad"><span class="k">Ventas día a día</span><span class="hint">${inf.ventas.dias} día(s) con movimiento</span></div>
       ${inf.porDia.length ? `<table><thead><tr><th>Fecha</th><th class="r">Unidades</th><th class="r">Líneas</th><th class="r">Venta</th><th class="r">% del mes</th></tr></thead>
@@ -3299,6 +3321,7 @@ function analyticsView() {
     },
   };
   const wk = weeklyData(last.d);
+  const mesActual = monthlyReport(store.state, monthKey(last.d));
   const prevWk = weeklyData(addDays(wk.w.from, -7));
   const diffPct = prevWk.ventas ? round2(((wk.ventas - prevWk.ventas) / prevWk.ventas) * 100) : null;
   const best = series.reduce((a, b) => (b.v > a.v ? b : a), { v: 0 });
@@ -3318,6 +3341,7 @@ function analyticsView() {
       ${kpi("Esta semana", usd(wk.ventas), diffPct == null ? "sin semana previa" : `${diffPct >= 0 ? "▲" : "▼"} ${Math.abs(diffPct)}% vs semana anterior`, diffPct == null || diffPct >= 0 ? "green" : "red")}
       ${kpi("Mejor día", usd(best.v), best.d ? `${weekday(best.d)} ${formatDate(best.d)}` : "—", "gold")}
       ${kpi("Promedio diario", usd(avg), `${series.length} días con datos`, "blue")}
+      ${kpi("Utilidad neta del mes", usd(mesActual.utilidadNetaUsd), `Después de ${usd(mesActual.gastosUsd)} en gastos registrados`, mesActual.utilidadNetaUsd >= 0 ? "teal" : "red")}
       ${kpi("Utilidad neta semana", usd(wk.neta), "según informe semanal", wk.neta >= 0 ? "teal" : "red")}
     </div>
     <div class="grid-2 mt16">
@@ -3642,7 +3666,7 @@ function warehouseCard(w, s, active) {
   const isActive = active?.id === w.id;
   return `<div class="card wh-card ${isActive ? "on" : ""}">
     <div class="card-h"><span class="k">${w.isDefault ? "★ Principal" : "Almacén"}${isActive ? " · en uso" : ""}</span><span class="tag mov">${esc(w.code || "")}</span></div>
-    <h3 class="wh-name"><span class="wh-ico" aria-hidden="true">${warehouseIcon(w.name, w.location)}</span>${hl(w.name)}</h3>
+    <h3 class="wh-name"><span class="wh-ico" aria-hidden="true">${warehouseIcon(w.name, w.location, w.icon)}</span>${hl(w.name)}</h3>
     <p class="hint">${esc(w.location || "Sin ubicación")}${w.notes ? ` · ${esc(w.notes)}` : ""}</p>
     <div class="wh-stats">
       <div><span>Ítems</span><b>${s.items}</b></div>
@@ -3776,12 +3800,14 @@ function warehousesView() {
 /* ---------------------------- modales de almacén ---------------------------- */
 function warehouseModal(w = null) {
   const x = w || { name: "", code: "", location: "", notes: "" };
+  const iconNames = ["Paquetes", "Almacén", "Tienda", "Fábrica", "Edificio", "Salud", "Educación", "Hospedaje", "Obras", "Camión", "Transporte", "Compras", "Herramientas", "Frío", "Agricultura", "Energía", "Laboratorio", "Madera", "Suministros", "Tecnología", "Mantenimiento", "Movilidad", "Gastronomía", "Limpieza"];
   modal(w ? "Modificar almacén" : "Nuevo almacén", `
     <p class="hint">El almacén se identifica por su nombre (por ejemplo «ALMACÉN CENTRAL», «TIENDA PINAR», «CASA DEL TECHO»). Todo lo que importes para él queda registrado en Entradas.</p>
     <label>Nombre del almacén <input name="name" id="whName" value="${esc(x.name)}" placeholder="ALMACÉN CENTRAL" required autocomplete="off"></label>
     <div class="form-grid">
       <label>Código corto <small>(para las columnas)</small><input name="code" value="${esc(x.code || "")}" maxlength="6" placeholder="CEN"></label>
       <label>Ubicación <input name="location" value="${esc(x.location || "")}" placeholder="Pinar del Río"></label>
+      <label>Icono del almacén <select name="icon"><option value="">Automático por municipio/provincia</option>${WAREHOUSE_ICON_OPTIONS.map((icon, i) => `<option value="${icon}" ${x.icon === icon ? "selected" : ""}>${icon} ${iconNames[i]}</option>`).join("")}</select></label>
       <label class="span-2">Notas <input name="notes" value="${esc(x.notes || "")}" placeholder="Mercancía general, se cuenta los viernes…"></label>
     </div>
     <div class="row mt14"><button class="btn">${w ? "Guardar cambios" : "Crear almacén"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "warehouseForm", `data-id="${w?.id || ""}"`);
@@ -4251,6 +4277,7 @@ function productModal(p = null, presetBarcode = "") {
       <label>Categoría<select name="category">${cats.map((c) => `<option ${x.category === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
       <label>Código de barras <input name="barcode" value="${esc(x.barcode || "")}" placeholder="EAN / UPC / Code 128" autocomplete="off"></label>
       <label>Observaciones <input name="observaciones" value="${esc(x.observaciones || "")}"></label>
+      ${!p ? `<p class="hint span-2">Alta rápida: puedes registrar primero los datos esenciales y completar el costo, la imagen y las observaciones después. El stock inicial se asigna al almacén activo.</p>` : ""}
     </div>
     ${p && whList.length > 1 ? `<p class="hint">Existencias: ${whList.map((w) => `${esc(w.code || w.name)} <b>${qty(store.stockIn(p, w.id))}</b>`).join(" · ")} · total <b>${qty(p.stockActual)}</b></p>` : ""}
     ${p ? `<p class="hint">Stock actual: <b>${qty(p.stockActual)}</b>. Los cambios de precio/comisión se guardan en el historial del día.</p>` : ""}
@@ -4468,6 +4495,19 @@ function fichaEditor() {
       <label>Rendimiento (unidad: comensales, copas…) <input name="yieldUnit" value="${esc(e.yieldUnit || "unidad")}" maxlength="30"></label>
       <label class="span-2">Observaciones <input name="observations" value="${esc(e.observations || "")}" maxlength="1000"></label>
     </div>
+    <details class="card ficha-regulatory mt12" open>
+      <summary><b>Datos para evaluación de precio y trazabilidad normativa</b><span class="hint"> · configurable según actor y actividad</span></summary>
+      <p class="hint">Referencia de trabajo: Resolución 148/2023 MFP. Estos campos documentan el expediente; no calculan topes ni certifican cumplimiento. Verifica vigencia, excepciones y norma aplicable con especialista.</p>
+      <div class="form-grid">
+        <label>Tipo de actor / régimen <input name="regActorType" value="${esc(e.regulatory?.actorType || "")}" placeholder="Entidad estatal, TCP, MIPYME…" maxlength="80"></label>
+        <label>Actividad económica <input name="regActivity" value="${esc(e.regulatory?.activity || "")}" placeholder="Producción, servicio, gastronomía…" maxlength="120"></label>
+        <label>Método de formación del precio <input name="regPricingMethod" value="${esc(e.regulatory?.pricingMethod || "")}" placeholder="Gastos, correlación u otro" maxlength="80"></label>
+        <label>Referencia de autorización / excepción <input name="regAuthorization" value="${esc(e.regulatory?.authorizationReference || "")}" maxlength="300"></label>
+        <label class="span-2">Comparables y fuentes de precio <textarea name="regComparators" rows="2" maxlength="1000" placeholder="Producto/servicio comparable, fuente, fecha y parámetros de comparación">${esc(e.regulatory?.comparatorEvidence || "")}</textarea></label>
+        <label>Revisado por <input name="regReviewedBy" value="${esc(e.regulatory?.reviewedBy || "")}" maxlength="120"></label>
+        <label>Fecha de revisión <input name="regReviewedAt" type="date" value="${esc(e.regulatory?.reviewedAt || "")}"></label>
+      </div>
+    </details>
     <div class="fs">Componentes / insumos</div>
     <div id="fichaItems">
       ${e.items.map((it, i) => `<div class="row ficha-item mt8">
@@ -4500,6 +4540,12 @@ function readFichaEditor() {
   ui.fichaEdit.yieldQty = Number(fd.get("yieldQty")) || 1;
   ui.fichaEdit.yieldUnit = String(fd.get("yieldUnit") || "unidad");
   ui.fichaEdit.observations = String(fd.get("observations") || "");
+  ui.fichaEdit.regulatory = {
+    actorType: String(fd.get("regActorType") || ""), activity: String(fd.get("regActivity") || ""),
+    pricingMethod: String(fd.get("regPricingMethod") || ""), comparatorEvidence: String(fd.get("regComparators") || ""),
+    authorizationReference: String(fd.get("regAuthorization") || ""), reviewedBy: String(fd.get("regReviewedBy") || ""),
+    reviewedAt: String(fd.get("regReviewedAt") || ""),
+  };
   form.querySelectorAll("[data-fitem]").forEach((el) => {
     const it = ui.fichaEdit.items[+el.dataset.i];
     if (!it) return;
@@ -5228,7 +5274,7 @@ function bindApp() {
   $("#warehouseForm")?.addEventListener("submit", (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const r = store.saveWarehouse({ id: e.target.dataset.id || null, name: fd.get("name"), code: fd.get("code"), location: fd.get("location"), notes: fd.get("notes") });
+    const r = store.saveWarehouse({ id: e.target.dataset.id || null, name: fd.get("name"), code: fd.get("code"), location: fd.get("location"), notes: fd.get("notes"), icon: fd.get("icon") });
     if (r.error) return toast(r.error, "err");
     ui.modal = null;
     ui.whTab = "almacenes";
@@ -5928,6 +5974,7 @@ function onClick(e) {
   else if (act === "export-inv") exportInventory();
   else if (act === "export-movements-view") exportMovementsView();
   else if (act === "export-weekly") exportWeekly();
+  else if (act === "export-monthly") exportMonthly();
   else if (act === "weekly-summary-browse") $("#weeklySummaryFile")?.click();
   else if (act === "weekly-summary-apply") applyWeeklySummaryImport();
   else if (act === "install-app") {
@@ -6149,6 +6196,12 @@ function exportWarehouse(warehouseId) {
   download(`almacen_${(w.code || "x").toLowerCase()}_${todayISO()}.csv`, "\uFEFF" + lines.join("\n"), "text/csv");
   toast(`${rows.length} productos de «${w.name}» exportados`, "ok");
 }
+function exportMonthly() {
+  const inf = monthlyReport(store.state, monthKey(ui.mesInforme || todayISO()));
+  download(`informe_mensual_${inf.month}.csv`, monthlyCsv(inf), "text/csv");
+  toast("Informe mensual CSV descargado", "ok");
+}
+
 function exportWeekly() {
   const r = weeklyData(ui.weekDate || lastDataDate());
   const L = [["INFORME SEMANAL", `${r.w.from} a ${r.w.to}`], ["VENTAS", r.ventas], ["(-)COSTO DE VENTA", r.costo], ["UTILIDAD BRUTA", r.bruta], ["(-)GASTOS FIJOS", r.fijos],

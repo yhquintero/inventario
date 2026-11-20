@@ -1,3 +1,18 @@
+## NovaGest · revisión 2026-11-20 · Iconos de almacén, categorías y trazabilidad de Ficha de Costo
+
+- Dashboard: pulido de microinteracciones y acentos futuristas respetando `prefers-reduced-motion`.
+- Almacenes: selector para 24 iconos permitidos; por defecto conserva el icono geográfico automático.
+- Productos: ocho categorías adicionales con iconografía Web y símbolos Android de respaldo; se aclara el flujo de alta rápida.
+- Ficha de Costo: captura versionada de actor, actividad, método, comparables, autorización/excepción y revisión; no calcula topes legales.
+- Se corrigieron imports IPV faltantes revelados al probar guardado/versionado de fichas y se amplió `smoke_web.mjs` (91/91) y `test_ipv.mjs` (7/7).
+- Pruebas y bloqueos: `make test-web`, `make test-python` y `make test-backup` pasan; Playwright no inicia sin Chromium, Android requiere JDK y la prueba LAN hace SKIP sin interfaz IPv4 externa. Evidencia completa: `docs/REPORTE_APLICACION_Y_FICHA_COSTOS_2026-11-20.md`.
+
+## NovaGest · revisión 2026-11-20 · Informe mensual con utilidad neta (W-27)
+
+- El cálculo mensual ahora reutiliza `cuadreCalc`: comisiones, domicilios y gastos CUP se convierten con la tasa guardada por fecha; combos y rebajas se conservan en USD.
+- Análisis y el informe mensual muestran la utilidad neta estimada (ventas − costo − gastos registrados). La vista imprimible/PDF y el nuevo CSV usan el mismo cálculo. El detalle aclara que no incluye gastos fijos ni transportación semanal.
+- Pruebas: `node tools/test_informe_mensual.mjs` (79/79), `node tools/test_utilidad_neta_w27.mjs` (6/6), `node tools/smoke_web.mjs` (90/90).
+
 ## NovaGest · revisión 2026-11-20 · Seguridad del módulo financiero y revisión detallada Top 1
 
 ### Seguridad de cuentas financieras

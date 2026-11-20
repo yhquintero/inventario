@@ -147,7 +147,7 @@ export const LEGAL_DOCS = {
         <li><strong>Su elección de cookies opcionales</strong>: <code>localStorage</code> <code>novagest.consent</code>, solo para recordar lo que eligió aquí.</li>
       </ul>
       <h3>2. Qué NO se usa</h3>
-      <p>No hay cookies de analítica, publicidad, redes sociales ni píxeles. Las fuentes tipográficas son las del sistema operativo: <strong>ya no se carga Google Fonts</strong>, así que su dirección IP no se envía a Google al abrir la aplicación.</p>
+      <p>No hay cookies de analítica, publicidad, redes sociales ni píxeles. La interfaz usa Inter autoalojada en el mismo servidor (con alternativa del sistema) y disponible sin conexión: <strong>no se carga Google Fonts ni se envía su dirección IP a un proveedor tipográfico externo.</strong></p>
       <h3>3. ¿Hace falta su consentimiento?</h3>
       <p>La versión actual usa almacenamiento para sesión, preferencias y funcionamiento sin conexión, y no carga analítica ni publicidad. La elección del banner se guarda localmente; actualmente no hay funciones opcionales de terceros que se activen al aceptar. Los requisitos de aviso, consentimiento y almacenamiento dependen de los países donde se ofrezca el servicio y deben revisarse: ${COMPLETAR.cookiesRevision}. Si se incorporan tecnologías no esenciales, deberán permanecer desactivadas hasta obtener el consentimiento previo que exija la ley; rechazar deberá ser tan sencillo como aceptar.</p>
       <p><button type="button" class="btn ghost" data-consent-open>Configurar cookies opcionales</button></p>`,

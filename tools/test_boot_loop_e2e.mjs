@@ -21,6 +21,7 @@ const mime = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json",
   ".webmanifest": "application/manifest+json", ".svg": "image/svg+xml", ".txt": "text/plain; charset=utf-8",
+  ".woff2": "font/woff2",
 };
 const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'";
 let swUpdateSource = null;
@@ -102,8 +103,12 @@ try {
   await openAndWait();
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   const originalWorker = await readFile(resolve(WEB, "sw.js"), "utf8");
-  assert.match(originalWorker, /const CACHE = "novagest-v63";/, "el test exige la versión de worker esperada");
-  swUpdateSource = originalWorker.replaceAll("novagest-v63", "novagest-v64");
+  const currentCache = originalWorker.match(/const CACHE = "(novagest-v\d+)";/)?.[1];
+  assert.ok(currentCache, "el worker declara un nombre de caché versionado");
+  const nextCache = currentCache.replace(/\d+$/, (version) => String(Number(version) + 1));
+  // El E2E simula que el servidor publica la versión siguiente durante esta sesión.
+  // No fijar números históricos aquí: cada cambio real del shell incrementa la caché.
+  swUpdateSource = originalWorker.replaceAll(currentCache, nextCache);
   const navBeforeUpdate = navigations;
   const controllerChanged = await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.getRegistration("/");
@@ -113,10 +118,25 @@ try {
     return await Promise.race([changed, new Promise((resolve) => setTimeout(() => resolve(false), 10_000))]);
   });
   assert.equal(controllerChanged, true, "el worker actualizado toma control sin navegar el documento");
-  await page.waitForFunction(async () => {
+  await page.waitForFunction(async ({ nextCache, currentCache }) => {
     const names = await caches.keys();
-    return names.includes("novagest-v64") && !names.includes("novagest-v63");
+    return names.includes(nextCache) && !names.includes(currentCache);
+  }, { nextCache, currentCache });
+  const offlineFont = await page.evaluate(async () => {
+    const r = await fetch("./public/fonts/inter-latin-wght-normal.woff2");
+    return { ok: r.ok, type: r.headers.get("content-type"), size: (await r.arrayBuffer()).byteLength };
   });
+  assert.equal(offlineFont.ok, true, "la fuente local queda disponible desde el worker tras activarlo");
+  assert.match(offlineFont.type || "", /font\/woff2/);
+  assert.ok(offlineFont.size > 10_000, "la descarga local no está vacía ni truncada");
+  await context.setOffline(true);
+  const disconnectedFont = await page.evaluate(async () => {
+    const r = await fetch("./public/fonts/inter-latin-wght-normal.woff2");
+    return { ok: r.ok, size: (await r.arrayBuffer()).byteLength };
+  });
+  await context.setOffline(false);
+  assert.equal(disconnectedFont.ok, true, "la tipografía de marca se sirve desde la caché sin Internet");
+  assert.equal(disconnectedFont.size, offlineFont.size, "la fuente en caché conserva su tamaño íntegro");
   assert.equal(navigations, navBeforeUpdate, "la actualización del worker no recarga el documento");
   const peer = await context.newPage();
   const peerErrors = [];
@@ -151,7 +171,7 @@ try {
   assert.match(offlineReport, /API no responde/);
   assert.match(offlineReport, /Historial de cargas de esta pestaña.*reload/);
   assert.match(offlineReport, /El ID cambió.*fedcba9876543210/);
-  assert.match(offlineReport, /Cachés NovaGest: novagest-v64/);
+  assert.ok(offlineReport.includes(`Cachés NovaGest: ${nextCache}`), "el diagnóstico muestra la caché vigente sin asumir una versión fija");
   healthUnavailable = false;
   healthInstanceId = "abcdef0123456789";
   healthUptime = 1;

@@ -6,6 +6,7 @@ import {
   classifyValueRow, rowFieldKeys, warehouseValues, WAREHOUSE_DEFAULT_ID,
   normalizeBarcode, findByBarcode, creditPending, creditStatus, customerBalance, totalReceivable,
 } from "./calc.js";
+import { costPerServing, fichaTotal, normalizeYield, nextVersion, servingsFromStock, validateFichaData, validateControlData, nextControlCode } from "./ipv.js";
 
 const PRICE_FIELDS = ["precioVentaUsd", "precioVenta2Usd", "precioCostoUsd", "comisionCup"];
 // Todos los municipios de Cuba (168: 167 en 15 provincias + Isla de la Juventud).
@@ -245,8 +246,12 @@ export function municipalWarehouseName(province, name) {
   const duplicated = CUBA_MUNICIPALITIES.filter(([, n]) => municipalityKey(n) === municipalityKey(name)).length > 1;
   return duplicated && normName(province) !== "PINAR DEL RIO" ? `${name}, ${province.toUpperCase()}` : name;
 }
-/** Icono temático del almacén (municipio o provincia de Cuba, o 🏬 por defecto). */
-export function warehouseIcon(name, location) {
+/** Iconos elegibles para almacenes personalizados; sin preferencia se conserva la asignación territorial automática. */
+export const WAREHOUSE_ICON_OPTIONS = ["📦", "🏬", "🏪", "🏭", "🏢", "🏥", "🏫", "🏨", "🏗️", "🚚", "🚛", "🛒", "🧰", "🧊", "🌾", "⚡", "🧪", "🪵", "🧴", "💻", "🔧", "🚲", "🍽️", "🧹"];
+
+/** Icono personalizado o temático del almacén (municipio/provincia de Cuba). */
+export function warehouseIcon(name, location, customIcon = "") {
+  if (WAREHOUSE_ICON_OPTIONS.includes(String(customIcon || ""))) return customIcon;
   const key = municipalityKey(name);
   if (!key) return "🏬";
   const prov = normName(warehouseProvince(location) || String(location || ""));
@@ -1357,6 +1362,15 @@ class Store {
       productId: product.id, productName: product.name,
       validFrom: String(data.validFrom || todayISO()).slice(0, 10),
       observations: String(data.observations || "").trim().slice(0, 1000),
+      regulatory: {
+        actorType: String(data.regulatory?.actorType || "").trim().slice(0, 80),
+        activity: String(data.regulatory?.activity || "").trim().slice(0, 120),
+        pricingMethod: String(data.regulatory?.pricingMethod || "").trim().slice(0, 80),
+        comparatorEvidence: String(data.regulatory?.comparatorEvidence || "").trim().slice(0, 1000),
+        authorizationReference: String(data.regulatory?.authorizationReference || "").trim().slice(0, 300),
+        reviewedBy: String(data.regulatory?.reviewedBy || "").trim().slice(0, 120),
+        reviewedAt: String(data.regulatory?.reviewedAt || "").slice(0, 10),
+      },
       currency: data.currency === "CUP" ? "CUP" : "USD",
       yieldQty, yieldUnit, items, totalCost: fichaTotal(items),
       updatedAt: Date.now(), updatedBy: who,
@@ -2227,15 +2241,16 @@ class Store {
     if (dup) return { error: `Ya existe un almacén llamado «${dup.name}».` };
     const who = this.state.session?.displayName || "sistema";
     const code = String(data.code || "").trim().toUpperCase().slice(0, 6) || name.slice(0, 3);
+    const icon = WAREHOUSE_ICON_OPTIONS.includes(String(data.icon || "")) ? String(data.icon) : "";
     if (data.id) {
       const w = this.warehouseById(data.id);
-      Object.assign(w, { name, code, location: String(data.location || "").trim(), notes: String(data.notes || "").trim(), active: data.active !== false, updatedAt: Date.now(), updatedBy: who });
+      Object.assign(w, { name, code, location: String(data.location || "").trim(), notes: String(data.notes || "").trim(), icon, active: data.active !== false, updatedAt: Date.now(), updatedBy: who });
       this.audit("UPDATE", "warehouse", name, w.id);
       this.emit();
       return { ok: true, id: w.id };
     }
     const w = {
-      id: uid("w"), name, code, location: String(data.location || "").trim(), notes: String(data.notes || "").trim(),
+      id: uid("w"), name, code, location: String(data.location || "").trim(), notes: String(data.notes || "").trim(), icon,
       active: true, isDefault: !this.warehousesActive().length, createdAt: Date.now(), createdBy: who, deletedAt: null,
     };
     this.state.warehouses.push(w);

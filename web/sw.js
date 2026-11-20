@@ -40,10 +40,11 @@
    v62: recuperación independiente para aviso no interactivo, estado de API y registro seguro de errores JS.
    v63: historial de navegación por pestaña y correlación de instanceId/uptime entre recargas.
    v64: el módulo financiero independiente ya no reemplaza el manejo de sesión 401 de la SPA.
-   v65: escapa también el tipo de costo renderizado en tablas financieras. */
-const CACHE = "novagest-v65";
+   v65: escapa también el tipo de costo renderizado en tablas financieras.
+   v66: tipografía Inter autoalojada, distribuida con licencia OFL y disponible offline. */
+const CACHE = "novagest-v66";
 const SHELL = [
-  "./", "./index.html", "./recovery.html", "./css/app.css", "./css/recovery.css", "./manifest.webmanifest",
+  "./", "./index.html", "./recovery.html", "./css/fonts.css", "./css/app.css", "./css/recovery.css", "./manifest.webmanifest",
   "./js/app.js", "./js/boot-diagnostics.js", "./js/recovery.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js",
   "./js/monthly.js", "./js/search.js", "./js/forecast.js", "./js/margin.js", "./js/rate-chart.js",
   "./js/theme.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
@@ -51,6 +52,8 @@ const SHELL = [
   "./financiero.html", "./fin-pago.html", "./css/financiero.css", "./js/financiero.js", "./js/fin-pago.js",
   "./vendor/qrcode.mjs",
   "./public/icon-app.png", "./public/icon-192.png", "./public/icon-512.png",
+  "./public/fonts/inter-latin-wght-normal.woff2", "./public/fonts/inter-latin-ext-wght-normal.woff2",
+  "./public/fonts/OFL.txt",
 ];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => {

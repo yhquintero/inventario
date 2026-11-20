@@ -75,7 +75,7 @@
   --shadow: 0 1px 2px rgba(23, 23, 64, .05), 0 8px 24px rgba(23, 23, 64, .07);
   --radius: 14px;
   --rail: 256px;
-  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font: var(--font-ui, "Segoe UI", system-ui, -apple-system, sans-serif);
   --serif: Georgia, "Times New Roman", serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
   color-scheme: light;
@@ -1225,4 +1225,38 @@ html[data-texto="grande"] body, html[data-texto="muy-grande"] body { zoom: var(-
 @media (max-width: 520px) {
   .boot-diagnostic { inset: 6px 6px auto; }
   .boot-diagnostic__actions { display: grid; }
+}
+
+/* W-28 · acabados del panel de gestión y trazabilidad de ficha */
+.dashboard-page .hero {
+  position: relative;
+  isolation: isolate;
+  border-color: color-mix(in srgb, var(--neon-cyan) 24%, var(--hero-border));
+  box-shadow: var(--hero-shadow), 0 0 0 1px color-mix(in srgb, var(--primary) 8%, transparent);
+}
+.dashboard-page .hero::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 auto auto;
+  width: min(34%, 280px);
+  height: 3px;
+  border-radius: 0 18px 0 8px;
+  background: linear-gradient(90deg, var(--neon-cyan), var(--primary-2), transparent);
+  content: "";
+}
+.dashboard-chart-card, .dashboard-page .kpi {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.dashboard-chart-card:hover, .dashboard-page .kpi:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--line));
+  box-shadow: var(--shadow), 0 10px 28px color-mix(in srgb, var(--primary) 9%, transparent);
+}
+.ficha-regulatory { padding: 14px; }
+.ficha-regulatory > summary { cursor: pointer; color: var(--ink); }
+.ficha-regulatory > summary::marker { color: var(--primary); }
+.ficha-regulatory textarea { width: 100%; resize: vertical; }
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-chart-card, .dashboard-page .kpi { transition: none; }
+  .dashboard-chart-card:hover, .dashboard-page .kpi:hover { transform: none; }
 }

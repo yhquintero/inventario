@@ -8,7 +8,7 @@
  * Aquí van **solo los cálculos** (funciones puras, sin DOM y sin store), para poder probarlos:
  * `tools/test_informe_mensual.mjs` los ejecuta con datos conocidos.
  */
-import { categorize, creditPending, round2 } from "./calc.js";
+import { categorize, creditPending, cuadreCalc, round2 } from "./calc.js";
 
 const MESES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -132,8 +132,26 @@ export function monthlyReport(state, month) {
     .sort((a, b) => b.totalUsd - a.totalUsd)
     .slice(0, 10);
 
-  // Caja: se suman las diferencias de los cuadres del mes (0 = cuadró).
+  // Caja y gastos operativos: convertir CUP a USD con la tasa guardada en cada cuadre.
+  // Se pasan también los movimientos del día para que cuadreCalc mantenga la fuente de venta
+  // ya validada por la app; únicamente usamos aquí su desglose de gastos.
   const cuadres = (state?.cuadres || []).filter((c) => inMonth(c.date, clave));
+  const movimientosPorFecha = new Map();
+  for (const movimiento of (state?.movements || []).filter((m) => !m.deletedAt)) {
+    const lista = movimientosPorFecha.get(movimiento.date) || [];
+    lista.push(movimiento);
+    movimientosPorFecha.set(movimiento.date, lista);
+  }
+  const gastosPorTipo = { comisionesUsd: 0, domiciliosUsd: 0, gastosUsd: 0, combosUsd: 0 };
+  for (const cuadre of cuadres) {
+    const resultado = cuadreCalc(cuadre, movimientosPorFecha.get(cuadre.date) || []);
+    gastosPorTipo.comisionesUsd = round2(gastosPorTipo.comisionesUsd + resultado.comisiones);
+    gastosPorTipo.domiciliosUsd = round2(gastosPorTipo.domiciliosUsd + resultado.domicilios);
+    gastosPorTipo.gastosUsd = round2(gastosPorTipo.gastosUsd + resultado.gastos);
+    gastosPorTipo.combosUsd = round2(gastosPorTipo.combosUsd + (Number(cuadre.gastosCombosUsd) || 0));
+  }
+  const gastosUsd = round2(Object.values(gastosPorTipo).reduce((total, gasto) => total + gasto, 0));
+  const utilidadNetaUsd = round2(totalUsd - costoUsd - gastosUsd);
   const diferencia = round2(cuadres.reduce((a, c) => a + (Number(c.cuadre) || 0), 0));
   const descuadrados = cuadres.filter((c) => Math.abs(Number(c.cuadre) || 0) >= 0.01);
 
@@ -166,6 +184,9 @@ export function monthlyReport(state, month) {
     },
     costoUsd,
     utilidadUsd: round2(totalUsd - costoUsd),
+    gastosUsd,
+    gastosPorTipo,
+    utilidadNetaUsd,
     margenPct: totalUsd > 0 ? round2(((totalUsd - costoUsd) / totalUsd) * 100) : 0,
     comisionesCup: sumar(delMes, (m) => m.comisionCup),
     domiciliosCup: sumar(delMes, (m) => m.domicilioCup),
@@ -190,6 +211,39 @@ export function monthlyReport(state, month) {
     fiados: { otorgadosUsd, abonosUsd, pendienteUsd },
     criticos: { total: criticos.length, nombres: criticos.slice(0, 12).map((p) => p.name) },
   };
+}
+
+/** Serializa el mismo informe a CSV UTF-8 con BOM para hojas de cálculo. */
+export function monthlyCsv(inf) {
+  const cell = (value) => {
+    const text = String(value ?? "");
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const lines = [["Sección", "Concepto", "Valor", "Moneda", "Detalle"].map(cell).join(",")];
+  const add = (section, concept, value, currency = "USD", detail = "") =>
+    lines.push([section, concept, typeof value === "number" ? round2(value) : value, currency, detail].map(cell).join(","));
+  add("Período", inf.label, `${inf.from} — ${inf.to}`, "", "Informe mensual NovaGest");
+  add("Ventas", "Total vendido", inf.ventas.totalUsd);
+  add("Ventas", "Unidades", inf.ventas.unidades, "unidades");
+  add("Ventas", "Líneas", inf.ventas.lineas, "líneas");
+  add("Ventas", "Variación frente al mes anterior", inf.anterior.variacionPct ?? "Sin base", "%", inf.anterior.label);
+  add("Costos", "Costo de ventas", inf.costoUsd);
+  add("Resultado", "Utilidad bruta", inf.utilidadUsd);
+  add("Gastos", "Comisiones", inf.gastosPorTipo.comisionesUsd);
+  add("Gastos", "Domicilios", inf.gastosPorTipo.domiciliosUsd);
+  add("Gastos", "Otros gastos CUP convertidos a USD", inf.gastosPorTipo.gastosUsd);
+  add("Gastos", "Combos y rebajas", inf.gastosPorTipo.combosUsd);
+  add("Gastos", "Total gastos registrados", inf.gastosUsd);
+  add("Resultado", "Utilidad neta estimada", inf.utilidadNetaUsd, "USD", "Ventas − costo − gastos registrados en cuadres; no incluye gastos fijos/transportación semanal");
+  inf.porDia.forEach((d) => add("Día", d.date, d.totalUsd, "USD", `${d.unidades} unidades; ${d.lineas} líneas`));
+  inf.topProductos.forEach((p) => add("Producto", p.name, p.totalUsd, "USD", `${p.unidades} unidades`));
+  inf.porCategoria.forEach((c) => add("Categoría", c.name, c.totalUsd));
+  inf.porCentro.forEach((c) => add("Centro", c.center, c.totalUsd, "USD", `${c.unidades} unidades`));
+  add("Caja", "Diferencia acumulada", inf.caja.diferencia);
+  add("Fiados", "Otorgados en el mes", inf.fiados.otorgadosUsd);
+  add("Fiados", "Abonos cobrados en el mes", inf.fiados.abonosUsd);
+  add("Fiados", "Pendiente total", inf.fiados.pendienteUsd);
+  return "\uFEFF" + lines.join("\n");
 }
 
 /** Frase corta con la variación frente al mes anterior, para el encabezado del informe. */

@@ -135,6 +135,7 @@ fun LoginScreen(vm: AuthViewModel = hiltViewModel(), onLogged: (UserAccount) -> 
     var answer by remember { mutableStateOf("") }
     var newPass by remember { mutableStateOf("") }
     var server by remember { mutableStateOf(vm.savedServer) }
+    val serverUsesPlainHttp = server.trim().startsWith("http://", ignoreCase = true)
     var code by remember { mutableStateOf("") }
     val context = LocalContext.current
     val helper = remember { BiometricHelper(context) }
@@ -186,13 +187,13 @@ fun LoginScreen(vm: AuthViewModel = hiltViewModel(), onLogged: (UserAccount) -> 
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 server, { server = it }, label = { Text("Servidor (misma dirección que la Web)") }, singleLine = true,
-                placeholder = { Text("https://tienda.ejemplo.com") },
+                placeholder = { Text("https://192.168.1.20:8443") },
                 supportingText = {
                     Text(
                         when {
-                            server.isBlank() -> "Vacío = datos solo en este teléfono"
-                            server.trim().startsWith("http://") -> "Datos compartidos con la Web · sin cifrar (solo pruebas locales)"
-                            else -> "Datos compartidos con la Web · conexión cifrada"
+                            server.isBlank() -> "Sin servidor: datos locales de este teléfono; se sincronizan al volver a conectar."
+                            serverUsesPlainHttp -> "HTTP sin cifrar está bloqueado. Usa HTTPS, también en la red local (por ejemplo, https://192.168.1.20:8443)."
+                            else -> "Para servidor local, conecta móvil y equipo a la misma Wi-Fi y usa la URL HTTPS/IP que imprime el instalador."
                         }
                     )
                 },
@@ -204,7 +205,7 @@ fun LoginScreen(vm: AuthViewModel = hiltViewModel(), onLogged: (UserAccount) -> 
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = { vm.login(user, pass, server, code) },
-                enabled = !state.loading,
+                enabled = !state.loading && !serverUsesPlainHttp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (state.loading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Entrar")
