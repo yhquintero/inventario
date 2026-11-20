@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#10172b">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Recuperación web · NovaGest</title>
+  <link rel="stylesheet" href="./css/recovery.css">
+  <script type="module" src="./js/recovery.js"></script>
+</head>
+<body>
+  <main class="recovery" aria-labelledby="title">
+    <p class="eyebrow">NovaGest · Herramientas de soporte</p>
+    <h1 id="title">Recuperación de la Web</h1>
+    <p>Esta pantalla independiente sirve cuando el aviso de la aplicación no responde. No se recargará sola y no borra inventario, sesiones ni datos guardados.</p>
+    <section class="status" aria-live="polite">
+      <h2>Estado de conexión</h2>
+      <p id="server-status">Comprobando la API…</p>
+      <p id="worker-status">Comprobando el almacenamiento del navegador…</p>
+    </section>
+    <div class="actions">
+      <button id="refresh" type="button">Comprobar de nuevo</button>
+      <button id="clear" type="button">Limpiar caché y worker de NovaGest</button>
+      <button id="copy" type="button">Copiar diagnóstico técnico</button>
+      <a href="./index.html">Volver a NovaGest</a>
+    </div>
+    <p id="result" class="result" role="status" aria-live="polite"></p>
+    <details>
+      <summary>Qué hace la limpieza</summary>
+      <p>Elimina únicamente cachés cuyo nombre empieza por <code>novagest-v</code> y el worker cuya URL de script termina exactamente en <code>/sw.js</code>. No toca otros workers, cachés, localStorage, IndexedDB ni cookies. Después, vuelve al panel de control y abre la Web; esta página no provoca una recarga automática.</p>
+    </details>
+  </main>
+</body>
+</html>

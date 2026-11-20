@@ -298,6 +298,25 @@ if (-not (Test-Path -LiteralPath $panel)) {
     } else {
         Probar 'Get-UltimasLineas está definida' $false
     }
+
+    if (Get-Command Get-TextoErroresRegistro -ErrorAction SilentlyContinue) {
+        $dirTemporal = Join-Path ([System.IO.Path]::GetTempPath()) ("novagest-error-copy-" + [guid]::NewGuid().ToString('N'))
+        try {
+            New-Item -ItemType Directory -Path $dirTemporal -Force | Out-Null
+            $errPath = Join-Path $dirTemporal 'consola-servidor.err.log'
+            $outPath = Join-Path $dirTemporal 'consola-servidor.log'
+            [System.IO.File]::WriteAllText($errPath, "Traceback (most recent call last):`nRuntimeError: fallo de prueba token=abc123`nAuthorization: Bearer bearer-secret-456`nCookie: sid=cookie-secret-789`n")
+            [System.IO.File]::WriteAllText($outPath, "INFO servidor iniciado`nERROR API no responde`n")
+            $fakeSrv = [pscustomobject]@{ RutaConsolaError = $errPath; RutaConsola = $outPath; CarpetaLogs = $dirTemporal; LogBase = 'servidor' }
+            $copiado = Get-TextoErroresRegistro -Srv $fakeSrv
+            Probar 'La copia reúne stderr y solo errores marcados de stdout' ($copiado.Contains('Traceback') -and $copiado.Contains('ERROR API no responde') -and -not $copiado.Contains('INFO servidor iniciado'))
+            Probar 'La copia de errores redacta tokens, Authorization Bearer y cookies' ($copiado.Contains('token=[REDACTADO]') -and $copiado.Contains('Authorization: [REDACTADO]') -and $copiado.Contains('Cookie: [REDACTADO]') -and -not $copiado.Contains('abc123') -and -not $copiado.Contains('bearer-secret-456') -and -not $copiado.Contains('cookie-secret-789'))
+            Probar 'La copia de errores no falla si no hay registros' ((Get-TextoErroresRegistro -Srv ([pscustomobject]@{ RutaConsolaError = (Join-Path $dirTemporal 'missing.err.log'); RutaConsola = ''; CarpetaLogs = $dirTemporal; LogBase = 'ausente' })) -eq '')
+        } catch { Fallar 'Get-TextoErroresRegistro' $_.Exception.Message }
+        finally { try { Remove-Item -LiteralPath $dirTemporal -Recurse -Force -ErrorAction SilentlyContinue } catch { } }
+    } else {
+        Probar 'Get-TextoErroresRegistro está definida' $false
+    }
 }
 
 # ----------------------------------- 3b) sondeo de puertos sin procesos externos
@@ -597,6 +616,8 @@ Probar 'El menú incluye «Detener el servidor principal (Web + API)»' ($textoP
 Probar 'El menú incluye «Detener el generador (iniciar-generador-https.ps1)»' ($textoPanel -like '*Detener el generador (iniciar-generador-https.ps1)*')
 Probar 'El menú incluye «Iniciar todos los servicios»'              ($textoPanel -like '*Iniciar todos los servicios*')
 Probar 'El menú incluye «Reiniciar todos los servicios»'            ($textoPanel -like '*Reiniciar todos los servicios*')
+Probar 'El panel ofrece recuperación web independiente'              ($textoPanel.Contains('recovery.html') -and $textoPanel.Contains('Abrir-RecuperacionWeb'))
+Probar 'El panel copia errores recientes con confirmación y saneamiento' ($textoPanel.Contains('Copiar-ErroresServicio') -and $textoPanel.Contains('Get-TextoErroresRegistro'))
 Probar 'El menú se actualiza al abrirse (Opening)'                  ($textoPanel -like '*Add_Opening*Actualizar-MenuBandeja*')
 Probar 'Clic izquierdo en el icono abre el panel'                   ($textoPanel -like '*Add_MouseClick*' -and $textoPanel -like '*Mostrar-Panel*')
 Probar 'Doble clic en el icono abre el panel'                       ($textoPanel -like '*Add_MouseDoubleClick*')

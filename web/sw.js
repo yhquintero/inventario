@@ -36,11 +36,12 @@
         (position: fixed dinámico), por si el sticky de CSS falla con cachés viejas.
    v58: interfaz Nebula futurista, botón único de volver arriba y precache completo con financiero.
    v60: diagnóstico accesible de cargas repetidas; limpieza de caché es manual y no borra datos del negocio.
-   v61: correlación de salud, preservación de cachés ajenas y pruebas E2E de actualización HTTPS. */
-const CACHE = "novagest-v61";
+   v61: correlación de salud, preservación de cachés ajenas y pruebas E2E de actualización HTTPS.
+   v62: recuperación independiente para aviso no interactivo, estado de API y registro seguro de errores JS. */
+const CACHE = "novagest-v62";
 const SHELL = [
-  "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
-  "./js/app.js", "./js/boot-diagnostics.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js",
+  "./", "./index.html", "./recovery.html", "./css/app.css", "./css/recovery.css", "./manifest.webmanifest",
+  "./js/app.js", "./js/boot-diagnostics.js", "./js/recovery.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js",
   "./js/monthly.js", "./js/search.js", "./js/forecast.js", "./js/margin.js", "./js/rate-chart.js",
   "./js/theme.js", "./js/ipv.js", "./js/legal.js", "./js/consent.js",
   "./js/excel-import.js", "./js/license.js", "./js/seed-data.js",

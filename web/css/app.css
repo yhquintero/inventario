@@ -1196,13 +1196,20 @@ html[data-texto="grande"] body, html[data-texto="muy-grande"] body { zoom: var(-
   border-radius: 12px;
   box-shadow: 0 10px 32px rgba(0, 0, 0, .28);
   font: 500 15px/1.5 system-ui, sans-serif;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 .boot-diagnostic__content { max-width: 960px; margin: auto; padding: 14px 16px; }
 .boot-diagnostic__content strong { display: block; font-size: 17px; }
 .boot-diagnostic__content p { margin: 7px 0; }
 .boot-diagnostic__status { min-height: 1.5em; font-weight: 700; }
 .boot-diagnostic__actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.boot-diagnostic__actions button {
+.boot-diagnostic__actions button,
+.boot-diagnostic__actions a {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  touch-action: manipulation;
   min-height: 42px;
   padding: 8px 12px;
   color: #172033;
@@ -1212,7 +1219,9 @@ html[data-texto="grande"] body, html[data-texto="muy-grande"] body { zoom: var(-
   font: inherit;
   cursor: pointer;
 }
-.boot-diagnostic__actions button:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+.boot-diagnostic__actions a { display: inline-flex; align-items: center; color: #172033; text-decoration: underline; }
+.boot-diagnostic__actions button:focus-visible,
+.boot-diagnostic__actions a:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
 @media (max-width: 520px) {
   .boot-diagnostic { inset: 6px 6px auto; }
   .boot-diagnostic__actions { display: grid; }

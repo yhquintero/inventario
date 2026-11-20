@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { BOOT_HISTORY_KEY, monitorBoot, recordBoot, showBootLoopNotice } from "../web/js/boot-diagnostics.js";
+import { BOOT_ERRORS_KEY, BOOT_HISTORY_KEY, monitorBoot, recordBoot, showBootLoopNotice } from "../web/js/boot-diagnostics.js";
 
 function memoryStorage(initial = null) {
   const values = new Map(initial ? [[BOOT_HISTORY_KEY, JSON.stringify(initial)]] : []);
@@ -44,7 +44,9 @@ const fakeDocument = {
 const unregistered = [];
 const deleted = [];
 let automaticReloads = 0;
+const runtimeListeners = {};
 const fakeWindow = {
+  addEventListener: (name, handler) => { runtimeListeners[name] = handler; },
   location: { href: "https://localhost:8443/index.html?token=private#home", reload: () => automaticReloads++ },
   performance: { getEntriesByType: () => [{ type: "reload" }] },
   async fetch(endpoint, options) {
@@ -69,6 +71,7 @@ const panel = showBootLoopNotice({ storage: recoveryStorage, document: fakeDocum
 fakeBox = fakeDocument.body.child;
 assert.equal(panel, fakeBox);
 assert.equal(fakeBox.role, "alert");
+assert.equal(fakeBox.children[0].children[3].children.find((node) => node.tag === "a")?.href, "./recovery.html", "el aviso ofrece una ruta de recuperación independiente");
 await click({ target: { closest: () => ({ dataset: { bootAction: "cache" } }) } });
 assert.deepEqual(unregistered, ["app"], "limpia solo el service worker de NovaGest");
 assert.deepEqual(deleted, ["novagest-v59", "novagest-v60"], "no elimina cachés ajenas");
@@ -85,4 +88,10 @@ assert.equal(fakeBox.removed, true);
 
 const triggered = memoryStorage([10_000, 11_000]);
 assert.equal(monitorBoot({ storage: triggered, document: fakeDocument, window: fakeWindow, navigator: fakeNavigator, cacheStorage: fakeCaches, now: 12_000 }).loop, true);
-console.log("OK — diagnóstico de arranques repetidos, recuperación segura y aislamiento de cachés");
+runtimeListeners.error({ error: { name: "TypeError", message: "no guardar jamás este mensaje potencialmente privado" } });
+runtimeListeners.unhandledrejection({ reason: { name: "NetworkError", message: "no guardar contenido" } });
+assert.equal(JSON.parse(triggered.get(BOOT_ERRORS_KEY)).length, 2, "guarda solo metadatos mínimos de errores recientes");
+assert.doesNotMatch(triggered.get(BOOT_ERRORS_KEY), /potencialmente privado|contenido/, "no persiste mensajes ni datos de error potencialmente sensibles");
+await click({ target: { closest: () => ({ dataset: { bootAction: "copy" } }) } });
+assert.match(messages.at(-2), /Errores JavaScript recientes \(solo tipo\/nombre\): error: TypeError \| promise: NetworkError/);
+console.log("OK — diagnóstico de arranques repetidos, errores saneados y aislamiento de cachés");

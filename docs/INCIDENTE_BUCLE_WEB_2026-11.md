@@ -1,0 +1,43 @@
+# Revisión del bucle de carga web — 2026-11-20
+
+## Alcance y evidencia disponible
+
+El análisis se basa en el reporte voluntario recibido a las `2026-11-20T01:55:01.355Z`:
+
+- URL reportada: `https://localhost:8443/index.html` (el diagnóstico omite parámetros y fragmento).
+- Tipo de navegación: `navigate`.
+- La página estaba controlada por un service worker.
+- Caché activa: `novagest-v61`.
+- `/api/health`: **sin respuesta**.
+
+No se recibieron los registros del servidor/panel, captura de la pestaña Network, versión/build exactos del navegador ni una secuencia temporal de las navegaciones. Por eso este documento separa observaciones verificables de hipótesis; no atribuye causa raíz.
+
+## Evaluación técnica
+
+1. La interfaz puede seguir apareciendo aunque el backend no responda: el service worker conserva el shell de la PWA. Ver la pantalla de login **no demuestra** que el servidor esté sano.
+2. «Servidor: sin respuesta» indica que el navegador no obtuvo respuesta de `/api/health` durante esa consulta. Puede deberse a proceso detenido/atascado, fallo de TLS/conexión o servidor sobrecargado; el mensaje por sí solo no diferencia esos casos.
+3. `navigate` identifica una navegación de documento, no un simple repintado del DOM. El reporte no informa quién la inició ni confirma que el navegador se recargue espontáneamente.
+4. El worker v61 no tiene una llamada a `location.reload()`. Su activación elimina solo versiones propias antiguas, y el sondeo de salud de la interfaz es diagnóstico. Eso descarta esos mecanismos explícitos como causa directa, pero no excluye un fallo de red, navegador, proceso externo o código ajeno.
+5. Limpiar la caché no repara una API sin respuesta. Debe ser una acción controlada de recuperación, no el primer diagnóstico, y no debe borrar el almacenamiento de negocio.
+
+## Cambios de contención y observabilidad
+
+- Se agrega `recovery.html`, una pantalla sencilla y separada del aviso principal. Consulta la salud con timeout, no fuerza recargas y ofrece limpieza limitada a caches `novagest-v*` y al worker `sw.js` exacto.
+- El Panel de Control añade **Recuperación independiente de la Web** y **Copiar errores recientes del servidor**. El copiado se confirma antes de usar el portapapeles, limita el contenido a líneas de error y redacta valores etiquetados como token/contraseña. Los logs originales no se alteran.
+- `/api/health` público deja de calcular licencia, copias, disco y actividad que solo usan Administrador/Jefe; conserva el ping básico de SQLite y deja los detalles completos para sesiones autorizadas. Una prueba asegura que el ping público no invoque esos cálculos.
+- El informe web guarda solo tipo/nombre de errores JS recientes; no persiste mensajes, stack traces, inventario, tokens ni query strings.
+- La pantalla de recuperación se precarga para disponibilidad offline y preserva localStorage, IndexedDB, cookies, cachés y workers ajenos.
+- El panel sigue separando proceso/puerto/API: un error de health por sí solo no mata ni reinicia un proceso que sigue vivo.
+
+## Protocolo para confirmar la causa en el equipo afectado
+
+1. En el Panel, anotar la hora UTC y el estado del servidor: detenido, sin escucha, API sin confirmar o saludable. No limpiar el almacenamiento todavía.
+2. Abrir **Ver registro** y **Copiar errores recientes del servidor**. Guardar el ID efímero de instancia, los errores y cualquier excepción Python/SQLite/TLS; revisar y redactar nombres, rutas privadas o datos personales antes de compartirlos.
+3. Comparar esos datos con la línea `Servidor: API responde; arranque <instanceId>; uptime ...` del diagnóstico. Un ID distinto o uptime que vuelve a cero confirma reinicio del proceso; un ID estable con API caída apunta a fallo/atasco dentro del proceso o en la conexión, y requiere el log correspondiente.
+4. Con DevTools → Network abierto y «Preserve log» habilitado, contar navegaciones del documento. Para cada una, registrar hora, iniciador y recurso; distinguir navegación de documento de repintado de DOM. No compartir HAR sin revisar cookies, cabeceras y datos de negocio.
+5. Si el proceso está detenido, iniciarlo desde el Panel. Si está vivo pero la API no responde, copiar logs antes de realizar un reinicio manual autorizado. Tras iniciar, verificar `/api/health`, ID/uptime y estabilidad de la página durante cinco minutos.
+6. Usar la limpieza de caché solo después de conservar evidencia o si el log/Network señala una discrepancia de recursos. Confirmar que localStorage e IndexedDB de prueba siguen intactos.
+
+## Estado de conclusión
+
+La evidencia del usuario demuestra que la interfaz servida por caché seguía abierta y que la API no respondió en ese instante. No demuestra todavía la causa de las navegaciones repetidas ni el origen del fallo del backend. La causa raíz queda **pendiente de reproducir y correlacionar con registros reales**.

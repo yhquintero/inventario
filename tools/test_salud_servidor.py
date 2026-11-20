@@ -53,6 +53,10 @@ try:
     estado, datos = leer()
     print("\n/api/health")
     ok("responde 200 sin iniciar sesión", estado == 200, str(estado))
+    with urllib.request.urlopen(BASE + "/recovery.html", timeout=5) as respuesta_recuperacion:
+        html_recuperacion = respuesta_recuperacion.read().decode("utf-8")
+        ok("sirve la página independiente de recuperación", respuesta_recuperacion.status == 200 and "Recuperación de la Web" in html_recuperacion)
+        ok("la recuperación usa JS y CSS externos compatibles con CSP", "./js/recovery.js" in html_recuperacion and "./css/recovery.css" in html_recuperacion)
     ok("se identifica como NovaGest", datos.get("app") == "NovaGest")
     ok("trae la versión", isinstance(datos.get("version"), str) and datos["version"])
     ok("trae un identificador de arranque efímero", bool(re.fullmatch(r"[0-9a-f]{16}", datos.get("instanceId", ""))))

@@ -22,7 +22,8 @@
      Visual», «Abrir la Web», «Abrir el generador», «Iniciar todos los
      servicios», «Detener los servicios web» (todo), «Detener el servidor
      principal», «Detener el generador (iniciar-generador-https.ps1)»,
-     «Reiniciar todos los servicios», «Abrir la carpeta de registros» y
+     «Reiniciar todos los servicios», «Abrir recuperación independiente de la Web»,
+     «Copiar errores recientes del servidor», «Abrir la carpeta de registros» y
      «Salir». El clic izquierdo (o el doble clic) abre el panel. Al cerrar la
      ventana con la X, el panel se OCULTA en la bandeja (los servicios siguen en
      segundo plano) y solo «Salir» termina el programa.
@@ -458,6 +459,48 @@ $script:CodigoComun = {
         } catch {
             return "(no se pudo leer $Ruta): $($_.Exception.Message)"
         }
+    }
+
+    function Get-TextoErroresRegistro {
+        # Extrae errores recientes del servidor sin copiar el log operativo completo.
+        # stderr se considera error; en stdout/log diario solo se incluyen líneas marcadas.
+        param($Srv, [int]$MaxLineas = 120)
+        if (-not $Srv) { return '' }
+        $rutas = @($Srv.RutaConsolaError, $Srv.RutaConsola, (Get-RutaLog $Srv.CarpetaLogs $Srv.LogBase)) | Where-Object { $_ } | Select-Object -Unique
+        $partes = @()
+        foreach ($ruta in $rutas) {
+            if (-not (Test-Path -LiteralPath $ruta)) { continue }
+            $contenido = Get-UltimasLineas -Ruta $ruta -Cantidad 400 -MaxBytes 262144
+            $lineas = @($contenido -split "`r?`n")
+            $marcadores = @()
+            for ($i = 0; $i -lt $lineas.Count; $i++) {
+                if ($lineas[$i] -match '(?i)\b(error|exception|traceback|critical|fatal|failed|fall[oó]|sin respuesta|errno)\b|address already in use') { $marcadores += $i }
+            }
+            if ($marcadores.Count -eq 0) { continue }
+            $seleccion = New-Object 'System.Collections.Generic.List[string]'
+            $incluidos = @{}
+            foreach ($indice in $marcadores) {
+                # Incluye solo el marcador y líneas posteriores acotadas; evita copiar mensajes INFO anteriores.
+                $desde = $indice
+                $hasta = [Math]::Min($lineas.Count - 1, $indice + 4)
+                for ($j = $desde; $j -le $hasta; $j++) {
+                    if (-not $incluidos.ContainsKey($j)) { $seleccion.Add($lineas[$j]); $incluidos[$j] = $true }
+                }
+            }
+            $lineas = @($seleccion | Where-Object { $_.Trim() })
+            if ($lineas.Count -gt $MaxLineas) { $lineas = @($lineas[($lineas.Count - $MaxLineas)..($lineas.Count - 1)]) }
+            $seguras = @($lineas | ForEach-Object {
+                $limpia = $_ -replace '(?i)(password|contrase(?:ñ|n)a|token|secret)(\s*[:=]\s*)[^,\s;]+', '$1$2[REDACTADO]'
+                $limpia = $limpia -replace '(?i)(authorization\s*[:=]\s*)(?:bearer\s+)?[^,\s;]+', '$1[REDACTADO]'
+                $limpia -replace '(?i)(cookie\s*[:=]\s*).+', '$1[REDACTADO]'
+            })
+            $partes += "===== $ruta ====="
+            $partes += $seguras
+            $partes += ''
+        }
+        if ($partes.Count -eq 0) { return '' }
+        $encabezado = @('NovaGest · errores recientes (extracto filtrado)', "Fecha UTC de copia: $([DateTime]::UtcNow.ToString('o'))", '')
+        return (($encabezado + $partes) -join [Environment]::NewLine)
     }
 
     function Test-ProcesoVivo {
@@ -998,6 +1041,7 @@ $script:detenerAlSalir = [bool]$DetenerAlSalir
 $script:secuencia    = 0
 $script:pendientesUi = @{}
 $script:abrirAlEscuchar = @{}
+$script:abrirRutaAlEscuchar = @{}
 $script:previoUi     = @{}
 $script:erroresUi    = @{}
 $script:trabajador   = $null
@@ -1303,6 +1347,43 @@ function Abrir-CarpetaRegistros {
     [void](Send-Comando @{ Tipo = 'carpeta'; Ruta = $script:carpetaLogs })
 }
 
+function Abrir-RecuperacionWeb {
+    $srv = Get-ServicioPorId 'servidor'
+    if (-not $srv) { [void](Mostrar-Pregunta 'El servidor Web no está configurado en este panel.' 'OK' 'Information'); return }
+    $estado = Get-EstadoServicio 'servidor'
+    if ($estado.Escucha) {
+        [void](Send-Comando @{ Tipo = 'abrir'; Url = "https://localhost:$($srv.Puerto)/recovery.html" })
+        return
+    }
+    $respuesta = Mostrar-Pregunta "El servidor Web no está escuchando en el puerto $($srv.Puerto).`n`n¿Iniciarlo y abrir la herramienta independiente de recuperación cuando esté listo?"
+    if ($respuesta -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+    $script:abrirRutaAlEscuchar['servidor'] = '/recovery.html'
+    $script:abrirAlEscuchar['servidor'] = (Get-Date).AddSeconds(180)
+    [void](Send-Comando @{ Tipo = 'iniciar'; Id = 'servidor' })
+}
+
+function Copiar-ErroresServicio {
+    param($Srv)
+    if (-not $Srv) { return }
+    $texto = Get-TextoErroresRegistro -Srv $Srv
+    if (-not $texto) {
+        [void](Mostrar-Pregunta "No hay errores recientes identificables en los registros de $($Srv.Nombre). Los archivos de registro no se modificaron." 'OK' 'Information')
+        return
+    }
+    $respuesta = Mostrar-Pregunta "Se copiarán solo las últimas líneas de error del servicio. Pueden incluir rutas locales y fragmentos técnicos; revísalos antes de compartir.`n`n¿Copiar al portapapeles?"
+    if ($respuesta -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+    try {
+        if (Get-Command Set-Clipboard -ErrorAction SilentlyContinue) {
+            Set-Clipboard -Value $texto -ErrorAction Stop
+        } else {
+            [System.Windows.Forms.Clipboard]::SetText($texto)
+        }
+        [void](Mostrar-Pregunta 'Errores recientes copiados. Revisa el contenido antes de enviarlo; los registros originales no se modificaron.' 'OK' 'Information')
+    } catch {
+        [void](Mostrar-Pregunta "No se pudo acceder al portapapeles. Abre «Ver registro» y copia las líneas manualmente. Detalle: $($_.Exception.Message)" 'OK' 'Warning')
+    }
+}
+
 function Get-TextoRegistro {
     param($Srv)
     $e = Get-EstadoServicio $Srv.Id
@@ -1482,7 +1563,7 @@ function New-VentanaPanel {
     # (registro y botones del pie) conservan así su sitio con 1 o 2 servicios.
     $altoRegistro = 170
     $y = 112
-    $yPie = $y + 128 * @($script:servicios).Count + 122 + $altoRegistro + 12
+    $yPie = $y + 128 * @($script:servicios).Count + 152 + $altoRegistro + 12
     $form.ClientSize = New-Object System.Drawing.Size -ArgumentList 840, ($yPie + 28 + 12 + 26)
     $form.MinimumSize = New-Object System.Drawing.Size -ArgumentList 760, 520
 
@@ -1541,7 +1622,10 @@ function New-VentanaPanel {
     $script:btnAbrirWeb      = New-Boton -Texto 'Abrir la Web' -X 494 -Y ($y + 30) -Ancho 124
     $script:btnAbrirGen      = New-Boton -Texto 'Abrir el generador' -X 626 -Y ($y + 30) -Ancho 150
 
-    foreach ($control in @($lblAcciones, $script:btnIniciarTodo, $script:btnDetenerTodo, $script:btnReiniciarTodo, $script:btnAbrirWeb, $script:btnAbrirGen)) {
+    $script:btnRecuperarWeb = New-Boton -Texto 'Recuperar caché Web (herramienta)' -X 18 -Y ($y + 64) -Ancho 250
+    $script:btnCopiarErrores = New-Boton -Texto 'Copiar errores recientes del servidor' -X 278 -Y ($y + 64) -Ancho 260
+
+    foreach ($control in @($lblAcciones, $script:btnIniciarTodo, $script:btnDetenerTodo, $script:btnReiniciarTodo, $script:btnAbrirWeb, $script:btnAbrirGen, $script:btnRecuperarWeb, $script:btnCopiarErrores)) {
         $form.Controls.Add($control)
     }
 
@@ -1550,19 +1634,19 @@ function New-VentanaPanel {
     $script:chkAbrirWeb.Text = 'Abrir la Web al iniciar los servicios'
     $script:chkAbrirWeb.Checked = [bool]$AbrirNavegador
     $script:chkAbrirWeb.AutoSize = $true
-    $script:chkAbrirWeb.Location = New-Object System.Drawing.Point -ArgumentList 18, ($y + 68)
+    $script:chkAbrirWeb.Location = New-Object System.Drawing.Point -ArgumentList 18, ($y + 98)
 
     $script:chkAutoReinicio = New-Object System.Windows.Forms.CheckBox
     $script:chkAutoReinicio.Text = 'Reiniciar automáticamente si un servicio se cae'
     $script:chkAutoReinicio.Checked = $false
     $script:chkAutoReinicio.AutoSize = $true
-    $script:chkAutoReinicio.Location = New-Object System.Drawing.Point -ArgumentList 290, ($y + 68)
+    $script:chkAutoReinicio.Location = New-Object System.Drawing.Point -ArgumentList 290, ($y + 98)
 
     $script:chkDetenerAlSalir = New-Object System.Windows.Forms.CheckBox
     $script:chkDetenerAlSalir.Text = 'Al salir, detener los servicios'
     $script:chkDetenerAlSalir.Checked = [bool]$DetenerAlSalir
     $script:chkDetenerAlSalir.AutoSize = $true
-    $script:chkDetenerAlSalir.Location = New-Object System.Drawing.Point -ArgumentList 610, ($y + 68)
+    $script:chkDetenerAlSalir.Location = New-Object System.Drawing.Point -ArgumentList 610, ($y + 98)
 
     $form.Controls.Add($script:chkAbrirWeb)
     $form.Controls.Add($script:chkAutoReinicio)
@@ -1574,7 +1658,7 @@ function New-VentanaPanel {
     $lblRegistro.Font = New-Object System.Drawing.Font -ArgumentList 'Segoe UI', 10, ([System.Drawing.FontStyle]::Bold)
     $lblRegistro.ForeColor = $script:colores.Texto
     $lblRegistro.AutoSize = $true
-    $lblRegistro.Location = New-Object System.Drawing.Point -ArgumentList 18, ($y + 100)
+    $lblRegistro.Location = New-Object System.Drawing.Point -ArgumentList 18, ($y + 130)
 
     $script:txtRegistro = New-Object System.Windows.Forms.TextBox
     $script:txtRegistro.Multiline = $true
@@ -1582,7 +1666,7 @@ function New-VentanaPanel {
     $script:txtRegistro.ScrollBars = 'Vertical'
     $script:txtRegistro.BackColor = [System.Drawing.Color]::White
     $script:txtRegistro.Font = New-Object System.Drawing.Font -ArgumentList 'Consolas', 8.5
-    $script:txtRegistro.Location = New-Object System.Drawing.Point -ArgumentList 18, ($y + 122)
+    $script:txtRegistro.Location = New-Object System.Drawing.Point -ArgumentList 18, ($y + 152)
     $script:txtRegistro.Size = New-Object System.Drawing.Size -ArgumentList 804, $altoRegistro
     $script:txtRegistro.Anchor = 'Top,Bottom,Left,Right'
 
@@ -1648,9 +1732,11 @@ function Mostrar-RegistroServicio {
 
     $btnActualizar = New-Boton -Texto '↻  Actualizar' -X 14  -Y 496 -Ancho 130
     $btnCarpeta    = New-Boton -Texto 'Abrir la carpeta' -X 152 -Y 496 -Ancho 150
+    $btnCopiar     = New-Boton -Texto 'Copiar errores recientes' -X 312 -Y 496 -Ancho 190
     $btnCerrar     = New-Boton -Texto 'Cerrar' -X 636 -Y 496 -Ancho 130
     $btnActualizar.Anchor = 'Bottom,Left'
     $btnCarpeta.Anchor = 'Bottom,Left'
+    $btnCopiar.Anchor = 'Bottom,Left'
     $btnCerrar.Anchor = 'Bottom,Right'
     $dlg.CancelButton = $btnCerrar
 
@@ -1660,6 +1746,7 @@ function Mostrar-RegistroServicio {
     $dlg.Controls.Add($txt)
     $dlg.Controls.Add($btnActualizar)
     $dlg.Controls.Add($btnCarpeta)
+    $dlg.Controls.Add($btnCopiar)
     $dlg.Controls.Add($btnCerrar)
 
     $btnActualizar.Add_Click({
@@ -1670,6 +1757,7 @@ function Mostrar-RegistroServicio {
         } catch { }
     })
     $btnCarpeta.Add_Click({ Abrir-CarpetaRegistros })
+    $btnCopiar.Add_Click({ Copiar-ErroresServicio $script:srvRegistro })
     $btnCerrar.Add_Click({ try { if ($script:dlgRegistro) { $script:dlgRegistro.Close() } } catch { } })
 
     Mostrar-Panel
@@ -1735,9 +1823,12 @@ function Actualizar-Vista {
             if ($script:abrirAlEscuchar.ContainsKey($id)) {
                 if ($escucha) {
                     $script:abrirAlEscuchar.Remove($id)
-                    [void](Send-Comando @{ Tipo = 'abrir'; Url = "https://localhost:$($srv.Puerto)" })
+                    $rutaWeb = if ($script:abrirRutaAlEscuchar.ContainsKey($id)) { [string]$script:abrirRutaAlEscuchar[$id] } else { '' }
+                    $script:abrirRutaAlEscuchar.Remove($id)
+                    [void](Send-Comando @{ Tipo = 'abrir'; Url = "https://localhost:$($srv.Puerto)$rutaWeb" })
                 } elseif ((Get-Date) -gt $script:abrirAlEscuchar[$id]) {
                     $script:abrirAlEscuchar.Remove($id)
+                    $script:abrirRutaAlEscuchar.Remove($id)
                     Escribir-Registro "No se abrió el navegador de $($srv.Nombre): no llegó a escuchar en el puerto $($srv.Puerto)." -Tipo 'Aviso'
                 }
             }
@@ -1796,6 +1887,8 @@ function Actualizar-Vista {
     Set-SiCambia $p 'btn.detenerTodo'   $script:btnDetenerTodo 'Enabled' ($libre -and $activos -gt 0)
     Set-SiCambia $p 'btn.abrirWeb'      $script:btnAbrirWeb 'Enabled' ($null -ne (Get-ServicioPorId 'servidor'))
     Set-SiCambia $p 'btn.abrirGen'      $script:btnAbrirGen 'Enabled' ($null -ne (Get-ServicioPorId 'generador'))
+    Set-SiCambia $p 'btn.recuperacion' $script:btnRecuperarWeb 'Enabled' ($libre -and ($null -ne (Get-ServicioPorId 'servidor')))
+    Set-SiCambia $p 'btn.copiarErrores' $script:btnCopiarErrores 'Enabled' ($libre -and ($null -ne (Get-ServicioPorId 'servidor')))
     Set-SiCambia $p 'btn.salir'         $script:btnSalir 'Enabled' $libre
 }
 
@@ -1823,6 +1916,8 @@ function Actualizar-MenuBandeja {
         }
         $m.AbrirWeb.Visible = ($null -ne (Get-ServicioPorId 'servidor'))
         $m.AbrirGenerador.Visible = ($null -ne (Get-ServicioPorId 'generador'))
+        $m.RecuperacionWeb.Visible = ($null -ne (Get-ServicioPorId 'servidor'))
+        $m.CopiarErrores.Visible = ($null -ne (Get-ServicioPorId 'servidor'))
         $m.AbrirWeb.Text = "Abrir la Web (https://localhost:$($script:puerto))"
         $m.AbrirGenerador.Text = "Abrir el generador (https://localhost:$($script:puertoGen))"
         $m.Salir.Enabled = (-not $script:esperaSalida)
@@ -2025,6 +2120,8 @@ $script:itemsMenu.DetenerTodo      = New-ItemMenu -Texto '■  Detener los servi
 $script:itemsMenu.DetenerServidor  = New-ItemMenu -Texto '■  Detener el servidor principal (Web + API)'
 $script:itemsMenu.DetenerGenerador = New-ItemMenu -Texto '■  Detener el generador (iniciar-generador-https.ps1)'
 $script:itemsMenu.ReiniciarTodo    = New-ItemMenu -Texto '↻  Reiniciar todos los servicios'
+$script:itemsMenu.RecuperacionWeb  = New-ItemMenu -Texto 'Abrir recuperación independiente de la Web'
+$script:itemsMenu.CopiarErrores    = New-ItemMenu -Texto 'Copiar errores recientes del servidor'
 $script:itemsMenu.CarpetaLogs      = New-ItemMenu -Texto 'Abrir la carpeta de registros'
 $script:itemsMenu.Salir            = New-ItemMenu -Texto 'Salir (detener los servicios y cerrar)' -Negrita $true
 
@@ -2034,6 +2131,7 @@ $grupos = @(
     @($script:itemsMenu.IniciarTodo, $script:itemsMenu.IniciarServidor, $script:itemsMenu.IniciarGenerador),
     @($script:itemsMenu.DetenerTodo, $script:itemsMenu.DetenerServidor, $script:itemsMenu.DetenerGenerador),
     @($script:itemsMenu.ReiniciarTodo),
+    @($script:itemsMenu.RecuperacionWeb, $script:itemsMenu.CopiarErrores),
     @($script:itemsMenu.CarpetaLogs),
     @($script:itemsMenu.Salir)
 )
@@ -2072,6 +2170,8 @@ $script:itemsMenu.DetenerTodo.Add_Click({ Ejecutar-Todos 'detener' })
 $script:itemsMenu.DetenerServidor.Add_Click({ Ejecutar-Detener (Get-ServicioPorId 'servidor') })
 $script:itemsMenu.DetenerGenerador.Add_Click({ Ejecutar-Detener (Get-ServicioPorId 'generador') })
 $script:itemsMenu.ReiniciarTodo.Add_Click({ Ejecutar-Todos 'reiniciar' })
+$script:itemsMenu.RecuperacionWeb.Add_Click({ Abrir-RecuperacionWeb })
+$script:itemsMenu.CopiarErrores.Add_Click({ Copiar-ErroresServicio (Get-ServicioPorId 'servidor') })
 $script:itemsMenu.CarpetaLogs.Add_Click({ Abrir-CarpetaRegistros })
 $script:itemsMenu.Salir.Add_Click({ Salir-Panel })
 
@@ -2106,6 +2206,8 @@ $script:btnDetenerTodo.Add_Click({ Ejecutar-Todos 'detener' })
 $script:btnReiniciarTodo.Add_Click({ Ejecutar-Todos 'reiniciar' })
 $script:btnAbrirWeb.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'servidor') })
 $script:btnAbrirGen.Add_Click({ Abrir-Servicio (Get-ServicioPorId 'generador') })
+$script:btnRecuperarWeb.Add_Click({ Abrir-RecuperacionWeb })
+$script:btnCopiarErrores.Add_Click({ Copiar-ErroresServicio (Get-ServicioPorId 'servidor') })
 $script:btnRegistros.Add_Click({ Abrir-CarpetaRegistros })
 $script:btnOcultar.Add_Click({ Ocultar-Panel; Avisar-Bandeja 'NovaGest' 'El panel sigue disponible en el icono de la bandeja (clic: abrir · clic derecho: menú).' 'Info' })
 $script:btnSalir.Add_Click({ Salir-Panel })
