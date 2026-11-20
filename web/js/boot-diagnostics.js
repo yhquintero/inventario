@@ -1,6 +1,8 @@
 /** Diagnóstico de arranques repetidos de NovaGest. No borra datos del usuario ni recarga solo. */
 export const BOOT_HISTORY_KEY = "novagest.boot_history";
 export const BOOT_ERRORS_KEY = "novagest.boot_errors";
+export const DOCUMENT_HISTORY_KEY = "novagest.document_history";
+const TAB_ID_KEY = "novagest.diagnostic_tab_id";
 export const BOOT_WINDOW_MS = 30_000;
 export const BOOT_LOOP_THRESHOLD = 3;
 const CACHE_PREFIX = "novagest-v";
@@ -45,6 +47,49 @@ function registerRuntimeErrors(win, storage) {
   win.addEventListener("unhandledrejection", (event) => record("promise", event?.reason?.name || "RejectedPromise"));
 }
 
+function getDiagnosticTabId(storage) {
+  try {
+    let id = storage?.getItem(TAB_ID_KEY) || "";
+    if (!/^[a-f0-9]{8}$/.test(id)) {
+      id = (globalThis.crypto?.randomUUID?.().replaceAll("-", "") || `${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`).slice(0, 8).toLowerCase().padEnd(8, "0");
+      storage?.setItem(TAB_ID_KEY, id);
+    }
+    return id;
+  } catch { return "sin-id"; }
+}
+
+/** Registro compartido y acotado de cargas entre pestañas del mismo origen. */
+export function readDocumentHistory(storage) {
+  try {
+    const history = JSON.parse(storage?.getItem(DOCUMENT_HISTORY_KEY) || "[]");
+    if (!Array.isArray(history)) return [];
+    return history.slice(-24).filter((item) => item && Number.isFinite(item.at)
+      && typeof item.path === "string" && /^\/[a-zA-Z0-9._-]{1,64}$/.test(item.path)
+      && /^[a-f0-9]{8}$/.test(item.tab) && typeof item.type === "string");
+  } catch { return []; }
+}
+
+export function recordDocumentNavigation({ storage, window: win, now = Date.now() } = {}) {
+  try {
+    const shared = win?.localStorage;
+    const pathname = new URL(win?.location?.href || "", "https://invalid.local").pathname;
+    const filename = pathname.split("/").filter(Boolean).at(-1) || "index.html";
+    const path = `/${filename.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 64) || "document"}`;
+    const type = win?.performance?.getEntriesByType?.("navigation")?.[0]?.type || "desconocida";
+    const tab = getDiagnosticTabId(storage);
+    const history = readDocumentHistory(shared);
+    history.push({ at: now, type, path, tab });
+    shared?.setItem(DOCUMENT_HISTORY_KEY, JSON.stringify(history.slice(-24)));
+    return history.slice(-24);
+  } catch { return []; }
+}
+
+function documentHistorySummary(win) {
+  try {
+    return readDocumentHistory(win?.localStorage).map((entry) => `${new Date(entry.at).toISOString()} ${entry.type} ${entry.path} pestaña-${entry.tab}`).join(" | ") || "no disponible";
+  } catch { return "no disponible"; }
+}
+
 function diagnosticsText(win, nav, cachesList, serverInfo = "Servidor: no consultado", storage = null) {
   let navigation = "desconocida";
   try { navigation = win.performance?.getEntriesByType?.("navigation")?.[0]?.type || navigation; } catch {}
@@ -59,6 +104,7 @@ function diagnosticsText(win, nav, cachesList, serverInfo = "Servidor: no consul
     "NovaGest: diagnóstico de arranques repetidos",
     `URL (sin parámetros): ${safeUrl}`,
     `Tipo de carga: ${navigation}`,
+    `Historial de documentos del mismo origen (máx. 24, todas las pestañas): ${documentHistorySummary(win)}`,
     `Service worker controla la página: ${controlled ? "sí" : "no"}`,
     `Cachés NovaGest: ${cachesList.join(", ") || "ninguno"}`,
     `Errores JavaScript recientes (solo tipo/nombre): ${recentErrorSummary(storage)}`,
@@ -166,6 +212,7 @@ export function showBootLoopNotice({ storage, document: doc, window: win, naviga
 
 /** Entrada ligera: registra el documento y solo crea la ayuda si hay un bucle probable. */
 export function monitorBoot({ storage, document: doc, window: win, navigator: nav, cacheStorage, now } = {}) {
+  recordDocumentNavigation({ storage, window: win, now });
   registerRuntimeErrors(win, storage);
   const result = recordBoot(storage, now);
   if (result.loop) showBootLoopNotice({ storage, document: doc, window: win, navigator: nav, cacheStorage });
