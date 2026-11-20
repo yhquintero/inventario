@@ -79,4 +79,9 @@ canvas.fin-chart { width: 100%; height: 260px; display: block; background: var(-
   .fin-top, .fin-tabs, .fin-filtros, .fin-top-actions, .fin-toast, .fin-chart-bar { display: none !important; }
   .fin-tab { display: block !important; }
   body { background: #fff; }
+  body.fin-print-aging .fin-tab { display: none !important; }
+  body.fin-print-aging #tab-planificacion { display: block !important; }
+  body.fin-print-aging #tab-planificacion > .card:not(:last-child) { display: none !important; }
+  body.fin-print-aging #tab-planificacion #agingCsv,
+  body.fin-print-aging #tab-planificacion #agingPrint { display: none !important; }
 }

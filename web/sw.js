@@ -7,6 +7,8 @@
    v56: el estado que se envía al servidor se recorta (sin existencias de almacenes borrados y con el historial
          de entradas dentro de su presupuesto): la base volvía a pasar de 12 MB y el servidor rechazaba el
          guardado con 413, así que todo cambio se perdía al recargar (al eliminar los municipios volvían a aparecer).
+   v67: planificación económica: gastos recurrentes, presupuestos por período, caja proyectada y antigüedad de fiados.
+   v68: las sugerencias de reposición se abren desde la campana en un modal y dejan de ocupar el pie del Panel.
    v31: modo mostrador para la tablet (W-08) y módulo nuevo kiosk.js.
    v30: alertas de reposición predictivas (W-03) y módulo nuevo alerts.js.
    v29: auditoría encadenada: la pantalla de Seguridad enseña la huella de cada línea y el
@@ -42,7 +44,7 @@
    v64: el módulo financiero independiente ya no reemplaza el manejo de sesión 401 de la SPA.
    v65: escapa también el tipo de costo renderizado en tablas financieras.
    v66: tipografía Inter autoalojada, distribuida con licencia OFL y disponible offline. */
-const CACHE = "novagest-v66";
+const CACHE = "novagest-v68";
 const SHELL = [
   "./", "./index.html", "./recovery.html", "./css/fonts.css", "./css/app.css", "./css/recovery.css", "./manifest.webmanifest",
   "./js/app.js", "./js/boot-diagnostics.js", "./js/recovery.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js",

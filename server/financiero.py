@@ -18,7 +18,7 @@ y aceptan filtros ?desde=AAAA-MM-DD&hasta=AAAA-MM-DD&cuenta=<id>&centro=<id>.
 
 import json
 from urllib.parse import urlparse, parse_qs, urlencode
-from datetime import date
+from datetime import date, datetime, timedelta
 import math
 import sqlite3
 
@@ -102,6 +102,17 @@ def init_db(con):
     CREATE TABLE IF NOT EXISTS fin_qr(
       id INTEGER PRIMARY KEY CHECK(id=1), titular TEXT DEFAULT '', banco TEXT DEFAULT '',
       cuenta TEXT DEFAULT '', moneda TEXT DEFAULT 'USD', referencia TEXT DEFAULT '');
+    CREATE TABLE IF NOT EXISTS fin_recurrentes(
+      id INTEGER PRIMARY KEY, nombre TEXT NOT NULL, categoria TEXT DEFAULT '', monto REAL NOT NULL,
+      moneda TEXT DEFAULT 'USD', frecuencia TEXT NOT NULL, cuenta_id INTEGER REFERENCES fin_cuentas(id),
+      centro_id INTEGER REFERENCES fin_centros(id), almacen TEXT DEFAULT '', comprobante TEXT DEFAULT '',
+      inicio TEXT NOT NULL, fin TEXT DEFAULT '', proximo TEXT NOT NULL, activo INTEGER DEFAULT 1,
+      created_at INTEGER);
+    CREATE TABLE IF NOT EXISTS fin_presupuestos(
+      id INTEGER PRIMARY KEY, tipo_periodo TEXT NOT NULL, periodo TEXT NOT NULL,
+      cuenta_id INTEGER NOT NULL REFERENCES fin_cuentas(id), centro_id INTEGER REFERENCES fin_centros(id),
+      monto REAL NOT NULL, moneda TEXT DEFAULT 'USD',
+      UNIQUE(tipo_periodo,periodo,cuenta_id,centro_id));
     """)
     con.commit()
     if not con.execute("SELECT 1 FROM fin_cuentas LIMIT 1").fetchone():
@@ -292,6 +303,243 @@ def registrar(route, q, audit, now, roles, transaction=None):
         transaction(borrar)
         audit(u["username"], "fin_asiento_borrar", f"#{ident}")
         return h.send_json(200, {"ok": True})
+
+    # ---------------- gastos recurrentes, presupuestos y análisis ----------------
+    @route("GET", "/api/fin/recurrentes", roles=roles)
+    def recurrentes_get(h, u, ident):
+        rows = q("SELECT r.*, c.codigo cuenta_codigo, ce.nombre centro_nombre FROM fin_recurrentes r "
+                 "LEFT JOIN fin_cuentas c ON c.id=r.cuenta_id LEFT JOIN fin_centros ce ON ce.id=r.centro_id "
+                 "ORDER BY r.activo DESC,r.proximo,r.nombre")
+        return h.send_json(200, {"gastos": [dict(r) for r in rows]})
+
+    @route("POST", "/api/fin/recurrentes", roles=roles)
+    def recurrentes_post(h, u, ident):
+        b = h.body()
+        nombre = str(b.get("nombre", "")).strip()[:120]
+        frecuencia = str(b.get("frecuencia", "")).upper()
+        monto = b.get("monto")
+        inicio, proximo = str(b.get("inicio", "")), str(b.get("proximo", ""))
+        if not nombre or frecuencia not in ("SEMANAL", "MENSUAL", "TRIMESTRAL", "ANUAL"):
+            return h.err(400, "Nombre y frecuencia válidos son obligatorios")
+        try:
+            monto = float(monto)
+            date.fromisoformat(inicio); date.fromisoformat(proximo)
+            fin = str(b.get("fin", "") or "")
+            if fin: date.fromisoformat(fin)
+            cuenta = int(b.get("cuenta_id") or 0) or None
+            centro = int(b.get("centro_id") or 0) or None
+        except (TypeError, ValueError):
+            return h.err(400, "Monto, fechas o cuenta/centro inválidos")
+        if not math.isfinite(monto) or monto <= 0 or (fin and fin < inicio):
+            return h.err(400, "El monto debe ser positivo y el fin no puede preceder al inicio")
+        if cuenta and not q("SELECT 1 FROM fin_cuentas WHERE id=? AND activa=1 AND naturaleza='GASTO'", (cuenta,), one=True):
+            return h.err(400, "La cuenta debe ser una cuenta de gasto activa")
+        if centro and not q("SELECT 1 FROM fin_centros WHERE id=? AND activa=1", (centro,), one=True):
+            return h.err(400, "Centro de costo inválido")
+        q("INSERT INTO fin_recurrentes(nombre,categoria,monto,moneda,frecuencia,cuenta_id,centro_id,almacen,comprobante,inicio,fin,proximo,created_at) "
+          "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (nombre, str(b.get("categoria", ""))[:80], monto,
+          str(b.get("moneda", "USD"))[:8], frecuencia, cuenta, centro, str(b.get("almacen", ""))[:100],
+          str(b.get("comprobante", ""))[:500], inicio, fin, proximo, now()))
+        audit(u["username"], "fin_recurrente_crear", f"{nombre} {monto:.2f} {frecuencia}")
+        return h.send_json(201, {"ok": True})
+
+    @route("PUT", "/api/fin/recurrentes/:id", roles=roles)
+    def recurrentes_put(h, u, ident):
+        if not str(ident).isdigit(): return h.err(400, "Identificador inválido")
+        b = h.body()
+        if "activo" in b:
+            q("UPDATE fin_recurrentes SET activo=? WHERE id=?", (int(bool(b["activo"])), int(ident)))
+        else:
+            campos = {"nombre": str(b.get("nombre", "")).strip()[:120], "categoria": str(b.get("categoria", ""))[:80],
+                      "monto": b.get("monto"), "moneda": str(b.get("moneda", "USD"))[:8],
+                      "frecuencia": str(b.get("frecuencia", "")).upper(), "almacen": str(b.get("almacen", ""))[:100],
+                      "comprobante": str(b.get("comprobante", ""))[:500], "inicio": str(b.get("inicio", "")),
+                      "fin": str(b.get("fin", "") or ""), "proximo": str(b.get("proximo", "")),
+                      "cuenta_id": int(b.get("cuenta_id") or 0) or None, "centro_id": int(b.get("centro_id") or 0) or None}
+            try:
+                campos["monto"] = float(campos["monto"])
+                date.fromisoformat(campos["inicio"]); date.fromisoformat(campos["proximo"])
+                if campos["fin"]: date.fromisoformat(campos["fin"])
+            except (TypeError, ValueError): return h.err(400, "Datos o fechas inválidos")
+            if (not campos["nombre"] or not math.isfinite(campos["monto"]) or campos["monto"] <= 0
+                    or campos["frecuencia"] not in ("SEMANAL", "MENSUAL", "TRIMESTRAL", "ANUAL")
+                    or (campos["fin"] and campos["fin"] < campos["inicio"])):
+                return h.err(400, "Datos del gasto recurrente inválidos")
+            if campos["cuenta_id"] and not q("SELECT 1 FROM fin_cuentas WHERE id=? AND activa=1 AND naturaleza='GASTO'", (campos["cuenta_id"],), one=True):
+                return h.err(400, "La cuenta debe ser una cuenta de gasto activa")
+            if campos["centro_id"] and not q("SELECT 1 FROM fin_centros WHERE id=? AND activa=1", (campos["centro_id"],), one=True):
+                return h.err(400, "Centro de costo inválido")
+            q("UPDATE fin_recurrentes SET nombre=:nombre,categoria=:categoria,monto=:monto,moneda=:moneda,frecuencia=:frecuencia,"
+              "almacen=:almacen,comprobante=:comprobante,inicio=:inicio,fin=:fin,proximo=:proximo,cuenta_id=:cuenta_id,centro_id=:centro_id WHERE id=:id",
+              {**campos, "id": int(ident)})
+        audit(u["username"], "fin_recurrente_actualizar", f"#{ident}")
+        return h.send_json(200, {"ok": True})
+
+    @route("DELETE", "/api/fin/recurrentes/:id", roles=roles)
+    def recurrentes_del(h, u, ident):
+        if not str(ident).isdigit(): return h.err(400, "Identificador inválido")
+        q("DELETE FROM fin_recurrentes WHERE id=?", (int(ident),))
+        audit(u["username"], "fin_recurrente_borrar", f"#{ident}")
+        return h.send_json(200, {"ok": True})
+
+    @route("GET", "/api/fin/presupuestos", roles=roles)
+    def presupuestos_get(h, u, ident):
+        rows = q("SELECT p.*, c.codigo cuenta_codigo,c.nombre cuenta_nombre,ce.nombre centro_nombre FROM fin_presupuestos p "
+                 "JOIN fin_cuentas c ON c.id=p.cuenta_id LEFT JOIN fin_centros ce ON ce.id=p.centro_id "
+                 "ORDER BY p.periodo DESC,c.codigo")
+        out = []
+        for row in rows:
+            r = dict(row)
+            try:
+                if r["tipo_periodo"] == "MES": start = date.fromisoformat(r["periodo"] + "-01"); end = (start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+                else:
+                    y, w = map(int, r["periodo"].split("-W")); start = date.fromisocalendar(y, w, 1); end = start + timedelta(days=6)
+                cond, args = _filtro_fecha(start.isoformat(), end.isoformat())
+                extra = " AND l.cuenta_id=?"; args.append(r["cuenta_id"])
+                if r["centro_id"]: extra += " AND l.centro_id=?"; args.append(r["centro_id"])
+                actual = q("SELECT COALESCE(SUM(l.debe-l.haber),0) v FROM fin_lineas l JOIN fin_asientos a ON a.id=l.asiento_id "
+                           "JOIN fin_cuentas c ON c.id=l.cuenta_id WHERE c.naturaleza='GASTO'" + cond + extra, args, one=True)["v"]
+                r.update({"actual": actual, "desviacion": actual-r["monto"], "porcentaje": (actual-r["monto"])*100/r["monto"] if r["monto"] else None})
+            except (ValueError, TypeError):
+                r.update({"actual": 0, "desviacion": -r["monto"], "porcentaje": -100})
+            out.append(r)
+        return h.send_json(200, {"presupuestos": out})
+
+    @route("POST", "/api/fin/presupuestos", roles=roles)
+    def presupuestos_post(h, u, ident):
+        b = h.body(); tipo = str(b.get("tipo_periodo", "")).upper(); periodo = str(b.get("periodo", ""))
+        try:
+            cuenta, centro, monto = int(b.get("cuenta_id")), int(b.get("centro_id") or 0) or None, float(b.get("monto"))
+            if tipo == "MES": datetime.strptime(periodo, "%Y-%m")
+            elif tipo == "SEMANA":
+                year, week = map(int, periodo.split("-W")); date.fromisocalendar(year, week, 1)
+            else: raise ValueError()
+        except (TypeError, ValueError): return h.err(400, "Período, cuenta o monto inválidos")
+        if not math.isfinite(monto) or monto <= 0: return h.err(400, "El presupuesto debe ser positivo")
+        if not q("SELECT 1 FROM fin_cuentas WHERE id=? AND naturaleza='GASTO' AND activa=1", (cuenta,), one=True): return h.err(400, "Elige una cuenta de gasto activa")
+        if centro and not q("SELECT 1 FROM fin_centros WHERE id=? AND activa=1", (centro,), one=True): return h.err(400, "Centro de costo inválido")
+        existing = q("SELECT id FROM fin_presupuestos WHERE tipo_periodo=? AND periodo=? AND cuenta_id=? AND COALESCE(centro_id,0)=COALESCE(?,0)",
+                     (tipo, periodo, cuenta, centro), one=True)
+        if existing:
+            q("UPDATE fin_presupuestos SET monto=?,moneda=? WHERE id=?", (monto, str(b.get("moneda", "USD"))[:8], existing["id"]))
+        else:
+            q("INSERT INTO fin_presupuestos(tipo_periodo,periodo,cuenta_id,centro_id,monto,moneda) VALUES(?,?,?,?,?,?)",
+              (tipo, periodo, cuenta, centro, monto, "USD"))
+        audit(u["username"], "fin_presupuesto_guardar", f"{tipo} {periodo} cuenta={cuenta} monto={monto:.2f}")
+        return h.send_json(200, {"ok": True})
+
+    @route("DELETE", "/api/fin/presupuestos/:id", roles=roles)
+    def presupuestos_del(h, u, ident):
+        if not str(ident).isdigit(): return h.err(400, "Identificador inválido")
+        q("DELETE FROM fin_presupuestos WHERE id=?", (int(ident),))
+        audit(u["username"], "fin_presupuesto_borrar", f"#{ident}")
+        return h.send_json(200, {"ok": True})
+
+    @route("GET", "/api/fin/comparativa", roles=roles)
+    def comparativa(h, u, ident):
+        p = _qp(h); desde, hasta = p.get("desde"), p.get("hasta")
+        try:
+            d1, d2 = date.fromisoformat(desde), date.fromisoformat(hasta)
+            if d2 < d1 or (d2-d1).days > 366: raise ValueError()
+        except (TypeError, ValueError): return h.err(400, "Indica un período válido de hasta 367 días")
+        mode = p.get("modo", "rango")
+        if mode == "semana":
+            prev1, prev2 = d1-timedelta(days=7), d2-timedelta(days=7)
+        elif mode == "mes":
+            prev_month_end = d1-timedelta(days=1)
+            prev1 = prev_month_end.replace(day=1)
+            prev2 = prev1.replace(day=min(d2.day, (prev_month_end).day))
+        else:
+            length = (d2-d1).days + 1; prev2 = d1-timedelta(days=1); prev1 = prev2-timedelta(days=length-1)
+        center = p.get("centro")
+        def totals(a, b):
+            ts, _ = total_por_naturaleza(q, a.isoformat(), b.isoformat(), None, center)
+            v = {"ingresos": ts.get("INGRESO", 0), "costos": ts.get("COSTO", 0), "gastos": ts.get("GASTO", 0)}
+            v["utilidad"] = v["ingresos"]-v["costos"]-v["gastos"]
+            return v
+        cur, prev = totals(d1, d2), totals(prev1, prev2)
+        return h.send_json(200, {"actual": {"desde": d1.isoformat(), "hasta": d2.isoformat(), **cur},
+                                 "anterior": {"desde": prev1.isoformat(), "hasta": prev2.isoformat(), **prev},
+                                 "variacion": {k: cur[k]-prev[k] for k in cur},
+                                 "porcentaje": {k: (cur[k]-prev[k])*100/abs(prev[k]) if prev[k] else None for k in cur}})
+
+    @route("GET", "/api/fin/pronostico-caja", roles=roles)
+    def pronostico_caja(h, u, ident):
+        p = _qp(h)
+        try: semanas = int(p.get("semanas", 4))
+        except ValueError: semanas = 4
+        semanas = max(4, min(12, semanas))
+        hoy = date.today()
+        efectivo = q("SELECT COALESCE(SUM(CASE WHEN c.saldo_normal='DEUDOR' THEN l.debe-l.haber ELSE l.haber-l.debe END),0) saldo "
+                     "FROM fin_lineas l JOIN fin_cuentas c ON c.id=l.cuenta_id "
+                     "WHERE c.codigo IN('110101','110201')", one=True)["saldo"]
+        state = q("SELECT data FROM app_state WHERE id=1", one=True)
+        credits = []
+        try:
+            data = json.loads(state["data"] or "{}"); credits = data.get("credits", [])
+        except (ValueError, TypeError): pass
+        receivables = []
+        for c in credits:
+            pending = max(0.0, float(c.get("totalUsd", 0) or 0)-float(c.get("paidUsd", 0) or 0))
+            if pending <= 0 or c.get("deletedAt"): continue
+            due = c.get("dueDate") or c.get("date") or hoy.isoformat()
+            try: due_date = date.fromisoformat(due)
+            except (TypeError, ValueError): due_date = hoy
+            receivables.append((max(due_date, hoy), pending))  # los vencidos se estiman cobrables en la primera semana
+        recurrentes = [dict(r) for r in q("SELECT * FROM fin_recurrentes WHERE activo=1")]
+        rows, balance = [], float(efectivo or 0)
+        def avanzar(due, frecuencia, dia_base):
+            if frecuencia == "SEMANAL": return due + timedelta(days=7)
+            months = 1 if frecuencia == "MENSUAL" else 3 if frecuencia == "TRIMESTRAL" else 12
+            month_index = due.year * 12 + due.month - 1 + months
+            year, month = divmod(month_index, 12); month += 1
+            next_month = date(year + (month == 12), 1 if month == 12 else month + 1, 1)
+            last_day = (next_month - timedelta(days=1)).day
+            return date(year, month, min(dia_base, last_day))
+        for week in range(semanas):
+            start = hoy + timedelta(days=week*7); end = start+timedelta(days=6)
+            cobros = sum(amount for due, amount in receivables if start <= due <= end)
+            gastos = 0.0; gastos_por_moneda = {}; detalles = []
+            for r in recurrentes:
+                try: due = date.fromisoformat(r["proximo"])
+                except (TypeError, ValueError): continue
+                moneda = str(r.get("moneda") or "USD").upper()
+                dia_base = due.day
+                while due < start: due = avanzar(due, r["frecuencia"], dia_base)
+                while due <= end and (not r["fin"] or due.isoformat() <= r["fin"]):
+                    importe = float(r["monto"])
+                    gastos_por_moneda[moneda] = gastos_por_moneda.get(moneda, 0) + importe
+                    if moneda == "USD":
+                        gastos += importe
+                        detalles.append(r["nombre"])
+                    due = avanzar(due, r["frecuencia"], dia_base)
+            balance += cobros-gastos
+            rows.append({"desde": start.isoformat(), "hasta": end.isoformat(), "saldo_inicial": balance-cobros+gastos,
+                         "cobros_fiados": cobros, "gastos_recurrentes": gastos, "gastos_por_moneda": gastos_por_moneda,
+                         "saldo_proyectado": balance, "gastos": detalles})
+        return h.send_json(200, {"semanas": semanas, "saldo_inicial": float(efectivo or 0), "moneda": "USD",
+                                 "estimacion": "Incluye saldo contable de caja/banco en USD, fiados pendientes por fecha de vencimiento y gastos recurrentes USD activos; gastos en otras monedas se informan aparte. No predice ventas futuras.",
+                                 "periodos": rows})
+
+    @route("GET", "/api/fin/cuentas-cobrar-antiguedad", roles=roles)
+    def antiguedad_cobrar(h, u, ident):
+        state = q("SELECT data FROM app_state WHERE id=1", one=True)
+        try: data = json.loads(state["data"] or "{}"); credits = data.get("credits", []); customers = data.get("customers", [])
+        except (ValueError, TypeError): credits, customers = [], []
+        names = {c.get("id"): c.get("name", "Cliente") for c in customers}
+        today = date.today(); buckets = {"vigente": 0.0, "1_30": 0.0, "31_60": 0.0, "61_mas": 0.0}; rows = []
+        for c in credits:
+            pending = max(0.0, float(c.get("totalUsd", 0) or 0)-float(c.get("paidUsd", 0) or 0))
+            if pending <= 0 or c.get("deletedAt"): continue
+            due = c.get("dueDate") or ""
+            try: days = (today-date.fromisoformat(due)).days if due else -1
+            except (TypeError, ValueError): days = -1
+            key = "vigente" if days <= 0 else "1_30" if days <= 30 else "31_60" if days <= 60 else "61_mas"
+            buckets[key] += pending
+            rows.append({"cliente": names.get(c.get("customerId"), c.get("customerName", "Cliente")), "concepto": str(c.get("concept", ""))[:160],
+                         "vence": due, "dias_vencido": max(0, days), "pendiente": pending, "estado": "VENCIDO" if days > 0 else "VIGENTE"})
+        rows.sort(key=lambda r: (-r["dias_vencido"], r["vence"]))
+        return h.send_json(200, {"total": sum(buckets.values()), "tramos": buckets, "cuentas": rows})
 
     # ---------------- informes financieros ----------------
     def _params(h):

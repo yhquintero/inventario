@@ -12,7 +12,7 @@ Cada opción de esta hoja indica impacto, esfuerzo estimado y dónde encaja en l
 |---|---|---|
 | ✅ **Escáner de códigos de barras** — hecho en v1.0.0 | Campo `barcode` único; wedge USB/Bluetooth y cámara `BarcodeDetector` en Web; wedge/manual en Android. | `ui/pos`, `ui/inventory`, Web `#pos` |
 | **Alertas de reposición inteligentes** | Notificación cuando un producto cruza el mínimo **o** cuando la tendencia de venta indica que se agotará en N días (velocidad de venta × stock). | Workers + Panel Web |
-| **Presupuesto de gastos y flujo de caja** | Proyección semanal de caja con cobros pendientes, extracciones y gastos fijos; aviso de días en rojo. | `ui/cuadre`, Web `#finance` |
+| ✅ **Planificación económica y flujo de caja** | Gastos recurrentes; presupuesto semanal/mensual frente a asientos reales; comparativa semanal/mensual; proyección 4–12 semanas con cobros de fiados y gastos recurrentes en USD (otras monedas se separan). | Web `#finanzas` → Planificación económica |
 | ✅ **Clientes y fiados (por cobrar)** — hecho en v1.0.0 | Ficha de cliente con saldo derivado, límite de crédito, vencimientos y abonos; venta POS a fiado enlazada. En el Cuadre el pendiente se anota en «Por cobrar» como ayuda. | Web `#customers`, Android Clientes, colecciones `customers`/`credits` |
 | **Metas por vendedor/almacén** | Extender metas diarias/semanales a cada centro de venta con ranking interno (ya existe `goalDaily/goalWeekly`). | Web `#analytics`, Android Reportes |
 

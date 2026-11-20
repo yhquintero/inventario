@@ -36,6 +36,7 @@ test-python:
 test-backup:
 	$(PYTHON) tools/test_restauracion.py
 	$(PYTHON) tools/test_financial_restore.py
+	$(PYTHON) tools/test_financial_planning.py
 	$(PYTHON) tools/test_copia_externa.py
 	$(PYTHON) tools/test_copia_externa_servidor.py
 

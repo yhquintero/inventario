@@ -1726,20 +1726,28 @@ test("W-03 · las alertas de reposición dicen cuándo se agota y se pueden sile
       settings: { ...original.settings, lowStockAlerts: true, restockCover: 14 },
     };
     const html = go("home");
-    assert.match(html, /Reposición: se agota pronto/, "el Panel enseña la tarjeta de reposición");
-    assert.match(html, /data-act="alerts-open"/, "hay acceso a la lista completa");
+    assert.match(html, /Reposición: se agota pronto/, "el Panel conserva el aviso urgente");
+    assert.match(html, /data-act="alerts-open"/, "hay acceso a las alertas detalladas");
+    assert.match(html, /data-act="reorder-open"/, "la campana abre las sugerencias en modal");
+    assert.doesNotMatch(html, /id="reorderTitle"/, "la lista sugerida no queda al pie del Panel");
     assert.match(html, /Urgente/, "marca la prioridad");
     assert.match(html, /Reponer/, "dice cuánto reponer");
 
+    clickMatching("act", { act: "reorder-open" });
+    assert.match(app.innerHTML, /id="reorderModalTitle"/, "la reposición sugerida abre en modal");
+    assert.match(app.innerHTML, /ARROZ/, "el modal muestra el producto a reponer");
+    clickMatching("act", { act: "close-modal" });
     clickMatching("act", { act: "alerts-open" });
     assert.match(app.innerHTML, /Reposición sugerida/, "se abre el detalle");
     assert.match(app.innerHTML, /No avisar más hoy/, "se puede silenciar el aviso del día");
     clickMatching("act", { act: "alerts-silence" });
     assert.ok(localStorage.getItem("novagest.alerts.visto"), "la marca del día queda guardada");
 
-    // Con el aviso desactivado, ni tarjeta ni campana.
+    // Desactivar avisos oculta la tarjeta preventiva, pero la reposición sigue accesible desde su campana.
     store.state.settings = { ...store.state.settings, lowStockAlerts: false };
-    assert.doesNotMatch(go("home"), /Reposición: se agota pronto/);
+    const sinAvisos = go("home");
+    assert.doesNotMatch(sinAvisos, /Reposición: se agota pronto/);
+    assert.match(sinAvisos, /data-act="reorder-open"/);
   } finally {
     store.state = original;
     localStorage.removeItem("novagest.alerts.visto");
