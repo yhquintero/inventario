@@ -10,7 +10,7 @@ El análisis se basa en el reporte voluntario recibido a las `2026-11-20T01:55:0
 - Caché activa: `novagest-v61`.
 - `/api/health`: **sin respuesta**.
 
-No se recibieron los registros del servidor/panel, captura de la pestaña Network, versión/build exactos del navegador ni una secuencia temporal de las navegaciones. Por eso este documento separa observaciones verificables de hipótesis; no atribuye causa raíz.
+No se recibieron los registros del servidor/panel, captura de la pestaña Network, versión/build exactos del navegador ni una secuencia temporal de las navegaciones. En un segundo reporte (`2026-11-20T02:39:01.312Z`) desde `/recovery.html`, el tipo fue `reload`, el navegador informó worker no controlador y ninguna caché, no había errores JS registrados, y la API respondía con instancia `1e5796f64949461b` y uptime de 33 s. Esto confirma que ocurrió una recarga observada sin control/caché PWA; el uptime aislado solo dice que el proceso llevaba 33 s activo, no prueba que se reiniciara. Por eso este documento separa observaciones verificables de hipótesis; no atribuye causa raíz.
 
 ## Evaluación técnica
 
@@ -25,7 +25,7 @@ No se recibieron los registros del servidor/panel, captura de la pestaña Networ
 - Se agrega `recovery.html`, una pantalla sencilla y separada del aviso principal. Consulta la salud con timeout, no fuerza recargas y ofrece limpieza limitada a caches `novagest-v*` y al worker `sw.js` exacto.
 - El Panel de Control añade **Recuperación independiente de la Web** y **Copiar errores recientes del servidor**. El copiado se confirma antes de usar el portapapeles, limita el contenido a líneas de error y redacta valores etiquetados como token/contraseña. Los logs originales no se alteran.
 - `/api/health` público deja de calcular licencia, copias, disco y actividad que solo usan Administrador/Jefe; conserva el ping básico de SQLite y deja los detalles completos para sesiones autorizadas. Una prueba asegura que el ping público no invoque esos cálculos.
-- El informe web guarda solo tipo/nombre de errores JS recientes; no persiste mensajes, stack traces, inventario, tokens ni query strings.
+- El informe web guarda solo tipo/nombre de errores JS recientes y hasta ocho tipos de navegación/muestras de salud de esta pestaña; compara `instanceId`/uptime y no persiste mensajes, stack traces, inventario, tokens ni query strings.
 - La pantalla de recuperación se precarga para disponibilidad offline y preserva localStorage, IndexedDB, cookies, cachés y workers ajenos.
 - El panel sigue separando proceso/puerto/API: un error de health por sí solo no mata ni reinicia un proceso que sigue vivo.
 

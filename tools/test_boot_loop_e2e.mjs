@@ -25,6 +25,8 @@ const mime = {
 const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'";
 let swUpdateSource = null;
 let healthUnavailable = false;
+let healthInstanceId = "abcdef0123456789";
+let healthUptime = 1;
 const server = createServer({ key: await readFile(key), cert: await readFile(cert) }, async (req, res) => {
   const url = new URL(req.url || "/", "https://localhost");
   if (url.pathname === "/sw.js" && swUpdateSource) {
@@ -41,8 +43,10 @@ const server = createServer({ key: await readFile(key), cert: await readFile(cer
     res.end("self.addEventListener('install',e=>e.waitUntil(self.skipWaiting())); self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));");
     return;
   }
-  if (url.pathname === "/api/health" && healthUnavailable) {
-    req.socket.destroy();
+  if (url.pathname === "/api/health") {
+    if (healthUnavailable) { req.socket.destroy(); return; }
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ ok: true, app: "NovaGest", version: "e2e", instanceId: healthInstanceId, salud: { uptimeSegundos: healthUptime } }));
     return;
   }
   if (url.pathname === "/api/license/status") {
@@ -98,8 +102,8 @@ try {
   await openAndWait();
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   const originalWorker = await readFile(resolve(WEB, "sw.js"), "utf8");
-  assert.match(originalWorker, /const CACHE = "novagest-v62";/, "el test exige la versión de worker esperada");
-  swUpdateSource = originalWorker.replaceAll("novagest-v62", "novagest-v63");
+  assert.match(originalWorker, /const CACHE = "novagest-v63";/, "el test exige la versión de worker esperada");
+  swUpdateSource = originalWorker.replaceAll("novagest-v63", "novagest-v64");
   const navBeforeUpdate = navigations;
   const controllerChanged = await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.getRegistration("/");
@@ -111,7 +115,7 @@ try {
   assert.equal(controllerChanged, true, "el worker actualizado toma control sin navegar el documento");
   await page.waitForFunction(async () => {
     const names = await caches.keys();
-    return names.includes("novagest-v63") && !names.includes("novagest-v62");
+    return names.includes("novagest-v64") && !names.includes("novagest-v63");
   });
   assert.equal(navigations, navBeforeUpdate, "la actualización del worker no recarga el documento");
   const peer = await context.newPage();
@@ -126,8 +130,16 @@ try {
   let recoveryNavigations = 0;
   recoveryPage.on("pageerror", (error) => recoveryErrors.push(error.message));
   recoveryPage.on("framenavigated", (frame) => { if (frame === recoveryPage.mainFrame()) recoveryNavigations++; });
-  healthUnavailable = true;
   await recoveryPage.goto(`https://127.0.0.1:${address.port}/recovery.html`, { waitUntil: "networkidle" });
+  await recoveryPage.getByText(/API responde/).waitFor();
+  await recoveryPage.getByText(/Primera muestra válida/).waitFor();
+  healthInstanceId = "fedcba9876543210";
+  healthUptime = 1;
+  await recoveryPage.reload({ waitUntil: "networkidle" });
+  await recoveryPage.getByText(/El ID cambió/).waitFor();
+  assert.equal(await recoveryPage.evaluate(() => performance.getEntriesByType("navigation")[0]?.type), "reload", "el diagnóstico conserva el tipo de navegación reload");
+  healthUnavailable = true;
+  await recoveryPage.reload({ waitUntil: "networkidle" });
   await recoveryPage.getByText(/La API no responde/).waitFor();
   const recoveryNavCount = recoveryNavigations;
   await recoveryPage.waitForTimeout(500);
@@ -137,8 +149,12 @@ try {
   await recoveryPage.getByText(/Diagnóstico copiado/).waitFor();
   const offlineReport = await recoveryPage.evaluate(() => navigator.clipboard.readText());
   assert.match(offlineReport, /API no responde/);
-  assert.match(offlineReport, /Cachés NovaGest: novagest-v63/);
+  assert.match(offlineReport, /Historial de cargas de esta pestaña.*reload/);
+  assert.match(offlineReport, /El ID cambió.*fedcba9876543210/);
+  assert.match(offlineReport, /Cachés NovaGest: novagest-v64/);
   healthUnavailable = false;
+  healthInstanceId = "abcdef0123456789";
+  healthUptime = 1;
   await recoveryPage.close();
 
   await page.evaluate(async () => {
