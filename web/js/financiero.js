@@ -296,7 +296,7 @@ async function loadCuentas() {
   const [c, ce] = await Promise.all([api("/fin/cuentas"), api("/fin/centros")]);
   el.innerHTML = tabla(
     [{ key: "codigo", label: "Código" }, { key: "nombre", label: "Nombre" }, { key: "naturaleza", label: "Naturaleza" },
-     { key: "saldo_normal", label: "Saldo normal" }, { key: "tipo_costo", label: "Tipo costo", render: (f) => f.tipo_costo || "—" }], c.cuentas)
+     { key: "saldo_normal", label: "Saldo normal" }, { key: "tipo_costo", label: "Tipo costo", render: (f) => esc(f.tipo_costo || "—") }], c.cuentas)
     + `<div class="card"><h2>Nueva cuenta</h2><div class="fin-form">
         <div class="fila"><label>Código <input id="ncCod" /></label><label>Nombre <input id="ncNom" /></label></div>
         <div class="fila"><label>Naturaleza <select id="ncNat"><option>ACTIVO</option><option>PASIVO</option><option>PATRIMONIO</option><option>INGRESO</option><option>GASTO</option><option>COSTO</option></select></label>

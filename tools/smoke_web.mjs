@@ -1239,6 +1239,12 @@ test("Licencia: solicitud por WhatsApp con plazos y paso de activación", () => 
 
 console.log("\nWeb · PWA sin conexión y metadatos\n");
 
+test("Los campos de texto del módulo financiero se escapan antes de insertarlos en HTML", () => {
+  const financiero = readFileSync(join(root, "web/js/financiero.js"), "utf8");
+  assert.match(financiero, /render:\s*\(f\)\s*=>\s*esc\(f\.tipo_costo\s*\|\|\s*"—"\)/,
+    "tipo_costo llega de la base del servidor y debe escapar también las celdas con renderizador");
+});
+
 test("El service worker cachea todos los módulos JS para el modo sin conexión", () => {
   const sw = readFileSync(join(root, "web/sw.js"), "utf8");
   assert.match(sw, /const CACHE = "novagest-v\d+"/);

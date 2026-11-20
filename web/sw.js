@@ -39,8 +39,9 @@
    v61: correlación de salud, preservación de cachés ajenas y pruebas E2E de actualización HTTPS.
    v62: recuperación independiente para aviso no interactivo, estado de API y registro seguro de errores JS.
    v63: historial de navegación por pestaña y correlación de instanceId/uptime entre recargas.
-   v64: el módulo financiero independiente ya no reemplaza el manejo de sesión 401 de la SPA. */
-const CACHE = "novagest-v64";
+   v64: el módulo financiero independiente ya no reemplaza el manejo de sesión 401 de la SPA.
+   v65: escapa también el tipo de costo renderizado en tablas financieras. */
+const CACHE = "novagest-v65";
 const SHELL = [
   "./", "./index.html", "./recovery.html", "./css/app.css", "./css/recovery.css", "./manifest.webmanifest",
   "./js/app.js", "./js/boot-diagnostics.js", "./js/recovery.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js",
