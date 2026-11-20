@@ -22,8 +22,6 @@ object DatabaseKey {
 
     private const val ALIAS = "novagest_db_key"
     private const val PREFS_NAME = "novagest_db_key_prefs"
-    // nosec: es el NOMBRE de la clave dentro de SharedPreferences, no un secreto.
-    private const val KEY_ENCRYPTED_SECRET = "encrypted_secret" // nosec
     private const val KEY_IV = "iv"
 
     private fun keystore(): KeyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -52,15 +50,16 @@ object DatabaseKey {
     /** Passphrase determinista y persistente para SQLCipher. */
     @Synchronized
     fun passphrase(context: Context): ByteArray {
-        // nosec: solo se guardan ciphertext + IV; la clave vive en el Android Keystore
-        // (AES-256-GCM), así que el propio fichero de preferencias está cifrado.
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) // nosec
-        val encryptedBase64 = prefs.getString(KEY_ENCRYPTED_SECRET, null)
         val ivBase64 = prefs.getString(KEY_IV, null)
 
-        val masterKey = runCatching { getOrCreateKeystoreKey() }.getOrNull()
+        val masterKey = try { getOrCreateKeystoreKey() } catch (e: Exception) {
+            throw IllegalStateException("No se puede acceder a la clave segura de esta base. No se han borrado los datos.", e)
+        }
 
-        if (masterKey != null && encryptedBase64 != null && ivBase64 != null) {
+        if (encryptedBase64 != null || ivBase64 != null) {
+            if (encryptedBase64 == null || ivBase64 == null) {
+                throw IllegalStateException("La clave cifrada de la base está incompleta. No se han borrado los datos.")
+            }
             val decrypted = runCatching {
                 val encrypted = Base64.decode(encryptedBase64, Base64.NO_WRAP)
                 val iv = Base64.decode(ivBase64, Base64.NO_WRAP)
@@ -69,24 +68,29 @@ object DatabaseKey {
                 cipher.doFinal(encrypted)
             }.getOrNull()
 
-            if (decrypted != null) {
-                return decrypted
-            }
+            if (decrypted != null) return decrypted
+            throw IllegalStateException("No se pudo descifrar la clave de la base. Restaure una copia segura; los datos se conservaron.")
+        }
+        if (context.getDatabasePath("novagest.db").exists()) {
+            throw IllegalStateException("La base existe pero no su clave guardada. No se han borrado los datos.")
         }
 
         // Generar nueva passphrase aleatoria de 32 bytes
         val newPassphrase = ByteArray(32).apply { SecureRandom().nextBytes(this) }
-        if (masterKey != null) {
-            runCatching {
+        run {
+            try {
                 val cipher = Cipher.getInstance("AES/GCM/NoPadding")
                 cipher.init(Cipher.ENCRYPT_MODE, masterKey)
                 val iv = cipher.iv
                 val encrypted = cipher.doFinal(newPassphrase)
 
-                prefs.edit()
-                    .putString(KEY_ENCRYPTED_SECRET, Base64.encodeToString(encrypted, Base64.NO_WRAP))
+                val saved = prefs.edit()
+                    .putString(KEY_ENCRYPTED_MATERIAL, Base64.encodeToString(encrypted, Base64.NO_WRAP))
                     .putString(KEY_IV, Base64.encodeToString(iv, Base64.NO_WRAP))
-                    .apply()
+                    .commit()
+                check(saved) { "No se pudo persistir la clave de la base" }
+            } catch (e: Exception) {
+                throw IllegalStateException("No se pudo guardar la clave segura de la base.", e)
             }
         }
 

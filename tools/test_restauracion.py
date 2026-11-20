@@ -3,6 +3,7 @@
 Detectó el bug del prefijo legado cuadre_/novagest_. Uso: python3 tools/test_restauracion.py
 Requiere el paquete cryptography (requirements.txt)."""
 import importlib.util, hashlib, json, os, pathlib, sys, tempfile
+os.environ["NOVAGEST_DEMO_USERS"] = "1"  # fixture local de pruebas
 tmp = tempfile.mkdtemp(prefix="ng-restore-")
 os.environ["DATA_DIR"] = tmp  # antes de importar: el servidor usa DATA_DIR
 spec = importlib.util.spec_from_file_location("ng", pathlib.Path(__file__).parent.parent / "server" / "novagest_server.py")

@@ -107,8 +107,10 @@ const ESQUELETO = `
 
 /* ---------------- tablas ---------------- */
 function tabla(cols, filas, total) {
-  const head = cols.map((c) => `<th class="${c.num ? "num" : ""}">${c.label}</th>`).join("");
-  const body = filas.map((f) => `<tr>${cols.map((c) => `<td class="${c.num ? "num" : ""}">${c.render ? c.render(f) : (f[c.key] ?? "")}</td>`).join("")}</tr>`).join("");
+  const head = cols.map((c) => `<th class="${c.num ? "num" : ""}">${esc(c.label)}</th>`).join("");
+  // Solo los renderizadores declarados en el código pueden producir marcado; los
+  // valores normales de la API/SQLite se escapan antes de insertarlos en el DOM.
+  const body = filas.map((f) => `<tr>${cols.map((c) => `<td class="${c.num ? "num" : ""}">${c.render ? c.render(f) : esc(f[c.key] ?? "")}</td>`).join("")}</tr>`).join("");
   const foot = total ? `<tr class="total">${cols.map((c) => `<td class="${c.num ? "num" : ""}">${c.num ? fmt(total[c.key]) : (c.key === cols[0].key ? "TOTAL" : "")}</td>`).join("")}</tr>` : "";
   return `<div class="card fin-table-scroll"><table class="fin-tabla"><thead><tr class="fin-tabla-header">${head}</tr></thead><tbody>${body}${foot}</tbody></table></div>`;
 }
@@ -185,12 +187,13 @@ function heat(ctx, w, h, datos, ink, mut) {
 function chartCard(titulo, datos, opts = {}) {
   const id = "cv" + Math.random().toString(36).slice(2, 9);
   const tipos = opts.tipos || ["bar", "line", "area", "pie", "waterfall", "scatter", "radar", "gauge"];
+  const colorInicial = /^#[0-9a-fA-F]{6}$/.test(opts.color || "") ? opts.color : COLORES[0];
   const wrap = document.createElement("div");
   wrap.className = "card fin-chart-wrap";
   wrap.innerHTML = `<div class="fin-chart-bar">
       <strong>${esc(titulo)}</strong>
       <select class="sel-tipo">${tipos.map((t) => `<option ${t === (opts.tipo || "bar") ? "selected" : ""}>${t}</option>`).join("")}</select>
-      <input type="color" class="sel-color" value="${opts.color || COLORES[0]}" title="Color" />
+      <input type="color" class="sel-color" value="${colorInicial}" title="Color" />
     </div><canvas class="fin-chart" id="${id}"></canvas>`;
   requestAnimationFrame(() => {
     const paint = () => dibujar(id, wrap.querySelector(".sel-tipo").value, datos, { color: wrap.querySelector(".sel-color").value, nombre: opts.nombre });

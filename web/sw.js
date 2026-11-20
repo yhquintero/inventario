@@ -35,7 +35,7 @@
    v41: la barra de pestañas de #finanzas queda fija debajo de la topbar también con JS
         (position: fixed dinámico), por si el sticky de CSS falla con cachés viejas.
    v58: interfaz Nebula futurista, botón único de volver arriba y precache completo con financiero. */
-const CACHE = "novagest-v58";
+const CACHE = "novagest-v59";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js",

@@ -2,3 +2,6 @@ data/
 .git
 *.xlsx
 app/
+
+.env
+.env.*

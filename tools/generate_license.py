@@ -11,7 +11,7 @@ Uso:
 Licencia por término (--term): DIA=1, SEMANA=7, MES=30, TRIMESTRE=90,
 SEMESTRE=180, ANIO=365, DOS_ANIOS=730, PERMANENTE=0 (LIFETIME).
 Son los mismos plazos que el cliente elige al solicitarla por WhatsApp.
-La licencia es un token firmado HMAC-SHA256 con el secreto de licencia (LICENSE_SECRET, BACKUP_KEY o data/license.key).
+La licencia es un token firmado HMAC-SHA256 con el secreto compartido LICENSE_SECRET o data/license.key del servidor.
 El servidor verifica la firma en /api/license/activate.
 """
 
@@ -52,13 +52,11 @@ def get_secret() -> bytes:
         except Exception:
             pass
         return d
-    # Genera nuevo
-    os.makedirs(DATA, exist_ok=True)
-    secret = secrets.token_bytes(32)
-    with open(LICENSE_FILE, "wb") as f:
-        f.write(base64.urlsafe_b64encode(secret))
-    os.chmod(LICENSE_FILE, 0o600)
-    return secret
+    raise SystemExit(
+        "No se encontró el secreto de licencia compartido. Configure LICENSE_SECRET "
+        "o copie de forma segura data/license.key desde el servidor; el generador "
+        "no crea secretos locales que luego el servidor no pueda verificar."
+    )
 
 def sign(b64: str) -> str:
     secret = get_secret()

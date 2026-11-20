@@ -1,5 +1,5 @@
 import { SEED } from "./seed-data.js";
-import { api, setToken, getToken, setUnauthorizedHandler } from "./api.js";
+import { api, setToken, setUnauthorizedHandler } from "./api.js";
 import { clearPending, describe as describeMerge, hasChanges, hasWarehouseClearConflict, mergeState, readPending, writePending } from "./merge.js";
 import {
   categorize, importeUsd, round2, stockFinal, todayISO, normName, CUADRE_FIELDS, can,
@@ -767,9 +767,10 @@ class Store {
 
   async init() {
     this.state.settings.theme = localStorage.getItem(THEME) || this.state.settings.theme;
-    if (getToken()) {
-      const me = await api("/me");
-      if (me.status === 200) await this.startSession(me);
+    const me = await api("/me");
+    if (me.status === 200 && me.user) {
+      setToken(true);
+      await this.startSession(me);
     }
     this.emit(false);
     setInterval(() => this.poll(), 12000);
@@ -901,8 +902,8 @@ class Store {
   async login(username, password, code) {
     const r = await api("/login", { method: "POST", body: { username: username.trim(), password, code: code || undefined } });
     if (r.need2fa && !r.token) return { need2fa: true, error: code ? r.error : null };
-    if (!r.token) return { error: r.error };
-    setToken(r.token);
+    if (!r.user) return { error: r.error };
+    setToken(true);
     await this.startSession(r);
     this.emit(false);
     return { ok: true };

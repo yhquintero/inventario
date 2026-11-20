@@ -14,6 +14,7 @@ Comprueba, sin arrancar el servidor HTTP:
 """
 import datetime as dt
 import os
+os.environ["NOVAGEST_DEMO_USERS"] = "1"  # cuentas demo aisladas, solo para esta fixture
 import re
 import sys
 import tempfile

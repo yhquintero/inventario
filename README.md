@@ -166,7 +166,7 @@ interna para quien administra las licencias.
 | **Servidor** | Python **3.10 o posterior** y `cryptography` (instalado con `requirements.txt`). `openpyxl` solo para regenerar semillas desde Excel |
 | **Web** | Navegador actualizado (Chrome, Edge, Firefox o Safari). Para el escáner con cámara, el sitio debe abrirse por **HTTPS** |
 | **Android** | Android 8.0 o posterior (API 26+) |
-| **Android, para compilar** | JDK **17** y el wrapper de Gradle del proyecto (**8.14.5**) |
+| **Android, para compilar** | JDK **17** y el wrapper de Gradle del proyecto (**9.6.0**) |
 | **Pruebas** | Node **22** (Web) y PowerShell 7 (panel de Windows) |
 | **Opcional** | Lector de códigos USB/Bluetooth, impresora (o «Guardar como PDF»), Docker con dominio propio |
 
@@ -178,7 +178,8 @@ interna para quien administra las licencias.
 
 ```bash
 python3 -m pip install -r requirements.txt     # Python 3.10 o posterior
-python3 server/novagest_server.py              # Web + API en http://localhost:8080
+# Define una contraseña inicial propia (mín. 10 caracteres) en un entorno nuevo:
+NOVAGEST_DEMO_USERS=0 NOVAGEST_ADMIN_PASSWORD='CambiaEstaClave1' python3 server/novagest_server.py
 ```
 
 ### 2 · Activar la licencia
@@ -187,17 +188,18 @@ Una instalación nueva queda **bloqueada** hasta introducir una clave válida (v
 [LICENCIAS.md](docs/LICENCIAS.md)). Para una instalación propia:
 
 ```bash
+# Emite con el mismo LICENSE_SECRET o data/license.key que usa el servidor.
 python3 tools/generate_license.py --client "Mi Tienda" --term MES
 ```
 
-Abre `http://localhost:8080`, pega la clave completa en la pantalla **Licencia de Uso** y entra con una cuenta de demostración.
+Abre `http://localhost:8080`, pega la clave completa en la pantalla **Licencia de Uso** e inicia sesión con el administrador creado mediante `NOVAGEST_ADMIN_PASSWORD`. Sustituye el ejemplo por una contraseña propia y no la compartas.
 
 <details>
 <summary><b>Cuentas de demostración (solo para pruebas locales)</b></summary>
 
 <br />
 
-En una base de datos nueva se crean estas cuentas (ya no se muestran en la pantalla de acceso):
+Solo si habilitas explícitamente `NOVAGEST_DEMO_USERS=1` (exclusivamente para pruebas locales) se crean estas cuentas; el valor predeterminado ahora es seguro y no crea usuarios demo:
 
 | Usuario | Contraseña inicial | Rol |
 |---|---|---|
@@ -206,13 +208,15 @@ En una base de datos nueva se crean estas cuentas (ya no se muestran en la panta
 | `economico` | `Eco123!` | Económico |
 | `almacenero` | `Alma123!` | Almacenero |
 
-El rol Administrador debe activar la verificación en dos pasos al entrar (`REQUIRE_ADMIN_TOTP=1`, por defecto).
+El rol Administrador debe activar la verificación en dos pasos al entrar (`REQUIRE_ADMIN_TOTP=1`, por defecto). No expongas estas credenciales a una red ni las uses con datos reales.
 
 </details>
 
 ### 3 · Windows con HTTPS y Panel de Control Visual
 
 ```powershell
+$env:NOVAGEST_DEMO_USERS = "0"
+$env:NOVAGEST_ADMIN_PASSWORD = "<una-clave-propia-de-10-caracteres-o-mas>"
 powershell -ExecutionPolicy Bypass -File .\server\iniciar-https.ps1
 ```
 
@@ -223,12 +227,13 @@ en segundo plano: iniciar, detener, reiniciar, ver registros y abrir la Web desd
 ### 4 · Docker con dominio propio
 
 ```bash
+# Configure primero NOVAGEST_ADMIN_PASSWORD en .env (Compose lo carga automáticamente).
 DOMINIO=tienda.ejemplo.com docker compose -f deploy/docker-compose.yml up -d
 ```
 
 ### 5 · Android
 
-Abre la raíz del proyecto en Android Studio (**JDK 17**, wrapper de **Gradle 8.14.5**), ejecuta la
+Abre la raíz del proyecto en Android Studio (**JDK 17**, wrapper de **Gradle 9.6.0**), ejecuta la
 configuración `app` y, en la pantalla de acceso, escribe la dirección **HTTPS del servidor** para
 sincronizar (si la dejas vacía, la app trabaja en modo local).
 
@@ -243,7 +248,7 @@ App interna para emitir claves desde el teléfono. Detalles y advertencias en
 [keygen/README.md](keygen/README.md) y [docs/ROTACION_SECRETO.md](docs/ROTACION_SECRETO.md).
 
 > [!WARNING]
-> **Cambia las contraseñas iniciales antes de usar el sistema con datos reales.** En producción arranca el servidor con `NOVAGEST_DEMO_USERS=0 NOVAGEST_ADMIN_PASSWORD=<secreta, mín. 10>`, usa siempre HTTPS y conserva las claves de cifrado fuera del servidor. Lista completa en [SECURITY.md](SECURITY.md#-recomendaciones-para-producción).
+> **No uses credenciales demo con datos reales.** Las cuentas demo requieren `NOVAGEST_DEMO_USERS=1`; el valor predeterminado es 0. En instalaciones nuevas configura `NOVAGEST_ADMIN_PASSWORD` con una clave propia de al menos 10 caracteres, usa siempre HTTPS y conserva las claves de cifrado fuera del servidor. Lista completa en [SECURITY.md](SECURITY.md#-recomendaciones-para-producción).
 
 📖 Guía paso a paso — HTTPS, Panel de Control Visual, Docker, Android y producción: **[docs/INSTALACION.md](docs/INSTALACION.md)**.
 

@@ -1,21 +1,25 @@
-/** Cliente de la API del servidor NovaGest. Sesión por cookie HttpOnly + token Bearer (para vista embebida). */
-const TOKEN = "novagest.token";
-const TOKEN_LEGACY = "cuadrepinar.token"; // clave heredada (migración silenciosa)
-try { const t = localStorage.getItem(TOKEN_LEGACY); if (t && !localStorage.getItem(TOKEN)) { localStorage.setItem(TOKEN, t); localStorage.removeItem(TOKEN_LEGACY); } } catch {}
+/** Cliente Web de la API NovaGest: sesión same-origin mediante cookie HttpOnly, sin token Bearer en JavaScript. */
+// La Web autentica con la cookie HttpOnly cp_session; el Bearer se reserva a Android.
+// Borra tokens heredados almacenados por versiones anteriores de la Web.
+try {
+  for (const key of ["novagest.token", "cuadrepinar.token"]) {
+    sessionStorage.removeItem(key);
+    localStorage.removeItem(key);
+  }
+} catch {}
 let onUnauthorized = () => {};
 let onLicenseError = () => {};
+let hasSession = false;
 export const setUnauthorizedHandler = (fn) => (onUnauthorized = fn);
 export const setLicenseErrorHandler = (fn) => (onLicenseError = fn);
-export const getToken = () => sessionStorage.getItem(TOKEN);
-export const setToken = (t) => (t ? sessionStorage.setItem(TOKEN, t) : sessionStorage.removeItem(TOKEN));
+export const getToken = () => hasSession;
+export const setToken = (t) => { hasSession = Boolean(t); };
 
 /** Tiempo máximo de espera por respuesta del servidor (ms). */
 const API_TIMEOUT = 30000;
 
 export async function api(path, { method = "GET", body, timeout = API_TIMEOUT } = {}) {
   const headers = { "X-CP": "1" };
-  const t = getToken();
-  if (t) headers.Authorization = "Bearer " + t;
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
   const timer = ctrl ? setTimeout(() => ctrl.abort(), timeout) : null;

@@ -17,6 +17,8 @@ import androidx.work.WorkerParameters
 import com.novagest.inventario.R
 import com.novagest.inventario.data.backup.BackupManager
 import com.novagest.inventario.data.local.AppDatabase
+import com.novagest.inventario.security.DatabaseKey
+import android.util.Base64
 import com.novagest.inventario.util.Dates
 import com.novagest.inventario.domain.model.MovementType
 import com.novagest.inventario.domain.model.UserAccount
@@ -40,8 +42,15 @@ class BackupWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val admin = db.users().byUsername("admin") ?: return Result.retry()
         val actor = UserAccount(id = admin.id, username = admin.username, displayName = admin.displayName, email = admin.email, role = Role.ADMINISTRADOR)
-        backups.create(actor, automatic = true)
-        return Result.success()
+        return try {
+            // Copia automática protegida con secreto aleatorio propio de esta instalación.
+            // Las copias manuales siguen usando una frase portable introducida por el usuario.
+            val key = Base64.encodeToString(DatabaseKey.passphrase(applicationContext), Base64.NO_WRAP)
+            when (backups.create(actor, automatic = true, passphrase = key)) {
+                is com.novagest.inventario.domain.model.AppResult.Ok -> Result.success()
+                is com.novagest.inventario.domain.model.AppResult.Err -> Result.retry()
+            }
+        } catch (_: Exception) { Result.retry() }
     }
 }
 

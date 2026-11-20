@@ -10,7 +10,7 @@ Servidor de NovaGest: API + archivos estáticos.
 - Copias automáticas diarias cifradas (Fernet/AES-128-CBC+HMAC), se conservan 30.
 - HTTPS nativo (SSL_CERT/SSL_KEY) o detrás de proxy (Caddy/Nginx con Let's Encrypt).
 
-Variables: PORT, DATA_DIR, SSL_CERT, SSL_KEY, BACKUP_KEY, TRUST_PROXY (1), SESSION_IDLE_MIN (20),
+Variables: PORT, DATA_DIR, SSL_CERT, SSL_KEY, BACKUP_KEY, TRUST_PROXY (0), SESSION_IDLE_MIN (20),
 SESSION_MAX_HOURS (12), BACKUP_HOUR (2), BACKUP_KEEP (30).
 """
 import base64, datetime as dt, gzip, hashlib, hmac, json, os, re, secrets, shutil, sqlite3, struct, sys, threading, time
@@ -34,7 +34,7 @@ DATA = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
 BACKUPS = os.path.join(DATA, "backups")
 CERT, KEY = os.environ.get("SSL_CERT"), os.environ.get("SSL_KEY")
 HTTPS = bool(CERT and KEY)
-TRUST_PROXY = os.environ.get("TRUST_PROXY", "1") == "1"
+TRUST_PROXY = os.environ.get("TRUST_PROXY", "0") == "1"
 IDLE = int(os.environ.get("SESSION_IDLE_MIN", "20")) * 60
 MAXAGE = int(os.environ.get("SESSION_MAX_HOURS", "12")) * 3600
 # Límites de tamaño de las peticiones (S-11). El estado es el único que crece de verdad.
@@ -182,8 +182,11 @@ CON = db()
 def q(sql, args=(), one=False):
     with _lock:
         cur = CON.execute(sql, args)
-        rows = cur.fetchall()
-        CON.commit()
+        rows = cur.fetchall() if cur.description is not None else []
+        # SELECTs must not commit a transaction opened by another operation. DML
+        # through q() is still committed immediately for backwards compatibility.
+        if cur.description is None and CON.in_transaction:
+            CON.commit()
     return (rows[0] if rows else None) if one else rows
 
 
@@ -220,25 +223,29 @@ def get_license_secret() -> bytes:
     if os.path.exists(LICENSE_FILE):
         try:
             data = open(LICENSE_FILE, "rb").read().strip()
-            # Si el archivo contiene base64 de 32 bytes, decodifica
-            try:
-                raw = base64.urlsafe_b64decode(data + b"=" * (-len(data) % 4))
-                if len(raw) == 32:
-                    return raw
-            except Exception:
-                pass
-            return data if isinstance(data, bytes) else data.encode()
+        except OSError as exc:
+            raise RuntimeError("No se puede leer el secreto persistente de licencia") from exc
+        # Si el archivo contiene base64 de 32 bytes, decodifica.
+        try:
+            raw = base64.urlsafe_b64decode(data + b"=" * (-len(data) % 4))
+            if len(raw) == 32:
+                return raw
         except Exception:
             pass
-    # Generar nuevo secreto
+        if not data:
+            raise RuntimeError("El archivo de secreto de licencia está vacío")
+        return data
+    # Generar nuevo secreto solo si puede persistirse; nunca firmar con una clave efímera.
     os.makedirs(DATA, exist_ok=True)
     secret = secrets.token_bytes(32)
     try:
-        with open(LICENSE_FILE, "wb") as f:
+        with open(LICENSE_FILE, "xb") as f:
             f.write(base64.urlsafe_b64encode(secret))
         os.chmod(LICENSE_FILE, 0o600)
-    except Exception:
-        pass
+    except FileExistsError:
+        return get_license_secret()
+    except OSError as exc:
+        raise RuntimeError("No se puede guardar el secreto de licencia en DATA_DIR") from exc
     return secret
 
 
@@ -639,9 +646,9 @@ def init_db():
     # No se activa ninguna licencia durante el arranque. La primera activación
     # debe llegar explícitamente a /api/license/activate con una clave válida.
     if not q("SELECT 1 FROM users LIMIT 1", one=True):
-        # Producción: NOVAGEST_DEMO_USERS=0 + NOVAGEST_ADMIN_PASSWORD=<secreta>
-        # crea solo el administrador con esa contraseña (sin cuentas conocidas).
-        if os.environ.get("NOVAGEST_DEMO_USERS", "1") != "1":
+        # Inicio seguro por defecto: solo se crean usuarios demo cuando se habilitan
+        # explícitamente para pruebas locales; producción requiere una clave inicial.
+        if os.environ.get("NOVAGEST_DEMO_USERS", "0") != "1":
             admin_pw = os.environ.get("NOVAGEST_ADMIN_PASSWORD", "")
             if len(admin_pw) < 10:
                 raise SystemExit("NOVAGEST_DEMO_USERS=0 exige NOVAGEST_ADMIN_PASSWORD (mín. 10 caracteres) para crear el primer administrador.")
@@ -763,9 +770,32 @@ def public_user(r):
 
 # ------------------------------------------------------------------ copias cifradas
 def _backup_aead_key():
-    """Clave AES-256 para copias nuevas (H6): derivada de BACKUP_KEY/LICENSE_SECRET con SHA-256."""
-    secret = get_license_secret()
-    return hashlib.sha256(b"novagest-backup-gcm" + secret).digest()
+    """Clave AES-256 independiente de las licencias, estable entre reinicios."""
+    configured = os.environ.get("BACKUP_KEY", "").strip()
+    if configured:
+        material = configured.encode()
+    else:
+        path = os.path.join(DATA, "backup-aead.key")
+        os.makedirs(DATA, exist_ok=True)
+        if not os.path.exists(path):
+            try:
+                with open(path, "xb") as f:
+                    f.write(secrets.token_bytes(32))
+                os.chmod(path, 0o600)
+            except FileExistsError:
+                pass
+        try:
+            material = open(path, "rb").read()
+        except OSError as exc:
+            raise RuntimeError("No se puede leer la clave persistente de copias") from exc
+        if len(material) < 32:
+            raise RuntimeError("La clave persistente de copias está dañada")
+    return hashlib.sha256(b"novagest-backup-gcm-v2\0" + material).digest()
+
+
+def _backup_aead_key_legacy():
+    """Clave histórica usada por NGGCM1 antes de separar los secretos."""
+    return hashlib.sha256(b"novagest-backup-gcm" + get_license_secret()).digest()
 
 
 def cifrar_copia(datos: bytes) -> bytes:
@@ -779,7 +809,11 @@ def descifrar_copia(blob: bytes) -> bytes:
     """Acepta el formato nuevo (NGGCM1/AES-GCM) y el legado (Fernet/AES-CBC+HMAC)."""
     if blob[:6] == b"NGGCM1":
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        return AESGCM(_backup_aead_key()).decrypt(blob[6:18], blob[18:], None)
+        try:
+            return AESGCM(_backup_aead_key()).decrypt(blob[6:18], blob[18:], None)
+        except Exception:
+            # Migración transparente de copias cifradas con la clave de licencia.
+            return AESGCM(_backup_aead_key_legacy()).decrypt(blob[6:18], blob[18:], None)
     return fernet().decrypt(blob)
 
 
@@ -803,6 +837,12 @@ def make_backup(kind="auto", user="sistema"):
         "users": [dict(r) for r in q("SELECT * FROM users")],
         "licenses": [dict(r) for r in q("SELECT * FROM licenses")],
         "licenseActivations": [dict(r) for r in q("SELECT * FROM license_activations")],
+        "finAccounts": [dict(r) for r in q("SELECT * FROM fin_cuentas")],
+        "finCenters": [dict(r) for r in q("SELECT * FROM fin_centros")],
+        "finEntries": [dict(r) for r in q("SELECT * FROM fin_asientos")],
+        "finLines": [dict(r) for r in q("SELECT * FROM fin_lineas")],
+        "finMetrics": [dict(r) for r in q("SELECT * FROM fin_metricas")],
+        "finQr": [dict(r) for r in q("SELECT * FROM fin_qr")],
     }
     blob = cifrar_copia(gzip.compress(json.dumps(payload, ensure_ascii=False).encode()))
     name = dt.datetime.now().strftime(f"novagest_%Y-%m-%d_%H%M%S_{kind}.bak")
@@ -1428,6 +1468,31 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; "
 
 # Límite de peticiones por IP (además del bloqueo por cuenta que ya existe):
 # (método, ruta) -> (máximo, ventana en segundos)
+_RATE_CLEANUP_AT = 0
+
+
+def cleanup_rate_hits(t=None):
+    """Elimina ventanas antiguas para que una IP/ruta distinta no haga crecer SQLite sin límite."""
+    global _RATE_CLEANUP_AT
+    t = now() if t is None else t
+    if t - _RATE_CLEANUP_AT < 60:
+        return
+    with _lock:
+        if not CON.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='rate_hits'").fetchone():
+            return
+        for row in CON.execute("SELECT k,hits FROM rate_hits").fetchall():
+            try:
+                hits = [int(x) for x in json.loads(row["hits"] or "[]") if t - int(x) < 3600]
+            except (TypeError, ValueError, json.JSONDecodeError):
+                hits = []
+            if hits:
+                CON.execute("UPDATE rate_hits SET hits=? WHERE k=?", (json.dumps(hits), row["k"]))
+            else:
+                CON.execute("DELETE FROM rate_hits WHERE k=?", (row["k"],))
+        CON.commit()
+        _RATE_CLEANUP_AT = t
+
+
 RATE_LIMITS = {
     ("GET", "/api/exchange/divisa"): (12, 60),
     ("POST", "/api/login"): (30, 60),
@@ -1508,10 +1573,22 @@ class Api(BaseHTTPRequestHandler):
         self.send_json(code, {"error": msg})
 
     def body(self, max_bytes=None):
-        n = int(self.headers.get("Content-Length") or 0)
+        raw_length = self.headers.get("Content-Length") or "0"
+        try:
+            n = int(raw_length)
+        except (TypeError, ValueError):
+            raise ValueError("Content-Length inválido")
         tope = MAX_BODY if max_bytes is None else max_bytes
+        if n < 0:
+            raise ValueError("Content-Length inválido")
         if n > tope: raise PayloadTooLarge(tope)
-        return json.loads(self.rfile.read(n) or b"{}")
+        try:
+            obj = json.loads(self.rfile.read(n) or b"{}")
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("El cuerpo debe ser JSON válido") from exc
+        if not isinstance(obj, dict):
+            raise ValueError("El cuerpo JSON debe ser un objeto")
+        return obj
 
     def cookie(self, token, clear=False):
         # SameSite=Lax por defecto (la Web es del mismo origen y Android usa Bearer).
@@ -1572,8 +1649,9 @@ class Api(BaseHTTPRequestHandler):
         limit = RATE_LIMITS.get((effective_method, path)) or ((int(os.environ.get("RATE_MUT_MAX", "120")), 60) if effective_method != "GET" else None)
         if limit:
             max_hits, window = limit
-            k = f"{effective_method} {path}|{self.ip()}"
             t = now()
+            cleanup_rate_hits(t)
+            k = f"{effective_method} {path}|{self.ip()}"
             row = q("SELECT hits FROM rate_hits WHERE k=?", (k,), one=True)
             hits = [x for x in (json.loads(row["hits"]) if row else []) if t - x < window]
             if len(hits) >= max_hits:
@@ -1612,22 +1690,33 @@ class Api(BaseHTTPRequestHandler):
             self.headers_common()
             self.end_headers()
             return
-        with open(full, "rb") as fh:
-            data = fh.read()
         mime = MIME.get(os.path.splitext(full)[1], "application/octet-stream")
-        # S-11: los archivos de texto (JS, CSS, HTML, JSON, SVG) viajan comprimidos.
+        # Solo se almacena en memoria texto comprimible y pequeño. Los binarios y
+        # archivos grandes se envían por bloques para evitar duplicar su tamaño en RAM.
         compressible = any(t in mime for t in ("javascript", "json", "html", "css", "svg", "text/"))
-        encoded = self.maybe_gzip(data) if compressible else None
+        data = None
+        encoded = None
+        if compressible and st.st_size <= 2 * 1024 * 1024:
+            with open(full, "rb") as fh:
+                data = fh.read()
+            encoded = self.maybe_gzip(data)
         self.send_response(200)
         self.send_header("Content-Type", mime)
         self.send_header("Cache-Control", "no-cache")
         self.send_header("ETag", etag)
         self.headers_common()
         if encoded is not None: self.send_header("Content-Encoding", "gzip")
-        self.send_header("Content-Length", str(len(encoded if encoded is not None else data)))
+        content_length = len(encoded) if encoded is not None else st.st_size
+        self.send_header("Content-Length", str(content_length))
         self.end_headers()
         if not head_only:
-            self.wfile.write(encoded if encoded is not None else data)
+            if encoded is not None:
+                self.wfile.write(encoded)
+            elif data is not None:
+                self.wfile.write(data)
+            else:
+                with open(full, "rb") as fh:
+                    shutil.copyfileobj(fh, self.wfile, length=64 * 1024)
 
     def log_message(self, fmt, *args):
         # HTTPServer pasa códigos HTTPStatus (no cadenas) en algunos send_error;
@@ -2127,31 +2216,24 @@ def health(h, u, _):
         avisos.append("copia-externa")
     if licencia["diasRestantes"] is not None and licencia["diasRestantes"] <= 15:
         avisos.append("licencia-vence")
-    h.send_json(200, {
-        "ok": True, "app": "NovaGest", "version": APP_VERSION, "https": h.secure(), "time": now(),
-        "licenseValid": lic["valid"], "licenseType": (lic["payload"] or {}).get("type") if lic["valid"] else None,
-        "salud": {
-            "estado": "aviso" if avisos else "ok",
-            "avisos": avisos,
-            "uptimeSegundos": int(time.time() - STARTED_AT),
-            "latenciaMs": latencia,
-            "bdBytes": bd_bytes,
-            "walBytes": wal_bytes,
-            "copias": copias,
-            "diasCerrados": cerrados,
-            "sesionesActivas": conectados,
-            "disco": disco,
+    respuesta = {"ok": True, "app": "NovaGest", "version": APP_VERSION, "https": h.secure(),
+                 "time": now(), "salud": {"estado": "ok", "uptimeSegundos": int(time.time() - STARTED_AT),
+                                             "latenciaMs": latencia}}
+    # La vista pública es un ping mínimo. Los detalles de licencia, actividad,
+    # almacenamiento y destinos de copia quedan solo para personal administrador.
+    sesion = h.auth()
+    if sesion and sesion["role"] in ADMINS:
+        respuesta["salud"].update({
+            "estado": "aviso" if avisos else "ok", "avisos": avisos,
+            "bdBytes": bd_bytes, "walBytes": wal_bytes, "copias": copias,
+            "diasCerrados": cerrados, "sesionesActivas": conectados, "disco": disco,
             "licencia": licencia,
-            "copiaExterna": {
-                "configurados": externa["configurados"],
+            "copiaExterna": {"configurados": externa["configurados"],
                 "destinos": [{"tipo": d["tipo"], "destino": d["destino"]} for d in externa["destinos"]],
                 "ultimo": None if not externa["ultimo"] else {
                     "cuando": externa["ultimo"]["cuando"], "correctos": externa["ultimo"]["correctos"],
-                    "fallidos": externa["ultimo"]["fallidos"], "todoBien": externa["ultimo"]["todoBien"],
-                },
-            },
-        },
-    })
+                    "fallidos": externa["ultimo"]["fallidos"], "todoBien": externa["ultimo"]["todoBien"]}}})
+    h.send_json(200, respuesta)
 
 
 def new_session(h, user):
@@ -2201,7 +2283,12 @@ def login(h, _, __):
     q("DELETE FROM fails WHERE k=?", (k,))
     tok = new_session(h, user)
     audit(user["username"], "LOGIN", h.headers.get("User-Agent", "")[:80], h.ip())
-    h.send_json(200, {"token": tok, "user": public_user(user), "idleMinutes": IDLE // 60}, cookies=[h.cookie(tok)])
+    respuesta = {"user": public_user(user), "idleMinutes": IDLE // 60}
+    # Solo el cliente Android necesita el token Bearer; los navegadores usan
+    # exclusivamente la cookie HttpOnly para no persistir secretos en JavaScript.
+    if h.headers.get("X-CP-Client", "").lower() == "android":
+        respuesta["token"] = tok
+    h.send_json(200, respuesta, cookies=[h.cookie(tok)])
 
 
 @route("POST", "/api/logout")
@@ -2533,13 +2620,13 @@ def state_put(h, u, _):
         # con el historial de entradas dentro de su presupuesto. Sin esto el estado
         # crece sin límite y el guardado acaba rechazándose por tamaño (413), con
         # lo que los cambios se pierden al recargar.
-        if isinstance(new, dict):
-            compactar_estado(new)
         if r["data"] is None:
             if u["role"] not in ADMINS: return h.err(403, "Solo un administrador puede inicializar los datos.")
         else:
             bad = validate_change(json.loads(r["data"]), new, u["role"], closed_set())
             if bad: return h.err(*bad)
+        if isinstance(new, dict):
+            compactar_estado(new)
         v = r["version"] + 1
         q("UPDATE app_state SET version=?, data=?, updated_at=?, updated_by=? WHERE id=1",
           (v, json.dumps(new, ensure_ascii=False, separators=(",", ":")), now(), u["display_name"]))
@@ -2745,33 +2832,79 @@ def backups_download(h, u, name):
 def backups_restore(h, u, name):
     data = read_backup(name)
     make_backup("pre-restore", u["username"])
-    with _lock:
-        v = q("SELECT version FROM app_state WHERE id=1", one=True)["version"] + 1
-        q("UPDATE app_state SET version=?, data=?, updated_at=?, updated_by=? WHERE id=1",
-          (v, json.dumps(data["state"], ensure_ascii=False) if data.get("state") else None, now(), u["display_name"]))
-        q("DELETE FROM state_records")  # restauración: el índice se rehace desde cero
-        index_state_changes(data.get("state") or {}, v)
-        q("DELETE FROM closed_days")
-        for c in data.get("closedDays", []):
-            q("INSERT INTO closed_days(date,closed_by,closed_at,note,snapshot) VALUES(?,?,?,?,?)",
-              (c["date"], c["closed_by"], c["closed_at"], c.get("note"), c.get("snapshot")))
-        # Restaura licencias si el backup las contiene (no borra actuales, solo inserta/actualiza)
-        if data.get("licenses"):
-            for lic in data["licenses"]:
-                try:
-                    q("INSERT OR REPLACE INTO licenses(id,license_id,client_name,product,type,issued_at,expires_at,max_users,max_devices,features,token,status,activated_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                      (lic.get("id"), lic.get("license_id"), lic.get("client_name"), lic.get("product"), lic.get("type"),
-                       lic.get("issued_at"), lic.get("expires_at"), lic.get("max_users"), lic.get("max_devices"),
-                       lic.get("features"), lic.get("token"), lic.get("status"), lic.get("activated_at"), lic.get("created_at")))
-                except Exception:
-                    pass
-        if data.get("licenseActivations"):
-            for act in data["licenseActivations"]:
-                try:
-                    q("INSERT OR IGNORE INTO license_activations(id,license_id,device_id,device_info,activated_at,last_seen) VALUES(?,?,?,?,?,?)",
-                      (act.get("id"), act.get("license_id"), act.get("device_id"), act.get("device_info"), act.get("activated_at"), act.get("last_seen")))
-                except Exception:
-                    pass
+
+    def restaurar(cur):
+        row = cur.execute("SELECT version FROM app_state WHERE id=1").fetchone()
+        v = (row["version"] if row else 0) + 1
+        cur.execute("UPDATE app_state SET version=?, data=?, updated_at=?, updated_by=? WHERE id=1",
+                    (v, json.dumps(data["state"], ensure_ascii=False) if data.get("state") else None,
+                     now(), u["display_name"]))
+        cur.execute("DELETE FROM state_records")
+        index_state_changes(data.get("state") or {}, v, transactional=True)
+        cur.execute("DELETE FROM closed_days")
+        # Las sesiones no se restauran nunca: se invalidan todas tras recuperar datos.
+        cur.execute("DELETE FROM sessions")
+        if "users" in data:
+            cur.execute("DELETE FROM users")
+            for usr in data.get("users", []):
+                cur.execute("""INSERT INTO users
+                    (id,username,display_name,email,role,active,pw_hash,question,answer_hash,totp_secret,totp_pending,
+                     totp_enabled,totp_last,recovery,created_at,last_login,pw_changed)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (usr.get("id"), usr["username"], usr.get("display_name", usr["username"]), usr.get("email", ""),
+                     usr.get("role", "ALMACENERO"), usr.get("active", 1), usr.get("pw_hash", ""), usr.get("question", ""),
+                     usr.get("answer_hash", ""), usr.get("totp_secret"), usr.get("totp_pending"), usr.get("totp_enabled", 0),
+                     usr.get("totp_last", 0), usr.get("recovery", "[]"), usr.get("created_at"), usr.get("last_login"), usr.get("pw_changed")))
+        cur.executemany("INSERT INTO closed_days(date,closed_by,closed_at,note,snapshot) VALUES(?,?,?,?,?)",
+            [(c["date"], c["closed_by"], c["closed_at"], c.get("note"), c.get("snapshot"))
+             for c in data.get("closedDays", [])])
+        # Esquema vigente. Acepta nombres de backups antiguos y falla toda la
+        # restauración (rollback) si una fila contiene datos incompatibles.
+        for lic in data.get("licenses", []):
+            key = lic.get("key") or lic.get("token")
+            if not key:
+                continue
+            cur.execute("""INSERT OR IGNORE INTO licenses
+                (id,key,client_name,product,type,issued_at,expires_at,max_users,max_devices,features,active,created_by,created_at,last_verified,metadata)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (lic.get("id"), key, lic.get("client_name", ""), lic.get("product", LICENSE_PRODUCT),
+                 lic.get("type", "FULL"), lic.get("issued_at"), lic.get("expires_at"),
+                 lic.get("max_users", 10), lic.get("max_devices", 5), lic.get("features", '["*"]'),
+                 int(lic.get("active", lic.get("status", "active") not in (0, False, "inactive", "revoked"))),
+                 lic.get("created_by"), lic.get("created_at"), lic.get("last_verified"), lic.get("metadata")))
+        for act in data.get("licenseActivations", []):
+            license_key = act.get("license_key")
+            license_id = act.get("license_id")
+            if not license_key and license_id is not None:
+                licrow = cur.execute("SELECT key FROM licenses WHERE id=?", (license_id,)).fetchone()
+                license_key = licrow["key"] if licrow else None
+            cur.execute("""INSERT OR IGNORE INTO license_activations
+                (id,license_key,license_id,device_id,device_info,ip,activated_at,last_seen,active)
+                VALUES(?,?,?,?,?,?,?,?,?)""",
+                (act.get("id"), license_key, license_id, act.get("device_id"), act.get("device_info"),
+                 act.get("ip", ""), act.get("activated_at"), act.get("last_seen"), int(act.get("active", 1))))
+
+        # Backups recientes llevan el módulo financiero completo. Los backups
+        # anteriores carecen de estas claves: en ese caso se preservan las fin_* actuales.
+        if "finAccounts" in data:
+            for sql in ("DELETE FROM fin_lineas", "DELETE FROM fin_asientos", "DELETE FROM fin_centros",
+                        "DELETE FROM fin_cuentas", "DELETE FROM fin_metricas", "DELETE FROM fin_qr"):
+                cur.execute(sql)
+            cur.executemany("INSERT INTO fin_cuentas(id,codigo,nombre,naturaleza,saldo_normal,padre,corriente,tipo_costo,activa) VALUES(?,?,?,?,?,?,?,?,?)",
+                [(r["id"], r["codigo"], r["nombre"], r["naturaleza"], r["saldo_normal"], r.get("padre"), r.get("corriente", 0), r.get("tipo_costo"), r.get("activa", 1)) for r in data["finAccounts"]])
+            cur.executemany("INSERT INTO fin_centros(id,codigo,nombre,responsable,activa) VALUES(?,?,?,?,?)",
+                [(r["id"], r["codigo"], r["nombre"], r.get("responsable", ""), r.get("activa", 1)) for r in data.get("finCenters", [])])
+            cur.executemany("INSERT INTO fin_asientos(id,fecha,descripcion,created_at,created_by) VALUES(?,?,?,?,?)",
+                [(r["id"], r["fecha"], r.get("descripcion", ""), r.get("created_at"), r.get("created_by")) for r in data.get("finEntries", [])])
+            cur.executemany("INSERT INTO fin_lineas(id,asiento_id,cuenta_id,centro_id,debe,haber) VALUES(?,?,?,?,?,?)",
+                [(r["id"], r["asiento_id"], r["cuenta_id"], r.get("centro_id"), r.get("debe", 0), r.get("haber", 0)) for r in data.get("finLines", [])])
+            cur.executemany("INSERT INTO fin_metricas(periodo,visitantes,registros,compras,clientes_nuevos,usuarios_activos,gasto_marketing,costo_infra,mrr) VALUES(?,?,?,?,?,?,?,?,?)",
+                [(r["periodo"], r.get("visitantes", 0), r.get("registros", 0), r.get("compras", 0), r.get("clientes_nuevos", 0), r.get("usuarios_activos", 0), r.get("gasto_marketing", 0), r.get("costo_infra", 0), r.get("mrr", 0)) for r in data.get("finMetrics", [])])
+            cur.executemany("INSERT INTO fin_qr(id,titular,banco,cuenta,moneda,referencia) VALUES(?,?,?,?,?,?)",
+                [(r["id"], r.get("titular", ""), r.get("banco", ""), r.get("cuenta", ""), r.get("moneda", "USD"), r.get("referencia", "")) for r in data.get("finQr", [])])
+        return v
+
+    v = financial_transaction(restaurar)
     audit(u["username"], "BACKUP_RESTORE", name, h.ip())
     h.send_json(200, {"ok": True, "version": v})
 
@@ -3277,7 +3410,20 @@ def verificar_anclajes():
 
 
 # Módulo económico-financiero: endpoints /api/fin/* (mismo enrutador y roles)
-financiero.registrar(route, q, audit, now, ADMINS | {"ECONOMICO"})
+def financial_transaction(work):
+    """Ejecuta un bloque contable atómico en la conexión SQLite compartida."""
+    with _lock:
+        CON.execute("BEGIN IMMEDIATE")
+        try:
+            result = work(CON.cursor())
+            CON.commit()
+            return result
+        except Exception:
+            CON.rollback()
+            raise
+
+
+financiero.registrar(route, q, audit, now, ADMINS | {"ECONOMICO"}, financial_transaction)
 
 
 def main():

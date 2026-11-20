@@ -81,7 +81,8 @@ Requisitos: Python 3.10 o posterior y los paquetes `cryptography` (servidor) y `
 
 ```bash
 python3 -m pip install -r requirements.txt
-python3 server/novagest_server.py
+# Primera ejecución: una clave propia; sin ella el servidor no crea cuentas demo.
+NOVAGEST_DEMO_USERS=0 NOVAGEST_ADMIN_PASSWORD='CAMBIA_POR_UNA_CLAVE_PROPIA1' python3 server/novagest_server.py
 ```
 
 Para reconstruir `web/js/seed-data.js` y `app/src/main/assets/seed.json` desde todas las hojas fechadas de `xlsx/NovaGest SEPT.xlsx`, ejecuta `python3 tools/import_excel.py`. El generador conserva ventas, costos y comisiones por movimiento y anota los ajustes de apertura/cierre.
@@ -95,8 +96,12 @@ La aplicación Web no requiere un proceso de compilación de frontend: el servid
 El servidor comprueba la licencia antes de permitir el acceso y **no** crea ni activa licencias automáticamente: una instalación nueva queda bloqueada hasta introducir una clave válida en la pantalla **Licencia de Uso** (o con `POST /api/license/activate`). Para dejar lista una instalación propia desde la terminal:
 
 ```bash
+# Usa el mismo LICENSE_SECRET o data/license.key compartido con el servidor.
 python3 tools/generate_license.py --client "Mi Tienda" --term MES
 ```
+
+No generes claves con un secreto local distinto: si el servidor no tiene todavía `data/license.key`,
+configura `LICENSE_SECRET` idéntico para el emisor y el servidor antes de emitir la primera licencia.
 
 Pega la clave completa (incluido el punto del medio) en la pantalla de activación. Cada instalación firma con su propio secreto, así que la clave debe generarse con la misma carpeta `data` (o el mismo `LICENSE_SECRET`) que usa el servidor. Todo el sistema de licencias de uso se explica en [LICENCIAS.md](LICENCIAS.md).
 
@@ -145,7 +150,7 @@ El despliegue usa Caddy para HTTPS y conserva los datos en el volumen Docker. Re
 ## Android
 
 1. Abre la raíz del proyecto en Android Studio.
-2. Usa JDK 17 y el wrapper de Gradle del proyecto (8.14.5); sincroniza y ejecuta la configuración `app` en un emulador o dispositivo.
+2. Usa JDK 17 y el wrapper de Gradle del proyecto (9.6.0); sincroniza y ejecuta la configuración `app` en un emulador o dispositivo.
 3. Para sincronizar Web y Android, configura en el acceso de la aplicación la dirección HTTPS del servidor.
 
 > 📱 El identificador de la app es `com.novagest.inventario`. Si vienes de la versión anterior
@@ -292,4 +297,4 @@ anteriores o mover las fotos a un almacén externo.
 
 ## Producción
 
-Antes de usar NovaGest con datos reales, sigue la lista de endurecimiento de [SECURITY.md](../SECURITY.md#-recomendaciones-para-producción): servidor sin cuentas de demostración (`NOVAGEST_DEMO_USERS=0`), verificación en dos pasos para el Administrador, solo HTTPS, claves de cifrado fuera del servidor y copias replicadas fuera del equipo.
+En la primera ejecución configura `NOVAGEST_DEMO_USERS=0` y `NOVAGEST_ADMIN_PASSWORD` con una contraseña propia (mínimo 10 caracteres); el servidor no crea cuentas demo por defecto. Para pruebas locales, habilita las cuentas conocidas solo de forma explícita con `NOVAGEST_DEMO_USERS=1`. Antes de usar datos reales, sigue la lista de endurecimiento de [SECURITY.md](../SECURITY.md#-recomendaciones-para-producción): verificación en dos pasos para el Administrador, solo HTTPS, claves de cifrado fuera del servidor y copias replicadas fuera del equipo.

@@ -76,7 +76,7 @@ REGLAS = [
      "Deriva la clave del Keystore (ver DatabaseKey.kt); nunca literales."),
 ]
 
-EXCLUIR_DIRS = {".git", "venv", "node_modules", "build", ".gradle", "__pycache__", "docs", "tools"}
+EXCLUIR_DIRS = {".git", "venv", ".venv", "node_modules", "build", ".gradle", "__pycache__", "docs", "tools"}
 EXCLUIR_FILES = {"escanear_seguridad.py", "test_escanear_seguridad.py", "xlsx.full.min.js", "qrcode.mjs"}
 
 

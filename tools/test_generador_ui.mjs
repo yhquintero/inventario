@@ -51,7 +51,7 @@ const python = process.env.PYTHON || "python3";
 const PUERTO = await puertoLibre();
 // Sin búfer: el anuncio de la interfaz llega al instante (los lanzadores usan PYTHONUNBUFFERED=1).
 const hijo = spawn(python, ["-u", join(here, "license_studio.py"), "--host", "127.0.0.1", "--port", String(PUERTO),
-  "--clave", CLAVE, "--data", DATOS], { cwd: root, env: { ...process.env, PYTHONUNBUFFERED: "1" } });
+  "--clave", CLAVE, "--data", DATOS], { cwd: root, env: { ...process.env, PYTHONUNBUFFERED: "1", LICENSE_SECRET: "test-generator-ui-shared-secret" } });
 
 let salida = "";
 await new Promise((listo, fallo) => {

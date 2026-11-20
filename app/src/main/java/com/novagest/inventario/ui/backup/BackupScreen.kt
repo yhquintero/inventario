@@ -11,6 +11,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,13 +46,18 @@ fun BackupScreen(user: UserAccount, vm: BackupViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val files = remember { vm.backups.listFiles() }
+    var passphrase by remember { mutableStateOf("") }
     val fmt = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("es", "CU"))
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Copias de seguridad", style = MaterialTheme.typography.headlineMedium)
-        Text("Las copias se cifran con AES-GCM. El WorkManager programa una copia automática diaria.")
-        Button(onClick = {
+        Text("Las copias manuales se cifran con AES-GCM. Define una frase de al menos 12 caracteres y consérvala fuera del teléfono: no se puede recuperar.")
+        OutlinedTextField(value = passphrase, onValueChange = { passphrase = it },
+            label = { Text("Frase de cifrado de la copia") }, singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth())
+        Button(enabled = passphrase.length >= 12, onClick = {
             scope.launch {
-                when (val r = vm.backups.create(user, automatic = false)) {
+                when (val r = vm.backups.create(user, automatic = false, passphrase = passphrase)) {
                     is AppResult.Ok -> {
                         val uri = vm.export.uriFor(r.value)
                         context.startActivity(

@@ -39,7 +39,7 @@ jobs:
       - name: Auditoría de dependencias Python (H12, auditoría 2026)
         run: |
           python3 -m pip install --quiet pip-audit
-          pip-audit -r requirements.txt || pip-audit -r requirements.txt --skip-editable
+          pip-audit -r requirements.txt
       - name: Pruebas Web e IPV
         run: |
           set -e
@@ -49,6 +49,7 @@ jobs:
           bash tools/ci_paso.sh node tools/test_charts.mjs
           bash tools/ci_paso.sh node tools/test_merge.mjs
           bash tools/ci_paso.sh node tools/test_ticket.mjs
+          bash tools/ci_paso.sh node tools/test_api_cookie.mjs
           bash tools/ci_paso.sh node tools/test_quick_sale.mjs
           bash tools/ci_paso.sh node tools/test_alertas.mjs
           bash tools/ci_paso.sh node tools/test_kiosco.mjs
@@ -62,16 +63,31 @@ jobs:
           bash tools/ci_paso.sh node tools/test_accesibilidad.mjs
           bash tools/ci_paso.sh node tools/test_sw_precache.mjs
           bash tools/ci_paso.sh npm --prefix tools install --ignore-scripts
+          bash tools/ci_paso.sh npm --prefix tools audit --audit-level=high
           bash tools/ci_paso.sh node tools/test_axe.mjs
           bash tools/ci_paso.sh node tools/test_generador_ui.mjs
           bash tools/ci_paso.sh node tools/test_almacenes.mjs
           bash tools/ci_paso.sh node tools/test_customers_credits.mjs
           bash tools/ci_paso.sh node tools/test_excel_sources.mjs
+          bash tools/ci_paso.sh node tools/test_demo_municipios.mjs
+          bash tools/ci_paso.sh node tools/test_divisa.mjs
+          bash tools/ci_paso.sh node tools/test_eliminar_municipios.mjs
+          bash tools/ci_paso.sh node tools/test_eliminar_municipios_persiste.mjs
+          bash tools/ci_paso.sh node tools/test_escape_funciones_xss.mjs
+          bash tools/ci_paso.sh node tools/test_estado_compactado.mjs
+          bash tools/ci_paso.sh node tools/test_etiquetas_precio_w26.mjs
+          bash tools/ci_paso.sh node tools/test_limpieza_cliente.mjs
+          bash tools/ci_paso.sh node tools/test_margenes_movil_a25.mjs
+          bash tools/ci_paso.sh node tools/test_pinar_municipios.mjs
+          bash tools/ci_paso.sh node tools/test_rate_chart.mjs
+          bash tools/ci_paso.sh node tools/test_rate_history.mjs
+          bash tools/ci_paso.sh node tools/test_utilidad_neta_integracion_w27.mjs
+          bash tools/ci_paso.sh node tools/test_utilidad_neta_w27.mjs
           bash tools/ci_paso.sh node tools/smoke_web.mjs
       - name: Pruebas Python y sintaxis del servidor
         run: |
           set -e
-          bash tools/ci_paso.sh python3 -m py_compile server/novagest_server.py tools/license_studio.py
+          bash tools/ci_paso.sh python3 -m py_compile server/novagest_server.py server/financiero.py tools/license_studio.py tools/generate_license.py
           bash tools/ci_paso.sh python3 -m pip install -r requirements.txt
           bash tools/ci_paso.sh python3 tools/test_sitio.py
           bash tools/ci_paso.sh python3 tools/test_guia_mostrador.py
@@ -85,6 +101,7 @@ jobs:
           bash tools/ci_paso.sh python3 tools/test_generador.py
           bash tools/ci_paso.sh python3 tools/test_seguridad_servidor.py
           bash tools/ci_paso.sh python3 tools/test_salud_servidor.py
+          bash tools/ci_paso.sh python3 tools/test_login_cookie.py
           bash tools/ci_paso.sh python3 tools/test_compresion.py
           bash tools/ci_paso.sh python3 tools/test_delta_estado.py
           bash tools/ci_paso.sh python3 tools/test_auditoria_encadenada.py
@@ -92,20 +109,20 @@ jobs:
           bash tools/ci_paso.sh python3 tools/test_sello_tiempo.py
           bash tools/ci_paso.sh python3 tools/test_impresiones.py
           bash tools/ci_paso.sh python3 tools/test_restauracion.py
+          bash tools/ci_paso.sh python3 tools/test_financial_restore.py
           bash tools/ci_paso.sh python3 tools/test_copia_externa.py
           bash tools/ci_paso.sh python3 tools/test_copia_externa_servidor.py
           bash tools/ci_paso.sh python3 tools/test_carga.py --n 12
+          bash tools/ci_paso.sh python3 tools/test_divisa.py
+          bash tools/ci_paso.sh python3 tools/test_eltoque.py
+          bash tools/ci_paso.sh python3 tools/test_estado_tamano.py
+          bash tools/ci_paso.sh python3 tools/test_limpieza_almacen.py
+          bash tools/ci_paso.sh python3 tools/test_limpieza_municipios.py
+          bash tools/ci_paso.sh python3 tools/test_migracion_pinar.py
       - name: Inventario de pendientes no inventados (informativo)
         run: python3 tools/verificar_pendientes.py
         # No bloquea: lista [COMPLETAR], firmas y casillas que solo puede
         # cerrar el titular/asesor/firma externa. Revisar la salida en cada PR.
-      - name: Auditoría de dependencias Python (SCA)
-        run: |
-          python3 -m pip install pip-audit
-          python3 -m pip_audit -r requirements.txt --desc || true
-        # «|| true»: el informe no bloquea el CI; revísese cada aviso y, cuando
-        # no queden avisos sin tratar, quite el «|| true» para que bloquee.
-
   android:
     runs-on: ubuntu-latest
     steps:
