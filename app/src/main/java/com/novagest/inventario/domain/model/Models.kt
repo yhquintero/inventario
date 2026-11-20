@@ -54,46 +54,81 @@ enum class SaleCenter(val label: String) {
     }
 }
 
+/**
+ * Permisos de NovaGest. **Mismo vocabulario y mismo reparto que `web/js/calc.js`**:
+ * `tools/test_permisos.mjs` compara esta lista con la de la Web y con `WRITE`/
+ * `roles=` del servidor para que los tres no se descuadren.
+ *
+ * Hay tres niveles: ADMINISTRADOR y JEFE tienen todo; [PERMS_SOLO_ADMINISTRADOR]
+ * es lo que el servidor limita a un solo rol (JEFE no lo tiene); el resto se
+ * declara rol por rol en [RolePermissions.of].
+ */
 enum class Permission {
-    INVENTORY_VIEW, INVENTORY_EDIT, INVENTORY_DELETE,
-    MOVEMENT_VIEW, MOVEMENT_CREATE, MOVEMENT_EDIT, MOVEMENT_DELETE,
-    CUADRE_VIEW, CUADRE_EDIT,
+    INVENTORY_VIEW, INVENTORY_EDIT, INVENTORY_DELETE, INVENTORY_PURGE,
+    MOVEMENT_VIEW, MOVEMENT_CREATE, MOVEMENT_EDIT, MOVEMENT_DELETE, MOVEMENT_PURGE,
+    CUADRE_VIEW, CUADRE_EDIT, DAY_CLOSE, DAY_REOPEN,
     REPORTS_VIEW, REPORTS_EXPORT, REPORTS_FINANCIAL,
     USERS_VIEW, USERS_EDIT,
     CUSTOMER_VIEW, CUSTOMER_EDIT,
-    AUDIT_VIEW,
-    BACKUP_MANAGE,
+    AUDIT_VIEW, AUDIT_ANCHOR_DELETE, SECURITY_LOG_VIEW, PRINTS_VIEW, HEALTH_VIEW,
+    SEED_BASE,
+    BACKUP_MANAGE, BACKUP_RESTORE,
     SETTINGS_EDIT,
+    LICENSE_MANAGE, LICENSE_DELETE,
     EXCHANGE_EDIT,
-    IPV_VIEW, IPV_EDIT
+    IPV_VIEW, IPV_EDIT,
+    WAREHOUSE_VIEW, WAREHOUSE_EDIT, WAREHOUSE_CLEAR, VALUES_IMPORT,
+    HISTORY_VIEW, TRASH_VIEW,
+    WEEKLY_VIEW, WEEKLY_EDIT
 }
 
+/** Lo mismo que `PERMS_SOLO_ADMINISTRADOR` de `web/js/calc.js`. */
+val PERMS_SOLO_ADMINISTRADOR = setOf(
+    Permission.BACKUP_RESTORE, Permission.LICENSE_DELETE,
+    Permission.DAY_REOPEN, Permission.WAREHOUSE_CLEAR
+)
+
+/**
+ * Reparto de permisos por rol. **Idéntico a `PERMS` de `web/js/calc.js`** para los
+ * permisos que declara [Permission]; `tools/test_permisos.mjs` lo comprueba.
+ */
 object RolePermissions {
     private val all = Permission.entries.toSet()
 
     fun of(role: Role): Set<Permission> = when (role) {
         Role.ADMINISTRADOR -> all
-        Role.JEFE -> all - Permission.USERS_EDIT + Permission.USERS_VIEW + Permission.USERS_EDIT
+        // JEFE: todo salvo lo que el servidor limita a un solo rol.
+        Role.JEFE -> all - PERMS_SOLO_ADMINISTRADOR
         Role.ECONOMICO -> setOf(
-            Permission.INVENTORY_VIEW,
-            Permission.MOVEMENT_VIEW,
-            Permission.CUADRE_VIEW, Permission.CUADRE_EDIT,
+            Permission.INVENTORY_VIEW, Permission.MOVEMENT_VIEW,
+            Permission.CUADRE_VIEW, Permission.CUADRE_EDIT, Permission.DAY_CLOSE,
             Permission.REPORTS_VIEW, Permission.REPORTS_EXPORT, Permission.REPORTS_FINANCIAL,
             Permission.EXCHANGE_EDIT,
-            Permission.AUDIT_VIEW,
+            Permission.AUDIT_VIEW, Permission.SECURITY_LOG_VIEW, Permission.PRINTS_VIEW,
+            Permission.HEALTH_VIEW,
+            Permission.HISTORY_VIEW, Permission.WEEKLY_VIEW, Permission.WEEKLY_EDIT,
+            Permission.WAREHOUSE_VIEW,
             Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT,
             Permission.IPV_VIEW, Permission.IPV_EDIT
         )
         Role.ALMACENERO -> setOf(
-            Permission.INVENTORY_VIEW, Permission.INVENTORY_EDIT,
-            Permission.MOVEMENT_VIEW, Permission.MOVEMENT_CREATE,
-            Permission.CUADRE_VIEW,
+            Permission.INVENTORY_VIEW, Permission.INVENTORY_EDIT, Permission.INVENTORY_DELETE,
+            Permission.MOVEMENT_VIEW, Permission.MOVEMENT_CREATE, Permission.MOVEMENT_EDIT,
+            Permission.MOVEMENT_DELETE,
+            Permission.CUADRE_VIEW, Permission.TRASH_VIEW, Permission.HISTORY_VIEW,
+            Permission.WAREHOUSE_VIEW, Permission.WAREHOUSE_EDIT, Permission.VALUES_IMPORT,
             Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT,
             Permission.IPV_VIEW
         )
     }
 
     fun can(role: Role, permission: Permission): Boolean = permission in of(role)
+
+    /** Cerrar el día: lo mismo que `CLOSE_DAY` del servidor y `DAY_CLOSE` de la Web. */
+    fun canCloseDay(role: Role): Boolean = can(role, Permission.DAY_CLOSE)
+
+    /** Reabrir un día cerrado: solo ADMINISTRADOR (`/api/state/reopen`). */
+    fun canReopenDay(role: Role): Boolean = can(role, Permission.DAY_REOPEN)
 }
 
 data class Product(

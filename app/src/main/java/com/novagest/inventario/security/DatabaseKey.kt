@@ -22,7 +22,6 @@ object DatabaseKey {
 
     private const val ALIAS = "novagest_db_key"
     private const val PREFS_NAME = "novagest_db_key_prefs"
-    private const val KEY_ENCRYPTED_MATERIAL = "encrypted_secret"
     private const val KEY_IV = "iv"
 
     private fun keystore(): KeyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -51,8 +50,6 @@ object DatabaseKey {
     /** Passphrase determinista y persistente para SQLCipher. */
     @Synchronized
     fun passphrase(context: Context): ByteArray {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) // nosec: solo IV y passphrase cifrada por Android Keystore
-        val encryptedBase64 = prefs.getString(KEY_ENCRYPTED_MATERIAL, null)
         val ivBase64 = prefs.getString(KEY_IV, null)
 
         val masterKey = try { getOrCreateKeystoreKey() } catch (e: Exception) {

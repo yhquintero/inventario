@@ -9,18 +9,38 @@ export const Role = {
   ALMACENERO: "ALMACENERO",
 };
 
+/**
+ * Matriz de permisos de NovaGest — **fuente única de verdad de la Web**.
+ *
+ * El servidor (`WRITE` y los `roles=` de `server/novagest_server.py`) y Android
+ * (`RolePermissions` de `Models.kt`) tienen que decir lo mismo; `tools/test_permisos.mjs`
+ * los compara con estas listas para que no se descuadren. El reparto documentado en
+ * `README.md` y en `docs/MANUAL_USUARIO.md` también se comprueba ahí.
+ *
+ * Hay tres niveles:
+ *   · ADMINISTRADOR y JEFE valen `*`: pueden todo, salvo lo de `PERMS_SOLO_ADMINISTRADOR`.
+ *   · `PERMS_SOLO_ADMINISTRADOR` es para acciones que el servidor restringe a un solo
+ *     rol (restaurar copias, reabrir días, limpiar almacenes…). JEFE no las tiene.
+ *   · `PERMS_ADMINS` lista los permisos que, sin aparecer en ninguna lista explícita,
+ *     solo tienen ADMINISTRADOR y JEFE (Usuarios, Ajustes, Papelera, Auditoría…).
+ *
+ * ECONOMICO y ALMACENERO se declaran a mano: son los que la documentación describe
+ * como «solo ver» o «solo mover mercancía».
+ */
 export const PERMS = {
   ADMINISTRADOR: "*",
   JEFE: "*",
   ECONOMICO: [
-    "INVENTORY_VIEW", "MOVEMENT_VIEW", "CUADRE_VIEW", "CUADRE_EDIT",
-    "REPORTS_VIEW", "REPORTS_EXPORT", "REPORTS_FINANCIAL", "EXCHANGE_EDIT", "AUDIT_VIEW",
+    "INVENTORY_VIEW", "MOVEMENT_VIEW", "CUADRE_VIEW", "CUADRE_EDIT", "DAY_CLOSE",
+    "REPORTS_VIEW", "REPORTS_EXPORT", "REPORTS_FINANCIAL", "EXCHANGE_EDIT",
+    "AUDIT_VIEW", "SECURITY_LOG_VIEW", "PRINTS_VIEW", "HEALTH_VIEW",
     "HISTORY_VIEW", "WEEKLY_VIEW", "WEEKLY_EDIT", "WAREHOUSE_VIEW",
     "CUSTOMER_VIEW", "CUSTOMER_EDIT",
     "IPV_VIEW", "IPV_EDIT",
   ],
   ALMACENERO: [
-    "INVENTORY_VIEW", "INVENTORY_EDIT", "MOVEMENT_VIEW", "MOVEMENT_CREATE", "MOVEMENT_EDIT",
+    "INVENTORY_VIEW", "INVENTORY_EDIT", "INVENTORY_DELETE",
+    "MOVEMENT_VIEW", "MOVEMENT_CREATE", "MOVEMENT_EDIT", "MOVEMENT_DELETE",
     "CUADRE_VIEW", "TRASH_VIEW", "HISTORY_VIEW",
     "WAREHOUSE_VIEW", "WAREHOUSE_EDIT", "VALUES_IMPORT",
     "CUSTOMER_VIEW", "CUSTOMER_EDIT",
@@ -28,11 +48,31 @@ export const PERMS = {
   ],
 };
 
+/**
+ * Acciones que el servidor limita a ADMINISTRADOR (`roles={"ADMINISTRADOR"}`).
+ * `can()` las quita también a JEFE, aunque JEFE sea `*`.
+ */
+export const PERMS_SOLO_ADMINISTRADOR = [
+  "BACKUP_RESTORE", "LICENSE_DELETE", "DAY_REOPEN", "WAREHOUSE_CLEAR",
+];
+
+/** Permisos de ADMINISTRADOR y JEFE que no son de un solo rol (ni de ECONOMICO/ALMACENERO). */
+export const PERMS_ADMINS = [
+  "USERS_VIEW", "USERS_EDIT",
+  "BACKUP_MANAGE",
+  "SETTINGS_EDIT",
+  "LICENSE_MANAGE",
+  "INVENTORY_PURGE", "MOVEMENT_PURGE",
+  "AUDIT_ANCHOR_DELETE",
+  "SEED_BASE",
+];
+
+/** ¿Tiene `perm` el `role`? */
 export function can(role, perm) {
   const p = PERMS[role];
   if (!p) return false;
-  if (p === "*") return true;
-  return p.includes(perm);
+  if (p !== "*") return p.includes(perm);
+  return role === "ADMINISTRADOR" || !PERMS_SOLO_ADMINISTRADOR.includes(perm);
 }
 
 export function round2(v) {

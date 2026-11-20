@@ -166,27 +166,33 @@ Esta tabla es la referencia para asignar roles con criterio.
 
 | Acción / sección | Administrador | Jefe | Económico | Almacenero |
 |---|---|---|---|---|
-| Panel / Inicio | ✅ | ✅ | ✅ | ✅ |
-| Ver inventario | ✅ | ✅ | ✅ | ✅ |
+| Panel, inventario y movimientos (consulta) | ✅ | ✅ | ✅ | ✅ |
 | Crear y editar productos | ✅ | ✅ | — | ✅ |
-| Eliminar productos (papelera) | ✅ | ✅ | — | — |
-| Ver y gestionar almacenes | ✅ | ✅ | solo ver | ✅ |
-| Importar valores | ✅ | ✅ | — | ✅ |
+| Enviar productos a la papelera | ✅ | ✅ | — | ✅ |
+| Papelera: borrado definitivo | ✅ | ✅ | — | — |
+| Ver almacenes y existencias | ✅ | ✅ | ✅ | ✅ |
+| Editar almacenes, traspasar e importar valores | ✅ | ✅ | — | ✅ |
+| Limpiar un almacén o los municipios (🧹) | ✅ | — | — | — |
 | Ver movimientos | ✅ | ✅ | ✅ | ✅ |
-| Crear movimientos y vender | ✅ | ✅ | — | ✅ |
-| Editar / eliminar movimientos | ✅ | ✅ | — | — |
-| Cuadre diario | ✅ | ✅ | ✅ | solo ver |
-| Editar / cerrar el cuadre | ✅ | ✅ | ✅ | — |
-| Informes y comprobación | ✅ | ✅ | ✅ | — |
-| Ver importes financieros | ✅ | ✅ | ✅ | — |
-| Exportar a CSV / PDF | ✅ | ✅ | ✅ | — |
+| Vender y registrar movimientos | ✅ | ✅ | — | ✅ |
+| Editar movimientos y enviarlos a la papelera | ✅ | ✅ | — | ✅ |
+| Movimientos: borrado definitivo | ✅ | ✅ | — | — |
+| Cuadre diario (consulta) | ✅ | ✅ | ✅ | ✅ |
+| Editar y cerrar el cuadre | ✅ | ✅ | ✅ | — |
+| Reabrir un día cerrado | ✅ | — | — | — |
+| Historial de precios | ✅ | ✅ | ✅ | ✅ |
+| Informes, comprobación y finanzas | ✅ | ✅ | ✅ | — |
+| Tasas de cambio (Monedas) | ✅ | ✅ | ✅ | — |
 | Clientes y fiados | ✅ | ✅ | ✅ | ✅ |
 | Fichas de costo e IPV | ✅ | ✅ | ✅ | solo ver |
 | Usuarios | ✅ | ✅ | — | — |
-| Auditoría | ✅ | ✅ | ✅ | — |
-| Copias de seguridad | ✅ | ✅ | — | — |
-| Ajustes del negocio | ✅ | ✅ | — | — |
-| Tasas de cambio (Monedas) | ✅ | ✅ | ✅ | — |
+| Ajustes del negocio y datos legales | ✅ | ✅ | — | — |
+| Salud del sistema (métricas) | ✅ | ✅ | ✅ | — |
+| Auditoría, seguridad e impresiones | ✅ | ✅ | ✅ | — |
+| Copias de seguridad (crear) | ✅ | ✅ | — | — |
+| Restaurar copias, descargar y recargar Excel | ✅ | — | — | — |
+| Licencia de uso (ver y generar) | ✅ | ✅ | — | — |
+| Licencia: eliminar | ✅ | — | — | — |
 
 **Regla práctica:** el **Almacenero** mueve mercancía y vende; el **Económico** controla
 caja, tasas e informes; el **Jefe** supervisa y corrige; el **Administrador** configura,

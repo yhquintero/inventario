@@ -57,7 +57,7 @@ class TrashViewModel @Inject constructor(private val repo: ProductRepository) : 
 fun TrashScreen(user: UserAccount, vm: TrashViewModel = hiltViewModel()) {
     val items by vm.items.collectAsState()
     var confirm by remember { mutableStateOf<Product?>(null) }
-    val canPurge = RolePermissions.can(user.role, Permission.INVENTORY_DELETE)
+    val canPurge = RolePermissions.can(user.role, Permission.INVENTORY_PURGE)
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Papelera de reciclaje", style = MaterialTheme.typography.headlineMedium)
         Text("${items.size} producto(s). Los nombres de la papelera no se pueden repetir al crear productos.", color = MaterialTheme.colorScheme.onSurfaceVariant)

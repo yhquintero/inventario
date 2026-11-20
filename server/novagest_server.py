@@ -2404,6 +2404,9 @@ def tfa_disable(h, u, _):
 # ------------------------------------------------------------------ usuarios (admin)
 @route("GET", "/api/users", roles=ADMINS)
 def users(h, u, _):
+    # El listado de usuarios (nombres, correos, roles, 2FA) es de administración:
+    # la Web solo lo muestra en «Usuarios», que exige USERS_VIEW = ADMINISTRADOR/JEFE.
+    # Antes no había `roles=` y cualquier rol autenticado podía leerlo.
     h.send_json(200, {"users": [public_user(r) for r in q("SELECT * FROM users ORDER BY id")]})
 
 
