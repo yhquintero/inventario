@@ -412,6 +412,7 @@ export function recortarEntradas(entries, presupuesto = ENTRIES_BUDGET) {
 class Store {
   constructor() {
     this.state = emptyState();
+    this.readableSections = new Set(SHARED);
     this.listeners = new Set();
     this.version = 0;
     this.closedDays = [];
@@ -493,7 +494,7 @@ class Store {
 
   shared() {
     const o = {};
-    for (const k of SHARED) o[k] = this.state[k];
+    for (const k of SHARED) if (this.readableSections.has(k)) o[k] = this.state[k];
     // Lo que viaja al servidor va limpio: sin existencias de almacenes borrados
     // y con el historial de entradas dentro de su presupuesto de tamaño. Si el
     // estado pasara del límite del servidor, el guardado se rechazaría (413) y
@@ -511,6 +512,7 @@ class Store {
    * Devuelve cuántos registros se tocaron.
    */
   applyDelta(r) {
+    if (Array.isArray(r.readableSections)) this.readableSections = new Set(r.readableSections);
     const delta = r.state || {};
     const borrados = r.deleted || {};
     let tocados = 0;
@@ -542,6 +544,7 @@ class Store {
 
   applyServer(r) {
     const s = r.state || {};
+    this.readableSections = new Set(Array.isArray(r.readableSections) ? r.readableSections : (r.state === null ? SHARED : Object.keys(s).filter((k) => SHARED.includes(k))));
     const keep = { session: this.state.session, users: this.state.users };
     this.state = { ...emptyState(), ...s, ...keep, settings: { ...emptyState().settings, ...(s.settings || {}) } };
     this.state.settings.theme = localStorage.getItem(THEME) || this.state.settings.theme;
@@ -707,13 +710,21 @@ class Store {
   restorePending() {
     const pending = readPending(localStorage);
     if (!pending?.state) return 0;
+    const blocked = SHARED.filter((section) => !this.readableSections.has(section)
+      && Object.prototype.hasOwnProperty.call(pending.state, section));
+    if (blocked.length) {
+      this.onNotice("Hay cambios pendientes guardados por otro perfil. No se cargaron para proteger esos datos; vuelve a entrar con un usuario autorizado para revisarlos.", "error");
+      return 0;
+    }
+    const readable = SHARED.filter((section) => this.readableSections.has(section));
+    if (!readable.length) return 0;
     if (hasWarehouseClearConflict(this.shared(), pending.state)) {
       this.clearConflictPending = true;
       this.setSync("error");
       this.onNotice("Hay cambios anteriores a una limpieza. Se conservan en este navegador sin fusionar; contacte al administrador para revisarlos antes de continuar.", "error");
       return 0;
     }
-    const merged = mergeState(this.shared(), pending.state, SHARED);
+    const merged = mergeState(this.shared(), pending.state, readable);
     if (!hasChanges(merged)) { clearPending(localStorage); return 0; }
     this.state = { ...this.state, ...merged.state };
     this.dirty = true;

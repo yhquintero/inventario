@@ -138,6 +138,12 @@ def main() -> int:
     ok("las imágenes que no se ven al abrir se cargan en diferido",
        html.count('loading="lazy"') >= 3)
     ok("hay una tabla de roles con encabezados de columna", "<thead>" in html and "<th scope=\"col\">" in html)
+    roles_html = html[html.find('<section id="roles">'):html.find("</section>", html.find('<section id="roles">'))]
+    roles_esperados = ("Administrador", "Jefe", "Supervisor", "Económico", "Contador", "Auditor", "Almacenero", "Vendedor")
+    encabezados_rol = re.findall(r'<th scope="col">([^<]+)</th>', roles_html)
+    ok("la tabla pública enumera los ocho roles en orden", encabezados_rol[1:] == list(roles_esperados), str(encabezados_rol))
+    ok("la tabla pública distingue el permiso exclusivo del vendedor", "Solo ventas" in roles_html)
+    ok("la página destaca ocho perfiles con permisos de servidor", "<strong>8 roles</strong>" in html)
     ok("los pasos de instalación son una lista ordenada", "<ol class=\"pasos\">" in html)
     ok("hay enlace al manual completo", 'href="MANUAL_USUARIO.html"' in html)
     ok("hay enlace al vídeo de presentación", "novagest-promo-720p.mp4" in html)

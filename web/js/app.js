@@ -6,7 +6,7 @@ import { LicenseManager } from "./license.js";
 import qrcode from "../vendor/qrcode.mjs";
 import { applyTips, initTooltips, startTour, tourSeen, openPalette, animateCounters, NAV_TIPS } from "./ux.js";
 import {
-  addDays, can, CATEGORIES, cup, CURRENCIES, cuadreCalc, formatDate, inRange, normName, reportPeriodRange, stockAtStart,
+  addDays, can, CATEGORIES, ROLE_LABELS, ROLE_ORDER, cup, CURRENCIES, cuadreCalc, formatDate, inRange, normName, reportPeriodRange, stockAtStart,
   qty, round2, todayISO, usd, validatePassword, validateProduct, weekday, weekRange,
   parseValuesText, summarizeRows, STATUS_LABEL, VALUE_FIELDS,
   normalizeBarcode, creditPending, creditStatus, reorderSuggestions, reorderSummary,
@@ -2166,7 +2166,7 @@ function usersView() {
     ${canEdit ? `<div class="row mb12"><button class="btn" data-act="new-user">＋ Nuevo usuario</button><span class="hint">Las cuentas se guardan en el servidor (contraseñas con PBKDF2, nunca en el navegador).</span></div>` : ""}
     <div class="card table-wrap flush"><table>
       <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>2FA</th><th>Último acceso</th><th>Estado</th>${canEdit ? "<th></th>" : ""}</tr></thead>
-      <tbody>${store.state.users.map((u) => `<tr><td><strong>${esc(u.displayName)}</strong><div class="hint">${esc(u.email || "")}</div></td><td class="mono">${esc(u.username)}</td><td><span class="tag mov">${u.role}</span></td>
+      <tbody>${store.state.users.map((u) => `<tr><td><strong>${esc(u.displayName)}</strong><div class="hint">${esc(u.email || "")}</div></td><td class="mono">${esc(u.username)}</td><td><span class="tag mov">${esc(ROLE_LABELS[u.role] || u.role)}</span></td>
         <td>${u.totpEnabled ? "<span class='tag entrada'>Activa</span>" : "<span class='hint'>No</span>"}</td><td class="hint">${ago(u.lastLogin)}</td>
         <td>${u.active ? "<span class='tag entrada'>Activo</span>" : "<span class='tag salida'>Inactivo</span>"}</td>
         ${canEdit ? `<td class="row nowrap"><button class="btn ghost small" data-edit-user="${u.id}">Editar</button><button class="btn ghost small" data-toggle-user="${u.id}">${u.active ? "Desactivar" : "Activar"}</button>${u.totpEnabled ? `<button class="btn ghost small" data-reset2fa="${u.id}">Quitar 2FA</button>` : ""}</td>` : ""}</tr>`).join("") || `<tr><td colspan="7" class="hint">Cargando…</td></tr>`}</tbody>
@@ -2296,6 +2296,7 @@ function anclajesCard() {
   if (!ui.anclajes) loadAnclajes();
   const a = ui.anclajes || { rows: [], total: 0, ok: true, cargando: true };
   const puedeBorrar = allowed("AUDIT_ANCHOR_DELETE");
+  const puedeAnclar = allowed("AUDIT_ANCHOR_CREATE");
   const fecha = (t) => (t ? new Date(t * 1000).toLocaleString("es-CU") : "—");
   const roto = a.rows.filter((x) => !x.ok);
   const tsa = a.tsa || {};
@@ -2335,7 +2336,7 @@ function anclajesCard() {
     <p class="hint">Un anclaje fija el registro tal como estaba: cuántas líneas tenía y cuál era su último hash, firmado con una clave que solo tiene este servidor. Sirve para detectar un borrado de las últimas líneas, que la cadena por sí sola no notaría.</p>
     <p class="hint">Ancle al cerrar el día o el mes, y también antes de una copia de seguridad importante. Guarde aparte el número de líneas y el sello corto: son su prueba.</p>
     ${avisoTsa}
-    <div class="row mt12"><button class="btn small" data-act="sec-anchor" ${a.firmando ? "disabled" : ""}>${a.firmando ? "Anclando…" : "🔏 Anclar ahora"}</button>
+    <div class="row mt12">${puedeAnclar ? `<button class="btn small" data-act="sec-anchor" ${a.firmando ? "disabled" : ""}>${a.firmando ? "Anclando…" : "🔏 Anclar ahora"}</button>` : `<span class="hint">Este perfil puede consultar los anclajes, pero no crear nuevos.</span>`}
     ${!puedeBorrar ? `<span class="hint">Solo Administrador y Jefe pueden borrar un anclaje.</span>` : ""}</div>
     ${a.cargando && !a.rows.length ? '<p class="hint">Cargando los anclajes…</p>' : ""}
     ${a.error ? '<p class="hint">No se pudo leer la lista de anclajes.</p>' : ""}
@@ -4290,6 +4291,7 @@ function movementModal(m = null, productId = null, prefill = {}) {
   const products = store.activeProducts();
   const whs = store.warehousesActive();
   const wid = m ? store.warehouseOf(m) : store.activeWarehouseId();
+  const movementTypes = can(role(), "MOVEMENT_NON_SALE_CREATE") ? ["VENTA", "ENTRADA", "SALIDA"] : ["VENTA"];
   const x = m || {
     productId: productId || products[0]?.id, type: "VENTA", center: "TIENDA", quantity: 1,
     date: lastDataDate() > todayISO() ? lastDataDate() : todayISO(), notes: "", unitPriceUsd: "",
@@ -4301,7 +4303,7 @@ function movementModal(m = null, productId = null, prefill = {}) {
       ${products.map((p) => `<option value="${p.id}" ${p.id === x.productId ? "selected" : ""}>${esc(p.name)} · ${qty(store.stockIn(p, wid))} en ${esc(store.warehouseById(wid)?.code || "")} · total ${qty(p.stockActual)} · ${usd(p.precioVentaUsd)}</option>`).join("")}
     </select>
     <div class="form-grid">
-      <label>MOVIMIENTO<select name="type">${["VENTA", "ENTRADA", "SALIDA"].map((t) => `<option ${x.type === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      <label>MOVIMIENTO<select name="type">${movementTypes.map((t) => `<option ${x.type === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       <label>TIPO<select name="center">${["TIENDA", "GESTOR", "MOV"].map((t) => `<option ${x.center === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       <label>ALMACÉN<select name="warehouseId">${whs.map((w) => `<option value="${w.id}" ${w.id === x.warehouseId ? "selected" : ""}>${esc(w.name)}</option>`).join("")}</select></label>
       <label>CANTIDAD <input name="quantity" type="number" step="any" min="0" value="${x.quantity}" required></label>
@@ -4328,16 +4330,30 @@ function rateModal(r = null) {
     <div class="row mt14"><button class="btn">Guardar</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "rateForm", `data-id="${r?.id || ""}"`);
 }
 
+const ROLE_DESCRIPTIONS = {
+  ADMINISTRADOR: "Administración completa; incluye restauración, reapertura, limpiezas y gestión de usuarios/licencias.",
+  JEFE: "Supervisión completa y administración de usuarios; sin acciones reservadas al Administrador.",
+  SUPERVISOR: "Supervisa operación, cierres, finanzas y auditoría; no administra usuarios, configuración, licencias ni restauraciones.",
+  ECONOMICO: "Cuadres, cierres, tasas, informes, clientes/fiados, auditoría y Fichas IPV.",
+  CONTADOR: "Informes y consultas financieras, cuadre editable, tasas, auditoría y Fichas IPV; no opera ventas ni cierra días.",
+  AUDITOR: "Consulta de inventario, movimientos, cuadre, informes, auditoría e IPV; sin edición de operaciones.",
+  ALMACENERO: "Catálogo, existencias, almacenes, importaciones, movimientos y clientes según el flujo de trabajo.",
+  VENDEDOR: "Venta rápida, consulta de stock y almacenes, clientes/fiados e impresión de comprobantes.",
+};
+
 function userModal(u = null) {
-  const roles = ["ALMACENERO", "ECONOMICO", "JEFE", "ADMINISTRADOR"];
+  const roles = [...ROLE_ORDER].reverse();
+  const selectedRole = u?.role || "AUDITOR";
   modal(u ? "Editar usuario" : "Nuevo usuario", `
     <div class="form-grid">
       <label>Usuario <input name="username" required ${u ? `value="${esc(u.username)}" readonly` : ""}></label><label>Nombre <input name="displayName" required value="${esc(u?.displayName || "")}"></label>
       <label>Correo <input name="email" type="email" value="${esc(u?.email || "")}"></label>
-      <label>Rol<select name="role">${roles.map((r) => `<option ${u?.role === r ? "selected" : ""}>${r}</option>`).join("")}</select></label>
+      <label>Rol<select name="role" id="userRole">${roles.map((r) => `<option value="${r}" ${selectedRole === r ? "selected" : ""}>${ROLE_LABELS[r]}</option>`).join("")}</select></label>
       <label>${u ? "Nueva contraseña <small>(vacío = no cambiar)</small>" : "Contraseña"} <input name="password" type="password" ${u ? "" : "required"} autocomplete="new-password"></label>
       ${u ? "" : `<label>Pregunta <input name="securityQuestion" value="¿Ciudad de la tienda?"></label><label class="span-2">Respuesta <input name="answer"></label>`}
     </div>
+    <div class="role-guide mt10" id="roleGuide" role="status">${esc(ROLE_DESCRIPTIONS[selectedRole])}</div>
+    <details class="role-catalog mt8"><summary>Ver alcance de los 8 perfiles</summary><ul>${ROLE_ORDER.map((r) => `<li><b>${esc(ROLE_LABELS[r])}:</b> ${esc(ROLE_DESCRIPTIONS[r])}</li>`).join("")}</ul><p class="hint">Los permisos se aplican en Web, App y servidor. Asigna solo el acceso necesario para el puesto.</p></details>
     <div class="row mt14"><button class="btn">${u ? "Guardar" : "Crear"}</button><button type="button" class="btn ghost" data-act="close-modal">Cancelar</button></div>`, "userForm", u ? `data-id="${u.id}"` : "");
 }
 
@@ -5203,6 +5219,10 @@ function bindApp() {
     const r = store.addCreditPayment(e.target.dataset.id, { date: fd.get("date"), amountUsd: fd.get("amountUsd"), method: fd.get("method"), notes: fd.get("notes") || "" });
     if (r.error) return toast(r.error, "err");
     ui.modal = null; toast(r.pending <= 0 ? "✔ Fiado cobrado por completo" : `Abono registrado · pendiente ${usd(r.pending)}`, "ok");
+  });
+  $("#userRole")?.addEventListener("change", (e) => {
+    const help = $("#roleGuide");
+    if (help) help.textContent = ROLE_DESCRIPTIONS[e.target.value] || "";
   });
   $("#userForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();

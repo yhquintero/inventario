@@ -8,16 +8,20 @@ package com.novagest.inventario.domain.model
  *  - lunes..sabado  → Movement + DailyCuadre
  *  - COMPROBACION   → ComprobacionRow (reporte semanal)
  */
-enum class Role(val label: String, val rank: Int) {
-    ADMINISTRADOR("Administrador", 4),
-    JEFE("Jefe", 3),
-    ECONOMICO("Económico", 2),
-    ALMACENERO("Almacenero", 1);
+enum class Role(val label: String, val rank: Int, val description: String) {
+    ADMINISTRADOR("Administrador", 8, "Administración completa, usuarios/licencias y acciones críticas."),
+    JEFE("Jefe", 7, "Supervisión y gestión de usuarios; sin acciones reservadas al Administrador."),
+    SUPERVISOR("Supervisor", 6, "Operación, cierres, finanzas y auditoría; no administra usuarios ni ajustes."),
+    ECONOMICO("Económico", 5, "Cuadres y cierres, tasas, informes, clientes, auditoría y fichas IPV."),
+    CONTADOR("Contador", 4, "Informes y finanzas, tasas y cuadre editable; no registra ventas ni cierra días."),
+    AUDITOR("Auditor", 3, "Consulta de inventario, informes, auditoría e IPV; sin edición de operaciones."),
+    ALMACENERO("Almacenero", 2, "Catálogo, existencias, almacenes, movimientos y clientes."),
+    VENDEDOR("Vendedor", 1, "Ventas, consulta de stock, clientes/fiados e impresión de comprobantes.");
 
     companion object {
         fun from(raw: String): Role =
             entries.firstOrNull { it.name.equals(raw.trim(), true) || it.label.equals(raw.trim(), true) }
-                ?: ALMACENERO
+                ?: AUDITOR
     }
 }
 
@@ -65,12 +69,12 @@ enum class SaleCenter(val label: String) {
  */
 enum class Permission {
     INVENTORY_VIEW, INVENTORY_EDIT, INVENTORY_DELETE, INVENTORY_PURGE,
-    MOVEMENT_VIEW, MOVEMENT_CREATE, MOVEMENT_EDIT, MOVEMENT_DELETE, MOVEMENT_PURGE,
+    MOVEMENT_VIEW, MOVEMENT_CREATE, MOVEMENT_NON_SALE_CREATE, MOVEMENT_EDIT, MOVEMENT_DELETE, MOVEMENT_PURGE,
     CUADRE_VIEW, CUADRE_EDIT, DAY_CLOSE, DAY_REOPEN,
     REPORTS_VIEW, REPORTS_EXPORT, REPORTS_FINANCIAL,
     USERS_VIEW, USERS_EDIT,
     CUSTOMER_VIEW, CUSTOMER_EDIT,
-    AUDIT_VIEW, AUDIT_ANCHOR_DELETE, SECURITY_LOG_VIEW, PRINTS_VIEW, HEALTH_VIEW,
+    AUDIT_VIEW, AUDIT_ANCHOR_CREATE, AUDIT_ANCHOR_DELETE, SECURITY_LOG_VIEW, PRINTS_VIEW, HEALTH_VIEW,
     SEED_BASE,
     BACKUP_MANAGE, BACKUP_RESTORE,
     SETTINGS_EDIT,
@@ -99,26 +103,52 @@ object RolePermissions {
         Role.ADMINISTRADOR -> all
         // JEFE: todo salvo lo que el servidor limita a un solo rol.
         Role.JEFE -> all - PERMS_SOLO_ADMINISTRADOR
+        Role.SUPERVISOR -> setOf(
+            Permission.INVENTORY_VIEW, Permission.INVENTORY_EDIT, Permission.INVENTORY_DELETE,
+            Permission.MOVEMENT_VIEW, Permission.MOVEMENT_CREATE, Permission.MOVEMENT_NON_SALE_CREATE, Permission.MOVEMENT_EDIT, Permission.MOVEMENT_DELETE,
+            Permission.CUADRE_VIEW, Permission.CUADRE_EDIT, Permission.DAY_CLOSE,
+            Permission.REPORTS_VIEW, Permission.REPORTS_EXPORT, Permission.REPORTS_FINANCIAL, Permission.EXCHANGE_EDIT,
+            Permission.AUDIT_VIEW, Permission.SECURITY_LOG_VIEW, Permission.AUDIT_ANCHOR_CREATE, Permission.PRINTS_VIEW, Permission.HEALTH_VIEW,
+            Permission.HISTORY_VIEW, Permission.WEEKLY_VIEW, Permission.WEEKLY_EDIT,
+            Permission.WAREHOUSE_VIEW, Permission.WAREHOUSE_EDIT, Permission.VALUES_IMPORT,
+            Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT, Permission.IPV_VIEW, Permission.IPV_EDIT, Permission.TRASH_VIEW
+        )
         Role.ECONOMICO -> setOf(
             Permission.INVENTORY_VIEW, Permission.MOVEMENT_VIEW,
             Permission.CUADRE_VIEW, Permission.CUADRE_EDIT, Permission.DAY_CLOSE,
             Permission.REPORTS_VIEW, Permission.REPORTS_EXPORT, Permission.REPORTS_FINANCIAL,
             Permission.EXCHANGE_EDIT,
-            Permission.AUDIT_VIEW, Permission.SECURITY_LOG_VIEW, Permission.PRINTS_VIEW,
+            Permission.AUDIT_VIEW, Permission.SECURITY_LOG_VIEW, Permission.AUDIT_ANCHOR_CREATE, Permission.PRINTS_VIEW,
             Permission.HEALTH_VIEW,
             Permission.HISTORY_VIEW, Permission.WEEKLY_VIEW, Permission.WEEKLY_EDIT,
             Permission.WAREHOUSE_VIEW,
             Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT,
             Permission.IPV_VIEW, Permission.IPV_EDIT
         )
+        Role.CONTADOR -> setOf(
+            Permission.INVENTORY_VIEW, Permission.MOVEMENT_VIEW, Permission.CUADRE_VIEW, Permission.CUADRE_EDIT,
+            Permission.REPORTS_VIEW, Permission.REPORTS_EXPORT, Permission.REPORTS_FINANCIAL, Permission.EXCHANGE_EDIT,
+            Permission.AUDIT_VIEW, Permission.SECURITY_LOG_VIEW, Permission.AUDIT_ANCHOR_CREATE, Permission.PRINTS_VIEW, Permission.HEALTH_VIEW,
+            Permission.HISTORY_VIEW, Permission.WEEKLY_VIEW, Permission.WAREHOUSE_VIEW, Permission.IPV_VIEW, Permission.IPV_EDIT
+        )
+        Role.AUDITOR -> setOf(
+            Permission.INVENTORY_VIEW, Permission.MOVEMENT_VIEW, Permission.CUADRE_VIEW,
+            Permission.REPORTS_VIEW, Permission.REPORTS_EXPORT, Permission.REPORTS_FINANCIAL,
+            Permission.AUDIT_VIEW, Permission.SECURITY_LOG_VIEW, Permission.PRINTS_VIEW, Permission.HEALTH_VIEW,
+            Permission.HISTORY_VIEW, Permission.WEEKLY_VIEW, Permission.WAREHOUSE_VIEW, Permission.IPV_VIEW
+        )
         Role.ALMACENERO -> setOf(
             Permission.INVENTORY_VIEW, Permission.INVENTORY_EDIT, Permission.INVENTORY_DELETE,
-            Permission.MOVEMENT_VIEW, Permission.MOVEMENT_CREATE, Permission.MOVEMENT_EDIT,
+            Permission.MOVEMENT_VIEW, Permission.MOVEMENT_CREATE, Permission.MOVEMENT_NON_SALE_CREATE, Permission.MOVEMENT_EDIT,
             Permission.MOVEMENT_DELETE,
             Permission.CUADRE_VIEW, Permission.TRASH_VIEW, Permission.HISTORY_VIEW,
             Permission.WAREHOUSE_VIEW, Permission.WAREHOUSE_EDIT, Permission.VALUES_IMPORT,
             Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT,
             Permission.IPV_VIEW
+        )
+        Role.VENDEDOR -> setOf(
+            Permission.INVENTORY_VIEW, Permission.MOVEMENT_VIEW, Permission.MOVEMENT_CREATE,
+            Permission.WAREHOUSE_VIEW, Permission.CUSTOMER_VIEW, Permission.CUSTOMER_EDIT
         )
     }
 

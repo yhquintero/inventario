@@ -18,7 +18,7 @@ Responsable del SGSI: [COMPLETAR: nombre/cargo] · Aprobación: [COMPLETAR: fech
 | Datos | SQLite del servidor (`app_state`, usuarios/sesiones, licencias, auditoría, `legal_info`), copias cifradas `.bak`, estado compartido (`customers`, `credits`, `fichas`, `ipvControls`) |
 | Secretos | `LICENSE_SECRET`/`data/license.key`, `BACKUP_KEY` (Fernet), contraseñas con hash, secretos TOTP |
 | Servicios externos | WhatsApp/Meta (solo al pulsar «Solicitar licencia»), alojamiento [COMPLETAR] |
-| Personas | Roles: ADMINISTRADOR, JEFE, ECONOMICO, ALMACENERO (permisos en `calc.js`, `Models.kt`, `WRITE` del servidor) |
+| Personas | Roles: ADMINISTRADOR, JEFE, SUPERVISOR, ECONOMICO, CONTADOR, AUDITOR, ALMACENERO, VENDEDOR (matriz en `calc.js`, `Models.kt`, `READ`/`WRITE` del servidor) |
 
 ## 3. Registro de riesgos (valoración inicial del equipo; ajustar con su asesor)
 | Riesgo | Activo | Impacto | Prob. | Tratamiento ya aplicado |

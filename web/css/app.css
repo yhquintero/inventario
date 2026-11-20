@@ -1260,3 +1260,10 @@ html[data-texto="grande"] body, html[data-texto="muy-grande"] body { zoom: var(-
   .dashboard-chart-card, .dashboard-page .kpi { transition: none; }
   .dashboard-chart-card:hover, .dashboard-page .kpi:hover { transform: none; }
 }
+
+/* W-29 · guía de perfiles en la administración de usuarios */
+.role-guide { padding: 11px 13px; border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--line)); border-left: 3px solid var(--neon-cyan); border-radius: 10px; background: linear-gradient(105deg, color-mix(in srgb, var(--primary-soft) 75%, transparent), color-mix(in srgb, var(--neon-cyan) 6%, var(--surface))); color: var(--ink); font-size: 12px; line-height: 1.55; }
+.role-catalog { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.role-catalog summary { color: var(--primary); font-size: 12px; font-weight: 700; cursor: pointer; }
+.role-catalog ul { display: grid; gap: 7px; padding-left: 19px; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+.role-catalog li b { color: var(--ink); }

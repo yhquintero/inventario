@@ -38,7 +38,7 @@ familia de stack que NovaGest, por lo que la lógica es trasladable sin dependen
 | Datos | Colecciones `fichas`/`ipvControls` en el estado compartido (Web ↔ servidor ↔ Android), con compatibilidad: cliente antiguo que no las envíe no las borra (servidor) |
 | Web | Ruta `#fichas`: KPIs, tabla de fichas, detalle con faltas de stock, editor en línea, Aprobar/Nueva versión, Controles por período con Validar, Papelera IPV, Imprimir/PDF |
 | Android | Modelos `FichaCosto`/`IpvControl`, lectura sincronizada (`SyncManager.fichas()/ipvControls()`), pantalla «Fichas · IPV», permisos `IPV_VIEW/IPV_EDIT` (edición completa en Web, como Clientes) |
-| Permisos | Ver: Económico y Almacenero; editar/aprobar/validar: Administrador, Jefe, Económico. El servidor solo acepta cambios de `fichas`/`ipvControls` a esos roles (`WRITE`) |
+| Permisos | Consulta de fichas/IPV: Administrador, Jefe, Supervisor, Económico, Contador, Auditor y Almacenero; edición/aprobación/validación: Administrador, Jefe, Supervisor, Económico y Contador. El servidor valida cambios de `fichas`/`ipvControls` con `WRITE` |
 | Auditoría | `FICHA_CREATE/UPDATE/VERSION/APPROVE/TRASH/RESTORE`, `IPV_CONTROL_CREATE/VALIDATE/TRASH/RESTORE` |
 | Pruebas | `tools/test_ipv.mjs` (7) + 4 unitarias Android nuevas (sin JDK en este entorno: no compiladas aquí, ver §6) |
 

@@ -70,7 +70,7 @@ fun UsersScreen(user: UserAccount, vm: UsersViewModel = hiltViewModel()) {
 
     Scaffold(floatingActionButton = {
         if (canEdit) FloatingActionButton(onClick = {
-            editing = UserAccount(username = "", displayName = "", email = "", role = Role.ALMACENERO)
+            editing = UserAccount(username = "", displayName = "", email = "", role = Role.AUDITOR)
             open = true
         }) { Icon(Icons.Outlined.Add, "Nuevo") }
     }) { pad ->
@@ -121,6 +121,7 @@ private fun UserDialog(account: UserAccount, onDismiss: () -> Unit, onSave: (Use
                     label = { it.label },
                     onSelect = { role = it }
                 )
+                Text(role.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(q, { q = it }, label = { Text("Pregunta de seguridad") })
                 OutlinedTextField(ans, { ans = it }, label = { Text("Respuesta") })
             }
