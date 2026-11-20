@@ -19,11 +19,11 @@
 
 | # | Mejora | Verificación | PR | Fecha | ✅ Hecho |
 |---|--------|--------------|-----|-------|----------|
-| P0-1 | targetSdk 35 → 36 (Google Play API 36) | `./gradlew assembleRelease` con API 36; `PosFlowUiTest` verde en emulador API 36 | | | ⬜ |
-| P0-2 | Sacar `venv/` del control de versiones | `venv/` no rastreado en git; `pip install -r requirements.txt` pasa 20 suites Python | | | ⬜ |
-| P0-3 | Migraciones Room versionadas (sin `fallbackToDestructiveMigration`) | Migración v1→v2→v3 preserva datos de prueba | | | ⬜ |
-| P0-4 | Escape HTML en `financiero.js` (XSS) | `auditoria_seguridad.py` limpio; prueba XSS pasa | | | ⬜ |
-| P0-5 | `security.txt` válido; secretos fuera del repo | `security.txt` accesible; secretos no en git history; acta firmada | | | ⬜ |
+| P0-1 | API 36: `compileSdk`/`targetSdk` y release/UI verificados | `:app:assembleRelease` verde; `PosFlowUiTest` CI en emulador API 36; prueba de upgrade | | | ⬜ |
+| P0-2 | `venv/` fuera de Git y dependencias auditadas | `git ls-files` sin `venv/`; todas las suites Python y `pip-audit -r requirements.txt` verdes en CI | | | ⬜ |
+| P0-3 | Migraciones Room completas desde cada schema publicado, sin fallback destructivo | JSON Room versionados; fixtures de cada origen soportado migran y preservan datos/SyncQueue | | | ⬜ |
+| P0-4 | Escape HTML y validación de entradas financieras | `smoke_web` + prueba de rechazo HTML; auditoría HTTP de staging sin fallos | | | ⬜ |
+| P0-5 | `security.txt` y secretos operativos verificables | `security.txt` servido; secretos fuertes solo en entorno; revisión de historia y restore tras rotación | | | ⬜ |
 
 ---
 
@@ -31,7 +31,7 @@
 
 | # | Mejora | Verificación | PR | Fecha | ✅ Hecho |
 |---|--------|--------------|-----|-------|----------|
-| S-04 | Instalador de Windows con entorno incluido | `.exe`/`.ps1` deja servidor en equipo limpio; manual paso a paso | | | ⬜ |
+| V-05 | Instalador de Windows con entorno incluido | `.exe`/`.ps1` deja servidor en equipo limpio; manual paso a paso | | | ⬜ |
 | A-22 | Escanear código al crear/editar producto | Cámara rellena código; avisa duplicado; no teclear | | | ⬜ |
 | W-26 | Etiquetas de precio con código de barras (A4) | Hoja A4 con nombre, precio, Code 128 legible; 24 y 40 etiquetas | | | ⬜ |
 | A-25 | Márgenes en el móvil | Lista peor→mejor; margen, ganancia, precio objetivo; respeta Ajustes | | | ⬜ |
@@ -61,7 +61,7 @@
 | A-23 | Conteo con varios operarios | Dos conteos se suman por producto sin duplicar; acta por operario | | | ⬜ |
 | W-30 | Consolidado de almacenes | Existencia y valor por almacén y total; exportación CSV/PDF | | | ⬜ |
 | S-17 | Segundo equipo misma red con sesión propia | Dos equipos con usuarios distintos; auditoría con IP/equipo | | | ⬜ |
-| G-04 | Clip vertical de 6 s para WhatsApp | Tres tramos (marca→vender→cierre); subtítulos; <1 MB; `.srt` | | | ⬜ |
+| G-07 | Clip vertical de 6 s para WhatsApp | Tres tramos (marca→vender→cierre); subtítulos; <1 MB; `.srt` | | | ⬜ |
 
 ---
 
@@ -197,11 +197,11 @@
 | 3. Ola C | 5 | | | 5 |
 | 4. Mejora continua | 15 | | | |
 | 5. Android (A) | 12 | | | |
-| 6. Web (W) | 8 | | | |
+| 6. Web (W) | 9 | | | |
 | 7. Servidor (S) | 6 | | | |
 | 8. Escritorio/Sitio (V/G) | 10 | | | |
-| 9. Datos/Transversal (D/X) | 10 | | | |
-| **TOTAL** | **83** | | | |
+| 9. Datos/Transversal (D/X) | 11 | | | |
+| **TOTAL** | **85** | | | |
 
 ---
 

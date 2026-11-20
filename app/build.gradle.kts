@@ -9,6 +9,11 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Exporta los esquemas Room en cada compilación para poder versionarlos y probar upgrades.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 // Firma de la versión release: las credenciales viven en keystore.properties
 // (ignorado por git). Si el archivo no existe, la release se genera sin firmar
 // y el proyecto sigue compilando en cualquier máquina.
@@ -134,6 +139,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.room.testing)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }

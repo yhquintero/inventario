@@ -3,7 +3,9 @@
 **Fecha:** 2026-11-14 · **Commit inspeccionado:** `25fa81e` (main) · **Versión:** 1.1.0 (versionName) / versionCode 7
 **Alcance:** servidor Python, Web PWA, app Android, Keygen, CI/CD, seguridad, docs y empaquetado.
 
-Todo lo de este documento está **verificado con evidencia** (comando + `fichero:línea`), no es una lista de deseos.
+> **Snapshot histórico del 2026-11-14; no usar como estado actual.** Desde esa inspección se fusionaron cambios de API 36, retiro de `venv/`, seguridad financiera, recuperación de bucle y documentación. Para el estado comparativo vigente, consultar `docs/PLAN_COMPARATIVO_TOP1_2026-11-20.md` y el checklist mantenido. Los hallazgos de Room siguen requiriendo esquemas reales de versiones distribuidas.
+
+Todo lo de este documento estaba **verificado con evidencia en la fecha de inspección** (comando + `fichero:línea`), no era una lista de deseos.
 Las cifras son de ejecuciones reales hechas durante la inspección.
 
 ---
