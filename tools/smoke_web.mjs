@@ -555,6 +555,23 @@ test("Inventario muestra el almacén en uso y el botón de importar", () => {
   assert.match(html, /data-act="print"/);
 });
 
+test("Catálogo completo: no muestra productos eliminados y el stock cero es neutral", () => {
+  const original = store.state.products;
+  try {
+    store.state.products = [...original,
+      { id: "empty-catalog", name: "PRODUCTO SIN EXISTENCIAS", category: "General", stockInicial: 0, stockActual: 0,
+        stocks: { w1: 0, w2: 0 }, stocksInicial: { w1: 0, w2: 0 }, precioVentaUsd: 0, precioVenta2Usd: 0,
+        precioCostoUsd: 0, comisionCup: 0, minStock: 1, observaciones: "" },
+      { id: "deleted-catalog", name: "PRODUCTO YA ELIMINADO", category: "General", deletedAt: Date.now(),
+        stockInicial: 0, stockActual: 0, stocks: { w1: 0 }, stocksInicial: { w1: 0 }, precioVentaUsd: 0, minStock: 1 },
+    ];
+    go("inventory");
+    app.dispatch("click", { target: { closest: () => ({ dataset: { filter: "TODOS" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
+    assert.match(app.innerHTML, /PRODUCTO SIN EXISTENCIAS[\s\S]*class="stock neutral"/, "el cero en Catálogo completo es informativo, no un error");
+    assert.doesNotMatch(app.innerHTML, /PRODUCTO YA ELIMINADO/, "los productos con deletedAt no se muestran en Catálogo completo");
+  } finally { store.state.products = original; go("inventory"); }
+});
+
 test("Inventario: el filtro «En almacén» filtra por existencia real (regresión)", () => {
   go("inventory");
   const wid = "w2";
@@ -1735,6 +1752,10 @@ test("W-03 · las alertas de reposición dicen cuándo se agota y se pueden sile
 
     clickMatching("act", { act: "reorder-open" });
     assert.match(app.innerHTML, /id="reorderModalTitle"/, "la reposición sugerida abre en modal");
+    assert.match(app.innerHTML, /class="modal-h"[\s\S]*Reposición sugerida[\s\S]*aria-label="Cerrar"/, "la cabecera fija incluye título y cierre");
+    assert.match(app.innerHTML, /reorder-scroll[\s\S]*Vendidos[\s\S]*Por día[\s\S]*Quedan[\s\S]*Alcanza[\s\S]*Sugerido[\s\S]*Estado/, "la tabla tiene las columnas solicitadas en el área desplazable");
+    assert.match(app.innerHTML, /1 producto\(s\) para reponer · 0 agotado\(s\)\. Sugerido: 25 unidad\(es\)\./, "el resumen muestra conteos y unidades, incluso sin agotados");
+    assert.match(app.innerHTML, /reorder-actions/, "la barra inferior se mantiene separada del área desplazable");
     assert.match(app.innerHTML, /ARROZ/, "el modal muestra el producto a reponer");
     clickMatching("act", { act: "close-modal" });
     clickMatching("act", { act: "alerts-open" });

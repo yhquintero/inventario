@@ -36,6 +36,29 @@ with tempfile.TemporaryDirectory(prefix='ng-clear-') as tmp:
     assert out['movements'][0]['warehouseCleared'] and 'quantity' not in out['movements'][0]
     assert out['movements'][1]['warehouseCleared'] and out['movements'][2:] == before['movements'][2:]
     assert out['warehouseEntries'][1]['invalidatedAt'] == 100
+
+    # Existencias que quedaron asociadas a un almacén ya eliminado son huérfanas:
+    # la limpieza debe quitarlas y recalcular el total visible del catálogo.
+    ghost = copy.deepcopy(state)
+    ghost['warehouses'].append({'id': 'gone', 'name': 'Almacén eliminado', 'deletedAt': 50})
+    ghost['products'][0]['stocks']['gone'] = 99
+    ghost['products'][0]['stocksInicial']['gone'] = 98
+    ghost['products'][0]['stockActual'] += 99
+    ghost['products'][0]['stockInicial'] += 98
+    cleaned, _ = wc.prepare(ghost, 'b', set(), 100, 'admin', 'op-ghost')
+    assert 'gone' not in cleaned['products'][0]['stocks']
+    assert 'gone' not in cleaned['products'][0]['stocksInicial']
+    assert cleaned['products'][0]['stockActual'] == 9
+    assert cleaned['products'][0]['stockInicial'] == 9
+    ghost['products'][0]['stocks']['b'] = 0
+    ghost['products'][0]['stocksInicial']['b'] = 0
+    migrated, migrated_changed = s.ensure_warehouses(copy.deepcopy(ghost))
+    assert migrated_changed
+    assert 'gone' not in migrated['products'][0]['stocks']
+    assert 'gone' not in migrated['products'][0]['stocksInicial']
+    assert migrated['products'][0]['stockActual'] == 9
+    assert migrated['products'][0]['stockInicial'] == 9
+
     primary, _ = wc.prepare(state, 'a', set(), 100, 'admin', 'op')
     assert primary['movements'][2]['warehouseCleared'] and primary['movements'][0] == state['movements'][0]
     for st, days, status in [(state, {'2026-11-02'}, 423), ({**state, 'credits': [{'movementIds': ['m2'], 'deletedAt': 5}]}, set(), 409)]:

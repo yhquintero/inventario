@@ -42,6 +42,7 @@ def prepare(state, warehouse_id, closed, timestamp_ms, user, operation_id):
     if not target:
         raise ClearError(404, "Almacén activo no encontrado.")
     default = next((w for w in active if w.get("isDefault")), active[0] if active else None)
+    active_ids = {w.get("id") for w in active if isinstance(w.get("id"), str)}
     ids = {w.get("id") for w in warehouses if isinstance(w, dict)}
     movements = original.get("movements") or []
     if not isinstance(movements, list) or not isinstance(original.get("products"), list):
@@ -69,12 +70,21 @@ def prepare(state, warehouse_id, closed, timestamp_ms, user, operation_id):
         if not isinstance(p, dict) or not isinstance(p.get("stocks"), dict) or not isinstance(p.get("stocksInicial"), dict):
             raise ClearError(409, "Faltan existencias por almacén. Actualice o revise la base antes de limpiar.")
         stocks, initial = p["stocks"], p["stocksInicial"]
+        # Las existencias de almacenes borrados (o IDs que ya no existen) no son
+        # parte del catálogo activo. Quitarlas al limpiar evita que stockActual,
+        # que es un total derivado, conserve unidades fantasma en Catálogo completo.
+        orphaned = False
+        for mapping in (stocks, initial):
+            for wid in list(mapping):
+                if wid not in active_ids:
+                    del mapping[wid]
+                    orphaned = True
         before, start = _number(stocks.get(warehouse_id)), _number(initial.get(warehouse_id))
-        if before or start:
+        if before or start or orphaned:
             stocks[warehouse_id] = 0
             initial[warehouse_id] = 0
-            p["stockActual"] = _total(stocks.values())
-            p["stockInicial"] = _total(initial.values())
+            p["stockActual"] = _total(stocks.get(wid, 0) for wid in active_ids)
+            p["stockInicial"] = _total(initial.get(wid, 0) for wid in active_ids)
             previous = max(_number(p.get("updatedAt")), _number(p.get("createdAt")))
             p["updatedAt"] = max(timestamp_ms, previous + 1)
             products_changed += 1

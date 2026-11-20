@@ -13,8 +13,9 @@
  *        LICENSE_SECRET=demo-secret python3 tools/generate_license.py --client "Demo NovaGest" --term PERMANENTE
  *   3) En otra terminal (recomendado entrar como `jefe Jefe123!` para evitar el paso 2FA obligatorio de admin):
  *        node tools/tomar_capturas.mjs http://127.0.0.1:8455 jefe Jefe123!
- *   4) Regenera las composiciones futuristas Nebula:
+ *   4) Regenera las composiciones Nebula y el hero/galería de presentación:
  *        python3 tools/build_sitio_assets_nebula.py --movil-dir docs/assets/capturas
+ *        python3 tools/build_readme_visuals.py
  *        python3 tools/build_carrusel_redes.py
  *
  * Las tomas usan datos de demostración del proyecto: no contienen información de
@@ -123,4 +124,4 @@ for (const [route, file, tema] of MOVIL) {
 }
 
 await browser.close();
-console.log("Listo. Ejecuta tools/build_sitio_assets_nebula.py y revisa docs/IMAGENES.md.");
+console.log("Listo. Ejecuta tools/build_sitio_assets_nebula.py y tools/build_readme_visuals.py; revisa docs/IMAGENES.md.");

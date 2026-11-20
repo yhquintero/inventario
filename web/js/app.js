@@ -1335,18 +1335,21 @@ function reorderModalMarkup() {
   const resumen = reorderSummary(lista);
   const etiqueta = { agotado: ["err", "Agotado"], urgente: ["err", "Urgente"], pronto: ["warn", "Pronto"], normal: ["ok", "Planificar"] };
   const almacen = store.activeWarehouse()?.name || "almacén en uso";
-  return `<div class="modal-back" data-act="close-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="reorderModalTitle">
-    <div class="modal-h"><div class="h2" id="reorderModalTitle">🔔 Reposición sugerida</div><button type="button" class="icon-btn" data-act="close-modal" aria-label="Cerrar">✕</button></div>
-    <p class="hint">${esc(resumen.texto)} · ${esc(almacen)} · ventas de los últimos 30 días. La sugerencia busca cubrir ${diasDeCobertura()} días.</p>
-    <div class="table-wrap"><table><thead><tr><th>Producto</th><th class="r">Vendidos</th><th class="r">Por día</th><th class="r">Quedan</th><th>Alcanza</th><th class="r">Sugerido</th><th>Estado</th></tr></thead>
+  const resumenFijo = `${resumen.count} producto(s) para reponer · ${resumen.agotados} agotado(s). Sugerido: ${qty(resumen.unidades)} unidad(es).`;
+  return `<div class="modal-back reorder-back" data-act="close-modal"><section class="modal reorder-modal" role="dialog" aria-modal="true" aria-labelledby="reorderModalTitle">
+    <header class="reorder-head">
+      <div class="modal-h"><div class="h2" id="reorderModalTitle">🔔 Reposición sugerida</div><button type="button" class="icon-btn" data-act="close-modal" aria-label="Cerrar">✕</button></div>
+      <p class="hint reorder-summary">${esc(resumenFijo)} · ${esc(almacen.toLocaleUpperCase("es"))} · ventas de los últimos 30 días. La sugerencia busca cubrir ${diasDeCobertura()} días.</p>
+    </header>
+    <div class="table-wrap reorder-scroll" tabindex="0" aria-label="Lista de productos sugeridos para reponer"><table><thead><tr><th>Producto</th><th class="r">Vendidos</th><th class="r">Por día</th><th class="r">Quedan</th><th>Alcanza</th><th class="r">Sugerido</th><th>Estado</th></tr></thead>
       <tbody>${lista.map((f) => {
         const [tono, texto] = etiqueta[f.level] || ["ok", "Planificar"];
         const alcanza = f.daysLeft === 0 ? "Agotado" : Number.isFinite(f.daysLeft) ? `${f.daysLeft} días` : "Sin ventas recientes";
         return `<tr><td><strong>${esc(f.product.name)}</strong></td><td class="mono r">${qty(f.sold)}</td><td class="mono r">${f.perDay}</td><td class="mono r">${qty(f.product.stockActual)}</td><td>${esc(alcanza)}</td><td class="mono r"><b>${qty(f.suggested)}</b></td><td><span class="tag ${tono}">${texto}</span></td></tr>`;
       }).join("") || `<tr><td colspan="7" class="empty">No hay productos que reponer dentro de la cobertura configurada.</td></tr>`}</tbody>
     </table></div>
-    <div class="row mt14"><button class="btn" data-act="reorder-go">Ir al inventario</button><button class="btn ghost" data-act="close-modal">Cerrar</button></div>
-  </div></div>`;
+    <footer class="row reorder-actions"><button class="btn" data-act="reorder-go">Ir al inventario</button><button class="btn ghost" data-act="close-modal">Cerrar</button></footer>
+  </section></div>`;
 }
 
 const kpi = (k, v, s, tone = "") => `<div class="card kpi ${tone}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
@@ -1410,21 +1413,26 @@ function inventoryView() {
           <th class="r">PRECIO VENTA</th><th class="r">P. COSTO</th><th class="r">COMISION</th><th>Categoría</th><th>Observ.</th>${canEdit ? "<th></th>" : ""}
         </tr></thead>
         <tbody>
-          ${list.map((p, i) => `
+          ${list.map((p, i) => {
+            const stockAqui = store.stockIn(p, wh?.id);
+            const stockTotalClass = ui.filter === "TODOS" && p.stockActual <= 0 ? "neutral" : p.stockActual <= 0 ? "out" : p.stockActual <= p.minStock ? "low" : "ok";
+            const stockAquiClass = ui.filter === "TODOS" && stockAqui <= 0 ? "neutral" : stockAqui <= 0 ? "out" : stockAqui <= p.minStock ? "low" : "ok";
+            return `
             <tr>
               <td class="num mono">${i + 1}</td>
               <td>${thumb(p)}</td>
               <td><strong>${hl(p.name)}</strong>${p.barcode ? `<div class="hint mono">▦ ${esc(p.barcode)}</div>` : ""}</td>
               <td class="mono r">${qty(p.stockInicial)}</td>
-              <td class="mono r"><span class="stock ${p.stockActual <= 0 ? "out" : p.stockActual <= p.minStock ? "low" : "ok"}">${qty(p.stockActual)}</span></td>
-              ${multi ? `<td class="mono r"><span class="stock ${store.stockIn(p, wh?.id) <= 0 ? "out" : store.stockIn(p, wh?.id) <= p.minStock ? "low" : "ok"}">${qty(store.stockIn(p, wh?.id))}</span></td>` : ""}
+              <td class="mono r"><span class="stock ${stockTotalClass}" ${p.stockActual <= 0 ? `data-tip="Sin existencias en los almacenes activos"` : ""}>${qty(p.stockActual)}</span></td>
+              ${multi ? `<td class="mono r"><span class="stock ${stockAquiClass}" ${stockAqui <= 0 ? `data-tip="Sin existencias en el almacén en uso"` : ""}>${qty(stockAqui)}</span></td>` : ""}
               <td class="mono r">${usd(p.precioVentaUsd)}${p.precioVenta2Usd ? `<div class="hint">V2 ${usd(p.precioVenta2Usd)}</div>` : ""}</td>
               <td class="mono r">${p.precioCostoUsd ? usd(p.precioCostoUsd) : "—"}</td>
               <td class="mono r">${p.comisionCup ? cup(p.comisionCup) : "—"}</td>
               <td>${catBadge(p.category)}</td>
               <td class="hint">${esc(p.observaciones || "")}</td>
               ${canEdit ? `<td class="actions"><button class="icon-btn" data-edit-product="${p.id}" title="Modificar">✎</button><button class="icon-btn" data-quick-mov="${p.id}" title="Movimiento">⇄</button>${multi && canEdit ? `<button class="icon-btn" data-send-wh="${p.id}" title="Traspasar a otro almacén">🏬</button>` : ""}<button class="icon-btn danger" data-del-product="${p.id}" title="Enviar a papelera">🗑</button></td>` : ""}
-            </tr>`).join("") || `<tr><td colspan="${cols}" class="empty">${ui.filter === "AQUI" && !ui.q ? `Este almacén no tiene productos con existencias. El catálogo compartido sigue disponible.` : `Ningún producto coincide con “${esc(ui.q)}”.`}</td></tr>`}
+            </tr>`;
+          }).join("") || `<tr><td colspan="${cols}" class="empty">${ui.filter === "AQUI" && !ui.q ? `Este almacén no tiene productos con existencias. El catálogo compartido sigue disponible.` : `Ningún producto coincide con “${esc(ui.q)}”.`}</td></tr>`}
         </tbody>
         <tfoot><tr><td></td><td></td><td>TOTAL · ${list.length} ítems</td><td class="mono r">${qty(tot.ini)}</td><td class="mono r">${qty(tot.act)}</td>${multi ? `<td class="mono r">${qty(tot.wh)}</td>` : ""}<td colspan="${canEdit ? 6 : 5}"></td></tr></tfoot>
       </table>
