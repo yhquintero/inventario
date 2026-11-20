@@ -1252,6 +1252,7 @@ def ensure_warehouses(st):
         ws.append(default)
         active.append(default)
         changed = True
+    active_ids = {str(w.get("id")) for w in active if w.get("id") is not None}
     default = next((w for w in active if w.get("isDefault")), active[0])
     wid = default["id"]
     for p in st.get("products") or []:
@@ -1268,6 +1269,22 @@ def ensure_warehouses(st):
             changed = True
         if wid not in p["stocks"] and wid in p["stocksInicial"]:
             p["stocks"][wid] = p.get("stockActual", p["stocksInicial"][wid]) or 0
+            changed = True
+        # Almacenes borrados ya no tienen existencia visible: purga también sus
+        # claves antiguas y recalcula los totales para corregir el catálogo cargado.
+        orphaned = False
+        for mapping in (p["stocks"], p["stocksInicial"]):
+            for stock_id in list(mapping):
+                if str(stock_id) not in active_ids:
+                    del mapping[stock_id]
+                    orphaned = True
+        if orphaned:
+            try:
+                p["stockActual"] = warehouse_clear._total(p["stocks"].values())
+                p["stockInicial"] = warehouse_clear._total(p["stocksInicial"].values())
+            except warehouse_clear.ClearError:
+                # No fallar la carga completa por datos numéricos antiguos inválidos.
+                pass
             changed = True
     for m in st.get("movements") or []:
         if isinstance(m, dict) and not m.get("warehouseId"):

@@ -27,7 +27,7 @@
 </div>
 
 <p align="center">
-  <img src="docs/assets/novagest-hero.png" width="100%" alt="NovaGest: el Panel en el navegador y la Venta rápida en el móvil" />
+  <img src="docs/assets/novagest-hero.png" width="100%" alt="NovaGest: inventario, venta y caja en una misma aplicación, con capturas del Panel Web y Venta rápida" />
 </p>
 
 > [!TIP]
@@ -129,10 +129,10 @@ interna para quien administra las licencias.
 
 ## 📸 Capturas
 
-*Datos de demostración del proyecto: no contienen información de personas reales. NovaGest «Nebula».*
+*Capturas de NovaGest «Nebula» con datos de demostración; no contienen información de personas reales. La cuadrícula incluye vistas Web en tema claro y oscuro. La disposición puede variar según el rol, el almacén y el tamaño de pantalla.*
 
 <p align="center">
-  <img src="docs/assets/capturas/galeria-novagest.png" width="100%" alt="NovaGest «Nebula»: Panel, Venta rápida, Inventario, Cuadre diario, Análisis y metas y Panel en tema oscuro" />
+  <img src="docs/assets/capturas/galeria-novagest.png" width="100%" alt="Galería de NovaGest: Panel, Venta rápida, Inventario multialmacén, Cuadre diario, Análisis y metas, y tema oscuro" />
 </p>
 
 <table>
