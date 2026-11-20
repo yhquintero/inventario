@@ -112,6 +112,11 @@ server.read_backup = lambda _name: {
     "finMetrics": [{"periodo": "2026-11", "visitantes": 10, "registros": 2, "compras": 1, "clientes_nuevos": 1,
                     "usuarios_activos": 2, "gasto_marketing": 3, "costo_infra": 1, "mrr": 4}],
     "finQr": [{"id": 1, "titular": "Tienda restaurada", "banco": "Banco", "cuenta": "000", "moneda": "USD", "referencia": "ABC"}],
+    "finRecurring": [{"id": 994, "nombre": "Renta restaurada", "categoria": "Local", "monto": 125, "moneda": "USD",
+                      "frecuencia": "MENSUAL", "cuenta_id": 990, "centro_id": 991, "almacen": "Tienda",
+                      "comprobante": "factura", "inicio": "2026-11-01", "fin": "", "proximo": "2026-12-01", "activo": 1}],
+    "finBudgets": [{"id": 995, "tipo_periodo": "MES", "periodo": "2026-11", "cuenta_id": 990,
+                    "centro_id": 991, "monto": 500, "moneda": "USD"}],
 }
 server.make_backup = lambda *_args, **_kwargs: "pre-restore.bak"
 server.q("INSERT INTO sessions(id,token_hash,user_id,created,last_seen,ip,ua) VALUES(?,?,?,?,?,?,?)",
@@ -131,4 +136,6 @@ assert server.q("SELECT descripcion FROM fin_asientos WHERE id=992", one=True)["
 assert server.q("SELECT COUNT(*) n FROM fin_lineas WHERE asiento_id=992", one=True)["n"] == 1
 assert server.q("SELECT mrr FROM fin_metricas WHERE periodo='2026-11'", one=True)["mrr"] == 4
 assert server.q("SELECT titular FROM fin_qr WHERE id=1", one=True)["titular"] == "Tienda restaurada"
+assert server.q("SELECT nombre FROM fin_recurrentes WHERE id=994", one=True)["nombre"] == "Renta restaurada"
+assert server.q("SELECT monto FROM fin_presupuestos WHERE id=995", one=True)["monto"] == 500
 print("OK — validación de tipos financieros, asientos atómicos y restauración de licencias/finanzas")

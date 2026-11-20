@@ -72,7 +72,7 @@ if (typeof MutationObserver === "function" && typeof document !== "undefined" &&
  * perdía y se volvía siempre al Panel.
  */
 let tabActiva = "panel";
-const TABS = ["panel", "asientos", "cuentas", "informes", "cuentasT", "margenes", "indicadores", "qr"];
+const TABS = ["panel", "asientos", "cuentas", "informes", "cuentasT", "margenes", "planificacion", "indicadores", "qr"];
 
 /* Esqueleto de la UI (sin cabecera: al vivir dentro de la app, la cabecera es la de la app). */
 const ESQUELETO = `
@@ -83,6 +83,7 @@ const ESQUELETO = `
       <button data-tab="informes">Estados financieros</button>
       <button data-tab="cuentasT">Cuentas T y libro mayor</button>
       <button data-tab="margenes">Márgenes y ratios</button>
+      <button data-tab="planificacion">Planificación económica</button>
       <button data-tab="indicadores">Indicadores web/app</button>
       <button data-tab="qr">QR de cobro</button>
     </nav>
@@ -105,6 +106,7 @@ const ESQUELETO = `
       <section id="tab-informes" class="fin-tab"></section>
       <section id="tab-cuentasT" class="fin-tab"></section>
       <section id="tab-margenes" class="fin-tab"></section>
+      <section id="tab-planificacion" class="fin-tab"></section>
       <section id="tab-indicadores" class="fin-tab"></section>
       <section id="tab-qr" class="fin-tab"></section>
     </main>
@@ -379,6 +381,100 @@ async function loadMargenes() {
   }, { tipos: ["radar", "line"] }));
 }
 
+async function loadPlanificacion() {
+  const el = $("#tab-planificacion");
+  el.innerHTML = "<p class='card'>Cargando planificación…</p>";
+  const [re, budgets, ac, centers, forecast, aging] = await Promise.all([
+    api("/fin/recurrentes"), api("/fin/presupuestos"), api("/fin/cuentas"), api("/fin/centros"),
+    api("/fin/pronostico-caja?semanas=4"), api("/fin/cuentas-cobrar-antiguedad"),
+  ]);
+  if (re.error || budgets.error) { el.innerHTML = `<div class="card fin-error">${esc(re.error || budgets.error)}</div>`; return; }
+  const gastos = (re.gastos || []), cuentasGasto = (ac.cuentas || []).filter((c) => c.naturaleza === "GASTO" && c.activa);
+  const gastosOpts = cuentasGasto.map((c) => `<option value="${c.id}">${esc(c.codigo)} · ${esc(c.nombre)}</option>`).join("");
+  const centroOpts = (centers.centros || []).map((c) => `<option value="${c.id}">${esc(c.nombre)}</option>`).join("");
+  const hoy = new Date();
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const fechaHoy = iso(hoy), monthNow = fechaHoy.slice(0,7);
+  const weekNo = (() => { const x = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())); x.setUTCDate(x.getUTCDate()+4-(x.getUTCDay()||7)); const y = x.getUTCFullYear(); const first = new Date(Date.UTC(y,0,1)); return `${y}-W${String(Math.ceil((((x-first)/86400000)+1)/7)).padStart(2,"0")}`; })();
+  el.innerHTML = `
+    <div class="card"><h2>Gastos fijos configurables</h2><p class="hint">Define importe, periodicidad, moneda, centro/almacén y referencia del comprobante. La configuración y sus cambios no alteran asientos históricos. La referencia de comprobante admite texto o URL; no carga archivos.</p>
+      <div class="fin-form" id="recForm"><div class="fila"><label>Nombre <input id="rNombre" maxlength="120" placeholder="Alquiler del local"></label><label>Categoría <input id="rCat" maxlength="80" placeholder="Local, servicios…"></label></div>
+      <div class="fila"><label>Importe <input id="rMonto" type="number" min="0.01" step="0.01"></label><label>Moneda <input id="rMoneda" maxlength="8" value="USD"></label><label>Frecuencia <select id="rFrecuencia"><option>SEMANAL</option><option selected>MENSUAL</option><option>TRIMESTRAL</option><option>ANUAL</option></select></label></div>
+      <div class="fila"><label>Cuenta gasto <select id="rCuenta"><option value="">Sin asignar</option>${gastosOpts}</select></label><label>Centro de costo <select id="rCentro"><option value="">General / sin asignar</option>${centroOpts}</select></label><label>Almacén <input id="rAlmacen" placeholder="Opcional"></label></div>
+      <div class="fila"><label>Inicio <input id="rInicio" type="date" value="${fechaHoy}"></label><label>Próximo vencimiento <input id="rProximo" type="date" value="${fechaHoy}"></label><label>Fin (opcional) <input id="rFin" type="date"></label><label>Comprobante (ref./URL) <input id="rComprobante" maxlength="500"></label></div>
+      <button class="fin-btn primary" id="rGuardar">Guardar gasto</button> <button class="fin-btn ghost" id="rCancelar" hidden>Cancelar edición</button></div>
+      <div id="recTable"></div>
+    </div>
+    <div class="card"><h2>Presupuesto frente a gasto real</h2><p class="hint">Presupuestos en USD, comparados con asientos registrados en la cuenta y centro. Semanas ISO lunes–domingo.</p>
+      <div class="fin-form"><div class="fila"><label>Período <select id="bTipo"><option value="MES">Mes</option><option value="SEMANA">Semana ISO</option></select></label><label>Clave del período <input id="bPeriodo" value="${monthNow}" placeholder="AAAA-MM o AAAA-Www"></label><label>Cuenta de gasto <select id="bCuenta">${gastosOpts}</select></label><label>Centro <select id="bCentro"><option value="">Todos</option>${centroOpts}</select></label><label>Presupuesto (USD) <input id="bMonto" type="number" min="0.01" step="0.01"></label></div>
+      <button class="fin-btn primary" id="bGuardar">Guardar / actualizar presupuesto</button></div><div id="budgetTable"></div>
+    </div>
+    <div class="card"><h2>Pronóstico de caja · 4–12 semanas</h2><p class="hint">Estimación orientativa en USD: saldo contable actual de caja/banco + cobros de fiados por vencimiento − gastos recurrentes USD. Los gastos en otras monedas se muestran aparte, sin conversión. No predice ventas futuras ni sustituye una conciliación bancaria.</p>
+      <label>Horizonte <select id="fcWeeks"><option>4</option><option>8</option><option>12</option></select></label><div id="fcTable"></div>
+    </div>
+    <div class="card"><h2>Comparativa entre períodos</h2><p class="hint">Compara el rango seleccionado con el rango inmediatamente anterior de igual duración. También permite comparar semana o mes contra período precedente.</p>
+      <div class="fila"><label>Desde <input id="cmpDesde" type="date" value="${iso(new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()-6))}"></label><label>Hasta <input id="cmpHasta" type="date" value="${fechaHoy}"></label>
+      <button class="fin-btn ghost" id="cmpSemana">Semana actual</button><button class="fin-btn ghost" id="cmpMes">Mes actual</button><button class="fin-btn primary" id="cmpAplicar">Comparar</button></div><div id="cmpTable"></div>
+    </div>
+    <div class="card"><h2>Antigüedad de cuentas por cobrar</h2><p class="hint">Se basa en los fiados registrados en NovaGest. Vencido se agrupa por días desde la fecha de vencimiento; sin vencimiento se presenta como vigente. Los recordatorios se muestran aquí; el envío automático de mensajes requiere integración externa.</p>
+      <div class="fila"><button class="fin-btn ghost" id="agingCsv">Exportar CSV</button><button class="fin-btn ghost" id="agingPrint">Imprimir / PDF</button></div><div id="agingKpis" class="fin-grid"></div><div id="agingTable"></div>
+    </div>`;
+  let editing = null;
+  const recTable = () => {
+    $("#recTable").innerHTML = tabla([
+      {key:"nombre",label:"Gasto",render:f=>`<strong>${esc(f.nombre)}</strong><div class="hint">${esc(f.categoria||"")} · ${esc(f.almacen||"Todos los almacenes")}</div>`},
+      {key:"monto",label:"Importe",num:1},{key:"moneda",label:"Moneda"},{key:"frecuencia",label:"Frecuencia"},
+      {key:"proximo",label:"Próximo"},{key:"centro_nombre",label:"Centro",render:f=>esc(f.centro_nombre||"—")},
+      {key:"activo",label:"Estado",render:f=>f.activo?"Activo":"Pausado"},
+      {key:"id",label:"Acciones",render:f=>`<button class="fin-btn ghost" data-edit-rec="${f.id}">Editar</button> <button class="fin-btn ghost" data-toggle-rec="${f.id}" data-active="${f.activo?0:1}">${f.activo?"Pausar":"Activar"}</button> <button class="fin-btn danger" data-del-rec="${f.id}">Eliminar</button>`}
+    ], gastos);
+    $$("[data-edit-rec]").forEach(b=>b.onclick=()=>{ editing=gastos.find(x=>x.id===Number(b.dataset.editRec)); if(!editing)return;
+      const vals={rNombre:editing.nombre,rCat:editing.categoria,rMonto:editing.monto,rMoneda:editing.moneda,rFrecuencia:editing.frecuencia,rCuenta:editing.cuenta_id||"",rCentro:editing.centro_id||"",rAlmacen:editing.almacen,rInicio:editing.inicio,rProximo:editing.proximo,rFin:editing.fin,rComprobante:editing.comprobante};
+      Object.entries(vals).forEach(([id,v])=>{const x=$("#"+id);if(x)x.value=v??"";}); $("#rGuardar").textContent="Guardar cambios"; $("#rCancelar").hidden=false; });
+    $$("[data-toggle-rec]").forEach(b=>b.onclick=async()=>{const r=await api(`/fin/recurrentes/${b.dataset.toggleRec}`,{method:"PUT",body:{activo:b.dataset.active==="1"}});r.error?toast(r.error):loadPlanificacion();});
+    $$("[data-del-rec]").forEach(b=>b.onclick=async()=>{if(!confirm("¿Eliminar este gasto recurrente?"))return;const r=await api(`/fin/recurrentes/${b.dataset.delRec}`,{method:"DELETE"});r.error?toast(r.error):loadPlanificacion();});
+  };
+  recTable();
+  $("#rCancelar").onclick=()=>loadPlanificacion();
+  $("#rGuardar").onclick=async()=>{
+    const body={nombre:$("#rNombre").value,categoria:$("#rCat").value,monto:Number($("#rMonto").value),moneda:$("#rMoneda").value,frecuencia:$("#rFrecuencia").value,
+      cuenta_id:$("#rCuenta").value||null,centro_id:$("#rCentro").value||null,almacen:$("#rAlmacen").value,comprobante:$("#rComprobante").value,inicio:$("#rInicio").value,proximo:$("#rProximo").value,fin:$("#rFin").value};
+    const r=await api(editing?`/fin/recurrentes/${editing.id}`:"/fin/recurrentes",{method:editing?"PUT":"POST",body});
+    if(r.error)return toast(r.error);toast(editing?"Gasto actualizado":"Gasto recurrente guardado");loadPlanificacion();
+  };
+  $("#bTipo").onchange=()=>{$("#bPeriodo").value=$("#bTipo").value==="MES"?monthNow:weekNo;};
+  $("#bGuardar").onclick=async()=>{const r=await api("/fin/presupuestos",{method:"POST",body:{tipo_periodo:$("#bTipo").value,periodo:$("#bPeriodo").value,cuenta_id:Number($("#bCuenta").value),centro_id:$("#bCentro").value||null,monto:Number($("#bMonto").value),moneda:"USD"}});r.error?toast(r.error):(toast("Presupuesto guardado"),loadPlanificacion());};
+  $("#budgetTable").innerHTML=tabla([
+    {key:"periodo",label:"Período",render:f=>`${f.tipo_periodo==="MES"?"Mes":"Semana"} ${esc(f.periodo)}`},{key:"cuenta_nombre",label:"Cuenta"},{key:"centro_nombre",label:"Centro",render:f=>esc(f.centro_nombre||"Todos")},
+    {key:"monto",label:"Presupuesto",num:1},{key:"actual",label:"Real",num:1},{key:"desviacion",label:"Desviación",num:1,render:f=>`<span class="${f.desviacion>0?"bad":"ok"}">${fmt(f.desviacion)} (${f.porcentaje==null?"—":fmt(f.porcentaje)+"%"})</span>`},
+    {key:"id",label:"",render:f=>`<button class="fin-btn danger" data-del-budget="${f.id}">Eliminar</button>`}
+  ],budgets.presupuestos||[]);
+  $$("[data-del-budget]").forEach(b=>b.onclick=async()=>{const r=await api(`/fin/presupuestos/${b.dataset.delBudget}`,{method:"DELETE"});r.error?toast(r.error):loadPlanificacion();});
+  const paintForecast=async()=>{const f=await api(`/fin/pronostico-caja?semanas=${$("#fcWeeks").value}`);$("#fcTable").innerHTML=tabla([
+    {key:"desde",label:"Semana desde"},{key:"hasta",label:"hasta"},{key:"cobros_fiados",label:"Cobros previstos",num:1},{key:"gastos_recurrentes",label:"Gastos fijos USD",num:1},{key:"gastos_por_moneda",label:"Otras monedas",render:r=>Object.entries(r.gastos_por_moneda||{}).filter(([m])=>m!=="USD").map(([m,v])=>`${fmt(v)} ${esc(m)}`).join(" · ")||"—"},{key:"saldo_proyectado",label:"Saldo proyectado USD",num:1,render:r=>`<strong class="${r.saldo_proyectado<0?"bad":"ok"}">${fmt(r.saldo_proyectado)}</strong>`}
+  ],f.periodos||[]);};
+  $("#fcWeeks").onchange=paintForecast; paintForecast();
+  const compare=async(modo="rango")=>{const d=$("#cmpDesde").value,h=$("#cmpHasta").value;const c=await api(`/fin/comparativa?desde=${encodeURIComponent(d)}&hasta=${encodeURIComponent(h)}&modo=${encodeURIComponent(modo)}&centro=${encodeURIComponent(filtros().centro||"")}`);
+    if(c.error){$("#cmpTable").innerHTML=`<p class="fin-error">${esc(c.error)}</p>`;return;}
+    $("#cmpTable").innerHTML=tabla([{key:"concepto",label:"Indicador"},{key:"actual",label:`Actual · ${c.actual.desde} a ${c.actual.hasta}`,num:1},{key:"anterior",label:`Anterior · ${c.anterior.desde} a ${c.anterior.hasta}`,num:1},{key:"cambio",label:"Variación",num:1}],
+      ["ingresos","costos","gastos","utilidad"].map(k=>({concepto:{ingresos:"Ingresos",costos:"Costos",gastos:"Gastos",utilidad:"Utilidad neta"}[k],actual:c.actual[k],anterior:c.anterior[k],cambio:`${fmt(c.variacion[k])} · ${c.porcentaje[k]==null?"sin base":fmt(c.porcentaje[k])+"%"}`})));
+  };
+  $("#cmpAplicar").onclick=compare;
+  $("#cmpSemana").onclick=()=>{const day=(hoy.getDay()+6)%7;const mon=new Date(hoy);mon.setDate(hoy.getDate()-day);$("#cmpDesde").value=iso(mon);$("#cmpHasta").value=fechaHoy;compare("semana");};
+  $("#cmpMes").onclick=()=>{$("#cmpDesde").value=iso(new Date(hoy.getFullYear(),hoy.getMonth(),1));$("#cmpHasta").value=fechaHoy;compare("mes");};
+  compare();
+  const money=(v)=>fmt(v);
+  $("#agingKpis").innerHTML=Object.entries({"Total por cobrar":aging.total||0,"Por vencer / sin vencimiento":aging.tramos?.vigente||0,"1–30 días vencido":aging.tramos?.["1_30"]||0,"31–60 días vencido":aging.tramos?.["31_60"]||0,"Más de 60 días vencido":aging.tramos?.["61_mas"]||0}).map(([k,v])=>`<div class="kpi"><h3>${esc(k)}</h3><div class="v">${money(v)}</div></div>`).join("");
+  $("#agingTable").innerHTML=tabla([{key:"cliente",label:"Cliente"},{key:"concepto",label:"Concepto"},{key:"vence",label:"Vencimiento",render:f=>esc(f.vence||"Sin fecha")},{key:"dias_vencido",label:"Días vencido",num:1},{key:"pendiente",label:"Pendiente",num:1},{key:"estado",label:"Alerta",render:f=>`<span class="${f.estado==="VENCIDO"?"bad":"ok"}">${f.estado}</span>`}],aging.cuentas||[]);
+  $("#agingPrint").onclick=()=>{document.body.classList.add("fin-print-aging");const clean=()=>document.body.classList.remove("fin-print-aging");window.addEventListener("afterprint",clean,{once:true});window.print();setTimeout(clean,30000);};
+  $("#agingCsv").onclick=()=>{
+    const cell=(v)=>{let x=String(v??"");if(/^[=+@-]/.test(x))x="'"+x;return `"${x.replace(/"/g,'""')}"`;};
+    const rows=[["Cliente","Concepto","Vence","Días vencido","Pendiente USD","Estado"],...(aging.cuentas||[]).map(x=>[x.cliente,x.concepto,x.vence,x.dias_vencido,x.pendiente,x.estado])];
+    const blob=new Blob(["\ufeff"+rows.map(r=>r.map(cell).join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="novagest-antiguedad-cuentas-cobrar.csv";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  };
+}
+
 const IND_INFO = {
   cac: ["CAC — Costo de adquisición de cliente", "Gasto en marketing / clientes nuevos. Decide si un canal de adquisición es rentable: CAC debe ser < LTV/3."],
   tasa_conversion: ["Tasa de conversión", "Compras / visitantes × 100. Decide si invertir en mejorar la web o en atraer más tráfico."],
@@ -444,7 +540,7 @@ async function loadQr() {
 }
 
 /* ---------------- montaje ---------------- */
-const LOADERS = { panel: loadPanel, asientos: loadAsientos, cuentas: loadCuentas, informes: loadInformes, cuentasT: loadCuentasT, margenes: loadMargenes, indicadores: loadIndicadores, qr: loadQr };
+const LOADERS = { panel: loadPanel, asientos: loadAsientos, cuentas: loadCuentas, informes: loadInformes, cuentasT: loadCuentasT, margenes: loadMargenes, planificacion: loadPlanificacion, indicadores: loadIndicadores, qr: loadQr };
 function loadTab(t) { (LOADERS[t] || loadPanel)(); }
 
 function filtros() { return { desde: $("#fDesde").value, hasta: $("#fHasta").value, cuenta: $("#fCuenta").value, centro: $("#fCentro").value }; }

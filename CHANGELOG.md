@@ -1,3 +1,18 @@
+## NovaGest · revisión 2026-11-20 · Reposición sugerida en modal
+
+- Se quitó la tabla de reposición sugerida del final del Panel. El botón 🔔 fijo en la barra superior abre ahora un modal con la lista completa para el almacén activo, incluyendo vendidos, ritmo, existencia, cobertura y cantidad sugerida.
+- La campana sigue disponible aunque se desactiven los avisos emergentes; se muestra un contador de productos sugeridos y el modal permite ir al inventario.
+- Se añadió una regresión en `smoke_web.mjs` para comprobar que la tabla ya no aparece al pie y que el botón abre el modal.
+
+## NovaGest · revisión 2026-11-20 · Planificación económica y análisis de rentabilidad
+
+- Finanzas agrega gastos recurrentes configurables (categoría, frecuencia, moneda, almacén, centro y referencia de comprobante) sin modificar asientos históricos; presupuestos semanales/mensuales contra ejecución y desviaciones.
+- Pronóstico de caja semanal configurable entre 4 y 12 semanas: saldo de caja/banco, cobros de fiados por vencimiento y gastos recurrentes USD; otras monedas se informan aparte, sin conversión. La pantalla aclara que no proyecta ventas.
+- Antigüedad de fiados por tramos, lista priorizada de vencimientos, exportación CSV e impresión/PDF; comparación de rangos, semana contra semana y mes contra mes.
+- Análisis muestra rentabilidad/punto de equilibrio estimado por producto, categoría y almacén, repartiendo los gastos del mes por participación de ventas y explicando que es una aproximación.
+- Las nuevas tablas se incluyen en los respaldos cifrados y el service worker pasa a `novagest-v67`. Se agregan pruebas de planificación y restauración.
+- Pruebas enfocadas: `test_financial_planning.py`, `test_financial_restore.py`, `test_utilidad_neta_w27.mjs`, `test_informe_mensual.mjs` (79/79), `test_sitio.py` (69/69) y comprobación sintáctica JS/Python pasan. `smoke_web.mjs` reporta un fallo en la aserción existente «fichas e IPV viajan al servidor» (fuera de los módulos económicos modificados); `make test-backup` no puede ejecutarse aquí porque falta el paquete Python `cryptography`.
+
 ## NovaGest · revisión 2026-11-20 · Iconos de almacén, categorías y trazabilidad de Ficha de Costo
 
 - Dashboard: pulido de microinteracciones y acentos futuristas respetando `prefers-reduced-motion`.

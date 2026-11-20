@@ -380,9 +380,8 @@ function shell(body) {
           <span class="sync-dot ${store.sync}" id="syncDot" role="status" aria-live="polite" aria-atomic="true" data-tip="${{ ok: "Todo guardado en el servidor", saving: "Guardando…", offline: "Sin conexión: se guardará al reconectar", error: "El servidor rechazó el último cambio" }[store.sync]}"><i></i><em>${{ ok: "Guardado", saving: "Guardando…", offline: "Sin conexión", error: "Revisar" }[store.sync]}</em></span>
           <button class="btn ghost small lic-btn ${ui.route === "license" ? "on" : ""}" data-act="license-manage" title="Gestionar la licencia de uso" aria-label="Licencia de uso" data-tip="Gestionar la licencia de uso · Licencia ${ui.license.status?.valid ? `${ui.license.status.type} · ${ui.license.status.daysLeft === -1 ? "Permanente" : `${ui.license.status.daysLeft} días`}` : "no válida"}${pendingReq ? ` · ${pendingReq} solicitud(es) pendiente(s)` : ""}">🔐${pendingReq ? `<span class="pill">${pendingReq}</span>` : ""}</button>
           ${(() => {
-            if (!store.state.settings.lowStockAlerts) return "";
-            const n = alertasReposicion().filter((a) => a.severity === "alta").length;
-            return `<button class="btn ghost small" data-act="alerts-open" aria-label="Alertas de reposición${n ? `: ${n} urgente(s)` : ""}" data-tip="${n ? `${n} producto(s) urgente(s) por reponer` : "Sin urgencias de reposición"}">🔔${n ? `<span class="pill">${n}</span>` : ""}</button>`;
+            const n = sugerenciasReposicion().length;
+            return `<button class="btn ghost small" data-act="reorder-open" aria-label="🔔 Reposición sugerida${n ? `: ${n} producto(s)` : ""}" data-tip="${n ? `${n} producto(s) para reponer` : "Ver sugerencias de reposición"}">🔔${n ? `<span class="pill">${n}</span>` : ""}</button>`;
           })()}
           <button class="btn ghost small kiosk-toggle" data-act="kiosk-on" title="Modo mostrador (tablet sin menús)" aria-label="Activar el modo mostrador para la tablet">⛶</button>
           <button class="btn ghost small kbd-btn" data-act="palette" aria-label="Búsqueda rápida (Ctrl+K)">⌘K</button>
@@ -1314,27 +1313,40 @@ function homeView() {
         <div class="list">${low.slice(0, 10).map((p) => `<div class="li">${thumb(p, 34)}<div><strong>${esc(p.name)}</strong><div class="hint">Stock ${qty(p.stockActual)} · mín ${qty(p.minStock)}</div></div></div>`).join("") || "<p class='hint'>Todo cubierto.</p>"}</div>
       </div>
     </div>
-    ${reorderCardMarkup()}`;
+    `;
 }
-/** Reposición sugerida (W-11): ritmo de venta real × existencia disponible. */
-function reorderCardMarkup(days = 30, cover = 14, limit = 8) {
-  const lista = reorderSuggestions(store.activeProducts(), store.activeMovements(), { days, cover, limit });
-  if (!lista.length) return "";
+/** Reposición sugerida (W-11): lista modal, disponible desde el botón fijo 🔔. */
+function sugerenciasReposicion() {
+  const productos = store.activeProducts(), movimientos = store.activeMovements();
+  const clave = `${store._rev}|${store.activeWarehouseId()}|${todayISO()}|${diasDeCobertura()}`;
+  // Las referencias también detectan reemplazos completos de estado (p. ej. restauración/importación).
+  if (sugerenciasReposicion._clave === clave && sugerenciasReposicion._productos === store.state.products
+      && sugerenciasReposicion._movimientos === store.state.movements) return sugerenciasReposicion._lista;
+  sugerenciasReposicion._clave = clave;
+  sugerenciasReposicion._productos = store.state.products;
+  sugerenciasReposicion._movimientos = store.state.movements;
+  sugerenciasReposicion._lista = reorderSuggestions(productos, movimientos, {
+    days: 30, cover: diasDeCobertura(), warehouseId: store.activeWarehouseId(),
+  });
+  return sugerenciasReposicion._lista;
+}
+function reorderModalMarkup() {
+  const lista = sugerenciasReposicion();
   const resumen = reorderSummary(lista);
   const etiqueta = { agotado: ["err", "Agotado"], urgente: ["err", "Urgente"], pronto: ["warn", "Pronto"], normal: ["ok", "Planificar"] };
-  return `<section class="card mt16" aria-labelledby="reorderTitle">
-      <div class="card-h"><span class="k" id="reorderTitle">🧾 Reposición sugerida</span><button class="btn ghost small" data-nav="inventory">Ver inventario</button></div>
-      <p class="hint">Con las ventas de los últimos ${days} días y lo que hay en existencia. La columna «Alcanza» son los días que dura el stock al ritmo actual; la sugerencia cubre ${cover} días.</p>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Producto</th><th>Vendidos</th><th>Por día</th><th>Alcanza</th><th>Sugerido</th><th>Estado</th></tr></thead>
-        <tbody>${lista.map((f) => {
-          const [tono, texto] = etiqueta[f.level] || ["ok", "Planificar"];
-          const alcanza = f.daysLeft === 0 ? "agotado" : Number.isFinite(f.daysLeft) ? `${f.daysLeft} días` : "—";
-          return `<tr><td>${esc(f.product.name)}</td><td class="mono">${qty(f.sold)}</td><td class="mono">${f.perDay}</td><td class="mono">${alcanza}</td><td class="mono"><b>${qty(f.suggested)}</b></td><td><span class="tag ${tono}">${texto}</span></td></tr>`;
-        }).join("")}</tbody>
-      </table></div>
-      <div class="hline dashboard-total"><span>${esc(resumen.texto)}</span><b class="mono">${qty(resumen.unidades)} uds</b></div>
-    </section>`;
+  const almacen = store.activeWarehouse()?.name || "almacén en uso";
+  return `<div class="modal-back" data-act="close-modal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="reorderModalTitle">
+    <div class="modal-h"><div class="h2" id="reorderModalTitle">🔔 Reposición sugerida</div><button type="button" class="icon-btn" data-act="close-modal" aria-label="Cerrar">✕</button></div>
+    <p class="hint">${esc(resumen.texto)} · ${esc(almacen)} · ventas de los últimos 30 días. La sugerencia busca cubrir ${diasDeCobertura()} días.</p>
+    <div class="table-wrap"><table><thead><tr><th>Producto</th><th class="r">Vendidos</th><th class="r">Por día</th><th class="r">Quedan</th><th>Alcanza</th><th class="r">Sugerido</th><th>Estado</th></tr></thead>
+      <tbody>${lista.map((f) => {
+        const [tono, texto] = etiqueta[f.level] || ["ok", "Planificar"];
+        const alcanza = f.daysLeft === 0 ? "Agotado" : Number.isFinite(f.daysLeft) ? `${f.daysLeft} días` : "Sin ventas recientes";
+        return `<tr><td><strong>${esc(f.product.name)}</strong></td><td class="mono r">${qty(f.sold)}</td><td class="mono r">${f.perDay}</td><td class="mono r">${qty(f.product.stockActual)}</td><td>${esc(alcanza)}</td><td class="mono r"><b>${qty(f.suggested)}</b></td><td><span class="tag ${tono}">${texto}</span></td></tr>`;
+      }).join("") || `<tr><td colspan="7" class="empty">No hay productos que reponer dentro de la cobertura configurada.</td></tr>`}</tbody>
+    </table></div>
+    <div class="row mt14"><button class="btn" data-act="reorder-go">Ir al inventario</button><button class="btn ghost" data-act="close-modal">Cerrar</button></div>
+  </div></div>`;
 }
 
 const kpi = (k, v, s, tone = "") => `<div class="card kpi ${tone}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
@@ -3320,6 +3332,30 @@ function goalBar(label, v, goal) {
   return `<div class="goal-bar" data-tip="${usd(v)} de ${usd(goal)}"><div class="row jc-b"><b>${label}</b><span class="mono">${usd(v)} / ${usd(goal)}</span></div>
     <div class="gb"><i data-w="${p}" class="${p >= 100 ? "done" : ""}"></i></div><div class="hint">${p >= 100 ? "🏆 ¡Meta cumplida!" : `Faltan ${usd(goal - v)} (${round2(p)}%)`}</div></div>`;
 }
+/** Rentabilidad segmentada del mes: distribuye los gastos registrados según participación de ventas.
+ * Es una estimación gerencial, no una imputación contable por producto/centro. */
+function resumenPuntoEquilibrioSegmentado(movimientos, productos, gastos, porSegmento) {
+  const catalogo = new Map(productos.map((p) => [p.id, p]));
+  const grupos = new Map();
+  movimientos.filter((m) => m.type === "VENTA").forEach((m) => {
+    const p = catalogo.get(m.productId);
+    const nombre = porSegmento === "producto" ? (p?.name || m.productName || "Producto")
+      : porSegmento === "categoria" ? (p?.category || "General") : (m.warehouseName || store.warehouseName(store.warehouseOf(m)) || "Almacén");
+    const row = grupos.get(nombre) || { nombre, ventas: 0, costo: 0, unidades: 0 };
+    row.ventas += Number(m.importeUsd) || 0;
+    row.costo += Number(m.costoUsd) || (Number(m.unitCostUsd) || 0) * (Number(m.quantity) || 0);
+    row.unidades += Number(m.quantity) || 0;
+    grupos.set(nombre, row);
+  });
+  const total = [...grupos.values()].reduce((sum, r) => sum + r.ventas, 0);
+  return [...grupos.values()].map((r) => {
+    const margen = r.ventas > 0 ? (r.ventas - r.costo) / r.ventas : 0;
+    const gastoAsignado = total > 0 ? gastos * r.ventas / total : 0;
+    return { ...r, utilidadBruta: r.ventas - r.costo, margenPct: margen * 100,
+      gastoAsignado, equilibrio: margen > 0 ? gastoAsignado / margen : null };
+  }).sort((a,b) => b.ventas-a.ventas);
+}
+
 function analyticsView() {
   const s = store.state.settings;
   const series = dailySeries();
@@ -3337,6 +3373,12 @@ function analyticsView() {
   };
   const wk = weeklyData(last.d);
   const mesActual = monthlyReport(store.state, monthKey(last.d));
+  const ventasMes = movimientos.filter((m) => m.type === "VENTA" && m.date?.slice(0, 7) === monthKey(last.d));
+  const segmentosBE = {
+    producto: resumenPuntoEquilibrioSegmentado(ventasMes, store.state.products, mesActual.gastosUsd, "producto").slice(0, 12),
+    categoria: resumenPuntoEquilibrioSegmentado(ventasMes, store.state.products, mesActual.gastosUsd, "categoria"),
+    almacen: resumenPuntoEquilibrioSegmentado(ventasMes, store.state.products, mesActual.gastosUsd, "almacen"),
+  };
   const prevWk = weeklyData(addDays(wk.w.from, -7));
   const diffPct = prevWk.ventas ? round2(((wk.ventas - prevWk.ventas) / prevWk.ventas) * 100) : null;
   const best = series.reduce((a, b) => (b.v > a.v ? b : a), { v: 0 });
@@ -3367,6 +3409,12 @@ function analyticsView() {
       </div>
       <div class="card"><div class="card-h"><span class="k">Margen por categoría (ventas registradas)</span></div>
         ${Object.entries(byCat).sort((a, b) => b[1].v - a[1].v).map(([k, o]) => `<div class="hbar"><span>${catBadge(k)}</span><div><i data-w="${o.v ? Math.max(4, ((o.v - o.c) / o.v) * 100) : 0}" data-cat="${esc(k)}"></i></div><b class="mono" data-tip="Venta ${usd(o.v)} · costo ${usd(o.c)}">${o.v ? round2(((o.v - o.c) / o.v) * 100) : 0}%</b></div>`).join("") || "<p class='hint'>Sin ventas registradas.</p>"}
+      </div>
+    </div>
+    <div class="card mt16"><div class="card-h"><span class="k">Punto de equilibrio y rentabilidad por producto, categoría y almacén</span><span class="tag mov">${esc(monthKey(last.d))}</span></div>
+      <p class="hint">Utilidad bruta = ventas − costo de venta registrado. Para estimar el punto de equilibrio, los gastos operativos del mes (${usd(mesActual.gastosUsd)}) se distribuyen por participación de ventas entre segmentos. Es una aproximación gerencial; no sustituye la imputación contable por centro ni se muestra si el margen es cero o negativo.</p>
+      <div class="grid-2">
+        ${[["Producto (12 principales)", segmentosBE.producto], ["Categoría", segmentosBE.categoria], ["Almacén", segmentosBE.almacen]].map(([titulo, rows]) => `<div class="card table-wrap"><h3>${esc(titulo)}</h3><table><thead><tr><th>Segmento</th><th class="r">Venta</th><th class="r">Utilidad bruta</th><th class="r">Margen</th><th class="r">Gasto asignado</th><th class="r">Ventas equilibrio</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.nombre)}</td><td class="mono r">${usd(r.ventas)}</td><td class="mono r">${usd(r.utilidadBruta)}</td><td class="mono r">${round2(r.margenPct)}%</td><td class="mono r">${usd(r.gastoAsignado)}</td><td class="mono r">${r.equilibrio==null?"—":usd(r.equilibrio)}</td></tr>`).join("") || `<tr><td colspan="6" class="empty">Sin ventas en el mes.</td></tr>`}</tbody></table></div>`).join("")}
       </div>
     </div>
     <div class="card mt16"><div class="card-h"><span class="k">📈 Tendencia de ventas diarias</span><span class="hint">línea discontinua = meta diaria</span></div>${lineChart(series, s.goalDaily)}</div>
@@ -4681,7 +4729,8 @@ function render() {
     const m = $(".modal");
     const ae = document.activeElement;
     if (m && m.contains && (!ae || !m.contains(ae))) {
-      const first = m.querySelector?.("input:not([type=hidden]):not([readonly]):not([type=file]), select, textarea");
+      const first = m.querySelector?.("[autofocus], input:not([type=hidden]):not([readonly]):not([type=file]), select, textarea")
+        || m.querySelector?.("button:not([disabled]), [href], [tabindex]:not([tabindex='-1'])");
       if (first && first !== ae) first.focus?.();
     }
   }
@@ -5625,6 +5674,8 @@ function onClick(e) {
   else if (act === "kiosk-off") { setKiosco(false); toast("Modo mostrador desactivado", "ok"); render(); }
   else if (act === "kiosk-full") { document.documentElement.requestFullscreen?.().then?.(() => render()); }
   else if (act === "alerts-open") { ui.modal = alertsModalMarkup(alertasReposicion()); render(); }
+  else if (act === "reorder-open") { ui.modal = reorderModalMarkup(); render(); }
+  else if (act === "reorder-go") { ui.modal = null; navTo("inventory"); }
   else if (act === "alerts-go") { ui.modal = null; navTo("inventory"); }
   else if (act === "alerts-silence") {
     const lista = alertasReposicion().filter((a) => a.severity === "alta");

@@ -875,6 +875,8 @@ def make_backup(kind="auto", user="sistema"):
         "finLines": [dict(r) for r in q("SELECT * FROM fin_lineas")],
         "finMetrics": [dict(r) for r in q("SELECT * FROM fin_metricas")],
         "finQr": [dict(r) for r in q("SELECT * FROM fin_qr")],
+        "finRecurring": [dict(r) for r in q("SELECT * FROM fin_recurrentes")],
+        "finBudgets": [dict(r) for r in q("SELECT * FROM fin_presupuestos")],
     }
     blob = cifrar_copia(gzip.compress(json.dumps(payload, ensure_ascii=False).encode()))
     name = dt.datetime.now().strftime(f"novagest_%Y-%m-%d_%H%M%S_{kind}.bak")
@@ -2938,8 +2940,10 @@ def backups_restore(h, u, name):
         # Backups recientes llevan el módulo financiero completo. Los backups
         # anteriores carecen de estas claves: en ese caso se preservan las fin_* actuales.
         if "finAccounts" in data:
-            for sql in ("DELETE FROM fin_lineas", "DELETE FROM fin_asientos", "DELETE FROM fin_centros",
-                        "DELETE FROM fin_cuentas", "DELETE FROM fin_metricas", "DELETE FROM fin_qr"):
+            # La restauración reemplaza los datos financieros y elimina primero dependencias FK.
+            for sql in ("DELETE FROM fin_lineas", "DELETE FROM fin_asientos", "DELETE FROM fin_presupuestos",
+                        "DELETE FROM fin_recurrentes", "DELETE FROM fin_centros", "DELETE FROM fin_cuentas",
+                        "DELETE FROM fin_metricas", "DELETE FROM fin_qr"):
                 cur.execute(sql)
             cur.executemany("INSERT INTO fin_cuentas(id,codigo,nombre,naturaleza,saldo_normal,padre,corriente,tipo_costo,activa) VALUES(?,?,?,?,?,?,?,?,?)",
                 [(r["id"], r["codigo"], r["nombre"], r["naturaleza"], r["saldo_normal"], r.get("padre"), r.get("corriente", 0), r.get("tipo_costo"), r.get("activa", 1)) for r in data["finAccounts"]])
@@ -2953,6 +2957,10 @@ def backups_restore(h, u, name):
                 [(r["periodo"], r.get("visitantes", 0), r.get("registros", 0), r.get("compras", 0), r.get("clientes_nuevos", 0), r.get("usuarios_activos", 0), r.get("gasto_marketing", 0), r.get("costo_infra", 0), r.get("mrr", 0)) for r in data.get("finMetrics", [])])
             cur.executemany("INSERT INTO fin_qr(id,titular,banco,cuenta,moneda,referencia) VALUES(?,?,?,?,?,?)",
                 [(r["id"], r.get("titular", ""), r.get("banco", ""), r.get("cuenta", ""), r.get("moneda", "USD"), r.get("referencia", "")) for r in data.get("finQr", [])])
+            cur.executemany("INSERT INTO fin_recurrentes(id,nombre,categoria,monto,moneda,frecuencia,cuenta_id,centro_id,almacen,comprobante,inicio,fin,proximo,activo,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                [(r["id"], r["nombre"], r.get("categoria", ""), r["monto"], r.get("moneda", "USD"), r["frecuencia"], r.get("cuenta_id"), r.get("centro_id"), r.get("almacen", ""), r.get("comprobante", ""), r["inicio"], r.get("fin", ""), r["proximo"], r.get("activo", 1), r.get("created_at")) for r in data.get("finRecurring", [])])
+            cur.executemany("INSERT INTO fin_presupuestos(id,tipo_periodo,periodo,cuenta_id,centro_id,monto,moneda) VALUES(?,?,?,?,?,?,?)",
+                [(r["id"], r["tipo_periodo"], r["periodo"], r["cuenta_id"], r.get("centro_id"), r["monto"], r.get("moneda", "USD")) for r in data.get("finBudgets", [])])
         return v
 
     v = financial_transaction(restaurar)
