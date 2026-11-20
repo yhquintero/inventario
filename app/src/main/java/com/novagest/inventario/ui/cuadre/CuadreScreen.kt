@@ -114,9 +114,9 @@ fun CuadreScreen(user: UserAccount, vm: CuadreViewModel = hiltViewModel()) {
             }
         }
         if (sync.connected) {
-            val canClose = user.role.name in setOf("ADMINISTRADOR", "JEFE", "ECONOMICO")
+            val canClose = RolePermissions.canCloseDay(user.role)
             if (!closed && canClose) androidx.compose.material3.OutlinedButton(onClick = { vm.closeDay() }, modifier = Modifier.fillMaxWidth()) { Text("🔒 Cerrar día") }
-            if (closed && user.role.name == "ADMINISTRADOR") androidx.compose.material3.OutlinedButton(onClick = { reopenReason = "" }, modifier = Modifier.fillMaxWidth()) { Text("🔓 Reabrir día") }
+            if (closed && RolePermissions.canReopenDay(user.role)) androidx.compose.material3.OutlinedButton(onClick = { reopenReason = "" }, modifier = Modifier.fillMaxWidth()) { Text("🔓 Reabrir día") }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             KpiCard("VENTA TOTAL", Money.usd(totals.ventaTotal), modifier = Modifier.weight(1f))

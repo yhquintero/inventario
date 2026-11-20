@@ -789,7 +789,7 @@ class Store {
     if (st.status !== 200) return;
     this.applyServer(st);
     if (!st.state) {
-      if (["ADMINISTRADOR", "JEFE"].includes(u.role)) {
+      if (can(u.role, "SEED_BASE")) {
         this.seed();
         const res = await api("/state", { method: "PUT", body: { version: this.version, state: this.shared() } });
         if (res.ok) this.version = res.version;
@@ -1081,7 +1081,7 @@ class Store {
    *  Nunca deja la base sin almacenes. Es la contrapartida de «Crear los 168 municipios»:
    *  tras limpiar (🧹) los municipios quedan vacíos y se pueden eliminar sin destino. */
   deleteMunicipalWarehouses(moveTo = null) {
-    if (this.state.session?.role !== "ADMINISTRADOR") return { error: "Solo un administrador puede eliminar los municipios en bloque." };
+    if (!can(this.state.session?.role, "WAREHOUSE_CLEAR")) return { error: "Solo un administrador puede eliminar los municipios en bloque." };
     const targets = this.existingMunicipalWarehouses();
     if (!targets.length) return { error: "No hay almacenes municipales para eliminar." };
     const targetIds = new Set(targets.map((w) => w.id));
@@ -1169,7 +1169,7 @@ class Store {
   }
 
   async clearWarehouse(warehouseId, municipalityIds = null) {
-    if (this.state.session?.role !== "ADMINISTRADOR") return { error: "Solo un administrador puede limpiar el inventario." };
+    if (!can(this.state.session?.role, "WAREHOUSE_CLEAR")) return { error: "Solo un administrador puede limpiar el inventario." };
     if (this.clearConflictPending) return { error: "Hay cambios anteriores a una limpieza pendientes de revisión." };
     if (this.saving) return { error: "Espere a que termine el guardado y vuelva a intentarlo." };
     if (this.dirty && !(await this.flush())) return { error: "No se pudieron guardar todos los cambios pendientes. Revise la sincronización." };

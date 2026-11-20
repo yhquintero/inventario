@@ -22,7 +22,8 @@ object DatabaseKey {
 
     private const val ALIAS = "novagest_db_key"
     private const val PREFS_NAME = "novagest_db_key_prefs"
-    private const val KEY_ENCRYPTED_SECRET = "encrypted_secret"
+    // nosec: es el NOMBRE de la clave dentro de SharedPreferences, no un secreto.
+    private const val KEY_ENCRYPTED_SECRET = "encrypted_secret" // nosec
     private const val KEY_IV = "iv"
 
     private fun keystore(): KeyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -51,7 +52,9 @@ object DatabaseKey {
     /** Passphrase determinista y persistente para SQLCipher. */
     @Synchronized
     fun passphrase(context: Context): ByteArray {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        // nosec: solo se guardan ciphertext + IV; la clave vive en el Android Keystore
+        // (AES-256-GCM), así que el propio fichero de preferencias está cifrado.
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) // nosec
         val encryptedBase64 = prefs.getString(KEY_ENCRYPTED_SECRET, null)
         val ivBase64 = prefs.getString(KEY_IV, null)
 
