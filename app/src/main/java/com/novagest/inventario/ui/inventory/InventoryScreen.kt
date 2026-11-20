@@ -223,6 +223,17 @@ private fun normalize(s: String): String =
 
 @Composable
 fun CategoryThumb(category: String, size: androidx.compose.ui.unit.Dp = 44.dp) {
+    val glyph = when (category) {
+        "Salud y cuidado" -> "♡"
+        "Oficina y papelería" -> "✎"
+        "Deporte y recreación" -> "⚽"
+        "Belleza y cuidado personal" -> "✿"
+        "Automotriz" -> "🚘"
+        "Agricultura y jardín" -> "🌱"
+        "Mascotas" -> "🐾"
+        "Empaque y suministros" -> "▧"
+        else -> null
+    }
     val res = when (category) {
         "Solar / Energía" -> R.drawable.cat_solar
         "Cocina" -> R.drawable.cat_cocina
@@ -243,7 +254,7 @@ fun CategoryThumb(category: String, size: androidx.compose.ui.unit.Dp = 44.dp) {
             modifier = Modifier.size(size).clip(RoundedCornerShape(10.dp)))
     } else {
         Box(Modifier.size(size).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-            Text(category.take(1), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text(glyph ?: category.take(1), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
         }
     }
 }

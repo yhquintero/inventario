@@ -35,7 +35,7 @@
 | A-22 | Escanear código al crear/editar producto | Cámara rellena código; avisa duplicado; no teclear | | | ⬜ |
 | W-26 | Etiquetas de precio con código de barras (A4) | Hoja A4 con nombre, precio, Code 128 legible; 24 y 40 etiquetas | | | ⬜ |
 | A-25 | Márgenes en el móvil | Lista peor→mejor; margen, ganancia, precio objetivo; respeta Ajustes | | | ⬜ |
-| W-27 | Utilidad neta (venta − costo − gastos) | Mes muestra venta, costo, gastos y utilidad neta igual en pantalla/PDF/CSV | | | ⬜ |
+| W-27 | Utilidad neta (venta − costo − gastos) | `test_informe_mensual.mjs` 79/79 + `smoke_web.mjs` 90/90; Análisis/informe/PDF/CSV usan el mismo cálculo; gastos CUP convertidos con la tasa del cuadre | — | 2026-11-20 | ✅ |
 | D-14 | Cartel A4 precios y mínimos desde Inventario | Una página por almacén; categoría, precio, mínimo, fecha; sin menús | | | ⬜ |
 
 ---

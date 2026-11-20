@@ -174,6 +174,7 @@ fun LicenseScreen(
             // Servidor: sin él no se puede validar la licencia y la app queda bloqueada,
             // así que debe poder configurarse aquí y no sólo en el login (que está detrás).
             var serverUrl by remember { mutableStateOf(vm.server()) }
+            val serverUsesPlainHttp = serverUrl.trim().startsWith("http://", ignoreCase = true)
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Servidor", style = MaterialTheme.typography.titleSmall)
@@ -181,19 +182,22 @@ fun LicenseScreen(
                         value = serverUrl,
                         onValueChange = { serverUrl = it },
                         label = { Text("Dirección del servidor") },
-                        placeholder = { Text("https://tienda.ejemplo.com") },
+                        placeholder = { Text("https://192.168.1.20:8443") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         supportingText = {
                             Text(
-                                "La misma dirección que usa la Web. Sin servidor, la licencia no se puede validar.",
+                                when {
+                                    serverUsesPlainHttp -> "HTTP sin cifrar está bloqueado. Usa HTTPS y, en una red local, instala en Android la CA pública indicada por el instalador."
+                                    else -> "La misma dirección HTTPS que usa la Web. En LAN, móvil y servidor deben compartir Wi-Fi y confiar en el certificado local."
+                                },
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
                     )
                     Button(
                         onClick = { vm.saveServer(serverUrl); vm.check() },
-                        enabled = serverUrl.isNotBlank() && !state.loading,
+                        enabled = serverUrl.isNotBlank() && !state.loading && !serverUsesPlainHttp,
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Guardar servidor y verificar licencia") }
                 }

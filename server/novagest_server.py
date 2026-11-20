@@ -1462,7 +1462,7 @@ def validate_change(old, new, role, closed):
 
 # ------------------------------------------------------------------ HTTP
 MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
-        ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json", ".txt": "text/plain; charset=utf-8"}
+        ".css": "text/css; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".json": "application/json", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json", ".txt": "text/plain; charset=utf-8", ".woff2": "font/woff2"}
 # Sin 'unsafe-inline': los estilos en línea se migraron a clases/data-* + CSSOM
 # y ningún script en línea se ejecuta. Ver docs/CUMPLIMIENTO.md y MEJORA_CONTINUA.
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; "

@@ -87,9 +87,44 @@ NOVAGEST_DEMO_USERS=0 NOVAGEST_ADMIN_PASSWORD='CAMBIA_POR_UNA_CLAVE_PROPIA1' pyt
 
 Para reconstruir `web/js/seed-data.js` y `app/src/main/assets/seed.json` desde todas las hojas fechadas de `xlsx/NovaGest SEPT.xlsx`, ejecuta `python3 tools/import_excel.py`. El generador conserva ventas, costos y comisiones por movimiento y anota los ajustes de apertura/cierre.
 
-El servidor escucha en `http://localhost:8080` por defecto y sirve la interfaz Web junto con la API. Para cambiar el puerto: `PORT=9090 python3 server/novagest_server.py`.
+El servidor escucha en `0.0.0.0:8080` por defecto (todas las interfaces de red) y sirve la interfaz Web junto con la API. En la misma computadora se abre `http://localhost:8080`. Para cambiar el puerto: `PORT=9090 python3 server/novagest_server.py`.
 
-La aplicación Web no requiere un proceso de compilación de frontend: el servidor sirve los archivos de `web/` directamente.
+> **Seguridad:** el HTTP directo es útil para desarrollo local; no lo expongas a Wi-Fi compartida ni a Internet. Para Web instalable, cámara, sesiones protegidas y Android, usa HTTPS. En Windows, `server\\iniciar-https.ps1` configura HTTPS en el puerto 8443 y muestra las URL IP válidas.
+
+La aplicación Web no requiere un proceso de compilación de frontend: el servidor sirve los archivos de `web/` directamente. La PWA descarga el shell al instalarse y lo conserva para abrir la interfaz sin Internet; el servidor/API y los datos compartidos sí deben estar accesibles para sincronizar.
+
+## Acceso en red local y trabajo sin Internet
+
+NovaGest admite dos escenarios relacionados, pero no equivalentes:
+
+1. **Red local (LAN):** un PC ejecuta el servidor y Web; los otros equipos y móviles acceden a la misma instancia y comparten datos, incluso si el router sigue encendido pero se cae Internet.
+2. **Trabajo offline por dispositivo:** la PWA ya instalada conserva su interfaz y cola local; Android conserva Room y los cambios pendientes. Sin servidor, cada equipo mantiene sus cambios localmente y no se comparten entre dispositivos hasta recuperar conexión y sincronizar.
+
+### Windows: servidor local con HTTPS
+
+1. Conecta la laptop/PC y los teléfonos a la misma Wi-Fi o hotspot. Ejecuta `powershell -ExecutionPolicy Bypass -File .\\server\\iniciar-https.ps1`.
+2. El script abre el puerto 8443 en el Firewall, crea certificado HTTPS con los nombres/IP disponibles y muestra las URL del equipo. Desde otro equipo **usa la URL HTTPS con IP que imprime**, por ejemplo `https://192.168.1.20:8443`; no uses `localhost` (en el teléfono, `localhost` significa el propio teléfono).
+3. El script indica la ubicación de la CA raíz pública de mkcert. Para Android/iOS que necesiten confiar en ese certificado local, instala **solo el certificado público de CA** siguiendo el menú que muestra el script. **Nunca copies ni compartas `rootCA-key.pem`**. NovaGest Android confía en certificados de usuario para este flujo.
+4. Abre `https://<IP-impresa>:8443/api/health` desde el móvil. Debe responder el estado de NovaGest; luego abre la raíz de esa misma IP e inicia sesión con tu usuario.
+5. En Android, escribe exactamente esa URL HTTPS en **Servidor**. La app bloquea HTTP sin cifrar. La Web PWA debe abrirse al menos una vez desde esa URL para instalarse/guardar su shell offline.
+
+Si la IP cambia por DHCP, vuelve a ejecutar el script y usa la URL/certificado actualizados. Para servidor Linux/macOS, usa un reverse proxy HTTPS confiable (por ejemplo, Caddy con DNS/certificado apropiados para la red); no publiques el puerto HTTP 8080 como sustituto de HTTPS.
+
+### Qué sigue funcionando cuando se corta Internet
+
+- **Con router/Wi-Fi operativo:** los dispositivos continúan conectándose al servidor local por HTTPS; la operación compartida sigue disponible. Funciones que consultan servicios externos sí pueden quedar temporalmente indisponibles.
+- **Sin conexión entre equipos:** la PWA abre su shell cacheado; Android mantiene su base Room. Los cambios permanecen en colas locales hasta volver a conectar. Revisa el indicador **cambios pendientes** y no borres almacenamiento/caché de la aplicación para intentar recuperar datos.
+- **No confundir “offline” con “compartido”:** sin el servidor accesible, el modo local de Android es propio de ese teléfono; no replica datos a la Web ni a otro móvil durante el corte.
+
+### Tipografía local y descarga
+
+La Web sirve Inter Variable desde `web/public/fonts/`, sin Google Fonts ni CDN. El shell PWA precarga los archivos WOFF2 y la licencia, por lo que la tipografía y el fallback del sistema están disponibles sin Internet después de instalar/abrir la PWA una vez. También puedes descargarlos directamente desde el servidor:
+
+- [Inter Variable · Latin WOFF2](../web/public/fonts/inter-latin-wght-normal.woff2)
+- [Inter Variable · Latin Extended WOFF2](../web/public/fonts/inter-latin-ext-wght-normal.woff2)
+- [Licencia SIL Open Font License 1.1](../web/public/fonts/OFL.txt)
+
+Android utiliza la familia Sans Serif/Roboto instalada en el sistema; no depende de una descarga tipográfica ni de red para dibujar la UI. La fuente Inter de la Web se distribuye bajo SIL OFL 1.1.
 
 ## Primera activación
 

@@ -11,7 +11,7 @@ html[data-theme="dark"] {
   --fin-line: #2a2854; --fin-acc: #8f86ff; --fin-acc2: #00d4ff; --fin-ok: #16c784; --fin-bad: #ff5c68;
   color-scheme: dark;
 }
-.fin-body { background: var(--fin-bg); color: var(--fin-ink); margin: 0; font-family: system-ui, sans-serif; min-height: 100vh; }
+.fin-body { background: var(--fin-bg); color: var(--fin-ink); margin: 0; font-family: var(--font-ui, system-ui, sans-serif); min-height: 100vh; font-optical-sizing: auto; }
 .fin-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; background: var(--fin-card); border-bottom: 1px solid var(--fin-line); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
 .fin-brand { display: flex; gap: .7rem; align-items: center; }
 .fin-brand h1 { font-size: 1.05rem; margin: 0; }
@@ -69,7 +69,7 @@ canvas.fin-chart { width: 100%; height: 260px; display: block; background: var(-
 .fin-qr.fin-hidden { display: none; }
 .fin-table-scroll { overflow: auto; }
 .fin-qr canvas, .fin-qr img { background: #fff; padding: 10px; border-radius: 16px; }
-.fin-pago-body { display: grid; place-items: center; min-height: 100vh; margin: 0; font-family: system-ui, sans-serif; background: var(--fin-bg); color: var(--fin-ink); }
+.fin-pago-body { display: grid; place-items: center; min-height: 100vh; margin: 0; font-family: var(--font-ui, system-ui, sans-serif); font-optical-sizing: auto; background: var(--fin-bg); color: var(--fin-ink); }
 .pago { max-width: 420px; width: 92%; background: var(--fin-card); border: 1px solid var(--fin-line); border-radius: 18px; padding: 1.5rem; box-shadow: 0 12px 40px rgba(20, 16, 60, .18); display: grid; gap: .6rem; }
 .pago h1 { font-size: 1.1rem; margin: 0 0 .4rem; background: var(--fin-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .pago .fila { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px dashed var(--fin-line); padding: .35rem 0; font-size: .92rem; }

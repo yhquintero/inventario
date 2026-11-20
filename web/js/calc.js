@@ -155,6 +155,14 @@ export const CATEGORIES = {
   "Construcción": { img: "construccion", color: "#fb923c", icon: "building" },
   "Movilidad": { img: "movilidad", color: "#34d399", icon: "bike" },
   "Iluminación": { img: null, color: "#fde047", icon: "bulb" },
+  "Salud y cuidado": { img: null, color: "#fb7185", icon: "health" },
+  "Oficina y papelería": { img: null, color: "#60a5fa", icon: "office" },
+  "Deporte y recreación": { img: null, color: "#34d399", icon: "sport" },
+  "Belleza y cuidado personal": { img: null, color: "#f472b6", icon: "beauty" },
+  "Automotriz": { img: null, color: "#f97316", icon: "auto" },
+  "Agricultura y jardín": { img: null, color: "#84cc16", icon: "garden" },
+  "Mascotas": { img: null, color: "#a78bfa", icon: "pets" },
+  "Empaque y suministros": { img: null, color: "#14b8a6", icon: "package" },
   "General": { img: null, color: "#2dd4bf", icon: "box" },
 };
 

@@ -5,10 +5,8 @@ Cada paso se revisa, se aprueba y se entrega en su propio pull request; las fila
 terminar. La hoja de ruta de producto (visión a más largo plazo) sigue en [`ROADMAP.md`](ROADMAP.md).
 
 > **Cómo vamos:** paso 1 (descripción) ✅ · **W-01** (gráficos de Análisis) ✅ · **A-01** (cola en Android) ✅ ·
-> **Hecho:** D-01…D-07 · W-01, W-02, W-04, W-05, W-06, W-07, W-11, W-13, W-17 · A-01, A-02, A-16 · S-01, S-03.
-> **Lo siguiente, por orden sugerido:** **S-04** (instalador de Windows) → **A-22** (escanear el código al crear un producto)
-> → **W-27** (utilidad neta con los gastos). El detalle, con criterio de aceptación por fila, está en la
-> **cuarta ola** (al final del documento), que sustituye a las listas sueltas de la segunda y la tercera.
+> **Hecho:** D-01…D-07 · W-01, W-02, W-04, W-05, W-06, W-07, W-11, W-13, W-17, W-27 · A-01, A-02, A-16 · S-01, S-03.
+> **Lo siguiente, por orden sugerido:** **S-04** (instalador de Windows) → **A-22** (escanear el código al crear un producto). W-27 se cerró con cálculo de gastos convertidos usando la tasa de cada cuadre, tarjeta en Análisis, informe mensual imprimible/CSV y pruebas. El detalle, con criterio de aceptación por fila, está en la **cuarta ola** (al final del documento), que sustituye a las listas sueltas de la segunda y la tercera.
 
 **Leyenda:** impacto 🔴 alto · 🟠 medio · 🟢 bajo — esfuerzo ⏱️ bajo (≤1 día) · ⏳ medio (2-5 días) ·
 🧱 alto (>1 semana).
@@ -150,7 +148,7 @@ existe y qué se puede entregar sin tocar lo que funciona?*
 | A-22 | **Escanear el código al crear o editar un producto** con la cámara (reutiliza `CameraScanner` de A-20) | Hoy el código de barras se teclea o se copia del lector; un error de un dígito manda la venta al producto equivocado | `ui/inventory`, `ui/count/CameraScanner.kt` | 🟠 | ⏱️ | Se rellena el campo **Código de barras** con la cámara, avisa si ya existe y no hay que teclear |
 | W-26 | **Etiquetas de precio con código de barras** imprimibles (hojas de 24 y 40, A4) | El producto tiene `barcode` y el ticket lo ignora; las etiquetas del estante se escriben a mano | `web/js/labels.js`, `web/css/app.css` | 🟠 | ⏳ | Se eligen productos y cantidad, sale una hoja A4 con nombre, precio y **Code 128** legible por el lector y por la cámara |
 | A-25 | **Márgenes en el móvil**: ver el margen por producto y el aviso de los que van bajo el objetivo | W-23 ya calcula todo en la Web; el dueño está en el mostrador con el teléfono | `ui/reports`, `data/sync` | 🟠 | ⏳ | La lista ordena de peor a mejor, muestra margen, ganancia y precio para el objetivo, y respeta el objetivo de Ajustes |
-| W-27 | **Utilidad neta**: restar los **gastos del cuadre** (comisiones, domicilios, gastos y combos) en Análisis y en el informe mensual | Hoy la ganancia es **bruta** y la pantalla lo dice con letra pequeña; el dueño pregunta «¿y los gastos?» | `web/js/monthly.js`, `analyticsView`, `calc.js` | 🔴 | ⏳ | El mes muestra venta, costo, gastos y **utilidad neta**, con la misma cifra en pantalla, PDF y CSV |
+| W-27 | ✅ **Utilidad neta**: restar los **gastos del cuadre** (comisiones, domicilios, gastos y combos) en Análisis y en el informe mensual | La utilidad bruta no respondía cuánto queda tras los gastos registrados | `web/js/monthly.js`, `analyticsView`, `calc.js` | 🔴 | ⏳ | ✅ Implementado y probado: pantalla, PDF y CSV comparten el cálculo; `test_informe_mensual.mjs` + `smoke_web.mjs` |
 | D-14 | **Cartel A4 de precios y mínimos** imprimible desde Inventario (hermano de D-13) | El estante necesita el precio y el mínimo a la vista; hoy se imprime la tabla entera o nada | `docs/`, `inventoryView` (`@media print`) | 🟢 | ⏱️ | Sale una página por almacén, con categoría, precio, mínimo y fecha, sin menús ni botones |
 | W-31 | **Trocear `app.js` en módulos por pantalla** (`web/js/views/*.js`) sin cambiar el comportamiento | `app.js` pasa de 6.000 líneas: cualquier pantalla obliga a reabrir el fichero entero y a temer romper otra que no se tocó | `web/js/app.js`, `web/js/views/` | 🟠 | 🧱 | Cada pantalla vive en su módulo con sus pruebas, ninguna funcionalidad cambia de comportamiento y el tamaño del paquete no sube |
 | S-18 | **Esquema versionado del estado compartido** con migraciones puras al cargar | Hoy cada cambio de forma se improvisa al cargar: una base antigua puede quedarse a medias sin que nadie lo note hasta que falla una pantalla | `web/js/store.js`, `server/novagest_server.py` | 🔴 | ⏳ | El estado lleva `schemaVersion`, las migraciones se prueban con una base anterior y el servidor rechaza una versión que no entiende |
@@ -204,8 +202,8 @@ existe y qué se puede entregar sin tocar lo que funciona?*
 
 ### Orden recomendado
 
-**S-04** (cierra el plan) → **A-22** (aprovecha A-20 y quita tecleo) → **W-27** (la pregunta que
-siempre aparece) → **W-26** (etiquetas) → **W-24** (devoluciones) → **W-25** (proveedores) →
+**S-04** (cierra el plan) → **A-22** (aprovecha A-20 y quita tecleo) → **W-26** (etiquetas) →
+**W-24** (devoluciones) → **W-25** (proveedores) →
 **A-25** → **W-28** → **S-15** → **A-21** → **S-16** → **W-33** → **S-19** → **S-02** →
 **W-35** → **W-34** → **A-24** → **W-31** → **S-18** → **W-32** → **D-15** → **W-37** →
 **W-30** → **W-29** → **A-23** → **S-17** → **W-36** → **S-20** → **A-26** → **S-22** → **G-04**.

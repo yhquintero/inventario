@@ -152,7 +152,7 @@ interna para quien administra las licencias.
 | Requisito | Detalle |
 |---|---|
 | Un equipo con el servidor iniciado | Una laptop o PC del negocio (`server/novagest_server.py`) o el despliegue con dominio |
-| Dirección de acceso | Por ejemplo `https://localhost:8443` o `http://192.168.1.20:8080` (la entrega su proveedor) |
+| Dirección de acceso | En el mismo equipo `https://localhost:8443`; desde otra PC/teléfono, `https://<IP-LAN>:8443` impresa por el instalador. Android bloquea HTTP sin cifrar. |
 | Navegador actualizado | Chrome, Edge, Firefox o Safari recientes (para la cámara del escáner se necesita **HTTPS**) |
 | Usuario y contraseña | Los crea el administrador en **Usuarios** |
 | Licencia de uso válida | Se activa una sola vez por instalación; el sistema queda bloqueado sin ella |
@@ -378,10 +378,14 @@ Ventajas: icono propio, pantalla completa sin barra del navegador, arranque más
 3. En el campo **Servidor (misma dirección que la Web)** escriba la dirección exacta que
    usa en el navegador, por ejemplo `https://tienda.ejemplo.com` o
    `https://192.168.1.20:8443`.
-   - Si lo deja **vacío**, la app trabaja en **modo local**: los datos quedan solo en ese
-     teléfono y no se comparten con la Web.
-   - Si escribe la dirección, el ayudante confirma: «Datos compartidos con la Web ·
-     conexión cifrada».
+   - Para una tienda con el servidor en la red local, el teléfono y la PC deben compartir
+     Wi-Fi. Use la URL `https://<IP-LAN>:8443` que imprime `iniciar-https.ps1`; si Android
+     no confía aún en el certificado local, instale en el teléfono la CA **pública** que
+     muestra el script (nunca comparta la clave privada de esa CA).
+   - Si lo deja **vacío**, la app trabaja con la base local del teléfono. Los cambios se
+     conservan offline, pero no son visibles desde Web/otros dispositivos hasta sincronizar.
+   - La app bloquea `http://` sin cifrar. El manual de instalación explica cómo configurar
+     HTTPS local y cómo se comportan PWA/Android durante un corte de Internet.
 4. Si su cuenta tiene 2FA, escriba el **código de verificación**.
 5. Pulse **Entrar**.
 
@@ -514,7 +518,7 @@ control por local.
 1. **🧭 Menú → Operación → Almacenes → ＋ Nuevo almacén**.
 2. Escriba **solo el nombre**, claro y en mayúsculas: `ALMACÉN CENTRAL`, `TIENDA PINAR`,
    `DEPÓSITO 2`, `CASA DEL TECHO`.
-3. Opcional: **código corto** (para columnas y CSV), **ubicación** y **notas**.
+3. Opcional: **código corto** (para columnas y CSV), **ubicación**, **icono** y **notas**. En Icono puede dejar **Automático por municipio/provincia** o elegir una de las 24 opciones temáticas.
 4. Guarde.
 
 ✅ El almacén se crea con existencia 0 y queda la primera entrada del historial: *«Almacén
@@ -805,13 +809,16 @@ existente, el sistema lo rechaza y le indica cuál es el conflicto.
 
 ## 5.5 Categorías e imágenes
 
-- Las **categorías** se crean escribiéndolas en el producto (texto libre). Aparecen como
-  chips en la venta rápida y agrupan los informes de margen.
-- Las categorías con imagen propia muestran miniatura en la venta rápida; el resto usa un
-  icono genérico. Las imágenes del proyecto están en `web/public/cat/`.
+- El selector de **Categoría** incluye las familias de catálogo (por ejemplo cocina, energía,
+  hogar, herramientas, salud, oficina, deporte, belleza, automotriz, agricultura/jardín,
+  mascotas y empaque). Aparecen como chips en Venta rápida y agrupan informes.
+- Las familias ilustradas usan miniatura; otras muestran un icono temático. En Android,
+  categorías sin ilustración propia muestran símbolo de respaldo.
+- Al crear un producto puede dejar importes iniciales en cero y completar luego costo, foto,
+  observaciones o código de barras. El stock inicial se asigna al almacén activo.
 
-💡 Use pocas categorías, estables y en plural (por ejemplo `Audio Y TV`, `Clima`, `Cocina`).
-Cambiar el nombre de una categoría en un producto **no** renombra los demás.
+💡 Use categorías consistentes. Cambiar la categoría de un producto **no** renombra los demás.
+Las categorías visuales no sustituyen una clasificación contable o fiscal.
 
 ## 5.6 Eliminar, restaurar y vaciar la papelera
 
@@ -1458,7 +1465,7 @@ Arriba de **Análisis y metas** está el botón **🖨 Hoja imprimible**. Imprim
 apaisada** lo que el dueño o el contador quieren ver de un golpe:
 
 1. La cabecera con el **negocio**, el título y el **período** de los datos, y la fecha de generación.
-2. Los **cuatro indicadores**: esta semana, mejor día, promedio diario y utilidad neta.
+2. Los **cinco indicadores**: esta semana, mejor día, promedio diario, utilidad neta del mes y utilidad neta de la semana.
 3. Los **tres gráficos**: tendencia de ventas diarias con la meta, mapa de calor de las últimas
    semanas y ventas/utilidad por categoría.
 4. Las **metas** (hoy, semana y mes) con su barra de avance.
@@ -1592,15 +1599,20 @@ guarda como PDF desde el navegador, sin instalar nada.
 
 1. **🧭 Menú → Análisis → Informe mensual**.
 2. Arriba, elija el **mes** en la lista (los últimos doce) o muévase con **←** y **→**.
-3. Lea el resumen y, cuando esté conforme, pulse **🖨 PDF**.
+3. Lea el resumen; pulse **⬇ CSV** para abrir los datos en una hoja de cálculo o **🖨 PDF** para imprimir/guardar la vista.
 
 **Qué trae**
 
 - **Frase de cabecera:** el total del mes, las líneas, las unidades y la **variación** frente al
   mes anterior (▲ o ▼ con el porcentaje). Si el mes anterior no tiene datos, lo dice en vez de
   inventar un porcentaje.
-- **Cuatro indicadores:** ventas del mes, utilidad bruta con el margen y el costo, ticket promedio
-  por línea y días con venta (con el promedio por día).
+- **Indicadores:** ventas del mes, utilidad bruta con margen y costo, ticket promedio por línea,
+  utilidad neta estimada y días con venta (con promedio por día).
+- **Gastos y utilidad neta estimada:** comisiones, domicilios, otros gastos CUP convertidos con la
+  tasa guardada en cada cuadre, y combos/rebajas en USD. La fórmula es ventas − costo de ventas −
+  gastos registrados en cuadres. No incluye gastos fijos ni transportación semanal.
+- **CSV descargable:** resumen, gastos, utilidad neta, días, productos, categorías, centros, caja y
+  fiados; el importe neto comparte el cálculo de pantalla y PDF.
 - **Mejor día del mes**, resumen de caja (días con cuadre guardado, días con diferencia y cuáles) y
   **diferencia acumulada**.
 - **Ventas día a día**, con unidades, líneas, importe y porcentaje del mes; al pie, el total.
@@ -1828,7 +1840,15 @@ costo por período mediante fichas versionadas y controles IPV.
 | **Costo por ración** | Costo total ÷ rendimiento |
 | **Raciones posibles con el stock** | Lo determina el **insumo más escaso** |
 
-5. Pulse **Guardar** (queda en estado **Borrador**).
+5. Abra **Datos para evaluación de precio y trazabilidad normativa** y, si aplica, documente
+   tipo de actor, actividad, método de formación de precio, comparables (fuente/fecha),
+   autorización/excepción y responsable/fecha de revisión.
+6. Pulse **Guardar** (queda en estado **Borrador**). La evidencia se conserva al crear una
+   nueva versión.
+
+> Los campos de trazabilidad no calculan topes ni certifican cumplimiento. La pantalla actual
+> no sustituye el desglose completo de los anexos de la Resolución 148/2023; confirme con un
+> especialista cuál norma, método y excepción corresponde a su actor y actividad.
 
 ## 12.3 Borrador → Aprobada → Nueva versión
 

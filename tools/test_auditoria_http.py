@@ -81,6 +81,13 @@ with tempfile.TemporaryDirectory(prefix="ng-auditoria-http-") as data_dir:
             if response.status != 200:
                 raise SystemExit("No se pudo activar la licencia temporal de pruebas")
 
+        # La tipografía debe descargarse del servidor de la tienda, no de un CDN.
+        with urllib.request.urlopen(base + "/public/fonts/inter-latin-wght-normal.woff2", timeout=5) as response:
+            font_bytes = response.read()
+            if response.headers.get_content_type() != "font/woff2" or len(font_bytes) < 10_000:
+                raise SystemExit("La fuente local no se sirvió como WOFF2 íntegro")
+        print("OK — fuente Inter descargada desde el servidor local (WOFF2).")
+
         result = subprocess.run(
             [sys.executable, str(ROOT / "tools" / "auditoria_seguridad.py"), base],
             cwd=ROOT,

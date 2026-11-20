@@ -8,7 +8,7 @@
  */
 import {
   monthKey, monthRange, monthLabel, shiftMonth, inMonth, variation,
-  monthlyReport, variationText,
+  monthlyReport, monthlyCsv, variationText,
 } from "../web/js/monthly.js";
 
 let fallos = 0;
@@ -50,7 +50,7 @@ const estado = {
     mov("2026-11-01", "Arroz", 100, 10),
   ],
   cuadres: [
-    { date: "2026-10-02", cuadre: 0 },
+    { date: "2026-10-02", cuadre: 0, cupUsd: 120, comisionesCup: 120, domiciliosCup: 240, gastosCup: 360, gastosCombosUsd: 4 },
     { date: "2026-10-05", cuadre: 3.5 },
     { date: "2026-09-30", cuadre: 9 },
   ],
@@ -104,6 +104,16 @@ igual("la utilidad es venta menos costo", 32, inf.utilidadUsd);
 igual("el margen sobre la venta", 41.56, inf.margenPct);
 igual("las comisiones en CUP se suman", 120, inf.comisionesCup);
 igual("los domicilios en CUP se suman", 60, inf.domiciliosCup);
+igual("comisiones de cuadres se convierten a USD con su tasa", 1, inf.gastosPorTipo.comisionesUsd);
+igual("domicilios de cuadres se convierten a USD con su tasa", 2, inf.gastosPorTipo.domiciliosUsd);
+igual("otros gastos de cuadres se convierten a USD con su tasa", 3, inf.gastosPorTipo.gastosUsd);
+igual("gastos combos permanecen en USD", 4, inf.gastosPorTipo.combosUsd);
+igual("el total de gastos del mes suma todos los conceptos", 10, inf.gastosUsd);
+igual("la utilidad neta resta costos y gastos registrados", 22, inf.utilidadNetaUsd);
+const csvMensual = monthlyCsv(inf);
+ok("el CSV lleva BOM y conserva el encabezado", csvMensual.startsWith("\uFEFFSección,Concepto,Valor,Moneda,Detalle"));
+ok("el CSV exporta exactamente la utilidad neta del informe", csvMensual.includes("Resultado,Utilidad neta estimada,22,USD,"));
+ok("el CSV detalla gastos convertidos y excluye gastos semanales", csvMensual.includes("Gastos,Comisiones,1,USD,") && csvMensual.includes("no incluye gastos fijos/transportación semanal"));
 
 console.log("\nComparación con el mes anterior");
 igual("el mes anterior es septiembre", "2026-09", inf.anterior.month);

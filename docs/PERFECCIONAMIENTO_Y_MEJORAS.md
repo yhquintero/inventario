@@ -189,8 +189,8 @@ Extraídos de `docs/INSPECCION_TOP1_2026-11.md`. Son los únicos items que impid
 | **Impacto** | 🔴 Alto |
 | **Esfuerzo** | ⏳ Medio (2-5 días) |
 | **Criterio de aceptación** | El mes muestra venta, costo, gastos y **utilidad neta**, con la misma cifra en pantalla, PDF y CSV. |
-| **Pasos de implementación** | 1. Añadir campos de gastos del cuadre a `calc.js`.<br>2. Calcular utilidad neta en `monthly.js`.<br>3. Mostrar en Análisis e informe mensual.<br>4. Exportar a PDF y CSV con la misma cifra.<br>5. Pruebas: `test_informe_mensual.mjs` ampliado. |
-| **Estado** | ⬜ Pendiente |
+| **Pasos de implementación** | Reutilizar `cuadreCalc` de `calc.js` para convertir con la tasa de cada fecha los gastos CUP (comisiones, domicilios y otros); combinar con combos/rebajas en USD; calcular la utilidad neta en `monthly.js`; mostrar el mismo resultado en Análisis y el informe mensual; exportar el informe a CSV. El PDF imprime la propia vista. No se mezclan gastos fijos/transportación, que pertenecen al informe semanal. |
+| **Estado** | ✅ Implementado y verificado el 2026-11-20: `test_informe_mensual.mjs` 79/79; `smoke_web.mjs` 90/90. |
 
 ### D-14 · Cartel A4 de precios y mínimos imprimible desde Inventario
 
@@ -559,7 +559,7 @@ Esta lista está pensada para quien mantiene NovaGest (desarrollador individual 
 | 4 | Entregar **S-04** (instalador Windows) | Cerrar la cuarta ola y quitar fricción en el mostrador | — |
 | 5-6 | Entregar **A-22** (escaneo al crear producto) + **W-26** (etiquetas de precio) | Mejorar precisión y operación diaria | — |
 | 7-8 | Perfeccionamiento: completar `PosFlowUiTest` en emulador API 36 + auditoría de accesibilidad con `axe` | Subir calidad técnica antes de nuevas funciones | — |
-| 9-10 | Elegir la siguiente mejora de la Ola B (ej. **W-24** devoluciones o **W-27** utilidad neta) y entregarla con prueba y entrada en CHANGELOG | Mantener el ritmo de entrega verificable | — |
+| 9-10 | Elegir la siguiente mejora de la Ola B (priorizar **W-24** devoluciones o **W-25** proveedores; W-27 ya está implementada y verificada) y entregarla con prueba y entrada en CHANGELOG | Mantener el ritmo de entrega verificable | — |
 
 ---
 

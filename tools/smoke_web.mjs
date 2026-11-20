@@ -160,7 +160,8 @@ globalThis.URL.createObjectURL = () => "blob:x";
 globalThis.URL.revokeObjectURL = () => {};
 
 /* ----------------------------- estado de prueba ----------------------------- */
-const { store } = await import(pathToFileURL(join(tmp, "js/store.js")).href);
+const { store, warehouseIcon, WAREHOUSE_ICON_OPTIONS } = await import(pathToFileURL(join(tmp, "js/store.js")).href);
+const { CATEGORIES } = await import(pathToFileURL(join(tmp, "js/calc.js")).href);
 const { LicenseManager } = await import(pathToFileURL(join(tmp, "js/license.js")).href);
 const state = {
   products: [
@@ -386,6 +387,30 @@ test("Fichas de costo abre su vista IPV y no repite el Panel", () => {
   assert.match(html, /Controles IPV/);
   assert.match(html, /Aún no hay fichas de costo/);
   assert.doesNotMatch(html, /Valor por categoría/);
+});
+
+test("las categorías nuevas y los iconos personalizados de almacén se guardan", () => {
+  for (const category of ["Salud y cuidado", "Oficina y papelería", "Deporte y recreación", "Belleza y cuidado personal", "Automotriz", "Agricultura y jardín", "Mascotas", "Empaque y suministros"]) {
+    assert.ok(CATEGORIES[category]?.icon, `falta icono: ${category}`);
+  }
+  assert.ok(WAREHOUSE_ICON_OPTIONS.length >= 20);
+  assert.equal(warehouseIcon("TIENDA PINAR", "Pinar del Río", "🛒"), "🛒");
+  assert.notEqual(warehouseIcon("TIENDA PINAR", "Pinar del Río", "intruso"), "intruso");
+  const wh = store.saveWarehouse({ id: "w2", name: "TIENDA PINAR", location: "Pinar del Río", icon: "🛒" });
+  assert.equal(wh.error, undefined);
+  assert.equal(store.warehouseById("w2").icon, "🛒");
+  const saved = store.saveFicha({
+    productId: "p1", currency: "USD", yieldQty: 1, yieldUnit: "unidad", validFrom: "2026-11-20",
+    items: [{ description: "Material", quantity: 1, unit: "unidad", unitCost: 12 }],
+    regulatory: { actorType: "MIPYME", activity: "Producción", pricingMethod: "Gastos", comparatorEvidence: "Fuente y fecha", authorizationReference: "EXP-1", reviewedBy: "Especialista", reviewedAt: "2026-11-20" },
+  });
+  assert.equal(saved.error, undefined);
+  const ficha = store.fichaById(saved.id);
+  assert.equal(ficha.regulatory.actorType, "MIPYME");
+  assert.equal(ficha.regulatory.pricingMethod, "Gastos");
+  assert.match(ficha.regulatory.comparatorEvidence, /Fuente y fecha/);
+  const version = store.newFichaVersion(ficha.id);
+  assert.equal(store.fichaById(version.id).regulatory.authorizationReference, "EXP-1");
 });
 
 test("el menú lateral conserva su desplazamiento al cambiar de apartado", () => {
@@ -744,6 +769,9 @@ test("Almacenes: crear y editar usan el modal correcto", () => {
   app.dispatch("click", { target: { closest: () => ({ dataset: { act: "wh-new" }, tagName: "BUTTON" }), tagName: "BUTTON" }, preventDefault() {} });
   assert.match(app.innerHTML, /Nombre del almacén/);
   assert.match(app.innerHTML, /warehouseForm/);
+  assert.match(app.innerHTML, /Icono del almacén/);
+  assert.match(app.innerHTML, /Automático por municipio\/provincia/);
+  assert.match(app.innerHTML, /🛒/);
 });
 
 test("Limpieza: solo Administrador ve la acción y debe confirmar el alcance", () => {
@@ -1647,8 +1675,14 @@ test("W-20 · el informe mensual se puede imprimir con los números del mes", ()
   assert.match(source, /data-act="print"/, "ofrece el botón de PDF");
   assert.match(source, /data-act="mes-prev"|data-act="mes-next"/, "se puede cambiar de mes");
   assert.match(mod, /export function monthlyReport\(/, "el cálculo está aislado y probado");
+  assert.match(mod, /export function monthlyCsv\(/, "el CSV se genera desde un serializador puro y comprobable");
   assert.match(mod, /export function monthRange\(/, "calcula el rango del mes");
   assert.match(mod, /variationText/, "explica la variación frente al mes anterior");
+  assert.match(mod, /cuadreCalc/, "los gastos se convierten con la tasa de cada cuadre");
+  assert.match(mod, /utilidadNetaUsd/, "calcula utilidad neta descontando costos y gastos");
+  assert.match(source, /data-act="export-monthly"/, "ofrece exportar el mismo informe a CSV");
+  assert.match(source, /function exportMonthly\(/, "exporta ventas, gastos y utilidad neta del mismo cálculo");
+  assert.match(source, /Utilidad neta del mes/, "Análisis muestra la utilidad neta mensual");
   const sw = readFileSync(join(root, "web/sw.js"), "utf8");
   assert.match(sw, /"\.\/js\/monthly\.js"/, "el módulo entra en el precache");
 });

@@ -2,8 +2,8 @@
  * Consentimiento de almacenamiento opcional.
  *
  * Estado verificado hoy: NovaGest no carga analíticas, píxeles ni fuentes
- * externas (Google Fonts se eliminó), así que no hay nada opcional que
- * activar. El banner informa y guarda la elección (`novagest.consent` en
+ * de terceros; Inter se sirve desde el mismo origen con licencia OFL, así que
+ * no hay nada opcional que activar. El banner informa y guarda la elección (`novagest.consent` en
  * localStorage, imprescindible para recordar la respuesta). Si algún día se
  * añade un tercero no esencial, debe cargarse SOLO desde `if (hasConsent())`
  * — nunca antes de la elección — y documentarse en la Política de cookies.

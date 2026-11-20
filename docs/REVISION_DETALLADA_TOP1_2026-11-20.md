@@ -1,7 +1,7 @@
 # Revisión detallada de calidad y riesgos — 2026-11-20
 
-**Base inicial de esta revisión:** `8fda463` (merge del PR #118); seguimiento actualizado sobre `88cba16` (merge del PR #120).
-**Rama de seguimiento:** `arena/f2dfdc70-inventario`.
+**Snapshot de revisión original:** base `8fda463` (merge del PR #118), con seguimiento histórico sobre `88cba16` (merge del PR #120) en `arena/f2dfdc70-inventario`.
+**Nota de vigencia:** esta página conserva aquel corte y no describe por sí sola la rama activa actual. La continuación sobre `a956b82` en `arena/5e1a7a3b-inventario`, incluidos acceso LAN/offline, fuentes locales, W-27 y pruebas más recientes, está en [`PLAN_COMPARATIVO_TOP1_2026-11-20.md`](PLAN_COMPARATIVO_TOP1_2026-11-20.md).
 **Alcance:** Android/Room, Web financiera, seguridad, dependencias, CI y artefactos rastreados. Es una revisión de código y pruebas reproducibles; no sustituye una publicación de prueba ni una validación en dispositivos reales.
 
 ## Resumen ejecutivo
