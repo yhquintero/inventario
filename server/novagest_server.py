@@ -2172,9 +2172,10 @@ def disk_health():
         return {"totalBytes": 0, "libreBytes": 0, "librePct": 0.0}
 
 
-def license_health():
+def license_health(info=None):
     """Días que le quedan a la licencia activa, para avisar antes de que venza (S-05)."""
-    info = get_active_license_info()
+    if info is None:
+        info = get_active_license_info()
     if not info["valid"]:
         return {"tipo": None, "vence": None, "diasRestantes": None}
     payload = info.get("payload") or {}
@@ -2187,44 +2188,44 @@ def license_health():
 
 @route("GET", "/api/health", need=False)
 def health(h, u, _):
-    """Estado del servidor en una sola llamada, sin datos personales (S-09).
+    """Liveness pública y detalles operativos solo para Administrador/Jefe (S-09).
 
-    Es pública a propósito: sirve para saber si el servidor está vivo antes de
-    iniciar sesión. Devuelve métricas **operativas** (latencia, tamaño de la
-    base, copias y días cerrados), nunca el contenido de la base.
+    El ping público es deliberadamente mínimo: no inspecciona licencia, backups,
+    disco ni tablas de actividad. Así una comprobación frecuente desde el panel
+    no hace trabajo administrativo innecesario ni retrasa el arranque del login.
     """
     t0 = time.perf_counter()
-    lic = get_active_license_info()
-    q("SELECT 1", one=True)  # mide la ida y vuelta a SQLite
+    q("SELECT 1", one=True)  # confirma que la conexión SQLite básica responde
     latencia = round((time.perf_counter() - t0) * 1000, 2)
-    copias = backup_health()
-    cerrados = q("SELECT COUNT(*) n FROM closed_days", one=True)["n"] or 0
-    conectados = q("SELECT COUNT(*) n FROM sessions WHERE last_seen > ?", (now() - IDLE,), one=True)["n"] or 0
-    disco = disk_health()
-    licencia = license_health()
-    bd_bytes = os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0
-    wal_bytes = os.path.getsize(DB_PATH + "-wal") if os.path.exists(DB_PATH + "-wal") else 0
-    avisos = []
-    if not lic["valid"]:
-        avisos.append("licencia")
-    if copias["ultima"] is None:
-        avisos.append("sin-copias")
-    elif (copias["haceHoras"] or 0) > 48:
-        avisos.append("copias-viejas")
-    if disco["libreBytes"] and (disco["librePct"] < 10 or disco["libreBytes"] < 500 * 1024 * 1024):
-        avisos.append("disco-bajo")
-    externa = copias_externas.estado_salud(ULTIMA_REPLICA["parte"], copias_externas.leer_config())
-    if externa["problema"]:
-        avisos.append("copia-externa")
-    if licencia["diasRestantes"] is not None and licencia["diasRestantes"] <= 15:
-        avisos.append("licencia-vence")
     respuesta = {"ok": True, "app": "NovaGest", "version": APP_VERSION, "https": h.secure(),
                  "instanceId": SERVER_INSTANCE_ID, "time": now(), "salud": {"estado": "ok", "uptimeSegundos": int(time.time() - STARTED_AT),
                                              "latenciaMs": latencia}}
-    # La vista pública es un ping mínimo. Los detalles de licencia, actividad,
-    # almacenamiento y destinos de copia quedan solo para personal administrador.
     sesion = h.auth()
     if sesion and sesion["role"] in ADMINS:
+        lic = get_active_license_info()
+        copias = backup_health()
+        cerrados = q("SELECT COUNT(*) n FROM closed_days", one=True)["n"] or 0
+        conectados = q("SELECT COUNT(*) n FROM sessions WHERE last_seen > ?", (now() - IDLE,), one=True)["n"] or 0
+        disco = disk_health()
+        licencia = license_health(lic)
+        bd_bytes = os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0
+        wal_bytes = os.path.getsize(DB_PATH + "-wal") if os.path.exists(DB_PATH + "-wal") else 0
+        avisos = []
+        if not lic["valid"]:
+            avisos.append("licencia")
+        if copias["ultima"] is None:
+            avisos.append("sin-copias")
+        elif (copias["haceHoras"] or 0) > 48:
+            avisos.append("copias-viejas")
+        if disco["libreBytes"] and (disco["librePct"] < 10 or disco["libreBytes"] < 500 * 1024 * 1024):
+            avisos.append("disco-bajo")
+        externa = copias_externas.estado_salud(ULTIMA_REPLICA["parte"], copias_externas.leer_config())
+        if externa["problema"]:
+            avisos.append("copia-externa")
+        if licencia["diasRestantes"] is not None and licencia["diasRestantes"] <= 15:
+            avisos.append("licencia-vence")
+        # Los detalles de licencia, actividad, almacenamiento y destinos de copia
+        # nunca se calculan ni se devuelven para visitantes sin rol administrativo.
         respuesta["salud"].update({
             "estado": "aviso" if avisos else "ok", "avisos": avisos,
             "bdBytes": bd_bytes, "walBytes": wal_bytes, "copias": copias,

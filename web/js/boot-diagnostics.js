@@ -1,5 +1,6 @@
 /** Diagnóstico de arranques repetidos de NovaGest. No borra datos del usuario ni recarga solo. */
 export const BOOT_HISTORY_KEY = "novagest.boot_history";
+export const BOOT_ERRORS_KEY = "novagest.boot_errors";
 export const BOOT_WINDOW_MS = 30_000;
 export const BOOT_LOOP_THRESHOLD = 3;
 const CACHE_PREFIX = "novagest-v";
@@ -21,7 +22,30 @@ export function recordBoot(storage, now = Date.now()) {
   }
 }
 
-function diagnosticsText(win, nav, cachesList, serverInfo = "Servidor: no consultado") {
+function recentErrorSummary(storage) {
+  try {
+    const errors = JSON.parse(storage?.getItem(BOOT_ERRORS_KEY) || "[]");
+    if (!Array.isArray(errors) || !errors.length) return "ninguno registrado";
+    return errors.slice(-8).map((entry) => `${entry.kind || "error"}: ${entry.name || "Error"}`).join(" | ");
+  } catch { return "no disponible"; }
+}
+
+function registerRuntimeErrors(win, storage) {
+  if (!win?.addEventListener || !storage || win.__novagestBootErrorsRegistered) return;
+  try { win.__novagestBootErrorsRegistered = true; } catch { return; }
+  const record = (kind, name) => {
+    try {
+      const prior = JSON.parse(storage.getItem(BOOT_ERRORS_KEY) || "[]");
+      const entries = Array.isArray(prior) ? prior.filter((item) => item && typeof item.name === "string").slice(-7) : [];
+      entries.push({ at: Date.now(), kind, name: String(name || "Error").replace(/[^a-zA-Z0-9_. -]/g, "").slice(0, 48) || "Error" });
+      storage.setItem(BOOT_ERRORS_KEY, JSON.stringify(entries));
+    } catch {}
+  };
+  win.addEventListener("error", (event) => record("error", event?.error?.name || "ScriptError"));
+  win.addEventListener("unhandledrejection", (event) => record("promise", event?.reason?.name || "RejectedPromise"));
+}
+
+function diagnosticsText(win, nav, cachesList, serverInfo = "Servidor: no consultado", storage = null) {
   let navigation = "desconocida";
   try { navigation = win.performance?.getEntriesByType?.("navigation")?.[0]?.type || navigation; } catch {}
   let controlled = false;
@@ -37,6 +61,7 @@ function diagnosticsText(win, nav, cachesList, serverInfo = "Servidor: no consul
     `Tipo de carga: ${navigation}`,
     `Service worker controla la página: ${controlled ? "sí" : "no"}`,
     `Cachés NovaGest: ${cachesList.join(", ") || "ninguno"}`,
+    `Errores JavaScript recientes (solo tipo/nombre): ${recentErrorSummary(storage)}`,
     serverInfo,
     `Hora: ${new Date().toISOString()}`,
   ].join("\n");
@@ -95,6 +120,11 @@ export function showBootLoopNotice({ storage, document: doc, window: win, naviga
   };
   button("cache", "Limpiar caché de la aplicación");
   button("copy", "Copiar diagnóstico");
+  const recovery = doc.createElement("a");
+  recovery.href = "./recovery.html";
+  recovery.textContent = "Abrir recuperación independiente";
+  recovery.setAttribute("aria-label", "Abrir herramientas independientes de recuperación");
+  actions.appendChild(recovery);
   button("close", "Cerrar", "Cerrar aviso");
   content.appendChild(title);
   content.appendChild(explanation);
@@ -111,7 +141,7 @@ export function showBootLoopNotice({ storage, document: doc, window: win, naviga
         const keys = await cacheStorage?.keys?.() || [];
         const ownCaches = keys.filter((key) => key.startsWith(CACHE_PREFIX));
         const health = await serverDiagnostic(win);
-        const text = diagnosticsText(win, nav, ownCaches, health);
+        const text = diagnosticsText(win, nav, ownCaches, health, storage);
         await nav?.clipboard?.writeText?.(text);
         say(nav?.clipboard?.writeText ? "Diagnóstico copiado. No incluye datos de negocio." : text);
       } catch { say("No se pudo copiar automáticamente. Indica si se repite la URL en la pestaña o solo la interfaz."); }
@@ -136,6 +166,7 @@ export function showBootLoopNotice({ storage, document: doc, window: win, naviga
 
 /** Entrada ligera: registra el documento y solo crea la ayuda si hay un bucle probable. */
 export function monitorBoot({ storage, document: doc, window: win, navigator: nav, cacheStorage, now } = {}) {
+  registerRuntimeErrors(win, storage);
   const result = recordBoot(storage, now);
   if (result.loop) showBootLoopNotice({ storage, document: doc, window: win, navigator: nav, cacheStorage });
   return result;

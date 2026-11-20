@@ -26,6 +26,7 @@ test-python:
 	$(PYTHON) -m py_compile server/novagest_server.py server/financiero.py tools/generate_license.py
 	$(PYTHON) tools/test_seguridad_servidor.py
 	$(PYTHON) tools/test_salud_servidor.py
+	$(PYTHON) tools/test_health_lightweight.py
 	$(PYTHON) tools/test_login_cookie.py
 
 test-backup:

@@ -1245,6 +1245,14 @@ test("El service worker cachea todos los módulos JS para el modo sin conexión"
   assert.match(app, /vendor\/xlsx\.full\.min\.js/, "app.js debe cargar el lector de Excel bajo demanda");
   assert.match(app, /Conéctate una vez/, "sin conexión, la app debe explicar cómo guardar el lector de Excel");
   assert.match(sw, /destination === "image"/, "las imágenes se cachean la primera vez que se usan");
+  const recovery = readFileSync(join(root, "web/recovery.html"), "utf8");
+  const recoveryJs = readFileSync(join(root, "web/js/recovery.js"), "utf8");
+  assert.match(sw, /\.\/recovery\.html/);
+  assert.match(recovery, /Limpiar caché y worker de NovaGest/);
+  assert.match(recovery, /Copiar diagnóstico técnico/);
+  assert.match(recoveryJs, /key\.startsWith\(PREFIX\)/, "la recuperación solo borra cachés con prefijo propio");
+  assert.match(recoveryJs, /appWorker\(worker\.scriptURL\)/, "solo retira el service worker cuyo scriptURL coincide exactamente");
+  assert.doesNotMatch(recoveryJs, /localStorage\.clear|indexedDB\.deleteDatabase|location\.reload/, "la recuperación no toca datos de negocio ni fuerza navegación");
 });
 
 test("Análisis incluye el mapa de calor y las ventas por categoría (SVG con datos)", () => {

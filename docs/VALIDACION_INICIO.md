@@ -16,10 +16,11 @@ Esta matriz es un plan de prueba, **no una declaración de compatibilidad ni un 
 1. Anotar versiones de navegador/SO y confirmar que `/api/health` expone un `instanceId` hexadecimal de 16 caracteres.
 2. Abrir `https://localhost:8443/index.html`, esperar cinco minutos y anotar si se repite la navegación del documento o solo se repinta el DOM.
 3. Repetir tres cargas deliberadas en menos de 30 s; confirmar que aparece el aviso, y que sin pulsar un botón no ocurre ninguna navegación adicional.
-4. Antes de limpiar, crear datos de prueba no comerciales en `localStorage` e IndexedDB; usar el botón de limpieza y verificar que ambos persisten, que solo se elimina el cache `novagest-v*` y el registro de service worker cuya URL coincide exactamente con `./sw.js`.
-5. Recargar manualmente, verificar que el contador no vuelve a disparar el aviso y comprobar login, llamadas API, instalación/actualización PWA y modo offline.
-6. Copiar el diagnóstico. Debe omitir parámetros/hash, cookies, sesiones y contenido del estado; correlacionar el `instanceId` con logs del servidor/panel.
-7. Guardar resultados y logs redactados. Si la app reinicia el documento espontáneamente, registrar la hora exacta antes de limpiar caché.
+4. Si el aviso principal no responde, abrir **Recuperación independiente de la Web** desde el Panel de Control (o `https://localhost:8443/recovery.html` cuando el servidor esté activo). Confirmar que la comprobación de API marca «sin respuesta» sin navegar de nuevo.
+5. Antes de limpiar, crear datos de prueba no comerciales en `localStorage` e IndexedDB; usar la limpieza de recuperación y verificar que ambos persisten, que solo se elimina el caché `novagest-v*` y el worker cuyo script coincide exactamente con `./sw.js`.
+6. Recargar manualmente, verificar que el contador no vuelve a disparar el aviso y comprobar login, llamadas API, instalación/actualización PWA y modo offline.
+7. Copiar diagnóstico desde la Web y errores desde el Panel. Deben omitir query strings, cookies, sesiones y contenido del estado; correlacionar `instanceId` y uptime con los registros del servidor.
+8. Guardar resultados y logs revisados/redactados. Si la app navega el documento espontáneamente, registrar hora e iniciador en Network antes de limpiar caché.
 
 ## Criterios de aceptación
 

@@ -9,7 +9,8 @@ Este documento convierte la lista priorizada en tareas con evidencia y criterios
 - [x] Ofrecer limpieza explícita únicamente de cachés `novagest-v*` y del service worker `sw.js` de esta aplicación. No se borran `localStorage`, IndexedDB, cookies, datos del servidor ni cachés de otras aplicaciones.
 - [x] No recargar automáticamente: la persona decide cuándo probar de nuevo.
 - [x] Añadir la ruta del módulo al precache y pruebas unitarias/CI.
-- [x] Añadir una E2E Chromium con HTTPS temporal que actualiza el worker v61→v62, simula tres cargas, verifica que no hay autorecarga y conserva localStorage/IndexedDB al limpiar la PWA.
+- [x] Añadir una E2E Chromium con HTTPS temporal que actualiza el worker v62→v63, simula tres cargas, verifica que no hay autorecarga y conserva localStorage/IndexedDB al limpiar la PWA.
+- [x] Añadir recuperación independiente con comprobación de API offline, limpieza acotada y controles operables fuera del aviso; el Panel de Control abre esa pantalla y copia líneas de error saneadas de los logs.
 - [x] Validar políticas del service worker: red primero, API fuera de caché, sin borrar cachés ajenas y sin recargas forzadas.
 - [x] Correlacionar el diagnóstico de navegador con el ID efímero de la instancia y uptime que expone `/api/health`; ese mismo ID aparece en logs de acceso/arranque.
 - [x] El panel Windows consulta `/api/health` cada 15 s por HTTPS, diferencia API no confirmada de proceso caído y no reinicia por un fallo de salud transitorio.
@@ -21,13 +22,13 @@ Este documento convierte la lista priorizada en tareas con evidencia y criterios
 
 ### 1. Incidente: inicio y recargas repetidas
 
-**Disponible ahora:** si el navegador carga el documento repetidamente, tras el tercer arranque en 30 segundos se presenta un aviso, permite copiar datos no sensibles y limpiar explícitamente los artefactos de PWA de NovaGest.
+**Disponible ahora:** si el navegador carga el documento repetidamente, tras el tercer arranque en 30 segundos se presenta un aviso. Si el aviso no responde, el Panel abre una página de recuperación independiente, donde se puede comprobar la API y limpiar solo la PWA. El Panel permite copiar un extracto limitado de errores del servidor tras confirmación.
 
 **Cierre en la máquina afectada:**
 1. Abrir `https://localhost:8443/index.html` y anotar si se repite la carga del documento, se repinta solo la interfaz o se abren pestañas nuevas.
-2. Si aparece el aviso, copiar el diagnóstico y guardarlo junto con la hora exacta del incidente.
-3. Revisar los registros `data/logs/` de la misma hora para distinguir caída/reinicio del servidor de un problema en navegador/service worker.
-4. Repetir después de limpiar la caché desde el aviso, sin borrar datos del negocio.
+2. Anotar estado e ID/uptime de `/api/health`; si dice sin respuesta, guardar la hora antes de reiniciar o limpiar.
+3. Abrir el Panel → **Ver registro** y **Copiar errores recientes**; revisar/redactar el extracto antes de compartirlo.
+4. Si el aviso web no responde, abrir **Recuperación independiente de la Web** desde el Panel. Limpiar la PWA solo tras conservar la evidencia y sin borrar datos del negocio.
 5. Confirmar ausencia de nuevas cargas inesperadas durante al menos cinco minutos y que el inicio de sesión, API, actualización y modo sin conexión sigan funcionando.
 
 **Limitación actual:** la limpieza de PWA es una recuperación diagnóstica, no una explicación de la causa. El módulo no fuerza recargas.

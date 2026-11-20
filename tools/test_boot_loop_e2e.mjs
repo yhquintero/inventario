@@ -24,6 +24,7 @@ const mime = {
 };
 const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'";
 let swUpdateSource = null;
+let healthUnavailable = false;
 const server = createServer({ key: await readFile(key), cert: await readFile(cert) }, async (req, res) => {
   const url = new URL(req.url || "/", "https://localhost");
   if (url.pathname === "/sw.js" && swUpdateSource) {
@@ -38,6 +39,10 @@ const server = createServer({ key: await readFile(key), cert: await readFile(cer
       "Service-Worker-Allowed": "/other-scope/",
     });
     res.end("self.addEventListener('install',e=>e.waitUntil(self.skipWaiting())); self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));");
+    return;
+  }
+  if (url.pathname === "/api/health" && healthUnavailable) {
+    req.socket.destroy();
     return;
   }
   if (url.pathname === "/api/license/status") {
@@ -93,8 +98,8 @@ try {
   await openAndWait();
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   const originalWorker = await readFile(resolve(WEB, "sw.js"), "utf8");
-  assert.match(originalWorker, /const CACHE = "novagest-v61";/, "el test exige la versión de worker esperada");
-  swUpdateSource = originalWorker.replaceAll("novagest-v61", "novagest-v62");
+  assert.match(originalWorker, /const CACHE = "novagest-v62";/, "el test exige la versión de worker esperada");
+  swUpdateSource = originalWorker.replaceAll("novagest-v62", "novagest-v63");
   const navBeforeUpdate = navigations;
   const controllerChanged = await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.getRegistration("/");
@@ -106,7 +111,7 @@ try {
   assert.equal(controllerChanged, true, "el worker actualizado toma control sin navegar el documento");
   await page.waitForFunction(async () => {
     const names = await caches.keys();
-    return names.includes("novagest-v62") && !names.includes("novagest-v61");
+    return names.includes("novagest-v63") && !names.includes("novagest-v62");
   });
   assert.equal(navigations, navBeforeUpdate, "la actualización del worker no recarga el documento");
   const peer = await context.newPage();
@@ -115,6 +120,27 @@ try {
   await peer.goto(url, { waitUntil: "networkidle" });
   await peer.locator("#app").waitFor({ state: "attached" });
   await peer.waitForFunction(() => document.querySelector("#app")?.textContent?.trim() !== "Cargando NovaGest…");
+
+  const recoveryPage = await context.newPage();
+  const recoveryErrors = [];
+  let recoveryNavigations = 0;
+  recoveryPage.on("pageerror", (error) => recoveryErrors.push(error.message));
+  recoveryPage.on("framenavigated", (frame) => { if (frame === recoveryPage.mainFrame()) recoveryNavigations++; });
+  healthUnavailable = true;
+  await recoveryPage.goto(`https://127.0.0.1:${address.port}/recovery.html`, { waitUntil: "networkidle" });
+  await recoveryPage.getByText(/La API no responde/).waitFor();
+  const recoveryNavCount = recoveryNavigations;
+  await recoveryPage.waitForTimeout(500);
+  assert.equal(recoveryNavigations, recoveryNavCount, "el estado API desconectado no recarga la recuperación independiente");
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await recoveryPage.getByRole("button", { name: "Copiar diagnóstico técnico" }).click();
+  await recoveryPage.getByText(/Diagnóstico copiado/).waitFor();
+  const offlineReport = await recoveryPage.evaluate(() => navigator.clipboard.readText());
+  assert.match(offlineReport, /API no responde/);
+  assert.match(offlineReport, /Cachés NovaGest: novagest-v63/);
+  healthUnavailable = false;
+  await recoveryPage.close();
+
   await page.evaluate(async () => {
     const other = await navigator.serviceWorker.register("/other-scope/sw.js", { scope: "/other-scope/" });
     const deadline = Date.now() + 5000;
@@ -191,10 +217,28 @@ try {
 
   await openAndWait(); // recarga manual, ya sin la caché/contador antiguos
   assert.equal(await page.locator("#novagest-boot-diagnostic").count(), 0, "no vuelve a alertar tras reiniciar el contador");
+  await page.evaluate(async () => {
+    localStorage.setItem("novagest.recovery-preserve", "local-safe");
+    await navigator.serviceWorker.ready;
+  });
+  await page.goto(`https://127.0.0.1:${address.port}/recovery.html`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Limpiar caché y worker de NovaGest" }).click();
+  await page.getByText(/Datos locales intactos/).waitFor();
+  const recoveryCleanup = await page.evaluate(async () => ({
+    local: localStorage.getItem("novagest.recovery-preserve"),
+    ownCaches: (await caches.keys()).filter((name) => name.startsWith("novagest-v")),
+    ownWorker: (await navigator.serviceWorker.getRegistrations()).some((registration) => [registration.active, registration.waiting, registration.installing].some((worker) => worker?.scriptURL === new URL("/sw.js", location.href).href)),
+    otherWorker: (await navigator.serviceWorker.getRegistrations()).some((registration) => [registration.active, registration.waiting, registration.installing].some((worker) => worker?.scriptURL === new URL("/other-scope/sw.js", location.href).href)),
+  }));
+  assert.equal(recoveryCleanup.local, "local-safe", "la recuperación independiente preserva localStorage");
+  assert.deepEqual(recoveryCleanup.ownCaches, [], "la recuperación independiente borra solo cachés NovaGest");
+  assert.equal(recoveryCleanup.ownWorker, false, "la recuperación independiente retira el worker exacto de NovaGest");
+  assert.equal(recoveryCleanup.otherWorker, true, "la recuperación independiente conserva el worker ajeno");
   assert.deepEqual(pageErrors, [], `errores JS de página principal: ${pageErrors.join("; ")}`);
   assert.deepEqual(peerErrors, [], `errores JS de pestaña paralela: ${peerErrors.join("; ")}`);
+  assert.deepEqual(recoveryErrors, [], `errores JS de recuperación: ${recoveryErrors.join("; ")}`);
   await context.close();
-  console.log("OK — Chromium HTTPS: bucle detectado, sin autorecarga y recuperación sin pérdida de localStorage/IndexedDB");
+  console.log("OK — Chromium HTTPS: recuperación independiente offline, errores de diagnóstico saneados y limpieza sin recarga ni pérdida de datos locales");
 } finally {
   if (browser) await browser.close();
   await new Promise((resolveClose) => server.close(resolveClose));
