@@ -1,3 +1,4 @@
+import { monitorBoot } from "./boot-diagnostics.js";
 import { store, warehouseIcon, warehouseProvince, CUBA_PROVINCES, TOTAL_MUNICIPIOS } from "./store.js";
 import { api, setLicenseErrorHandler } from "./api.js";
 import { parseLegacyCuadreGrid, parseNovaDailyGrid, parsePchInventoryGrid, parseWeeklySummaryGrid } from "./excel-import.js";
@@ -41,6 +42,13 @@ import {
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = document.getElementById("app");
+try {
+  let bootStorage = null;
+  try { bootStorage = window.sessionStorage; } catch {}
+  monitorBoot({ storage: bootStorage, document, window, navigator, cacheStorage: window.caches });
+} catch (err) {
+  console.warn("[NovaGest] No se pudo activar el diagnóstico de arranque:", err);
+}
 /** Versión única de NovaGest (Web · Android · Servidor). Visible en Ajustes → Acerca de. */
 export const APP_VERSION = "1.0.0";
 
