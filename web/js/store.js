@@ -1856,9 +1856,15 @@ class Store {
   }
 
   saveWeekly(weekStart, data) {
-    this.state.weekly[weekStart] = { ...(this.state.weekly[weekStart] || {}), ...data };
+    if (!can(this.state.session?.role, "WEEKLY_EDIT")) return { error: "Tu rol no puede editar gastos semanales." };
+    const current = { ...(this.state.weekly[weekStart] || {}) };
+    // Migra el campo antiguo al nuevo al guardar, sin perder semanas históricas.
+    if (current.salarioAlmaceneros == null && current.salarioLeo != null) current.salarioAlmaceneros = current.salarioLeo;
+    delete current.salarioLeo;
+    this.state.weekly[weekStart] = { ...current, ...data };
     this.audit("INFORME", "weekly", `Informe semanal ${weekStart}`);
     this.emit();
+    return { ok: true };
   }
 
   saveWeeklyReferences(references) {
@@ -1867,7 +1873,9 @@ class Store {
     if (!this.state.weekly || typeof this.state.weekly !== "object") this.state.weekly = {};
     for (const reference of references) {
       if (!reference?.from) continue;
-      const current = this.state.weekly[reference.from] || {};
+      const current = { ...(this.state.weekly[reference.from] || {}) };
+      if (current.salarioAlmaceneros == null && current.salarioLeo != null) current.salarioAlmaceneros = current.salarioLeo;
+      delete current.salarioLeo;
       this.state.weekly[reference.from] = { ...current, excelSummary: reference };
     }
     this.audit("IMPORT", "weekly", `Resumen semanal Excel · ${references.length} semanas`);

@@ -69,5 +69,11 @@ cuadre = copy.deepcopy(base)
 cuadre["cuadres"] = [{"date": "2026-01-01", "venta": 10}]
 check(server.validate_change(base, cuadre, "CONTADOR", set()) is None,
       "CONTADOR puede editar cuadres sin permiso para cerrar el día")
+weekly = copy.deepcopy(base)
+weekly["weekly"] = {"2026-08-31": {"salarioAlmaceneros": 95}}
+check(server.validate_change(base, weekly, "AUDITOR", set())[0] == 403,
+      "AUDITOR puede consultar el informe semanal, pero no guardar sus gastos")
+check(server.validate_change(base, weekly, "ECONOMICO", set()) is None,
+      "ECONOMICO puede editar los gastos semanales con WEEKLY_EDIT")
 
 print("OK — autorización funcional de roles")
