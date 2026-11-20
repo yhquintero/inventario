@@ -168,11 +168,7 @@ El servidor publica `/api/health`, que responde **sin iniciar sesión** y en una
 curl -s http://127.0.0.1:8080/api/health | python -m json.tool
 ```
 
-Devuelve el estado (`ok` o `aviso`), los avisos activos (`licencia`, `sin-copias`,
-`copias-viejas`), el tiempo en marcha, la **latencia** contra la base, el **tamaño** de la base,
-las **copias de seguridad** (total, última y horas desde la última), los **días cerrados** y las
-**sesiones activas**. Nunca devuelve el contenido de la base ni datos de personas: se puede
-publicar detrás del proxy sin riesgo.
+La respuesta pública mínima incluye versión, ID efímero del proceso, hora, uptime y latencia. El ID no identifica al cliente: permite correlacionar una respuesta con los registros y detectar un reinicio. Los detalles de licencia, avisos, almacenamiento, copias, días cerrados y sesiones solo se devuelven a Administrador/Jefe autenticados. Ninguna vista devuelve el contenido de la base ni datos de personas.
 
 | Aviso | Qué significa | Qué hacer |
 |---|---|---|

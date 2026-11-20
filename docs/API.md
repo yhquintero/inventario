@@ -9,7 +9,7 @@ licencia activa. Un error usa `{ "error": "…" }` y un código HTTP no exitoso.
 
 | Método y ruta | Acceso | Resultado / observaciones |
 |---|---|---|
-| `GET /api/health` | Público, mínimo | Disponibilidad, versión, latencia y uptime. Detalles internos solo para Administrador/Jefe autenticados. |
+| `GET /api/health` | Público, mínimo | Disponibilidad, versión, latencia, uptime e ID efímero de arranque para correlacionar reinicios. No identifica clientes; detalles internos solo para Administrador/Jefe autenticados. |
 | `POST /api/login` | Público | `{username,password,code?}`; crea cookie y devuelve perfil/estado 2FA. Solo con `X-CP-Client: android` incluye token Bearer en JSON. |
 | `POST /api/logout` | Sesión | Revoca la sesión actual y limpia cookie. |
 | `GET /api/me` | Sesión | Perfil público e intervalo de inactividad. |

@@ -50,6 +50,7 @@ log_output = StringIO()
 with redirect_stdout(log_output):
     m.Api.log_message(LogContext(), "respuesta HTTP %s", HTTPStatus.NOT_FOUND)
 check("log_message admite HTTPStatus sin lanzar TypeError", "404" in log_output.getvalue())
+check("los registros de acceso incluyen ID de arranque", f"boot={m.SERVER_INSTANCE_ID}" in log_output.getvalue())
 
 version_output = StringIO()
 with redirect_stdout(version_output):

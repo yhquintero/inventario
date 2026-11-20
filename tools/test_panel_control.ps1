@@ -18,7 +18,8 @@
     5) Proceso de control con PROCESOS REALES (servicios falsos que abren un
        puerto): iniciar y detener; reconocer un servicio iniciado fuera del
        panel; no detenerlo sin confirmar su PID; no tocar nunca un programa
-       ajeno; detectar caídas y reiniciar automáticamente; y el bucle del
+       ajeno; distinguir TCP de la salud HTTP NovaGest; no reiniciar por fallos
+       HTTP transitorios; probar el backoff de reintentos y el bucle del
        proceso de control en su propio runspace, como lo usa la ventana.
     6) Características pedidas del panel: icono en la bandeja con su propio menú
        contextual (clic derecho), opciones del menú, ventana que nunca se bloquea
@@ -230,10 +231,30 @@ if (-not (Test-Path -LiteralPath $panel)) {
         Probar 'Test-ComandoDelProyecto está definida' $false
     }
 
+    if (Get-Command Test-NovaGestHealthPayload -ErrorAction SilentlyContinue) {
+        try {
+            $apiBuena = Test-NovaGestHealthPayload '{"ok":true,"app":"NovaGest","instanceId":"0123456789abcdef","salud":{"uptimeSegundos":12}}'
+            $apiAjena = Test-NovaGestHealthPayload '{"ok":true,"app":"otra","instanceId":"0123456789abcdef"}'
+            Probar 'La salud HTTP valida app e ID de instancia' ($apiBuena.Saludable -and $apiBuena.InstanceId -eq '0123456789abcdef' -and $apiBuena.UptimeSegundos -eq 12)
+            Probar 'Una respuesta ajena no se declara saludable' (-not $apiAjena.Saludable -and -not $apiAjena.InstanceId)
+        } catch { Fallar 'Test-NovaGestHealthPayload' $_.Exception.Message }
+    } else {
+        Probar 'Test-NovaGestHealthPayload está definida' $false
+    }
+
+    if (Get-Command Get-RestartDelaySeconds -ErrorAction SilentlyContinue) {
+        try {
+            Probar 'Backoff de reinicios crece y queda acotado' ((Get-RestartDelaySeconds 1) -eq 2 -and (Get-RestartDelaySeconds 2) -eq 5 -and (Get-RestartDelaySeconds 3) -eq 12 -and (Get-RestartDelaySeconds 9) -eq 12)
+        } catch { Fallar 'Get-RestartDelaySeconds' $_.Exception.Message }
+    } else {
+        Probar 'Get-RestartDelaySeconds está definida' $false
+    }
+
     if (Get-Command Get-NombreEstadoColor -ErrorAction SilentlyContinue) {
         try {
             Probar 'Estado «En ejecución» se pinta en verde' ((Get-NombreEstadoColor 'En ejecución') -eq 'Verde')
             Probar 'Estado «fuera del panel» se pinta en azul' ((Get-NombreEstadoColor 'En ejecución (fuera del panel)') -eq 'Azul')
+            Probar 'API no confirmada se pinta en ámbar, sin confundirse con caída del proceso' ((Get-NombreEstadoColor 'API sin confirmar') -eq 'Ambar')
             Probar 'Estado «Arrancando…» se pinta en ámbar' ((Get-NombreEstadoColor 'Arrancando…') -eq 'Ambar')
             Probar 'Estado «Deteniendo…» se pinta en ámbar' ((Get-NombreEstadoColor 'Deteniendo…') -eq 'Ambar')
             Probar 'Estado «Sin respuesta» se pinta en rojo' ((Get-NombreEstadoColor 'Sin respuesta') -eq 'Rojo')
@@ -412,8 +433,12 @@ while ($true) { Start-Sleep -Milliseconds 200 }
         Invoke-ComandoTrabajador -C $c -Comando @{ Tipo = 'iniciar'; Id = 'servidor' }
         $pidLanzado = [int]$c.Servicios['servidor'].PidLanzado
         if ($pidLanzado -gt 0) { $procesosPrueba.Add($pidLanzado) }
-        $ok = Esperar-Hasta { Update-EstadosTrabajador -C $c | Out-Null; $c.Estados['servidor'].Estado -eq 'En ejecución' } 40
-        Probar 'Inicia el servicio en segundo plano y lo ve «En ejecución»' $ok
+        $ok = Esperar-Hasta { Update-EstadosTrabajador -C $c | Out-Null; $c.Estados['servidor'].Escucha -and $c.Estados['servidor'].SaludApi -eq $false } 40
+        Probar 'Distingue puerto abierto de API no saludable en el servicio falso' ($ok -and $c.Estados['servidor'].Estado -eq 'API sin confirmar')
+        $c.AutoReinicio = $true
+        Update-EstadosTrabajador -C $c | Out-Null
+        Probar 'Fallo del probe HTTP no reinicia un proceso que sigue vivo' ([int]$c.Servicios['servidor'].PidLanzado -eq $pidLanzado -and -not $c.Servicios['servidor'].ReinicioPendiente)
+        $c.AutoReinicio = $false
         Probar 'Guarda el PID del proceso lanzado' ($pidLanzado -gt 0 -and [int]$c.Estados['servidor'].PidLanzado -eq $pidLanzado)
         $texto = Get-TextoMensajes $c
         Probar 'Avisa cuando el servicio queda en ejecución' ($texto.Contains("Servicio de prueba en ejecución: https://localhost:$puertoPrueba"))
@@ -431,7 +456,7 @@ while ($true) { Start-Sleep -Milliseconds 200 }
         $ok = Esperar-Hasta { Test-PuertoEscuchando $puertoPrueba } 40
         Update-EstadosTrabajador -C $c | Out-Null
         $e = $c.Estados['servidor']
-        Probar 'Un servicio iniciado fuera del panel se ve «En ejecución (fuera del panel)»' ($ok -and $e.Estado -eq 'En ejecución (fuera del panel)' -and $e.Externo)
+        Probar 'Un servicio externo con API de prueba falsa queda identificado como no saludable' ($ok -and $e.Estado -eq 'API sin confirmar (fuera del panel)' -and $e.Externo -and $e.SaludApi -eq $false)
         if ($puedePid) {
             Probar 'Identifica el PID del proceso externo' ([int]$e.PidPuerto -eq $externo.Id)
             Probar 'Lo reconoce como proceso de NovaGest (por su línea de comandos)' ([bool]$e.DelProyecto)
@@ -487,7 +512,7 @@ while ($true) { Start-Sleep -Milliseconds 200 }
         Invoke-ComandoTrabajador -C $c -Comando @{ Tipo = 'iniciar'; Id = 'servidor' }
         $primerPid = [int]$c.Servicios['servidor'].PidLanzado
         if ($primerPid -gt 0) { $procesosPrueba.Add($primerPid) }
-        $ok = Esperar-Hasta { Update-EstadosTrabajador -C $c | Out-Null; $c.Estados['servidor'].Estado -eq 'En ejecución' } 40
+        $ok = Esperar-Hasta { Update-EstadosTrabajador -C $c | Out-Null; $c.Estados['servidor'].Escucha -and $c.Estados['servidor'].SaludApi -eq $false } 40
         Probar 'Vuelve a iniciar el servicio para la prueba de caídas' $ok
         try { Stop-Process -Id $primerPid -Force -ErrorAction SilentlyContinue } catch { }
         $ok = Esperar-Hasta {
@@ -500,8 +525,8 @@ while ($true) { Start-Sleep -Milliseconds 200 }
         $texto = Get-TextoMensajes $c
         Probar 'Detecta que el servicio se cayó solo' ($texto.Contains('se detuvo por sí solo'))
         Probar 'Con «Reiniciar automáticamente» lo vuelve a iniciar (intento 1 de 3)' ($ok -and $texto.Contains('Reintento automático 1 de 3'))
-        $ok = Esperar-Hasta { Update-EstadosTrabajador -C $c | Out-Null; $c.Estados['servidor'].Estado -eq 'En ejecución' } 40
-        Probar 'El servicio reiniciado vuelve a escuchar' $ok
+        $ok = Esperar-Hasta { Update-EstadosTrabajador -C $c | Out-Null; $c.Estados['servidor'].Escucha -and $c.Estados['servidor'].SaludApi -eq $false } 40
+        Probar 'El servicio reiniciado vuelve a escuchar aunque su API falsa no sea saludable' $ok
         $c.AutoReinicio = $false
         Invoke-ComandoTrabajador -C $c -Comando @{ Tipo = 'detener'; Id = 'servidor' }
         Update-EstadosTrabajador -C $c | Out-Null
@@ -522,7 +547,7 @@ while ($true) { Start-Sleep -Milliseconds 200 }
         $c2.Comandos.Enqueue(@{ Tipo = 'iniciar'; Id = 'servidor'; Seq = 1 })
         $encolar = $reloj.ElapsedMilliseconds
         Probar 'Encolar una orden es inmediato (la ventana no espera)' ($encolar -lt 200)
-        $ok = Esperar-Hasta { [int]$c2.UltimoTerminado -ge 1 -and $c2.Estados['servidor'].Estado -eq 'En ejecución' } 40
+        $ok = Esperar-Hasta { [int]$c2.UltimoTerminado -ge 1 -and $c2.Estados['servidor'].Escucha -and $c2.Estados['servidor'].SaludApi -eq $false } 40
         $lanzadoBucle = [int]$c2.Estados['servidor'].PidLanzado
         if ($lanzadoBucle -gt 0) { $procesosPrueba.Add($lanzadoBucle) }
         Probar 'El proceso de control (runspace) inicia el servicio y publica el estado' $ok

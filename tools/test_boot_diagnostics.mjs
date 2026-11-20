@@ -44,7 +44,15 @@ const fakeDocument = {
 const unregistered = [];
 const deleted = [];
 let automaticReloads = 0;
-const fakeWindow = { location: { href: "https://localhost:8443/index.html?token=private#home", reload: () => automaticReloads++ }, performance: { getEntriesByType: () => [{ type: "reload" }] } };
+const fakeWindow = {
+  location: { href: "https://localhost:8443/index.html?token=private#home", reload: () => automaticReloads++ },
+  performance: { getEntriesByType: () => [{ type: "reload" }] },
+  async fetch(endpoint, options) {
+    assert.equal(new URL(endpoint).pathname, "/api/health");
+    assert.equal(options.headers["X-CP"], "1");
+    return { ok: true, status: 200, json: async () => ({ instanceId: "0123456789abcdef", salud: { uptimeSegundos: 42 } }) };
+  },
+};
 const fakeNavigator = {
   serviceWorker: { getRegistrations: async () => [
     { active: { scriptURL: "https://localhost:8443/sw.js" }, unregister: async () => unregistered.push("app") },
@@ -69,6 +77,7 @@ assert.equal(automaticReloads, 0, "la recuperación no fuerza recargas");
 assert.equal(recoveryStorage.get(BOOT_HISTORY_KEY), undefined, "la limpieza reinicia solo el contador del diagnóstico");
 await click({ target: { closest: () => ({ dataset: { bootAction: "copy" } }) } });
 assert.match(messages.at(-2), /Service worker controla la página/);
+assert.match(messages.at(-2), /arranque 0123456789abcdef; uptime 42 s/);
 assert.match(messages.at(-2), /URL \(sin parámetros\): https:\/\/localhost:8443\/index.html/);
 assert.doesNotMatch(messages.at(-2), /private|token=/, "el diagnóstico excluye query y fragmento potencialmente sensibles");
 await click({ target: { closest: () => ({ dataset: { bootAction: "close" } }) } });

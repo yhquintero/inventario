@@ -35,8 +35,9 @@
    v41: la barra de pestañas de #finanzas queda fija debajo de la topbar también con JS
         (position: fixed dinámico), por si el sticky de CSS falla con cachés viejas.
    v58: interfaz Nebula futurista, botón único de volver arriba y precache completo con financiero.
-   v60: diagnóstico accesible de cargas repetidas; limpieza de caché es manual y no borra datos del negocio. */
-const CACHE = "novagest-v60";
+   v60: diagnóstico accesible de cargas repetidas; limpieza de caché es manual y no borra datos del negocio.
+   v61: correlación de salud, preservación de cachés ajenas y pruebas E2E de actualización HTTPS. */
+const CACHE = "novagest-v61";
 const SHELL = [
   "./", "./index.html", "./css/app.css", "./manifest.webmanifest",
   "./js/app.js", "./js/boot-diagnostics.js", "./js/store.js", "./js/api.js", "./js/calc.js", "./js/charts.js", "./js/ticket.js", "./js/merge.js", "./js/ux.js", "./js/quick-sale.js", "./js/xlsx-export.js", "./js/alerts.js", "./js/kiosk.js",
@@ -49,7 +50,7 @@ const SHELL = [
 ];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith("novagest-v") && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
