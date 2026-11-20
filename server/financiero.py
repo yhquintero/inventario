@@ -178,12 +178,15 @@ def registrar(route, q, audit, now, roles, transaction=None):
         b = h.body()
         codigo = str(b.get("codigo", "")).strip()
         nat = str(b.get("naturaleza", "")).upper()
+        tipo_costo = str(b.get("tipo_costo") or "").strip().upper()
         if not codigo or nat not in NATURALEZAS:
             return h.err(400, "Código y naturaleza válidos son obligatorios")
+        if tipo_costo not in ("", "FIJO", "VARIABLE"):
+            return h.err(400, "Tipo de costo inválido")
         try:
             q("INSERT INTO fin_cuentas(codigo,nombre,naturaleza,saldo_normal,padre,corriente,tipo_costo) VALUES(?,?,?,?,?,?,?)",
               (codigo, b.get("nombre", codigo), nat, NATURALEZAS[nat], b.get("padre") or None,
-               1 if b.get("corriente") else 0, b.get("tipo_costo") or None))
+               1 if b.get("corriente") else 0, tipo_costo or None))
         except sqlite3.IntegrityError:
             return h.err(409, "Ya existe una cuenta con ese código")
         audit(u["username"], "fin_cuenta_crear", codigo)
@@ -192,8 +195,11 @@ def registrar(route, q, audit, now, roles, transaction=None):
     @route("PUT", "/api/fin/cuentas/:id", roles=roles)
     def fin_cuentas_put(h, u, ident):
         b = h.body()
+        tipo_costo = str(b.get("tipo_costo") or "").strip().upper()
+        if tipo_costo not in ("", "FIJO", "VARIABLE"):
+            return h.err(400, "Tipo de costo inválido")
         q("UPDATE fin_cuentas SET nombre=?, corriente=?, tipo_costo=?, activa=? WHERE id=?",
-          (b.get("nombre", ""), 1 if b.get("corriente") else 0, b.get("tipo_costo"), 1 if b.get("activa", 1) else 0, ident))
+          (b.get("nombre", ""), 1 if b.get("corriente") else 0, tipo_costo or None, 1 if b.get("activa", 1) else 0, ident))
         return h.send_json(200, {"ok": True})
 
     @route("DELETE", "/api/fin/cuentas/:id", roles=roles)

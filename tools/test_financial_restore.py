@@ -36,6 +36,18 @@ class Handler:
     def ip(self):
         return "127.0.0.1"
 
+# El enum tipo_costo rechaza HTML antes de persistirlo en cuentas.
+before_accounts = server.q("SELECT COUNT(*) n FROM fin_cuentas", one=True)["n"]
+h_bad_type = Handler()
+h_bad_type.payload = {"codigo": "TEST-XSS", "nombre": "Cuenta de prueba", "naturaleza": "GASTO", "tipo_costo": "<img src=x onerror=alert(1)>"}
+server.ROUTES[("POST", "/api/fin/cuentas")](h_bad_type, "")
+assert h_bad_type.status == 400 and server.q("SELECT COUNT(*) n FROM fin_cuentas", one=True)["n"] == before_accounts
+existing_account = server.q("SELECT id,tipo_costo FROM fin_cuentas ORDER BY id LIMIT 1", one=True)
+h_bad_update = Handler()
+h_bad_update.payload = {"nombre": "Cuenta", "tipo_costo": "<script>alert(1)</script>"}
+server.ROUTES[("PUT", "/api/fin/cuentas/:id")](h_bad_update, str(existing_account["id"]))
+assert h_bad_update.status == 400 and server.q("SELECT tipo_costo FROM fin_cuentas WHERE id=?", (existing_account["id"],), one=True)["tipo_costo"] == existing_account["tipo_costo"]
+
 cuentas = server.q("SELECT id FROM fin_cuentas ORDER BY id LIMIT 2")
 assert len(cuentas) == 2
 h = Handler()
@@ -119,4 +131,4 @@ assert server.q("SELECT descripcion FROM fin_asientos WHERE id=992", one=True)["
 assert server.q("SELECT COUNT(*) n FROM fin_lineas WHERE asiento_id=992", one=True)["n"] == 1
 assert server.q("SELECT mrr FROM fin_metricas WHERE periodo='2026-11'", one=True)["mrr"] == 4
 assert server.q("SELECT titular FROM fin_qr WHERE id=1", one=True)["titular"] == "Tienda restaurada"
-print("OK — asientos atómicos y restauración completa de licencias/finanzas")
+print("OK — validación de tipos financieros, asientos atómicos y restauración de licencias/finanzas")

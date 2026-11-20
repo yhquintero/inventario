@@ -1,3 +1,16 @@
+## NovaGest · revisión 2026-11-20 · Seguridad del módulo financiero y revisión detallada Top 1
+
+### Seguridad de cuentas financieras
+- **XSS de tipo de costo cerrado** (`web/js/financiero.js`): las celdas con renderizador personalizado también escapan `tipo_costo` antes de insertarlo en HTML.
+- **Validación de servidor** (`server/financiero.py`): POST/PUT de cuentas aceptan solo `FIJO`, `VARIABLE` o vacío para `tipo_costo`; rechazan HTML u otros valores sin cambiar la base.
+- **Caché PWA**: versión `novagest-v65` para servir el código actualizado.
+- **Pruebas**: `smoke_web.mjs` 90/90; `test_financial_restore.py` prueba rechazo de payloads HTML.
+
+### Revisión de riesgos y siguiente prioridad
+- Se documenta la revisión actual en `docs/REVISION_DETALLADA_TOP1_2026-11-20.md`.
+- Hallazgo prioritario pendiente: Room v5 solo declara migraciones 3→4 y 4→5, sin esquemas exportados ni pruebas de migración. Antes de crear una cadena para instalaciones anteriores hay que identificar las versiones de esquema que llegaron a usuarios y recuperar sus esquemas reales; no se inventa una migración que pueda poner los datos en riesgo.
+- `compileSdk`/`targetSdk` ya son 36, pero CI aún ejecuta la UI en API 30; queda pendiente una prueba en API 36.
+
 ## NovaGest · revisión 2026-11-13 · Perfeccionamiento y seguridad: targetSdk 36, venv/ fuera de git, XSS en financiero.js y security.txt
 
 ### Seguridad: bloqueantes P0 cerrados (configuración)
