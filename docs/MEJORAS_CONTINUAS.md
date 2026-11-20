@@ -9,8 +9,9 @@ Este documento convierte la lista priorizada en tareas con evidencia y criterios
 - [x] Ofrecer limpieza explícita únicamente de cachés `novagest-v*` y del service worker `sw.js` de esta aplicación. No se borran `localStorage`, IndexedDB, cookies, datos del servidor ni cachés de otras aplicaciones.
 - [x] No recargar automáticamente: la persona decide cuándo probar de nuevo.
 - [x] Añadir la ruta del módulo al precache y pruebas unitarias/CI.
-- [x] Añadir una E2E Chromium con HTTPS temporal que actualiza el worker v62→v63, simula tres cargas, verifica que no hay autorecarga y conserva localStorage/IndexedDB al limpiar la PWA.
+- [x] Añadir una E2E Chromium con HTTPS temporal que actualiza el worker v63→v64, simula tres cargas, verifica que no hay autorecarga y conserva localStorage/IndexedDB al limpiar la PWA.
 - [x] Añadir recuperación independiente con comprobación de API offline, limpieza acotada y controles operables fuera del aviso; el Panel de Control abre esa pantalla y copia líneas de error saneadas de los logs.
+- [x] Guardar hasta 8 tipos de navegación y muestras de salud solo en sessionStorage de la pestaña; comparar `instanceId`/uptime entre recargas para distinguir reinicio de servidor de una recarga con proceso estable.
 - [x] Validar políticas del service worker: red primero, API fuera de caché, sin borrar cachés ajenas y sin recargas forzadas.
 - [x] Correlacionar el diagnóstico de navegador con el ID efímero de la instancia y uptime que expone `/api/health`; ese mismo ID aparece en logs de acceso/arranque.
 - [x] El panel Windows consulta `/api/health` cada 15 s por HTTPS, diferencia API no confirmada de proceso caído y no reinicia por un fallo de salud transitorio.

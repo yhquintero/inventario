@@ -1252,6 +1252,8 @@ test("El service worker cachea todos los módulos JS para el modo sin conexión"
   assert.match(recovery, /Copiar diagnóstico técnico/);
   assert.match(recoveryJs, /key\.startsWith\(PREFIX\)/, "la recuperación solo borra cachés con prefijo propio");
   assert.match(recoveryJs, /appWorker\(worker\.scriptURL\)/, "solo retira el service worker cuyo scriptURL coincide exactamente");
+  assert.match(recoveryJs, /HEALTH_HISTORY_KEY|instanceId/, "la recuperación compara ID de instancia y uptime entre comprobaciones");
+  assert.match(recoveryJs, /NAV_HISTORY_KEY/, "la recuperación guarda tipos de navegación solo en la sesión de esta pestaña");
   assert.doesNotMatch(recoveryJs, /localStorage\.clear|indexedDB\.deleteDatabase|location\.reload/, "la recuperación no toca datos de negocio ni fuerza navegación");
 });
 
