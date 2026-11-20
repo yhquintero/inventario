@@ -121,7 +121,7 @@ interna para quien administra las licencias.
 ### Administración y seguridad
 
 - 🔐 **Licencia de uso** — clave firmada criptográficamente, ocho plazos, solicitud por WhatsApp y panel de control de claves y equipos.
-- 👥 **Roles y permisos** — Administrador, Jefe, Económico y Almacenero; el servidor valida cada permiso, no solo la interfaz.
+- 👥 **Roles y permisos** — Administrador, Jefe, Supervisor, Económico, Contador, Auditor, Almacenero y Vendedor; la matriz se replica en Web y Android y el servidor valida los cambios.
 - 🔒 **Seguridad** — verificación en dos pasos (TOTP), bloqueo tras intentos fallidos, caducidad de sesión, **cierre de días** y copias de seguridad cifradas con rotación.
 - ☁️ **Sincronización multiplataforma** — Web y Android sobre el mismo estado; si se pierde la conexión, la Web sigue operando y sincroniza al reconectar, y el Android guarda en local y sube al volver la red. La barra superior muestra una **insignia con los cambios sin subir** y **Ajustes** resume la cola con su próximo reintento.
 
@@ -259,35 +259,37 @@ App interna para emitir claves desde el teléfono. Detalles y advertencias en
 Cada persona entra con su propio usuario; el rol decide qué ve y qué puede cambiar, y **el servidor
 valida los mismos permisos** que la interfaz.
 
-| Área | Administrador | Jefe | Económico | Almacenero |
-|---|:--:|:--:|:--:|:--:|
-| Panel, inventario y movimientos (consulta) | ✅ | ✅ | ✅ | ✅ |
-| Crear y editar productos | ✅ | ✅ | — | ✅ |
-| Enviar productos a la papelera | ✅ | ✅ | — | ✅ |
-| Papelera: borrado definitivo | ✅ | ✅ | — | — |
-| Ver almacenes y existencias | ✅ | ✅ | ✅ | ✅ |
-| Editar almacenes, traspasar e importar valores | ✅ | ✅ | — | ✅ |
-| Limpiar un almacén o los municipios (🧹) | ✅ | — | — | — |
-| Ver movimientos | ✅ | ✅ | ✅ | ✅ |
-| Vender y registrar movimientos | ✅ | ✅ | — | ✅ |
-| Editar movimientos y enviarlos a la papelera | ✅ | ✅ | — | ✅ |
-| Movimientos: borrado definitivo | ✅ | ✅ | — | — |
-| Cuadre diario (consulta) | ✅ | ✅ | ✅ | ✅ |
-| Editar y cerrar el cuadre | ✅ | ✅ | ✅ | — |
-| Reabrir un día cerrado | ✅ | — | — | — |
-| Historial de precios | ✅ | ✅ | ✅ | ✅ |
-| Informes, comprobación y finanzas | ✅ | ✅ | ✅ | — |
-| Tasas de cambio (Monedas) | ✅ | ✅ | ✅ | — |
-| Clientes y fiados | ✅ | ✅ | ✅ | ✅ |
-| Fichas de costo e IPV | ✅ | ✅ | ✅ | solo ver |
-| Usuarios | ✅ | ✅ | — | — |
-| Ajustes del negocio y datos legales | ✅ | ✅ | — | — |
-| Salud del sistema (métricas) | ✅ | ✅ | ✅ | — |
-| Auditoría, seguridad e impresiones | ✅ | ✅ | ✅ | — |
-| Copias de seguridad (crear) | ✅ | ✅ | — | — |
-| Restaurar copias, descargar y recargar Excel | ✅ | — | — | — |
-| Licencia de uso (ver y generar) | ✅ | ✅ | — | — |
-| Licencia: eliminar | ✅ | — | — | — |
+| Área | Administrador | Jefe | Supervisor | Económico | Contador | Auditor | Almacenero | Vendedor |
+|---|---|---|---|---|---|---|---|---|
+| Panel, inventario y movimientos (consulta) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Crear y editar productos | ✅ | ✅ | ✅ | — | — | — | ✅ | — |
+| Enviar productos a la papelera | ✅ | ✅ | ✅ | — | — | — | ✅ | — |
+| Papelera: borrado definitivo | ✅ | ✅ | — | — | — | — | — | — |
+| Ver almacenes y existencias | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Editar almacenes, traspasar e importar valores | ✅ | ✅ | ✅ | — | — | — | ✅ | — |
+| Limpiar un almacén o los municipios (🧹) | ✅ | — | — | — | — | — | — | — |
+| Ver movimientos | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Vender y registrar movimientos | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ |
+| Registrar entradas y salidas manuales | ✅ | ✅ | ✅ | — | — | — | ✅ | — |
+| Editar movimientos y enviarlos a la papelera | ✅ | ✅ | ✅ | — | — | — | ✅ | — |
+| Movimientos: borrado definitivo | ✅ | ✅ | — | — | — | — | — | — |
+| Cuadre diario (consulta) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| Editar y cerrar el cuadre | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
+| Reabrir un día cerrado | ✅ | — | — | — | — | — | — | — |
+| Historial de precios | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| Informes, comprobación y finanzas | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| Tasas de cambio (Monedas) | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
+| Clientes y fiados | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | ✅ |
+| Fichas de costo e IPV | ✅ | ✅ | ✅ | ✅ | ✅ | solo ver | solo ver | — |
+| Usuarios | ✅ | ✅ | — | — | — | — | — | — |
+| Ajustes del negocio y datos legales | ✅ | ✅ | — | — | — | — | — | — |
+| Salud del sistema (métricas) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| Auditoría, seguridad e impresiones | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| Copias de seguridad (crear) | ✅ | ✅ | — | — | — | — | — | — |
+| Restaurar copias, descargar y recargar Excel | ✅ | — | — | — | — | — | — | — |
+| Licencia de uso (ver y generar) | ✅ | ✅ | — | — | — | — | — | — |
+| Licencia: eliminar | ✅ | — | — | — | — | — | — | — |
+> **Límite del Vendedor:** solo puede registrar ventas nuevas. El servidor rechaza entradas/salidas manuales y no permite editar ni borrar movimientos existentes.
 
 > El servidor valida **exactamente los mismos permisos** (`WRITE` y los `roles=` de
 > `server/novagest_server.py`), y Android replica la misma tabla. `tools/test_permisos.mjs`

@@ -23,7 +23,7 @@ Aplicación Web (PWA) y aplicación Android · Versión 1.0.0
 | Producto | NovaGest |
 | Versión documentada | 1.0.0 (ver `CHANGELOG.md`) |
 | Aplicaciones cubiertas | Web (PWA) y Android, con servidor compartido |
-| Dirigido a | Dueños, administradores, jefes, económicos, almaceneros y cajeros |
+| Dirigido a | Dueños, administradores, jefes, supervisores, económicos, contadores, auditores, almaceneros y vendedores |
 | Tipo de documento | Manual de usuario operativo (paso a paso) |
 | Carácter | Software propietario — el uso requiere licencia (ver `LICENSE`) |
 | Idioma | Español |
@@ -164,39 +164,36 @@ interna para quien administra las licencias.
 Cada persona entra con **su propio usuario**. El rol decide qué ve y qué puede cambiar.
 Esta tabla es la referencia para asignar roles con criterio.
 
-| Acción / sección | Administrador | Jefe | Económico | Almacenero |
-|---|---|---|---|---|
-| Panel, inventario y movimientos (consulta) | ✅ | ✅ | ✅ | ✅ |
-| Crear y editar productos | ✅ | ✅ | — | ✅ |
-| Enviar productos a la papelera | ✅ | ✅ | — | ✅ |
-| Papelera: borrado definitivo | ✅ | ✅ | — | — |
-| Ver almacenes y existencias | ✅ | ✅ | ✅ | ✅ |
-| Editar almacenes, traspasar e importar valores | ✅ | ✅ | — | ✅ |
-| Limpiar un almacén o los municipios (🧹) | ✅ | — | — | — |
-| Ver movimientos | ✅ | ✅ | ✅ | ✅ |
-| Vender y registrar movimientos | ✅ | ✅ | — | ✅ |
-| Editar movimientos y enviarlos a la papelera | ✅ | ✅ | — | ✅ |
-| Movimientos: borrado definitivo | ✅ | ✅ | — | — |
-| Cuadre diario (consulta) | ✅ | ✅ | ✅ | ✅ |
-| Editar y cerrar el cuadre | ✅ | ✅ | ✅ | — |
-| Reabrir un día cerrado | ✅ | — | — | — |
-| Historial de precios | ✅ | ✅ | ✅ | ✅ |
-| Informes, comprobación y finanzas | ✅ | ✅ | ✅ | — |
-| Tasas de cambio (Monedas) | ✅ | ✅ | ✅ | — |
-| Clientes y fiados | ✅ | ✅ | ✅ | ✅ |
-| Fichas de costo e IPV | ✅ | ✅ | ✅ | solo ver |
-| Usuarios | ✅ | ✅ | — | — |
-| Ajustes del negocio y datos legales | ✅ | ✅ | — | — |
-| Salud del sistema (métricas) | ✅ | ✅ | ✅ | — |
-| Auditoría, seguridad e impresiones | ✅ | ✅ | ✅ | — |
-| Copias de seguridad (crear) | ✅ | ✅ | — | — |
-| Restaurar copias, descargar y recargar Excel | ✅ | — | — | — |
-| Licencia de uso (ver y generar) | ✅ | ✅ | — | — |
-| Licencia: eliminar | ✅ | — | — | — |
-
-**Regla práctica:** el **Almacenero** mueve mercancía y vende; el **Económico** controla
-caja, tasas e informes; el **Jefe** supervisa y corrige; el **Administrador** configura,
-crea usuarios y responde por la licencia y las copias.
+| Acción / sección | Administrador | Jefe | Supervisor | Económico | Contador | Auditor | Almacenero | Vendedor |
+|---|---|---|---|---|---|---|---|---|
+| Panel, inventario y movimientos (consulta) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Crear y editar productos | ✅ | ✅ | ✅ | — | — | — | ✅ | — |
+| Enviar productos a la papelera | ✅ | ✅ | ✅ | — | — | — | ✅ | — |
+| Papelera: borrado definitivo | ✅ | ✅ | — | — | — | — | — | — |
+| Ver almacenes y existencias | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Editar almacenes, traspasar e importar valores | ✅ | ✅ | ✅ | — | — | — | ✅ | — |
+| Limpiar un almacén o los municipios (🧹) | ✅ | — | — | — | — | — | — | — |
+| Ver movimientos | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Vender y registrar movimientos | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ |
+| Registrar entradas y salidas manuales | ✅ | ✅ | ✅ | — | — | — | ✅ | — |
+| Editar movimientos y enviarlos a la papelera | ✅ | ✅ | ✅ | — | — | — | ✅ | — |
+| Movimientos: borrado definitivo | ✅ | ✅ | — | — | — | — | — | — |
+| Cuadre diario (consulta) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| Editar y cerrar el cuadre | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
+| Reabrir un día cerrado | ✅ | — | — | — | — | — | — | — |
+| Historial de precios | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| Informes, comprobación y finanzas | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| Tasas de cambio (Monedas) | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
+| Clientes y fiados | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | ✅ |
+| Fichas de costo e IPV | ✅ | ✅ | ✅ | ✅ | ✅ | solo ver | solo ver | — |
+| Usuarios | ✅ | ✅ | — | — | — | — | — | — |
+| Ajustes del negocio y datos legales | ✅ | ✅ | — | — | — | — | — | — |
+| Salud del sistema (métricas) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| Auditoría, seguridad e impresiones | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| Copias de seguridad (crear) | ✅ | ✅ | — | — | — | — | — | — |
+| Restaurar copias, descargar y recargar Excel | ✅ | — | — | — | — | — | — | — |
+| Licencia de uso (ver y generar) | ✅ | ✅ | — | — | — | — | — | — |
+| Licencia: eliminar | ✅ | — | — | — | — | — | — | — |**Regla práctica:** el **Vendedor** registra ventas nuevas, consulta stock y atiende clientes, pero no puede modificar ni borrar movimientos anteriores; el **Almacenero** gestiona catálogo, existencias y movimientos; el **Contador** consulta informes y puede editar cuadres, pero no cerrar días; el **Auditor** consulta información operativa, financiera y de seguridad sin editar operaciones; el **Económico** trabaja con caja, cierres, tasas, informes y fichas IPV; el **Supervisor** coordina operaciones y cierres sin administrar usuarios; el **Jefe** supervisa y gestiona usuarios; el **Administrador** conserva las acciones críticas, como restaurar copias, reabrir días y limpiar almacenes.
 
 > [!TIP]
 > No comparta un mismo usuario entre varias personas: la auditoría dejaría de ser útil y
@@ -1889,8 +1886,8 @@ versión**: la anterior se conserva íntegra para comparar y auditar.
 
 | Acción | Quién puede |
 |---|---|
-| Ver fichas y controles | Administrador, Jefe, Económico, Almacenero |
-| Crear, editar borradores, aprobar, crear/validar controles | Administrador, Jefe, Económico |
+| Ver fichas y controles | Administrador, Jefe, Supervisor, Económico, Contador, Auditor, Almacenero |
+| Crear, editar borradores, aprobar, crear/validar controles | Administrador, Jefe, Supervisor, Económico, Contador |
 
 El servidor solo acepta cambios de esas secciones a esos roles.
 
@@ -2028,7 +2025,7 @@ La zona **📥 Importar una hoja del Excel** acepta los libros diarios del negoc
 | Dato de la tabla | Qué significa |
 |---|---|
 | **Nombre / Usuario** | Identidad visible y usuario de acceso |
-| **Rol** | Administrador, Jefe, Económico o Almacenero |
+| **Rol** | Administrador, Jefe, Supervisor, Económico, Contador, Auditor, Almacenero o Vendedor |
 | **2FA** | Si tiene verificación en dos pasos activa |
 | **Último acceso** | Fecha y hora del último inicio de sesión correcto |
 | **Estado** | Activo / Inactivo |
@@ -2970,7 +2967,7 @@ Con eso, quien atienda puede revisar la **Auditoría** y resolver sin adivinar.
 | **Movimiento** | Operación que mueve stock: VENTA, ENTRADA o SALIDA |
 | **PWA** | Aplicación Web instalable que funciona sin conexión |
 | **Producto** | Artículo del catálogo con precio, costo, comisión, mínimo y código |
-| **Rol** | Perfil de permisos: Administrador, Jefe, Económico, Almacenero |
+| **Rol** | Perfil de permisos: Administrador, Jefe, Supervisor, Económico, Contador, Auditor, Almacenero o Vendedor |
 | **SALIDA** | Movimiento que resta stock |
 | **Stock mínimo** | Umbral por debajo del cual el producto genera alerta |
 | **Tasa** | Valor de una moneda en CUP para una fecha |

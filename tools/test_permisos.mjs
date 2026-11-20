@@ -16,15 +16,15 @@
  *
  * Uso:  node tools/test_permisos.mjs
  */
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { PERMS, PERMS_ADMINS, PERMS_SOLO_ADMINISTRADOR, can } from "../web/js/calc.js";
+import { PERMS, PERMS_ADMINS, PERMS_SOLO_ADMINISTRADOR, ROLE_LABELS, ROLE_ORDER, can } from "../web/js/calc.js";
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), "..");
 const leer = (p) => readFileSync(join(raiz, p), "utf8");
 
-const ROLES = ["ADMINISTRADOR", "JEFE", "ECONOMICO", "ALMACENERO"];
+const ROLES = ROLE_ORDER;
 let fallos = 0, comprobaciones = 0;
 const ok = (cond, msg) => {
   comprobaciones++;
@@ -35,8 +35,9 @@ const set = (...xs) => new Set(xs);
 /* ────────────────────────────────────────────────────────────────────────────
  * 0. Vocabulario y matriz que la Web declara
  * ──────────────────────────────────────────────────────────────────────────── */
+const explicitPermLists = Object.entries(PERMS).filter(([, list]) => Array.isArray(list));
 const vocabulario = new Set([
-  ...PERMS.ECONOMICO, ...PERMS.ALMACENERO, ...PERMS_ADMINS, ...PERMS_SOLO_ADMINISTRADOR,
+  ...explicitPermLists.flatMap(([, list]) => list), ...PERMS_ADMINS, ...PERMS_SOLO_ADMINISTRADOR,
 ]);
 const conPerm = (perm) => ROLES.filter((r) => can(r, perm));
 
@@ -46,16 +47,16 @@ for (const r of ROLES) {
   console.log(`  ${r.padEnd(14)} ${[...vocabulario].filter((p) => can(r, p)).length} permisos`);
 }
 
-// Un permiso no puede estar en dos listas que lo nieguen entre sí.
-for (const p of PERMS.ECONOMICO) ok(!PERMS_SOLO_ADMINISTRADOR.includes(p), `${p}: ECONOMICO y «solo ADMINISTRADOR» a la vez`);
-for (const p of PERMS.ALMACENERO) ok(!PERMS_SOLO_ADMINISTRADOR.includes(p), `${p}: ALMACENERO y «solo ADMINISTRADOR» a la vez`);
-for (const p of PERMS.ECONOMICO) ok(!PERMS_ADMINS.includes(p), `${p}: ECONOMICO y «solo ADMIN/JEFE» a la vez`);
-for (const p of PERMS.ALMACENERO) ok(!PERMS_ADMINS.includes(p), `${p}: ALMACENERO y «solo ADMIN/JEFE» a la vez`);
-for (const p of PERMS_ADMINS) ok(!PERMS_SOLO_ADMINISTRADOR.includes(p), `${p}: en PERMS_ADMINS y en PERMS_SOLO_ADMINISTRADOR`);
-// Nada de permisos duplicados dentro de una misma lista.
-for (const [rol, lista] of Object.entries({ E: PERMS.ECONOMICO, M: PERMS.ALMACENERO, A: PERMS_ADMINS, S: PERMS_SOLO_ADMINISTRADOR })) {
+// Un permiso no puede aparecer en una plantilla de rol y, a la vez, ser exclusivo de admins.
+for (const [rol, lista] of explicitPermLists) {
+  for (const p of lista) {
+    ok(!PERMS_SOLO_ADMINISTRADOR.includes(p), `${p}: ${rol} y «solo ADMINISTRADOR» a la vez`);
+    ok(!PERMS_ADMINS.includes(p), `${p}: ${rol} y «solo ADMIN/JEFE» a la vez`);
+  }
   ok(new Set(lista).size === lista.length, `lista ${rol} con permisos repetidos`);
 }
+for (const p of PERMS_ADMINS) ok(!PERMS_SOLO_ADMINISTRADOR.includes(p), `${p}: en PERMS_ADMINS y en PERMS_SOLO_ADMINISTRADOR`);
+
 // can() debe negar lo que no está declarado y respetar el nivel de cada rol.
 ok(can("ECONOMICO", "PERMISO_QUE_NO_EXISTE") === false, "can() acepta un permiso inexistente");
 ok(can("NADIE", "INVENTORY_VIEW") === false, "can() acepta un rol inexistente");
@@ -74,7 +75,7 @@ function tablaDe(fichero, cabecera) {
   const filas = [];
   for (let j = i + 2; j < lineas.length && lineas[j].startsWith("|"); j++) {
     const celdas = lineas[j].split("|").slice(1, -1).map((c) => c.trim());
-    ok(celdas.length === 5, `${fichero}: la fila «${lineas[j].slice(0, 60)}…» tiene ${celdas.length} celdas (se esperaban 5)`);
+    ok(celdas.length === ROLES.length + 1, `${fichero}: la fila «${lineas[j].slice(0, 60)}…» tiene ${celdas.length} celdas (se esperaban ${ROLES.length + 1})`);
     filas.push(celdas);
   }
   return filas;
@@ -86,7 +87,7 @@ ok(readme.length >= 20, `README: solo ${readme.length} filas de roles (se espera
 ok(readme.length === manual.length, `README (${readme.length}) y MANUAL (${manual.length}) no tienen el mismo número de filas`);
 for (let i = 0; i < Math.min(readme.length, manual.length); i++) {
   ok(readme[i][0] === manual[i][0], `fila ${i}: README dice «${readme[i][0]}» y MANUAL «${manual[i][0]}»`);
-  for (let c = 1; c < 5; c++) {
+  for (let c = 1; c <= ROLES.length; c++) {
     ok(readme[i][c] === manual[i][c],
       `fila «${readme[i][0]}» / columna ${ROLES[c - 1]}: README «${readme[i][c]}» ≠ MANUAL «${manual[i][c]}»`);
   }
@@ -108,6 +109,7 @@ const FILAS = {
   "Limpiar un almacén o los municipios (🧹)": { ver: ["WAREHOUSE_VIEW"], editar: ["WAREHOUSE_CLEAR"] },
   "Ver movimientos": { ver: ["MOVEMENT_VIEW"] },
   "Vender y registrar movimientos": { ver: ["MOVEMENT_VIEW"], editar: ["MOVEMENT_CREATE"] },
+  "Registrar entradas y salidas manuales": { ver: ["MOVEMENT_VIEW"], editar: ["MOVEMENT_NON_SALE_CREATE"] },
   "Editar movimientos y enviarlos a la papelera": { ver: ["MOVEMENT_VIEW"], editar: ["MOVEMENT_EDIT", "MOVEMENT_DELETE"] },
   "Movimientos: borrado definitivo": { ver: ["MOVEMENT_VIEW"], editar: ["MOVEMENT_PURGE"] },
   "Cuadre diario (consulta)": { ver: ["CUADRE_VIEW"] },
@@ -128,12 +130,47 @@ const FILAS = {
   "Licencia: eliminar": { ver: ["LICENSE_MANAGE"], editar: ["LICENSE_DELETE"] },
 };
 
+if (process.argv.includes("--update-docs")) {
+  const etiquetas = readme.map((fila) => fila[0]);
+  const encabezado = `| ${"Área"} | ${ROLE_ORDER.map((r) => ROLE_LABELS[r]).join(" | ")} |`;
+  const separador = `|${Array(ROLE_ORDER.length + 1).fill("---").join("|")}|`;
+  const filas = etiquetas.map((etiqueta) => {
+    const defs = FILAS[etiqueta];
+    if (!defs) throw new Error(`Fila documental sin definición: ${etiqueta}`);
+    const celdas = ROLE_ORDER.map((rol) => {
+      const ver = defs.ver.every((p) => can(rol, p));
+      const editar = defs.editar ? defs.editar.every((p) => can(rol, p)) : ver;
+      return editar ? "✅" : (defs.soloVer && ver ? "solo ver" : "—");
+    });
+    return `| ${etiqueta} | ${celdas.join(" | ")} |`;
+  });
+  const tabla = [encabezado, separador, ...filas].join("\n");
+  for (const fichero of ["README.md", "docs/MANUAL_USUARIO.md"]) {
+    const contenido = leer(fichero);
+    const cabeceraAnterior = fichero === "README.md" ? "| Área | Administrador |" : "| Acción / sección | Administrador |";
+    const inicio = contenido.indexOf(cabeceraAnterior);
+    if (inicio < 0) throw new Error(`No se encontró tabla roles en ${fichero}`);
+    const finLinea = contenido.indexOf("\n", inicio);
+    let fin = finLinea;
+    while (fin >= 0) {
+      const siguiente = contenido.indexOf("\n", fin + 1);
+      const linea = contenido.slice(fin + 1, siguiente < 0 ? contenido.length : siguiente);
+      if (!linea.startsWith("|")) break;
+      fin = siguiente;
+    }
+    const primeraColumna = fichero === "README.md" ? "Área" : "Acción / sección";
+    const reemplazo = tabla.replace("| Área |", `| ${primeraColumna} |`);
+    writeFileSync(join(raiz, fichero), contenido.slice(0, inicio) + reemplazo + contenido.slice(fin + 1));
+  }
+  console.log("Tablas de permisos actualizadas a partir de calc.js");
+}
+
 console.log("\nTablas de documentación");
 for (const fila of readme) {
   const [etiqueta, ...celdas] = fila;
   const defs = FILAS[etiqueta];
   if (!defs) { ok(false, `fila «${etiqueta}» no está en FILAS de test_permisos.mjs`); continue; }
-  ok(celdas.length === 4, `fila «${etiqueta}» sin las 4 columnas de rol`);
+  ok(celdas.length === ROLES.length, `fila «${etiqueta}» sin las ${ROLES.length} columnas de rol`);
   ROLES.forEach((rol, i) => {
     const tieneVer = defs.ver.every((p) => can(rol, p));
     const tieneEditar = defs.editar ? defs.editar.every((p) => can(rol, p)) : tieneVer;
@@ -154,6 +191,8 @@ for (const etiqueta of Object.keys(FILAS)) {
  * ──────────────────────────────────────────────────────────────────────────── */
 console.log("\nServidor (server/novagest_server.py)");
 const py = leer("server/novagest_server.py");
+const rolesServidor = new Set(py.match(/^ROLES = \(([^)]*)\)/m)?.[1].match(/"[A-Z]+"/g)?.map((x) => x.slice(1, -1)) ?? []);
+ok(rolesServidor.size === ROLES.length && ROLES.every((r) => rolesServidor.has(r)), `ROLES del servidor no coincide con calc.js: ${[...rolesServidor]}`);
 
 const cuerpo = (marca) => {
   const i = py.indexOf(marca);
@@ -172,7 +211,7 @@ for (const m of writeTxt.matchAll(/"(\w+)":\s*(\{[^}]*\}|set\(ROLES\))/g)) {
 // Sección del estado → permisos que la Web exige para poder escribirla.
 const SECCIONES = {
   products: ["INVENTORY_EDIT", "INVENTORY_DELETE"],
-  movements: ["MOVEMENT_EDIT", "MOVEMENT_DELETE"],
+  movements: ["MOVEMENT_CREATE", "MOVEMENT_EDIT", "MOVEMENT_DELETE"],
   priceHistory: ["INVENTORY_EDIT"],
   cuadres: ["CUADRE_EDIT"],
   rates: ["EXCHANGE_EDIT"],
@@ -185,21 +224,48 @@ const SECCIONES = {
   credits: ["CUSTOMER_EDIT"],
   fichas: ["IPV_EDIT"],
   ipvControls: ["IPV_EDIT"],
-  surveys: ["CUSTOMER_EDIT"],
+  // Las encuestas son una función compartida habilitada para toda sesión autenticada.
+  surveys: null,
   // El registro de auditoría lo escribe el servidor en cada acción; ningún rol lo edita.
   audit: null,
 };
 for (const [sec, perms] of Object.entries(SECCIONES)) {
   ok(WRITE[sec], `WRITE no tiene la sección «${sec}»`);
   if (!WRITE[sec]) continue;
-  const esperado = perms ? set(...ROLES.filter((r) => perms.every((p) => can(r, p)))) : set(...ROLES);
+  const esperado = perms ? set(...ROLES.filter((r) => perms.some((p) => can(r, p)))) : set(...ROLES);
   const dif = [...WRITE[sec]].filter((x) => !esperado.has(x)).concat([...esperado].filter((x) => !WRITE[sec].has(x)));
   ok(dif.length === 0, `WRITE["${sec}"]: el servidor da ${[...WRITE[sec]].sort()} y calc.js implica ${[...esperado].sort()}`);
 }
 for (const sec of Object.keys(WRITE)) ok(sec in SECCIONES, `WRITE tiene la sección «${sec}» sin definir en SECCIONES`);
 
+// La descarga del estado tampoco debe exponer secciones que el rol no puede consultar.
+const readTxt = cuerpo("READ = {");
+const READ = {};
+for (const m of readTxt.matchAll(/"(\w+)":\s*(\{[^}]*\}|set\(ROLES\))/g)) {
+  READ[m[1]] = m[2] === "set(ROLES)" ? set(...ROLES) : rolesDe(m[2]);
+}
+const READ_PERM = {
+  products: "INVENTORY_VIEW", movements: "MOVEMENT_VIEW", cuadres: "CUADRE_VIEW", audit: "AUDIT_VIEW",
+  rates: "EXCHANGE_EDIT", priceHistory: "HISTORY_VIEW", weekly: "WEEKLY_VIEW", excelDailyReports: "REPORTS_VIEW",
+  settings: "SETTINGS_EDIT", warehouses: "WAREHOUSE_VIEW", warehouseEntries: "WAREHOUSE_VIEW",
+  customers: "CUSTOMER_VIEW", credits: "CUSTOMER_VIEW", fichas: "IPV_VIEW", ipvControls: "IPV_VIEW", surveys: null,
+};
+const shared = [...(leer("web/js/store.js").match(/const SHARED = \[([^\]]*)\]/)?.[1].match(/"\w+"/g) ?? [])].map((x) => x.slice(1, -1));
+for (const sec of shared) {
+  ok(READ[sec], `READ no protege ni declara la sección «${sec}»`);
+  if (!READ[sec]) continue;
+  const perm = READ_PERM[sec];
+  const esperado = perm ? set(...ROLES.filter((r) => can(r, perm))) : set(...ROLES);
+  const dif = [...READ[sec]].filter((r) => !esperado.has(r)).concat([...esperado].filter((r) => !READ[sec].has(r)));
+  ok(dif.length === 0, `READ["${sec}"]: servidor ${[...READ[sec]].sort()} ≠ ${perm || "todos los roles"} de calc.js`);
+}
+for (const sec of Object.keys(READ)) ok(shared.includes(sec), `READ tiene la sección «${sec}» que no viaja en SHARED`);
+const validator = py.slice(py.indexOf("def validate_change("), py.indexOf("\n\ndef ", py.indexOf("def validate_change(")));
+ok(validator.includes('if role == "VENDEDOR"') && validator.includes('m.get("type") != "VENTA"'),
+  "validate_change debe limitar VENDEDOR a crear ventas, sin editar/borrar movimientos previos ni agregar otros tipos");
+
 const closeDay = set(...(py.match(/^CLOSE_DAY = \{([^}]*)\}/m)?.[1].match(/"[A-Z]+"/g) ?? []).map((x) => x.slice(1, -1)));
-ok(closeDay.size === 3, `CLOSE_DAY debería tener 3 roles, tiene ${closeDay.size}`);
+  ok(closeDay.size === ROLES.filter((r) => can(r, "DAY_CLOSE")).length, `CLOSE_DAY tiene ${closeDay.size} roles, no coincide con la matriz`);
 const esperadoClose = set(...ROLES.filter((r) => can(r, "DAY_CLOSE")));
 ok([...closeDay].every((r) => esperadoClose.has(r)) && [...esperadoClose].every((r) => closeDay.has(r)),
   `CLOSE_DAY = ${[...closeDay].sort()} ≠ DAY_CLOSE de calc.js = ${[...esperadoClose].sort()}`);
@@ -241,8 +307,13 @@ const RUTAS = [
   ["GET", "/api/license/info", ["LICENSE_MANAGE"]],
   ["DELETE", "/api/security-log/anchor/:id", ["AUDIT_ANCHOR_DELETE"]],
   ["GET", "/api/security-log", ["SECURITY_LOG_VIEW"]],
-  ["POST", "/api/security-log/anchor", ["SECURITY_LOG_VIEW"]],
+  ["GET", "/api/security-log/verify", ["SECURITY_LOG_VIEW"]],
+  ["GET", "/api/security-log/anchors", ["SECURITY_LOG_VIEW"]],
+  ["GET", "/api/security-log/anchor-token/:id", ["SECURITY_LOG_VIEW"]],
+  ["POST", "/api/security-log/anchor", ["AUDIT_ANCHOR_CREATE"]],
   ["GET", "/api/prints", ["PRINTS_VIEW"]],
+  ["GET", "/api/exchange/eltoque", ["EXCHANGE_EDIT"]],
+  ["GET", "/api/exchange/divisa", ["EXCHANGE_EDIT"]],
   ["GET", "/api/metrics", ["HEALTH_VIEW"]],
   ["POST", "/api/days/close", ["DAY_CLOSE"]],
   ["POST", "/api/days/reopen", ["DAY_REOPEN"]],
@@ -263,8 +334,8 @@ ok(rutas.size > 40, `solo se parsearon ${rutas.size} rutas`);
 
 for (const [met, ruta] of RUTAS_ABIERTAS_A_TODOS) {
   const roles = rutas.get(`${met} ${ruta}`);
-  ok(roles && [...roles].every((r) => ROLES.includes(r)) && roles.size === 4,
-    `${met} ${ruta}: debería estar abierto a los cuatro roles, tiene ${roles ? [...roles].sort() : "ninguna ruta"}`);
+  ok(roles && [...roles].every((r) => ROLES.includes(r)) && roles.size === ROLES.length,
+    `${met} ${ruta}: debería estar abierto a los ${ROLES.length} roles, tiene ${roles ? [...roles].sort() : "ninguna ruta"}`);
 }
 
 for (const [met, ruta, perms] of RUTAS) {
@@ -336,9 +407,15 @@ ok(usados.size >= 15, `solo se encontraron ${usados.size} usos de Permission.* e
  * ──────────────────────────────────────────────────────────────────────────── */
 console.log("\nUso de los permisos en la Web");
 const app = leer("web/js/app.js");
+ok(app.includes('can(role(), "MOVEMENT_NON_SALE_CREATE")'), "la Web debe ocultar ENTRADA/SALIDA al perfil VENDEDOR");
+const movementsAndroid = leer("app/src/main/java/com/novagest/inventario/ui/movements/MovementsScreen.kt");
+ok(movementsAndroid.includes("Permission.MOVEMENT_NON_SALE_CREATE") && movementsAndroid.includes("listOf(MovementType.VENTA)"),
+  "Android debe limitar VENDEDOR a crear ventas, sin entradas/salidas manuales");
+const store = leer("web/js/store.js");
+ok(store.includes("this.readableSections.has(k)"), "la Web solo debe enviar secciones legibles por el rol");
+ok(store.includes("const blocked = SHARED.filter"), "la Web no debe restaurar cola offline de secciones ocultas por rol");
 for (const m of app.matchAll(/allowed\("([A-Z_]+)"\)/g)) ok(vocabulario.has(m[1]), `app.js usa allowed("${m[1]}") que no está en calc.js`);
 for (const m of app.matchAll(/perm: "([A-Z_]+)"/g)) ok(vocabulario.has(m[1]), `app.js declara perm: "${m[1]}" que no está en calc.js`);
-const store = leer("web/js/store.js");
 for (const m of store.matchAll(/can\([^,]+,\s*"([A-Z_]+)"\)/g)) ok(vocabulario.has(m[1]), `store.js usa can(…, "${m[1]}") que no está en calc.js`);
 
 // Ninguna pantalla debe decidir con el nombre del rol: la matriz manda.

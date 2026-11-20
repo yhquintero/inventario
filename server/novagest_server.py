@@ -46,7 +46,7 @@ GZIP_MIN = 1024  # por debajo de esto comprimir no compensa
 BACKUP_HOUR = int(os.environ.get("BACKUP_HOUR", "2"))
 BACKUP_KEEP = int(os.environ.get("BACKUP_KEEP", "30"))
 ISSUER = "NovaGest"
-ROLES = ("ADMINISTRADOR", "JEFE", "ECONOMICO", "ALMACENERO")
+ROLES = ("ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR", "AUDITOR", "ALMACENERO", "VENDEDOR")
 ADMINS = {"ADMINISTRADOR", "JEFE"}
 
 # ------------------------------------------------------------------ licencia de uso
@@ -114,25 +114,55 @@ def license_public_config():
 
 # Quién puede modificar cada sección del estado compartido
 WRITE = {
-    "products": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
-    "movements": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
-    "priceHistory": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
-    "cuadres": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
-    "rates": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
-    "weekly": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
-    "excelDailyReports": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
+    "products": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ALMACENERO"},
+    "movements": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ALMACENERO", "VENDEDOR"},
+    "priceHistory": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ALMACENERO"},
+    "cuadres": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR"},
+    "rates": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR"},
+    "weekly": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO"},
+    "excelDailyReports": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ALMACENERO"},
     "settings": {"ADMINISTRADOR", "JEFE"},
-    "warehouses": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
-    "warehouseEntries": {"ADMINISTRADOR", "JEFE", "ALMACENERO"},
-    "customers": {"ADMINISTRADOR", "JEFE", "ECONOMICO", "ALMACENERO"},
-    "credits": {"ADMINISTRADOR", "JEFE", "ECONOMICO", "ALMACENERO"},
+    "warehouses": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ALMACENERO"},
+    "warehouseEntries": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ALMACENERO"},
+    "customers": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "ALMACENERO", "VENDEDOR"},
+    "credits": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "ALMACENERO", "VENDEDOR"},
     # Fichas de Costo y Controles IPV (módulo «Fichas de costo · IPV»)
-    "fichas": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
-    "ipvControls": {"ADMINISTRADOR", "JEFE", "ECONOMICO"},
+    "fichas": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR"},
+    "ipvControls": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR"},
     "surveys": set(ROLES),
     "audit": set(ROLES),
 }
-CLOSE_DAY = {"ADMINISTRADOR", "JEFE", "ECONOMICO"}
+CLOSE_DAY = {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO"}
+# Las descargas del estado también obedecen perfiles de solo lectura. Una sección que
+# no llega al cliente se conserva sin cambios cuando este guarda su estado compartido.
+READ = {
+    "products": set(ROLES),
+    "movements": set(ROLES),
+    "cuadres": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR", "AUDITOR", "ALMACENERO"},
+    "audit": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR", "AUDITOR"},
+    "rates": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR"},
+    "priceHistory": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR", "AUDITOR", "ALMACENERO"},
+    "weekly": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR", "AUDITOR"},
+    "excelDailyReports": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR", "AUDITOR"},
+    "settings": {"ADMINISTRADOR", "JEFE"},
+    "warehouses": set(ROLES),
+    "warehouseEntries": set(ROLES),
+    "customers": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "ALMACENERO", "VENDEDOR"},
+    "credits": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "ALMACENERO", "VENDEDOR"},
+    "fichas": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR", "AUDITOR", "ALMACENERO"},
+    "ipvControls": {"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR", "AUDITOR", "ALMACENERO"},
+    "surveys": set(ROLES),
+}
+def state_for_role(state, role):
+    """Devuelve únicamente secciones de estado visibles para el perfil autorizado."""
+    if not isinstance(state, dict): return state
+    return {key: value for key, value in state.items() if key not in READ or role in READ[key]}
+
+def readable_state_sections(state, role):
+    """Nombres de secciones legibles; incluye el contrato inicial antes del primer seed."""
+    sections = state.keys() if isinstance(state, dict) else WRITE.keys()
+    return sorted(key for key in sections if key not in READ or role in READ[key])
+
 MOV_CORE = ("date", "productId", "type", "quantity", "unitPriceUsd", "unitCostUsd", "importedAmountUsd", "importedCommissionCup", "importBatchKey", "sourceSheet", "sourceRow", "sourceFormat", "sourceFile", "center", "domicilioCup", "deletedAt", "notes", "warehouseId")
 WAREHOUSE_DEFAULT_ID = "w_principal"
 
@@ -1443,6 +1473,14 @@ def validate_change(old, new, role, closed):
     for sec, roles in WRITE.items():
         if json.dumps(old.get(sec), sort_keys=True) != json.dumps(new.get(sec), sort_keys=True) and role not in roles:
             return 403, f"Tu rol ({role}) no puede modificar «{sec}»."
+    if role == "VENDEDOR":
+        anteriores = by_id(old.get("movements"))
+        nuevos = by_id(new.get("movements"))
+        if any(rid not in nuevos or json.dumps(anteriores[rid], sort_keys=True) != json.dumps(nuevos[rid], sort_keys=True)
+               for rid in anteriores):
+            return 403, "El rol VENDEDOR solo puede registrar ventas nuevas; no puede editar ni borrar movimientos existentes."
+        if any(m.get("type") != "VENTA" for rid, m in nuevos.items() if rid not in anteriores):
+            return 403, "El rol VENDEDOR solo puede registrar movimientos de tipo VENTA."
     # Días cerrados: movimientos y cuadres inmutables
     om, nm = by_id(old.get("movements")), by_id(new.get("movements"))
     for i in set(om) | set(nm):
@@ -2446,7 +2484,8 @@ def user_update(h, u, ident):
         if e: return h.err(400, e)
         q("UPDATE users SET pw_hash=?, pw_changed=? WHERE id=?", (hash_pw(b["password"]), now(), usr["id"]))
     if b.get("reset2fa"): q("UPDATE users SET totp_enabled=0, totp_secret=NULL, recovery='[]' WHERE id=?", (usr["id"],))
-    if not active or b.get("password"): q("DELETE FROM sessions WHERE user_id=?", (usr["id"],))
+    if not active or b.get("password") or role != usr["role"]:
+        q("DELETE FROM sessions WHERE user_id=?", (usr["id"],))
     audit(u["username"], "USER_UPDATE", f"{usr['username']} rol={role} activo={active}", h.ip())
     h.send_json(200, {"ok": True})
 
@@ -2529,9 +2568,10 @@ def delta_since(state, ver, since):
 def state_get(h, u, _):
     """Estado del negocio. Con `?since=N` devuelve solo lo que cambió desde esa versión (S-03).
 
-    Es el mismo contrato de siempre más un modo incremental: los clientes que ya tienen
-    la versión N piden solo las diferencias, y los que van muy atrasados (o piden `full=1`)
-    reciben el estado completo. Un estado completo se marca con `"full": true`.
+    Mantiene el modo incremental: clientes con versión N piden solo las diferencias y
+    los atrasados (o con `full=1`) reciben todo el estado. Cada respuesta filtra secciones
+    según READ para el rol; `full=true` significa todo lo visible para ese perfil, nunca
+    secciones que no tiene permiso para consultar.
     """
     qs = parse_qs(urlparse(h.path).query)
     try:
@@ -2554,27 +2594,33 @@ def state_get(h, u, _):
         audit(u["username"], "MIGRATE", "Datos convertidos al módulo de almacenes", h.ip())
     cerrados = [dict(x, snapshot=None) for x in q("SELECT date,closed_by,closed_at,note FROM closed_days ORDER BY date DESC")]
     estado = json.loads(r["data"]) if r["data"] else None
-    base = {"version": r["version"], "updatedBy": r["updated_by"], "updatedAt": r["updated_at"], "closedDays": cerrados}
+    visible = state_for_role(estado, u["role"])
+    base = {"version": r["version"], "updatedBy": r["updated_by"], "updatedAt": r["updated_at"], "closedDays": cerrados,
+            "readableSections": readable_state_sections(estado, u["role"])}
     if since >= 0 and not quiere_full and estado is not None:
         if since == r["version"]:
             return h.send_json(200, {**base, "since": since, "full": False, "unchanged": True, "state": None,
                                      "deleted": {}, "changed": 0, "removed": 0})
         if since > r["version"]:
             # El cliente dice ir por delante (p. ej. tras restaurar una copia): se le manda todo.
-            return h.send_json(200, {**base, "since": since, "full": True, "unchanged": False, "state": estado,
+            return h.send_json(200, {**base, "since": since, "full": True, "unchanged": False, "state": visible,
                                      "deleted": {}, "changed": None, "removed": 0,
                                      "note": f"Tu versión ({since}) va por delante de la del servidor ({r['version']}): se envía el estado completo."})
         if since < r["version"] - DELTA_KEEP:
             # Demasiado atrasado para dar garantías: se envía todo.
-            return h.send_json(200, {**base, "since": since, "full": True, "unchanged": False, "state": estado,
+            return h.send_json(200, {**base, "since": since, "full": True, "unchanged": False, "state": visible,
                                      "deleted": {}, "changed": None, "removed": 0,
                                      "note": f"La versión {since} es más antigua que las {DELTA_KEEP} últimas: se envía el estado completo."})
         delta = delta_since(estado, r["version"], since)
+        delta["state"] = {k: v for k, v in delta["state"].items() if u["role"] in READ.get(k, set(ROLES))}
+        delta["deleted"] = {k: v for k, v in delta["deleted"].items() if u["role"] in READ.get(k, set(ROLES))}
+        delta["changed"] = sum(map(len, delta["state"].values()))
+        delta["removed"] = sum(map(len, delta["deleted"].values()))
         return h.send_json(200, {**base, "since": since, "full": False, "unchanged": False, "delta": True, **delta})
-    h.send_json(200, {**base, "full": True, "unchanged": False, "state": estado, "deleted": {}, "changed": None, "removed": 0})
+    h.send_json(200, {**base, "full": True, "unchanged": False, "state": visible, "deleted": {}, "changed": None, "removed": 0})
 
 
-@route("GET", "/api/exchange/eltoque", roles=ADMINS | {"ECONOMICO"})
+@route("GET", "/api/exchange/eltoque", roles=ADMINS | {"ECONOMICO", "CONTADOR", "SUPERVISOR"})
 def exchange_eltoque(h, u, _):
     """Devuelve una referencia validada; no escribe en la base de datos."""
     try:
@@ -2584,7 +2630,7 @@ def exchange_eltoque(h, u, _):
     h.send_json(200, {"ok": True, **result})
 
 
-@route("GET", "/api/exchange/divisa", roles=ADMINS | {"ECONOMICO"})
+@route("GET", "/api/exchange/divisa", roles=ADMINS | {"ECONOMICO", "CONTADOR", "SUPERVISOR"})
 def exchange_divisa(h, u, _):
     """Obtiene una referencia gratuita para revisión, sin escribir tasas."""
     try:
@@ -2613,10 +2659,12 @@ def state_put(h, u, _):
             return h.send_json(409, {"error": "Otro usuario guardó cambios antes. Se recargarán los datos.", "version": r["version"]})
         new = b.get("state")
         if r["data"] is not None and isinstance(new, dict):
-            # Un cliente con la interfaz antigua (caché del navegador) no manda estas
-            # secciones: se conservan las que ya hay en el servidor.
+            # Clientes con vistas de estado por rol omiten secciones no autorizadas;
+            # conservarlas aquí evita borrar datos ocultos en un guardado legítimo.
+            # Si alguien las incluye y altera a mano, validate_change sigue rechazando
+            # el cambio porque el rol no figura en WRITE[sección].
             old = json.loads(r["data"]) or {}
-            for k in ("warehouses", "warehouseEntries", "excelDailyReports", "customers", "credits", "fichas", "ipvControls", "surveys"):
+            for k in WRITE:
                 if k not in new:
                     new[k] = old.get(k)
         # El estado se guarda limpio: sin existencias de almacenes ya borrados y
@@ -2931,7 +2979,7 @@ def changelog(h, u, _):
     h.send_json(200, {"entries": entries[:6]})
 
 
-@route("GET", "/api/metrics", roles=ADMINS | {"ECONOMICO"})
+@route("GET", "/api/metrics", roles=ADMINS | {"ECONOMICO", "CONTADOR", "AUDITOR", "SUPERVISOR"})
 def metrics(h, u, _):
     """Métricas 100% locales y agregadas (sin datos personales ni envíos fuera)."""
     r = q("SELECT version, data, updated_at FROM app_state WHERE id=1", one=True)
@@ -2952,7 +3000,7 @@ def metrics(h, u, _):
 PRINT_KINDS = {"ticket", "reimpresion", "prueba"}
 
 
-@route("POST", "/api/prints", roles=ADMINS | {"ECONOMICO", "ALMACENERO"})
+@route("POST", "/api/prints", roles={"ADMINISTRADOR", "JEFE", "SUPERVISOR", "ECONOMICO", "CONTADOR", "AUDITOR", "ALMACENERO", "VENDEDOR"})
 def print_record(h, u, _):
     """Registra que se imprimió un ticket (S-10).
 
@@ -2974,7 +3022,7 @@ def print_record(h, u, _):
     h.send_json(200, {"ok": True})
 
 
-@route("GET", "/api/prints", roles=ADMINS | {"ECONOMICO"})
+@route("GET", "/api/prints", roles=ADMINS | {"ECONOMICO", "CONTADOR", "AUDITOR", "SUPERVISOR"})
 def print_list(h, u, _):
     """Últimas impresiones registradas, de la más reciente a la más antigua (S-10)."""
     qs = parse_qs(urlparse(h.path).query)
@@ -2991,7 +3039,7 @@ def print_list(h, u, _):
     h.send_json(200, {"total": total, "prints": [dict(x) for x in filas]})
 
 
-@route("GET", "/api/security-log", roles=ADMINS | {"ECONOMICO"})
+@route("GET", "/api/security-log", roles=ADMINS | {"ECONOMICO", "CONTADOR", "AUDITOR", "SUPERVISOR"})
 def sec_log(h, u, _):
     """Registro de seguridad paginado (S-03).
 
@@ -3030,7 +3078,7 @@ def sec_log(h, u, _):
                       "limit": limit, "offset": offset, "hasMore": offset + len(rows) < total})
 
 
-@route("GET", "/api/security-log/verify", roles=ADMINS | {"ECONOMICO"})
+@route("GET", "/api/security-log/verify", roles=ADMINS | {"ECONOMICO", "CONTADOR", "AUDITOR", "SUPERVISOR"})
 def sec_log_verify(h, u, _):
     """Comprueba la cadena del registro de seguridad (S-01).
 
@@ -3053,7 +3101,7 @@ def sec_log_verify(h, u, _):
     h.send_json(200, resultado)
 
 
-@route("GET", "/api/security-log/anchors", roles=ADMINS | {"ECONOMICO"})
+@route("GET", "/api/security-log/anchors", roles=ADMINS | {"ECONOMICO", "CONTADOR", "AUDITOR", "SUPERVISOR"})
 def sec_anchors(h, u, _):
     """Lista los anclajes firmados del sello y comprueba si siguen valiendo (S-12)."""
     datos = verificar_anclajes()
@@ -3061,7 +3109,7 @@ def sec_anchors(h, u, _):
     h.send_json(200, datos)
 
 
-@route("POST", "/api/security-log/anchor", roles=ADMINS | {"ECONOMICO"})
+@route("POST", "/api/security-log/anchor", roles=ADMINS | {"ECONOMICO", "CONTADOR", "SUPERVISOR"})
 def sec_anchor(h, u, _):
     """Ancla el sello actual del registro: queda una línea firmada e independiente (S-12)."""
     cuerpo = h.body()
@@ -3078,7 +3126,7 @@ def sec_anchor(h, u, _):
                       "tsa": {k: v for k, v in sello.items() if k != "token"}})
 
 
-@route("GET", "/api/security-log/anchor-token/:id", roles=ADMINS | {"ECONOMICO"})
+@route("GET", "/api/security-log/anchor-token/:id", roles=ADMINS | {"ECONOMICO", "CONTADOR", "AUDITOR", "SUPERVISOR"})
 def sec_anchor_token(h, u, aid):
     """Descarga el token de tiempo (DER) de un anclaje, para verificarlo con `openssl ts`."""
     try:

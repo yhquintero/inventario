@@ -244,7 +244,7 @@ fun MovementsScreen(user: UserAccount, vm: MovementViewModel = hiltViewModel()) 
                         }
                     }
                     ChipRow(
-                        options = MovementType.entries,
+                        options = if (RolePermissions.can(user.role, Permission.MOVEMENT_NON_SALE_CREATE)) MovementType.entries else listOf(MovementType.VENTA),
                         selected = type,
                         label = { it.name },
                         onSelect = { t -> type = t; if (t != MovementType.VENTA) center = SaleCenter.MOV }

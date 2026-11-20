@@ -360,7 +360,7 @@
         <li><strong>3 piezas</strong><span>Web PWA · Android · Servidor</span></li>
         <li><strong>168 almacenes</strong><span>Multialmacén listo o a medida</span></li>
         <li><strong>Partida doble</strong><span>Estados financieros y QR</span></li>
-        <li><strong>4 roles</strong><span>Permisos validados en servidor</span></li>
+        <li><strong>8 roles</strong><span>Permisos aplicados en app y servidor</span></li>
         <li><strong>8 idiomas</strong><span>Documentación internacional</span></li>
       </ul>
     </div>
@@ -616,47 +616,64 @@ python3 server/novagest_server.py</code></pre>
   <section id="roles">
     <div class="wrap">
       <h2>Cada persona, sus permisos exactos</h2>
-      <p class="introduccion">Cuatro perfiles validados tanto en la interfaz como en el servidor, con registro inalterable en la auditoría.</p>
+      <p class="introduccion">Ocho perfiles con distinto alcance: desde la operación de almacén y ventas hasta contabilidad y auditoría. La misma matriz rige la Web, Android y la autorización del servidor; las acciones críticas siguen reservadas al Administrador.</p>
       <div class="tabla-caja">
         <table>
-          <caption class="sr-only">Permisos por rol en NovaGest</caption>
+          <caption class="sr-only">Resumen de permisos por rol en NovaGest. Para el detalle completo, consulta el README o el Manual de Usuario.</caption>
           <thead>
             <tr>
               <th scope="col">Función</th>
               <th scope="col">Administrador</th>
               <th scope="col">Jefe</th>
+              <th scope="col">Supervisor</th>
               <th scope="col">Económico</th>
+              <th scope="col">Contador</th>
+              <th scope="col">Auditor</th>
               <th scope="col">Almacenero</th>
+              <th scope="col">Vendedor</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <th scope="row">Inventario, almacenes y traspasos</th>
-              <td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo ver</td><td class="si">Sí</td>
+              <th scope="row">Inventario, productos y almacenes</th>
+              <td class="si">Gestiona</td><td class="si">Gestiona</td><td class="si">Gestiona</td><td class="no">Consulta</td><td class="no">Consulta</td><td class="no">Consulta</td><td class="si">Gestiona</td><td class="no">Consulta</td>
             </tr>
             <tr>
-              <th scope="row">Venta rápida, clientes y fiados</th>
-              <td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo ver</td><td class="si">Sí</td>
+              <th scope="row">Registrar ventas y movimientos</th>
+              <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="si">Sí</td><td class="si">Solo ventas</td>
             </tr>
             <tr>
-              <th scope="row">Cuadre diario y cierre de turno</th>
-              <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo ver</td>
+              <th scope="row">Cuadre y cierre diario</th>
+              <td class="si">Edita y cierra</td><td class="si">Edita y cierra</td><td class="si">Edita y cierra</td><td class="si">Edita y cierra</td><td class="no">Edita, sin cierre</td><td class="no">Solo ver</td><td class="no">Solo ver</td><td class="no">—</td>
             </tr>
             <tr>
-              <th scope="row">Gestión económica y financiera</th>
-              <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td>
+              <th scope="row">Informes, finanzas y exportaciones</th>
+              <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Consulta y exporta</td><td class="no">—</td><td class="no">—</td>
             </tr>
             <tr>
-              <th scope="row">Informes IPV, metas y exportaciones</th>
-              <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td>
+              <th scope="row">Consulta de tasas de cambio</th>
+              <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">—</td><td class="no">—</td><td class="no">—</td>
             </tr>
             <tr>
-              <th scope="row">Usuarios, licencia, copias y auditoría</th>
-              <td class="si">Sí</td><td class="si">Sí</td><td class="no">Solo auditoría</td><td class="no">No</td>
+              <th scope="row">Fichas de costo e IPV</th>
+              <td class="si">Gestiona</td><td class="si">Gestiona</td><td class="si">Gestiona</td><td class="si">Gestiona</td><td class="si">Gestiona</td><td class="no">Solo ver</td><td class="no">Solo ver</td><td class="no">—</td>
+            </tr>
+            <tr>
+              <th scope="row">Auditoría y seguridad del servidor</th>
+              <td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Solo lectura</td><td class="no">—</td><td class="no">—</td>
+            </tr>
+            <tr>
+              <th scope="row">Usuarios y ajustes del negocio</th>
+              <td class="si">Sí</td><td class="si">Sí</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td>
+            </tr>
+            <tr>
+              <th scope="row">Restaurar copias, reabrir días o limpiar almacenes</th>
+              <td class="si">Solo Administrador</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td>
             </tr>
           </tbody>
         </table>
       </div>
+      <p class="hint">La tabla es un resumen. Consulta el <a href="../README.md">README</a> o el <a href="MANUAL_USUARIO.html">Manual de Usuario</a> para el detalle por acción. Un cambio de rol revoca las sesiones activas del usuario.</p>
     </div>
   </section>
 

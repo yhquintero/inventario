@@ -50,8 +50,8 @@ El párrafo de apertura del `README.md` y del sitio.
 ## Para quién es
 
 Tiendas, almacenes, distribuidoras y negocios familiares de hasta ~20 personas, con uno o varios
-locales. Roles: **Administrador**, **Jefe**, **Económico** y **Almacenero** (además de cajeros con
-permisos de venta).
+locales. Roles: **Administrador**, **Jefe**, **Supervisor**, **Económico**, **Contador**, **Auditor**,
+**Almacenero** y **Vendedor**, con permisos diferenciados y validados por el servidor.
 
 ## Vocabulario
 

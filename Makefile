@@ -9,6 +9,8 @@ help:
 test: test-web test-python test-backup
 
 test-web:
+	$(NODE) tools/test_permisos.mjs
+	$(PYTHON) tools/test_sitio.py
 	$(NODE) tools/test_calc.mjs
 	$(NODE) tools/test_merge.mjs
 	$(NODE) tools/test_ticket.mjs
@@ -25,6 +27,7 @@ test-browser:
 test-python:
 	$(PYTHON) -m py_compile server/novagest_server.py server/financiero.py tools/generate_license.py
 	$(PYTHON) tools/test_seguridad_servidor.py
+	$(PYTHON) tools/test_roles_servidor.py
 	$(PYTHON) tools/test_salud_servidor.py
 	$(PYTHON) tools/test_health_lightweight.py
 	$(PYTHON) tools/test_login_cookie.py
