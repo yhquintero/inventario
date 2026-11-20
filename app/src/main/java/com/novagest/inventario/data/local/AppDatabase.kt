@@ -36,7 +36,7 @@ import com.novagest.inventario.data.local.entity.UserEntity
         ReportCacheEntity::class
     ],
     version = 5,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun products(): ProductDao
