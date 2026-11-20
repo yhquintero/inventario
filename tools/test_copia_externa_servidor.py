@@ -13,6 +13,7 @@ import hashlib
 import importlib.util
 import json
 import os
+os.environ["NOVAGEST_DEMO_USERS"] = "1"  # cuentas demo aisladas, solo para esta fixture
 import pathlib
 import sys
 import tempfile

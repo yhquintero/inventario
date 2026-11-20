@@ -18,15 +18,13 @@ y aceptan filtros ?desde=AAAA-MM-DD&hasta=AAAA-MM-DD&cuenta=<id>&centro=<id>.
 
 import json
 from urllib.parse import urlparse, parse_qs, urlencode
+from datetime import date
+import math
+import sqlite3
 
 
 def _qp(h):
     """Parámetros de consulta de la petición como dict de un solo valor."""
-    return {k: v[0] for k, v in parse_qs(urlparse(h.path).query).items()}
-from urllib.parse import urlparse, parse_qs, urlencode
-
-
-def _qp(h):
     return {k: v[0] for k, v in parse_qs(urlparse(h.path).query).items()}
 
 # Naturalezas válidas del plan de cuentas y su saldo normal.
@@ -166,7 +164,7 @@ def cuadre_ok(movs):
     return {"debe": debe, "haber": haber, "diferencia": debe - haber, "cuadra": abs(debe - haber) < 0.005}
 
 
-def registrar(route, q, audit, now, roles):
+def registrar(route, q, audit, now, roles, transaction=None):
     """Registra los endpoints /api/fin/* en el enrutador de NovaGest."""
 
     # ---------------- plan de cuentas ----------------
@@ -182,9 +180,12 @@ def registrar(route, q, audit, now, roles):
         nat = str(b.get("naturaleza", "")).upper()
         if not codigo or nat not in NATURALEZAS:
             return h.err(400, "Código y naturaleza válidos son obligatorios")
-        q("INSERT INTO fin_cuentas(codigo,nombre,naturaleza,saldo_normal,padre,corriente,tipo_costo) VALUES(?,?,?,?,?,?,?)",
-          (codigo, b.get("nombre", codigo), nat, NATURALEZAS[nat], b.get("padre") or None,
-           1 if b.get("corriente") else 0, b.get("tipo_costo") or None))
+        try:
+            q("INSERT INTO fin_cuentas(codigo,nombre,naturaleza,saldo_normal,padre,corriente,tipo_costo) VALUES(?,?,?,?,?,?,?)",
+              (codigo, b.get("nombre", codigo), nat, NATURALEZAS[nat], b.get("padre") or None,
+               1 if b.get("corriente") else 0, b.get("tipo_costo") or None))
+        except sqlite3.IntegrityError:
+            return h.err(409, "Ya existe una cuenta con ese código")
         audit(u["username"], "fin_cuenta_crear", codigo)
         return h.send_json(201, {"ok": True})
 
@@ -210,8 +211,11 @@ def registrar(route, q, audit, now, roles):
         b = h.body()
         if not b.get("codigo") or not b.get("nombre"):
             return h.err(400, "Código y nombre son obligatorios")
-        q("INSERT INTO fin_centros(codigo,nombre,responsable) VALUES(?,?,?)",
-          (b["codigo"], b["nombre"], b.get("responsable", "")))
+        try:
+            q("INSERT INTO fin_centros(codigo,nombre,responsable) VALUES(?,?,?)",
+              (str(b["codigo"]).strip(), str(b["nombre"]).strip(), b.get("responsable", "")))
+        except sqlite3.IntegrityError:
+            return h.err(409, "Ya existe un centro con ese código")
         return h.send_json(201, {"ok": True})
 
     # ---------------- asientos (partida doble) ----------------
@@ -230,26 +234,56 @@ def registrar(route, q, audit, now, roles):
     @route("POST", "/api/fin/asientos", roles=roles)
     def asientos_post(h, u, ident):
         b = h.body()
-        lineas = b.get("lineas") or []
-        if len(lineas) < 2:
+        lineas = b.get("lineas")
+        if not isinstance(lineas, list) or len(lineas) < 2:
             return h.err(400, "Un asiento necesita al menos 2 líneas")
-        debe = sum(float(l.get("debe") or 0) for l in lineas)
-        haber = sum(float(l.get("haber") or 0) for l in lineas)
+        try:
+            fecha = str(b.get("fecha") or "")
+            if date.fromisoformat(fecha).isoformat() != fecha:
+                raise ValueError("fecha debe ser AAAA-MM-DD")
+            normalizadas = []
+            for linea in lineas:
+                if not isinstance(linea, dict): raise ValueError("línea inválida")
+                cuenta = int(linea.get("cuenta_id"))
+                centro = linea.get("centro_id")
+                centro = int(centro) if centro not in (None, "") else None
+                debe_l = float(linea.get("debe") or 0)
+                haber_l = float(linea.get("haber") or 0)
+                if not all(math.isfinite(x) and x >= 0 for x in (debe_l, haber_l)) or (debe_l > 0 and haber_l > 0) or (debe_l == 0 and haber_l == 0):
+                    raise ValueError("importe de línea inválido")
+                normalizadas.append((cuenta, centro, debe_l, haber_l))
+        except (TypeError, ValueError, OverflowError):
+            return h.err(400, "Fecha, cuentas o importes del asiento no son válidos")
+        if any(not q("SELECT 1 FROM fin_cuentas WHERE id=? AND activa=1", (cuenta,), one=True) for cuenta, *_ in normalizadas):
+            return h.err(400, "Una cuenta no existe o está inactiva")
+        if any(centro is not None and not q("SELECT 1 FROM fin_centros WHERE id=?", (centro,), one=True) for _, centro, *_ in normalizadas):
+            return h.err(400, "Un centro de costo no existe")
+        debe = sum(x[2] for x in normalizadas)
+        haber = sum(x[3] for x in normalizadas)
         if abs(debe - haber) >= 0.005:
             return h.err(422, f"El asiento no cuadra: debe={debe:.2f} haber={haber:.2f}")
-        cur = q("INSERT INTO fin_asientos(fecha,descripcion,created_at,created_by) VALUES(?,?,?,?)",
-                (b.get("fecha") or "", b.get("descripcion", ""), now(), u["username"]))
-        aid = cur.lastrowid if hasattr(cur, "lastrowid") else q("SELECT last_insert_rowid() v", one=True)["v"]
-        for l in lineas:
-            q("INSERT INTO fin_lineas(asiento_id,cuenta_id,centro_id,debe,haber) VALUES(?,?,?,?,?)",
-              (aid, l["cuenta_id"], l.get("centro_id"), float(l.get("debe") or 0), float(l.get("haber") or 0)))
-        audit(u["username"], "fin_asiento_crear", f"#{aid} {b.get('fecha','')} debe={debe:.2f}")
+        if transaction is None:
+            return h.err(500, "Transacciones financieras no disponibles")
+        def insertar(cur):
+            cur.execute("INSERT INTO fin_asientos(fecha,descripcion,created_at,created_by) VALUES(?,?,?,?)",
+                        (fecha, str(b.get("descripcion", ""))[:500], now(), u["username"]))
+            aid = cur.lastrowid
+            for cuenta, centro, debe_l, haber_l in normalizadas:
+                cur.execute("INSERT INTO fin_lineas(asiento_id,cuenta_id,centro_id,debe,haber) VALUES(?,?,?,?,?)",
+                            (aid, cuenta, centro, debe_l, haber_l))
+            return aid
+        aid = transaction(insertar)
+        audit(u["username"], "fin_asiento_crear", f"#{aid} {fecha} debe={debe:.2f}")
         return h.send_json(201, {"ok": True, "id": aid, "cuadre": {"debe": debe, "haber": haber, "cuadra": True}})
 
     @route("DELETE", "/api/fin/asientos/:id", roles=roles)
     def asientos_del(h, u, ident):
-        q("DELETE FROM fin_lineas WHERE asiento_id=?", (ident,))
-        q("DELETE FROM fin_asientos WHERE id=?", (ident,))
+        if not str(ident).isdigit(): return h.err(400, "Identificador de asiento inválido")
+        if transaction is None: return h.err(500, "Transacciones financieras no disponibles")
+        def borrar(cur):
+            cur.execute("DELETE FROM fin_lineas WHERE asiento_id=?", (int(ident),))
+            cur.execute("DELETE FROM fin_asientos WHERE id=?", (int(ident),))
+        transaction(borrar)
         audit(u["username"], "fin_asiento_borrar", f"#{ident}")
         return h.send_json(200, {"ok": True})
 
@@ -290,11 +324,14 @@ def registrar(route, q, audit, now, roles):
         costos = t.get("COSTO", 0)
         gastos = t.get("GASTO", 0)
         utilidad = ingresos - costos - gastos
-        # Evolución mensual para gráficos
+        # Evolución mensual respeta el mismo rango y centro que el informe.
+        cond_mes, args_mes = _filtro_fecha(desde, hasta)
+        if centro:
+            cond_mes += " AND l.centro_id=?"; args_mes.append(centro)
         mensual = q(
             "SELECT substr(a.fecha,1,7) mes, c.naturaleza, SUM(l.debe-l.haber) d, SUM(l.haber-l.debe) h"
             " FROM fin_lineas l JOIN fin_asientos a ON a.id=l.asiento_id JOIN fin_cuentas c ON c.id=l.cuenta_id"
-            " WHERE c.naturaleza IN('INGRESO','COSTO','GASTO') GROUP BY mes, c.naturaleza ORDER BY mes")
+            f" WHERE c.naturaleza IN('INGRESO','COSTO','GASTO'){cond_mes} GROUP BY mes, c.naturaleza ORDER BY mes", args_mes)
         ev = {}
         for r in mensual:
             e = ev.setdefault(r["mes"], {"ingresos": 0, "costos": 0, "gastos": 0})
@@ -411,17 +448,19 @@ def registrar(route, q, audit, now, roles):
     @route("GET", "/api/fin/margenes", roles=roles)
     def margenes(h, u, ident):
         desde, hasta, cuenta, centro = _params(h)
-        er = estado_resultados.__wrapped__(h, u, ident) if hasattr(estado_resultados, "__wrapped__") else None
         t, _ = total_por_naturaleza(q, desde, hasta, cuenta, centro)
         ing, cos, gas = t.get("INGRESO", 0), t.get("COSTO", 0), t.get("GASTO", 0)
         bruto = ing - cos
         operativo = bruto - gas
         neto = ing - cos - gas
         pct = lambda v: (v / ing * 100) if ing else None
+        cond_mes, args_mes = _filtro_fecha(desde, hasta)
+        if centro:
+            cond_mes += " AND l.centro_id=?"; args_mes.append(centro)
         mensual = q(
             "SELECT substr(a.fecha,1,7) mes, c.naturaleza, SUM(l.debe-l.haber) d, SUM(l.haber-l.debe) h"
             " FROM fin_lineas l JOIN fin_asientos a ON a.id=l.asiento_id JOIN fin_cuentas c ON c.id=l.cuenta_id"
-            " WHERE c.naturaleza IN('INGRESO','COSTO','GASTO') GROUP BY mes, c.naturaleza ORDER BY mes")
+            f" WHERE c.naturaleza IN('INGRESO','COSTO','GASTO'){cond_mes} GROUP BY mes, c.naturaleza ORDER BY mes", args_mes)
         ev = {}
         for r in mensual:
             e = ev.setdefault(r["mes"], {"ingresos": 0, "costos": 0, "gastos": 0})
@@ -458,7 +497,22 @@ def registrar(route, q, audit, now, roles):
         ac = sub("ACTIVO", 1); anc = sub("ACTIVO", 0)
         pc = sub("PASIVO", 1); pnc = sub("PASIVO", 0)
         pat = t.get("PATRIMONIO", 0) + utilidad
-        cxc = sub("ACTIVO", 1)  # aproximación: días de cobro sobre ingresos
+        def subtotal_codigo(prefijo):
+            cond, args = _filtro_fecha(desde, hasta)
+            if centro:
+                cond += " AND l.centro_id=?"; args.append(centro)
+            patron = prefijo + "%"
+            if not q("SELECT 1 FROM fin_cuentas WHERE codigo LIKE ? LIMIT 1", (patron,), one=True):
+                return None
+            fila = q("SELECT COALESCE(SUM(CASE WHEN c.saldo_normal='DEUDOR' THEN l.debe-l.haber ELSE l.haber-l.debe END),0) saldo"
+                     " FROM fin_lineas l JOIN fin_asientos a ON a.id=l.asiento_id JOIN fin_cuentas c ON c.id=l.cuenta_id"
+                     f" WHERE c.codigo LIKE ?{cond}", (patron,) + tuple(args), one=True)
+            return fila["saldo"]
+        # El plan semilla reserva 1103* para cuentas por cobrar y 1104* para inventario.
+        # Si una instalación usa otros códigos, la razón rápida/días de cobro queda nula
+        # en vez de publicar una aproximación engañosa.
+        cxc = subtotal_codigo("1103")
+        inventario = subtotal_codigo("1104")
         out = []
         def add(cat, nombre, formula, valor, interp):
             out.append({"categoria": cat, "nombre": nombre, "formula": formula,
@@ -466,19 +520,20 @@ def registrar(route, q, audit, now, roles):
         lc = ac / pc if pc else None
         add("Liquidez", "Liquidez corriente", "Activo corriente / Pasivo corriente", lc,
             "Mide la capacidad de pagar deudas a corto plazo. >1.5 es saludable; <1 alerta de liquidez." if lc is not None else "Sin datos suficientes.")
-        rp = ac / (pc or 1)
+        rp = (ac - inventario) / pc if pc and inventario is not None else None
         add("Liquidez", "Razón rápida", "(Activo corriente - Inventario) / Pasivo corriente", rp,
-            "Versión estricta de liquidez sin contar inventario.")
-        dias = (cxc / ing * 365) if ing else None
-        add("Eficiencia operativa", "Días de cobro", "(Ctas por cobrar / Ingresos) x 365", dias,
-            "Días promedio que tardan los clientes en pagar. Menor = mejor gestión de cobranza.")
-        rot = ing / ((ac + anc) or 1)
+            "Versión estricta de liquidez sin contar inventario." if rp is not None else "Sin pasivo corriente o falta mapear inventario (cuentas 1104*).")
+        dias = (cxc / ing * 365) if ing and cxc is not None else None
+        add("Eficiencia operativa", "Días de cobro", "(Cuentas por cobrar 1103* / Ingresos) x 365", dias,
+            "Días promedio que tardan los clientes en pagar. Menor = mejor gestión de cobranza." if dias is not None else "Sin ingresos o falta mapear cuentas por cobrar (cuentas 1103*).")
+        activos = ac + anc
+        rot = ing / activos if activos else None
         add("Eficiencia operativa", "Rotación de activos", "Ingresos / Activos totales", rot,
-            "Eficiencia con la que los activos generan ventas. Mayor = mejor uso del capital.")
-        roa = utilidad / ((ac + anc) or 1) * 100
+            "Eficiencia con la que los activos generan ventas. Mayor = mejor uso del capital." if rot is not None else "Sin activos registrados.")
+        roa = utilidad / activos * 100 if activos else None
         add("Rentabilidad", "ROA (sobre activos)", "Utilidad / Activos x 100", roa,
-            "Rentabilidad que generan los activos. >5% suele considerarse buena.")
-        roe = utilidad / (pat or 1) * 100
+            "Rentabilidad que generan los activos. >5% suele considerarse buena." if roa is not None else "Sin activos registrados.")
+        roe = utilidad / pat * 100 if pat else None
         add("Rentabilidad", "ROE (sobre patrimonio)", "Utilidad / Patrimonio x 100", roe,
             "Retorno para los dueños. Comparar con alternativas de inversión.")
         mn = utilidad / ing * 100 if ing else None
@@ -542,6 +597,8 @@ def registrar(route, q, audit, now, roles):
     def qr_pago(h, u, ident):
         """Devuelve el texto/URL que se codifica en el QR: abre la pantalla de pago pública."""
         from urllib.parse import urlencode
+        if u is None:
+            return h.err(401, "Inicia sesión para consultar los datos de cobro")
         cfg = q("SELECT * FROM fin_qr WHERE id=1", one=True)
         if not cfg:
             return h.err(404, "Configura primero los datos de cobro")

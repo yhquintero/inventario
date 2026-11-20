@@ -23,6 +23,19 @@ h = m.hash_pw("ClaveSegura1")
 check("hash verifica la correcta", m.check_pw("ClaveSegura1", h))
 check("hash rechaza otra", not m.check_pw("OtraClave9", h))
 check("hashes con sal distinta", m.hash_pw("ClaveSegura1") != h)
+check("la confianza en X-Forwarded-For está desactivada por defecto", m.TRUST_PROXY is False)
+check("las cuentas demo requieren activación explícita", 'os.environ.get("NOVAGEST_DEMO_USERS", "0")' in pathlib.Path(m.__file__).read_text())
+
+class FakeRequest:
+    def auth(self):
+        return {"role": "ALMACENERO", "totp_enabled": 0}
+    def err(self, code, message):
+        self.status = code
+        return message
+
+fake = FakeRequest()
+m.ROUTES[("GET", "/api/users")](fake, "")
+check("GET /api/users rechaza el rol Almacenero", getattr(fake, "status", None) == 403)
 
 
 class LogContext:

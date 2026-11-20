@@ -19,6 +19,7 @@ Comprueba, sin tocar la Web ni el servidor HTTP de NovaGest:
 import http.cookiejar
 import json
 import os
+os.environ["NOVAGEST_DEMO_USERS"] = "1"  # cuentas demo aisladas, solo para esta fixture
 import ssl
 import sys
 import tempfile
@@ -28,6 +29,7 @@ import urllib.error
 import urllib.request
 
 os.environ["DATA_DIR"] = os.environ.get("DATA_DIR") or tempfile.mkdtemp(prefix="novagest-gen-")
+os.environ["LICENSE_SECRET"] = "test-generator-shared-signing-secret"  # same secret for generator and server
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 sys.path.insert(0, os.path.join(ROOT, "server"))

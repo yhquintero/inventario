@@ -25,7 +25,8 @@ class BackupManager @Inject constructor(
 ) {
     private fun dir() = File(context.filesDir, "backups").apply { mkdirs() }
 
-    suspend fun create(actor: UserAccount, automatic: Boolean, passphrase: String = "NovaGest"): AppResult<File> {
+    suspend fun create(actor: UserAccount, automatic: Boolean, passphrase: String): AppResult<File> {
+        if (passphrase.length < 12) return AppResult.Err("La frase de cifrado debe tener al menos 12 caracteres.")
         return try {
             val payload = JSONObject().apply {
                 put("version", 1)
@@ -47,7 +48,7 @@ class BackupManager @Inject constructor(
                 put("cuadres", arr(db.cuadre().all()) { c -> JSONObject().put("id", c.id).put("dateEpoch", c.dateEpoch).put("payload", c.toString()) })
                 put("users", arr(db.users().all()) { u ->
                     JSONObject().put("id", u.id).put("username", u.username).put("displayName", u.displayName)
-                        .put("email", u.email).put("passwordHash", u.passwordHash).put("salt", u.salt)
+                        .put("email", u.email)
                         .put("role", u.role).put("active", u.active)
                 })
                 put("audit", arr(db.audit().all()) { a ->

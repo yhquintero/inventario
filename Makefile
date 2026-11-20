@@ -1,0 +1,30 @@
+PYTHON ?= python3
+NODE ?= node
+
+.PHONY: help test test-web test-python test-android lint-python
+help:
+	@echo "NovaGest: make test | test-web | test-python | test-android | lint-python"
+
+test: test-web test-python
+
+test-web:
+	$(NODE) tools/test_calc.mjs
+	$(NODE) tools/test_merge.mjs
+	$(NODE) tools/test_ticket.mjs
+	$(NODE) tools/test_api_cookie.mjs
+	$(NODE) tools/cobertura.mjs --min 80
+
+# El servidor y sus pruebas necesitan las dependencias de requirements.txt.
+test-python:
+	$(PYTHON) -m py_compile server/novagest_server.py server/financiero.py tools/generate_license.py
+	$(PYTHON) tools/test_seguridad_servidor.py
+	$(PYTHON) tools/test_financial_restore.py
+	$(PYTHON) tools/test_restauracion.py
+	$(PYTHON) tools/test_salud_servidor.py
+	$(PYTHON) tools/test_login_cookie.py
+
+lint-python:
+	$(PYTHON) -m py_compile server/*.py tools/*.py
+
+test-android:
+	./gradlew testDebugUnitTest compileDebugAndroidTestKotlin :keygen:assembleDebug

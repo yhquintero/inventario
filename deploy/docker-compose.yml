@@ -5,9 +5,17 @@ services:
     restart: unless-stopped
     environment:
       - TRUST_PROXY=1
-      # - BACKUP_KEY=...   # opcional: clave Fernet; si no, se genera en /data/backup.key (¡guárdala fuera del servidor!)
+      - NOVAGEST_DEMO_USERS=0
+      - NOVAGEST_ADMIN_PASSWORD=${NOVAGEST_ADMIN_PASSWORD:?Defina NOVAGEST_ADMIN_PASSWORD en el entorno}
+      # - BACKUP_KEY=...   # clave independiente de copias; guárdela fuera del servidor junto con el respaldo seguro.
     volumes:
       - datos:/data
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
   caddy:
     image: caddy:2
     restart: unless-stopped

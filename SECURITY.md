@@ -68,10 +68,10 @@ No incluyas datos personales reales, claves de licencia válidas, contraseñas n
 
 ## 🧰 Recomendaciones para producción
 
-1. Arranca el servidor **sin cuentas de demostración**: `NOVAGEST_DEMO_USERS=0 NOVAGEST_ADMIN_PASSWORD=<secreta, mín. 10>`.
+1. El valor seguro predeterminado es `NOVAGEST_DEMO_USERS=0`; al crear la primera base configura `NOVAGEST_ADMIN_PASSWORD` con una clave propia de al menos 10 caracteres. Solo habilita `NOVAGEST_DEMO_USERS=1` en pruebas locales aisladas.
 2. Mantén `REQUIRE_ADMIN_TOTP=1` (valor por defecto) y activa la verificación en dos pasos de todos los administradores.
-3. Usa **solo HTTPS** (`server/iniciar-https.ps1` con mkcert, o `deploy/` con Caddy) y nunca publiques el servidor por HTTP en Internet.
-4. Guarda `LICENSE_SECRET` y `BACKUP_KEY` fuera del servidor y del repositorio; no subas nunca `data/` ni `certs/`.
+3. Usa **solo HTTPS** (`server/iniciar-https.ps1` con mkcert, o `deploy/` con Caddy) y nunca publiques el servidor por HTTP en Internet. `TRUST_PROXY` está desactivado por defecto; actívalo solo si un proxy inverso de confianza es el único acceso al servidor.
+4. Provisiona `LICENSE_SECRET` (compartido con el emisor) y una `BACKUP_KEY` independiente; conserva también `data/backup-aead.key` cuando se genere localmente, fuera del repositorio y bajo respaldo cifrado. Nunca subas `data/` ni `certs/`. `BACKUP_KEY` se conserva como compatibilidad histórica para instalaciones antiguas; no la uses como único secreto de licencia en instalaciones nuevas.
 5. Replica las copias fuera del equipo con `BACKUP_MIRROR_DIRS` (carpeta de red) o `BACKUP_WEBDAV_URL` (WebDAV), con verificación de que la copia se abre (regla 3-2-1), y **prueba la restauración** con regularidad.
 6. Mantén **privado el generador de licencias**: protégelo con su clave de acceso, ábrelo solo por HTTPS y no lo expongas en Internet.
 7. Publica tu contacto de seguridad: `python3 tools/generar_security_txt.py --contact <tu correo o URL https>` genera `web/.well-known/security.txt`.

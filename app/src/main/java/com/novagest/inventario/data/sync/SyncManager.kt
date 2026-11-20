@@ -132,20 +132,24 @@ class SyncManager @Inject constructor(
         withContext(Dispatchers.IO) {
             try {
                 val conn = URL(base.trimEnd('/') + "/api" + path).openConnection() as HttpURLConnection
-                // H3 (auditoría 2026): pinning opcional si hay pins en assets/pins.txt (solo dominios públicos).
-                if (conn is javax.net.ssl.HttpsURLConnection) {
-                    com.novagest.inventario.security.CertificatePinning.aplicar(context, conn)
-                }
                 conn.requestMethod = method
                 conn.connectTimeout = 10_000
                 conn.readTimeout = 30_000
                 conn.setRequestProperty("X-CP", "1")
+                conn.setRequestProperty("X-CP-Client", "android")
                 conn.setRequestProperty("User-Agent", "NovaGestApp Android")
                 conn.setRequestProperty("Accept", "application/json")
                 token()?.let { conn.setRequestProperty("Authorization", "Bearer $it") }
                 if (body != null) {
                     conn.doOutput = true
                     conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                }
+                // Configuramos todos los parámetros antes del handshake; con pins activos
+                // se conecta y valida el certificado antes de escribir el cuerpo sensible.
+                if (conn is javax.net.ssl.HttpsURLConnection) {
+                    com.novagest.inventario.security.CertificatePinning.aplicar(context, conn)
+                }
+                if (body != null) {
                     conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
                 }
                 val code = conn.responseCode
@@ -461,9 +465,11 @@ class SyncManager @Inject constructor(
             return@withLock
         }
         if (!force && ver == version() && closed == _status.value.closedDays) { _status.value = _status.value.copy(busy = false); return@withLock }
+        // Primero se aplica Room de forma transaccional. Solo después avanzamos el
+        // marcador; un fallo/interrupción debe permitir volver a descargar la versión.
+        applyToRoom(state, closed)
         stateFile.writeText(state.toString())
         prefs.edit().putInt("version", ver).apply()
-        applyToRoom(state, closed)
         lastLocalSig = localSig()
         _status.value = _status.value.copy(busy = false, version = ver, lastSync = System.currentTimeMillis(), closedDays = closed,
             message = r.body.optString("updatedBy").takeIf { it.isNotBlank() }?.let { "Datos al día (último cambio: $it)" })
@@ -539,14 +545,15 @@ class SyncManager @Inject constructor(
     private fun cuadreFromJson(c: JSONObject, me: Long, closed: Boolean): DailyCuadreEntity {
         val d = LocalDate.parse(c.str("date"))
         return DailyCuadreEntity(
-            dateEpoch = Dates.startOfDay(d), weekday = Dates.weekday(d), cupUsd = c.num("cupUsd").takeIf { it > 0 } ?: 750.0, mxnUsd = 20.0,
-            cobroUsd = c.num("usdEfectivo"), cobroZelle = c.num("zelle"), cobroMxn = 0.0, cobroCupEfectivo = c.num("mnEfectivoCup"),
+            dateEpoch = Dates.startOfDay(d), weekday = Dates.weekday(d), cupUsd = c.num("cupUsd").takeIf { it > 0 } ?: 750.0,
+            mxnUsd = c.num("mxnUsd").takeIf { it > 0 } ?: 20.0,
+            cobroUsd = c.num("usdEfectivo"), cobroZelle = c.num("zelle"), cobroMxn = c.num("cobroMxn"), cobroCupEfectivo = c.num("mnEfectivoCup"),
             cobroCupTransf = c.num("mnTarjetaCup"), cobroEuropa = c.num("mlc"), entradaCup = c.num("aumentoFondoCup"), entradaUsd = c.num("aumentoFondoUsd"),
             extraccionCup = c.num("salidaJesusMn"), extraccionUsd = c.num("salidaJesusUsd") + c.num("salidaMlc"),
             fondoInicialCup = c.num("fondoCupEfectivo") + c.num("fondoCupTarjeta"), fondoInicialUsd = c.num("fondoUsd"),
-            cambioCup = 0.0, cambioUsd = c.num("gastosCombosUsd"), domicilioCup = c.num("domiciliosCup"), domicilioUsd = 0.0,
-            otrosGastosCup = c.num("gastosCup"), otrosGastosUsd = 0.0, otrosGastosObs = "Venta del día: ${c.num("venta")} USD",
-            comisionesCup = c.num("comisionesCup"), comisionesUsd = 0.0, closed = closed, userId = me
+            cambioCup = c.num("cambioCup"), cambioUsd = c.num("gastosCombosUsd"), domicilioCup = c.num("domiciliosCup"), domicilioUsd = c.num("domicilioUsd"),
+            otrosGastosCup = c.num("gastosCup"), otrosGastosUsd = c.num("otrosGastosUsd"), otrosGastosObs = c.str("otrosGastosObs").ifBlank { "Venta del día: ${c.num("venta")} USD" },
+            comisionesCup = c.num("comisionesCup"), comisionesUsd = c.num("comisionesUsd"), closed = closed, userId = me
         )
     }
 
@@ -557,7 +564,8 @@ class SyncManager @Inject constructor(
         db.movements().all().forEach { sb.append(listOf(it.remoteId, it.productId, it.dateEpoch, it.type, it.quantity, it.unitPriceUsd, it.unitCostUsd, it.importeUsd, it.comisionCup, it.center, it.notes).joinToString("|")).append('\n') }
         db.cuadre().all().sortedBy { it.dateEpoch }.forEach { sb.append(it.copy(id = 0, userId = 0, closed = false).toString()).append('\n') }
         db.exchange().all().forEach { sb.append(listOf(it.remoteId, it.pair, it.rate, it.dateEpoch).joinToString("|")).append('\n') }
-        return sb.toString().hashCode().toString() + ":" + sb.length
+        val bytes = java.security.MessageDigest.getInstance("SHA-256").digest(sb.toString().toByteArray(Charsets.UTF_8))
+        return bytes.joinToString("") { "%02x".format(it) }
     }
 
     // ------------------------------------------------------------------ push
@@ -732,7 +740,10 @@ class SyncManager @Inject constructor(
                 .put("salidaJesusMn", c.extraccionCup).put("salidaJesusUsd", c.extraccionUsd - t.num("salidaMlc"))
                 .put("fondoCupEfectivo", c.fondoInicialCup - tarjeta).put("fondoCupTarjeta", tarjeta).put("fondoUsd", c.fondoInicialUsd)
                 .put("gastosCombosUsd", c.cambioUsd).put("domiciliosCup", c.domicilioCup).put("gastosCup", c.otrosGastosCup)
-                .put("comisionesCup", c.comisionesCup).put("imported", false).put("updatedBy", "$who (App)")
+                .put("comisionesCup", c.comisionesCup).put("mxnUsd", c.mxnUsd).put("cobroMxn", c.cobroMxn)
+                .put("cambioCup", c.cambioCup).put("domicilioUsd", c.domicilioUsd).put("otrosGastosUsd", c.otrosGastosUsd)
+                .put("otrosGastosObs", c.otrosGastosObs).put("comisionesUsd", c.comisionesUsd)
+                .put("imported", false).put("updatedBy", "$who (App)")
             changes += "cuadre $date"
         }
 

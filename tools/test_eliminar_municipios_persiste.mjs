@@ -73,7 +73,7 @@ function api(ruta, { method = "GET", body, token } = {}) {
     const peticion = http.request({
       host: "127.0.0.1", port: PUERTO, path: `/api${ruta}`, method,
       headers: {
-        "X-CP": "1", "Content-Type": "application/json",
+        "X-CP": "1", "X-CP-Client": "android", "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(datos ? { "Content-Length": datos.length } : {}),
       },

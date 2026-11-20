@@ -111,8 +111,8 @@ class Handler:
         return {"role": self.role} if self.role else None
     def err(self, code, message):
         self.response = (code, {"error": message})
-    def send_json(self, code, data):
-        self.response = (code, data)
+    def send_json(self, code, data, **kwargs):
+        self.response = (code, data, kwargs) if kwargs else (code, data)
 
 route = server.ROUTES[("GET", "/api/exchange/divisa")]
 with patch.object(divisa, "fetch_rates", return_value=parsed) as fetch:

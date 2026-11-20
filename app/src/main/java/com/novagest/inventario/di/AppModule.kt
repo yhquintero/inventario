@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
-import net.zetetic.database.sqlcipher.SQLiteDatabase
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import com.novagest.inventario.data.local.AppDatabase
 import com.novagest.inventario.data.local.DatabaseSeeder
@@ -32,28 +31,8 @@ object AppModule {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val passphrase = DatabaseKey.passphrase(context)
 
-        // Si existe un archivo previo inaccesible (p.ej. base no cifrada previa, contraseña desincronizada o corrupta),
-        // validamos la conexión de forma limpia. En caso de error, eliminamos la base corrupta para recrearla.
-        val dbFile = context.getDatabasePath("novagest.db")
-        if (dbFile.exists()) {
-            try {
-                SQLiteDatabase.openDatabase(
-                    dbFile.absolutePath,
-                    passphrase,
-                    null,
-                    SQLiteDatabase.OPEN_READWRITE,
-                    null,
-                    null
-                ).use { db ->
-                    db.rawQuery("SELECT count(*) FROM sqlite_master", emptyArray()).use { cursor ->
-                        cursor.moveToFirst()
-                    }
-                }
-            } catch (_: Exception) {
-                context.deleteDatabase("novagest.db")
-            }
-        }
-
+        // Nunca borrar una base inaccesible: puede ser una clave de Keystore temporalmente
+        // inválida o una migración pendiente. Fallar explícitamente conserva los datos.
         return Room.databaseBuilder(context, AppDatabase::class.java, "novagest.db")
             .openHelperFactory(SupportOpenHelperFactory(passphrase))
             .addMigrations(com.novagest.inventario.data.local.MIGRATION_3_4, com.novagest.inventario.data.local.MIGRATION_4_5)
@@ -63,7 +42,6 @@ object AppModule {
                     // Seeding happens after first open via explicit call in NovaGestApp.
                 }
             })
-            .fallbackToDestructiveMigration()
             .build()
             .also { database ->
                 scope.launch { DatabaseSeeder.seedIfEmpty(context, database) }

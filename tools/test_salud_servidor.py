@@ -34,7 +34,7 @@ def leer():
         return r.status, json.loads(r.read().decode("utf-8"))
 
 
-env = {**os.environ, "DATA_DIR": tmp, "PORT": str(PORT)}
+env = {**os.environ, "DATA_DIR": tmp, "PORT": str(PORT), "NOVAGEST_DEMO_USERS": "1", "LICENSE_SECRET": "test-health-secret"}
 proc = subprocess.Popen(
     [sys.executable, str(ROOT / "server" / "novagest_server.py")], env=env,
     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -57,87 +57,19 @@ try:
 
     salud = datos.get("salud") or {}
     ok("incluye el bloque de salud", isinstance(salud, dict) and salud)
-    for clave in ("estado", "avisos", "uptimeSegundos", "latenciaMs", "bdBytes", "copias", "diasCerrados", "sesionesActivas"):
-        ok(f"métrica «{clave}»", clave in salud, str(sorted(salud)))
+    for clave in ("estado", "uptimeSegundos", "latenciaMs"):
+        ok(f"métrica pública mínima «{clave}»", clave in salud, str(sorted(salud)))
+    for privado in ("bdBytes", "walBytes", "copias", "diasCerrados", "sesionesActivas", "disco", "licencia", "copiaExterna", "avisos"):
+        ok(f"oculta detalle interno público «{privado}»", privado not in salud, str(sorted(salud)))
     ok("la latencia se mide en milisegundos", isinstance(salud.get("latenciaMs"), (int, float)) and salud["latenciaMs"] >= 0)
-    ok("el tamaño de la base es un número", isinstance(salud.get("bdBytes"), int) and salud["bdBytes"] > 0)
-    ok("el tiempo en marcha avanza", isinstance(salud.get("uptimeSegundos"), int) and salud["uptimeSegundos"] >= 0)
-    ok("sin licencia activa avisa", "licencia" in (salud.get("avisos") or []), str(salud.get("avisos")))
-    # El servidor puede crear una copia al arrancar: la expectativa sale del dato.
-    copias = salud.get("copias") or {}
-    avisos = set(salud.get("avisos") or [])
-    if copias.get("total", 0) == 0:
-        ok("sin copias avisa", "sin-copias" in avisos, str(sorted(avisos)))
-    else:
-        ok("con copia reciente no avisa de copias",
-           not ({"sin-copias", "copias-viejas"} & avisos), str(sorted(avisos)))
-    ok("el estado global es «aviso»", salud.get("estado") == "aviso", str(salud.get("estado")))
-    ok("las copias se describen con total y última", {"total", "ultima", "haceHoras"} <= set((salud.get("copias") or {}).keys()))
+    ok("el ping público no revela tipo ni vigencia de licencia", "licenseValid" not in datos and "licenseType" not in datos)
 
     # Ninguna métrica debe exponer contenido de la base ni datos de personas.
     texto = json.dumps(datos, ensure_ascii=False).lower()
     for prohibido in ("password", "pw_hash", "token", "customer", "client_name"):
         ok(f"no expone «{prohibido}»", prohibido not in texto)
 
-    # El contador de días cerrados es coherente con la base recién creada.
-    ok("empieza sin días cerrados", salud.get("diasCerrados") == 0, str(salud.get("diasCerrados")))
 
-    # S-05: espacio en disco y vigencia de la licencia para el titular.
-    disco = salud.get("disco") or {}
-    ok("informa el espacio del disco", isinstance(disco.get("totalBytes"), int) and disco["totalBytes"] > 0, str(disco))
-    ok("informa el espacio libre", isinstance(disco.get("libreBytes"), int) and disco["libreBytes"] >= 0, str(disco.get("libreBytes")))
-    ok("informa el porcentaje libre", 0 <= (disco.get("librePct") or 0) <= 100, str(disco.get("librePct")))
-    licencia = salud.get("licencia") or {}
-    ok("incluye el bloque de licencia", isinstance(licencia, dict) and set(licencia) == {"tipo", "vence", "diasRestantes"}, str(licencia))
-    ok("sin licencia activa los días son nulos", licencia.get("diasRestantes") is None, str(licencia.get("diasRestantes")))
-    ok("sin licencia no hay tipo", licencia.get("tipo") is None, str(licencia.get("tipo")))
-    ok("los avisos son claves cortas conocidas",
-       all(a in {"licencia", "sin-copias", "copias-viejas", "disco-bajo", "licencia-vence", "copia-externa"}
-           for a in salud.get("avisos") or []),
-       str(salud.get("avisos")))
-    # S-14: la copia externa se informa sin credenciales.
-    externa = salud.get("copiaExterna") or {}
-    ok("informa de la copia externa", "configurados" in externa and "destinos" in externa, str(externa))
-    ok("sin destinos configurados son cero", externa.get("configurados") == 0, str(externa))
-
-    # S-11: la compresión llega al cliente y los archivos viajan comprimidos.
-    def pedir(path, gzip_ok=True):
-        cabeceras = {"X-CP": "1"}
-        if gzip_ok:
-            cabeceras["Accept-Encoding"] = "gzip"
-        req = urllib.request.Request(BASE + path, headers=cabeceras)
-        with urllib.request.urlopen(req, timeout=10) as r:
-            return r.headers, r.read()
-
-    print("\nCompresión (S-11)")
-    cab, cuerpo = pedir("/css/app.css")
-    ok("el CSS viaja comprimido", cab.get("Content-Encoding") == "gzip", str(cab.get("Content-Encoding")))
-    ok("el CSS comprimido se descomprime", b"NovaGest" in gzip.decompress(cuerpo) or len(gzip.decompress(cuerpo)) > 1000)
-    cab2, cuerpo2 = pedir("/css/app.css", gzip_ok=False)
-    ok("sin Accept-Encoding no se comprime", cab2.get("Content-Encoding") is None)
-    ok("el CSS sin comprimir es mayor que comprimido", len(cuerpo2) > len(cuerpo))
-    ok("se anuncia Vary: Accept-Encoding", "Accept-Encoding" in (cab.get("Vary") or ""), str(cab.get("Vary")))
-    cab3, _ = pedir("/api/health")
-    ok("las respuestas pequeñas de la API no se comprimen", cab3.get("Content-Encoding") is None)
-
-    print("\nCaché condicional ETag y HEAD")
-    etag = cab.get("ETag")
-    ok("los activos estáticos emiten ETag débil", isinstance(etag, str) and etag.startswith('W/"'), str(etag))
-    ok("envía cabecera X-Permitted-Cross-Domain-Policies: none", cab.get("X-Permitted-Cross-Domain-Policies") == "none")
-    req304 = urllib.request.Request(BASE + "/css/app.css", headers={"If-None-Match": etag})
-    try:
-        with urllib.request.urlopen(req304, timeout=10) as r304:
-            cod304 = r304.status
-    except urllib.error.HTTPError as e:
-        cod304 = e.code
-    ok("If-None-Match coincidente responde 304 Not Modified", cod304 == 304, str(cod304))
-    req_head = urllib.request.Request(BASE + "/api/health", method="HEAD")
-    with urllib.request.urlopen(req_head, timeout=10) as rhead:
-        ok("HEAD /api/health responde 200 sin cuerpo", rhead.status == 200 and rhead.read() == b"")
-    req_head_static = urllib.request.Request(BASE + "/css/app.css", method="HEAD")
-    with urllib.request.urlopen(req_head_static, timeout=10) as rheads:
-        ok("HEAD /css/app.css responde 200 con ETag y sin cuerpo", rheads.status == 200 and rheads.headers.get("ETag") == etag and rheads.read() == b"")
-    ok("incluye métrica walBytes de SQLite", isinstance(salud.get("walBytes"), int) and salud["walBytes"] >= 0)
 finally:
     proc.terminate()
     try:

@@ -23,21 +23,23 @@
 
 ## 🛠️ Preparar el entorno
 
-Requisitos: **Python 3.10+** (la integración continua usa 3.12), **Node.js 22** para las pruebas Web y, opcionalmente, **JDK 17 + Gradle 8.14.5** para Android y **PowerShell 7** para las pruebas del Panel de Control Visual.
+Requisitos: **Python 3.10+** (la integración continua usa 3.12), **Node.js 22** para las pruebas Web y, opcionalmente, **JDK 17 + Gradle 9.6.0** para Android y **PowerShell 7** para las pruebas del Panel de Control Visual.
 
 ```bash
 git clone https://github.com/yhquintero/inventario.git
 cd inventario
-python3 -m pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 
-# Servidor con una carpeta de datos aparte, para no mezclar pruebas con datos reales
-DATA_DIR=/tmp/novagest-dev python3 server/novagest_server.py
+# Servidor aislado para desarrollo (cuentas demo opt-in y secreto de prueba compartido)
+NOVAGEST_DEMO_USERS=1 LICENSE_SECRET=solo-desarrollo DATA_DIR=/tmp/novagest-dev python3 server/novagest_server.py
 
-# En otra terminal: clave de licencia para esa misma carpeta de datos
-DATA_DIR=/tmp/novagest-dev python3 tools/generate_license.py --client "Desarrollo" --term SEMANA
+# En otra terminal: clave firmada con el mismo secreto y la misma carpeta
+LICENSE_SECRET=solo-desarrollo DATA_DIR=/tmp/novagest-dev python3 tools/generate_license.py --client "Desarrollo" --term SEMANA
 ```
 
-Abre `http://localhost:8080`, activa la clave y entra con una de las [cuentas de demostración](README.md#-inicio-rápido). La aplicación Web no tiene proceso de compilación: basta con recargar el navegador tras cada cambio en `web/`.
+Abre `http://localhost:8080`, activa la clave y entra con una de las [cuentas de demostración](README.md#-inicio-rápido). La aplicación Web no tiene proceso de compilación: basta con recargar el navegador tras cada cambio en `web/`. Ejecuta `make test` para las pruebas principales de Web/servidor, `make test-android` para Android y `make lint-python` para compilar todos los módulos Python.
 
 ## 🧪 Pruebas
 
@@ -94,12 +96,14 @@ Search existing issues and pull requests first. For large changes (a new module,
 
 ### 🛠️ Development setup
 
-Requirements: **Python 3.10+** (CI uses 3.12), **Node.js 22** for the Web tests and, optionally, **JDK 17 + Gradle 8.14.5** for Android and **PowerShell 7** for the Visual Control Panel tests.
+Requirements: **Python 3.10+** (CI uses 3.12), **Node.js 22** for the Web tests and, optionally, **JDK 17 + Gradle 9.6.0** for Android and **PowerShell 7** for the Visual Control Panel tests.
 
 ```bash
 git clone https://github.com/yhquintero/inventario.git
 cd inventario
-python3 -m pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 DATA_DIR=/tmp/novagest-dev python3 server/novagest_server.py                                   # separate data folder
 DATA_DIR=/tmp/novagest-dev python3 tools/generate_license.py --client "Development" --term SEMANA  # in another terminal
 ```
